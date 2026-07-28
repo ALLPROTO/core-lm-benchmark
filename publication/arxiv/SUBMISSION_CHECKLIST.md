@@ -3,7 +3,8 @@
 ## Author actions required
 
 - [x] Confirm publication name: `Ivan Tyshchenko`.
-- [ ] Add affiliation, email, and ORCID if desired.
+- [x] Add ORCID: `0009-0000-7935-6090`.
+- [ ] Confirm affiliation and add email to the paper only if desired.
 - [ ] Confirm primary category and any cross-list.
 - [ ] Select the arXiv distribution license.
 - [x] Add public source repository: `https://github.com/ALLPROTO/core-lm-benchmark`.

@@ -90,5 +90,7 @@ Use the metadata in `CITATION.cff`. The paper is:
 > Ivan Tyshchenko. “Closed-Loop Residual Tokenization for Stable Compression
 > of Dynamical State Trajectories.” 2026.
 
+Author ORCID: [0009-0000-7935-6090](https://orcid.org/0009-0000-7935-6090).
+
 The software is released under the MIT License. The paper and arXiv submission
 retain their own distribution terms.

@@ -9,7 +9,9 @@ Trajectories
 
 Ivan Tyshchenko
 
-Add ORCID and confirm the affiliation in the arXiv form if applicable.
+ORCID: https://orcid.org/0009-0000-7935-6090
+
+Confirm the affiliation in the arXiv form.
 
 ## Recommended categories
 
