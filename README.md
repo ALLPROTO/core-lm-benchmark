@@ -6,7 +6,10 @@ Core LM Benchmark is a native macOS application with an independent Python
 measurement core for comparing Dense, PCA, and VoidToken v3 trajectory
 representations. VoidToken v3 encodes a sparse, quantized residual against the
 state actually reconstructed by the decoder, inserts byte-budgeted keyframes,
-and round-trips through a validated binary container.
+and round-trips through the canonical `voidtoken-residual-keyframe-v4` binary
+format. The previous v3 binary format remains readable through an explicit
+legacy path; old readers reject the new format instead of silently applying
+different arithmetic.
 
 ## Registered result
 
@@ -29,12 +32,12 @@ arbitrary learned-model states or task-level language-model quality.
 
 Requirements:
 
-- Python 3.10 or newer
-- NumPy
-- ReportLab for rebuilding the paper figures
+- Python 3.12 (the registered evidence uses 3.12.13)
+- NumPy 2.3.5
+- ReportLab 4.4.9 for rebuilding the paper figures
 - macOS 14 and Swift 5.9 or newer for the native application
 
-Run the 20 implementation tests:
+Run the 25 implementation tests:
 
 ```sh
 python3 -m pip install -r requirements.txt
@@ -66,10 +69,12 @@ Verify a fresh 115-run replay against every registered scientific result:
 python3 BenchmarkCore/verify_evidence.py
 ```
 
-Exact identifiers, input digests, configurations, invariants, and verdicts must
-match. Floating-point scientific values use the declared cross-platform
-tolerance `rtol=1e-4`, `atol=1e-5`, which is orders of magnitude below the PASS
-thresholds.
+Run IDs, input digests, configurations, Core state SHA-256, VoidToken payload
+SHA-256, VoidToken container SHA-256, decoded-trajectory SHA-256, invariants,
+and verdicts must match exactly on macOS/ARM and Linux/x86. Floating-point
+diagnostics are additionally checked with `rtol=1e-4`, `atol=1e-5` for the
+PCA/LAPACK baseline; the tolerance cannot hide a different Core, VoidToken
+stream, or decoded trajectory.
 
 The test suite includes complete Dense, PCA, and VoidToken
 `serialize -> parse -> decode` round trips plus rejection tests for truncated or

@@ -3,6 +3,7 @@ import hashlib
 import struct
 import sys
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -12,6 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "BenchmarkCore"))
 
 from corelm_benchmark import (  # noqa: E402
+    CORE_ARITHMETIC_VERSION,
+    VOIDTOKEN_CANONICALIZATION_VERSION,
+    VOIDTOKEN_FORMAT,
+    VOIDTOKEN_LEGACY_FORMAT,
     CoreLMAdapter,
     DenseBackend,
     DeterministicInputGenerator,
@@ -20,12 +25,17 @@ from corelm_benchmark import (  # noqa: E402
     PCABackend,
     Thresholds,
     VoidTokenBackend,
+    _canonical_float32,
+    _deterministic_tanh,
+    _fixed_l2_norm,
+    _fixed_pairwise_sum_last,
     choose_verdict,
     invariant_violations,
     method_metrics,
     markdown_report,
     run_benchmark,
     save_result,
+    stable_run_id,
 )
 from verify_evidence import (  # noqa: E402
     FLOAT_ABSOLUTE_TOLERANCE,
@@ -35,6 +45,25 @@ from verify_evidence import (  # noqa: E402
 
 
 class InputTests(unittest.TestCase):
+    def test_fixed_order_reduction_has_a_declared_binary_tree(self):
+        values = np.array(
+            [
+                [1e16, 1.0, -1e16, 1.0],
+                [1.0, 2.0, 3.0, 4.0],
+            ],
+            dtype=np.float64,
+        )
+        reduced = _fixed_pairwise_sum_last(values)
+        self.assertTrue(np.array_equal(reduced, np.array([0.0, 10.0])))
+
+    def test_deterministic_tanh_matches_reference_to_float64_precision(self):
+        values = np.linspace(-16.0, 16.0, 4097, dtype=np.float64)
+        candidate = np.asarray(_deterministic_tanh(values))
+        maximum_error = float(np.max(np.abs(candidate - np.tanh(values))))
+        self.assertLess(maximum_error, 3e-14)
+        self.assertEqual(_deterministic_tanh(-20.0), -1.0)
+        self.assertEqual(_deterministic_tanh(20.0), 1.0)
+
     def test_same_seed_is_byte_identical(self):
         config = ExperimentConfiguration(dimension=32, steps=20, seed=7, top_k=8)
         first = DeterministicInputGenerator.generate(config)
@@ -44,6 +73,43 @@ class InputTests(unittest.TestCase):
             DeterministicInputGenerator.digest(first),
             DeterministicInputGenerator.digest(second),
         )
+
+    def test_run_id_covers_all_provenance_fields(self):
+        base = ExperimentConfiguration(
+            dimension=32,
+            steps=20,
+            seed=7,
+            input_scenario="gaussian_bounded",
+            input_bound=0.05,
+            pca_components=8,
+            top_k=4,
+            qmax=127,
+            keyframe_interval=0,
+        )
+        input_digest = "a" * 64
+        reference = stable_run_id(base, input_digest)
+        variants = [
+            replace(base, dimension=33),
+            replace(base, steps=21),
+            replace(base, seed=8),
+            replace(base, input_scenario="uniform_bounded"),
+            replace(base, input_bound=0.04),
+            replace(base, pca_components=7),
+            replace(base, top_k=5),
+            replace(base, qmax=32767),
+            replace(base, keyframe_interval=16),
+            replace(
+                base,
+                thresholds=replace(
+                    base.thresholds,
+                    minimum_compression_ratio=4.1,
+                ),
+            ),
+        ]
+        variant_ids = [stable_run_id(config, input_digest) for config in variants]
+        variant_ids.append(stable_run_id(base, "b" * 64))
+        self.assertTrue(all(run_id != reference for run_id in variant_ids))
+        self.assertEqual(len(set(variant_ids)), len(variant_ids))
 
     def test_scenarios_are_bounded(self):
         for scenario in ("zero", "gaussian_bounded", "uniform_bounded", "impulse", "repeating_structured"):
@@ -68,14 +134,14 @@ class InputTests(unittest.TestCase):
         )
         inputs = DeterministicInputGenerator.generate(config)
         states = CoreLMAdapter(8).run(inputs)
-        # BLAS implementations may differ by a few float32 ULPs. Quantizing to
-        # 1e-6 before hashing preserves a strict semantic golden value across
-        # macOS Accelerate and Linux OpenBLAS.
-        canonical = np.rint(states.astype(np.float64) * 1_000_000).astype("<i4")
-        digest = hashlib.sha256(canonical.tobytes()).hexdigest()
+        digest = hashlib.sha256(states.astype("<f4").tobytes()).hexdigest()
         self.assertEqual(
             digest,
-            "3c9298157faed2d910ee835befe9e03c624c679ecd8e469d6ce3106304686e18",
+            "3db2e25ca09ca65d728d689cc0fda0f29555653d7ae8e72253b1d550e934da16",
+        )
+        self.assertEqual(
+            stable_run_id(config, DeterministicInputGenerator.digest(inputs)),
+            "71c9e70df5b836ba",
         )
 
 
@@ -175,6 +241,82 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(count, 0)
         parsed = EncodedRepresentation.from_bytes(encoded.to_bytes())
         self.assertTrue(np.array_equal(parsed.reconstructed, encoded.reconstructed))
+        for invalid in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(invalid=invalid):
+                nonfinite = states.copy()
+                nonfinite[1, 0] = invalid
+                with self.assertRaisesRegex(ValueError, "finite"):
+                    VoidTokenBackend.encode(
+                        nonfinite, top_k=1, qmax=127
+                    )
+
+    def test_void_uses_wire_norm_and_coordinate_tie_break(self):
+        states = np.array(
+            [[0.0, 0.0, 0.0, 0.0], [1.0, -1.0, 1.0, -1.0]],
+            dtype=np.float32,
+        )
+        encoded = VoidTokenBackend.encode(states, top_k=2, qmax=127)
+        token_offset = states.shape[1] * 4
+        norm, count = struct.unpack_from("<fH", encoded.payload, token_offset)
+        indices = struct.unpack_from("<HH", encoded.payload, token_offset + 6)
+        quantized = struct.unpack_from("<bb", encoded.payload, token_offset + 10)
+        self.assertEqual(norm, _canonical_float32(_fixed_l2_norm(states[1])))
+        self.assertEqual(count, 2)
+        self.assertEqual(indices, (0, 1))
+        self.assertEqual(quantized, (64, -64))
+        self.assertEqual(
+            encoded.metadata["canonicalizationVersion"],
+            VOIDTOKEN_CANONICALIZATION_VERSION,
+        )
+        self.assertEqual(encoded.metadata["format"], VOIDTOKEN_FORMAT)
+        parsed = EncodedRepresentation.from_bytes(encoded.to_bytes())
+        self.assertTrue(np.array_equal(parsed.reconstructed, encoded.reconstructed))
+
+        unsupported_metadata = {
+            **encoded.metadata,
+            "canonicalizationVersion": "unknown",
+        }
+        with self.assertRaises(ValueError):
+            VoidTokenBackend.decode(encoded.payload, unsupported_metadata)
+        with self.assertRaises(ValueError):
+            VoidTokenBackend.decode(
+                encoded.payload,
+                {
+                    **encoded.metadata,
+                    "format": VOIDTOKEN_LEGACY_FORMAT,
+                },
+            )
+
+        legacy_norm = struct.unpack("<f", struct.pack("<I", 0x3D0004D5))[0]
+        legacy_payload = (
+            struct.pack("<f", 0.0)
+            + struct.pack("<fH", legacy_norm, 1)
+            + struct.pack("<H", 0)
+            + struct.pack("<b", -126)
+        )
+        legacy_metadata = {
+            "shape": [2, 1],
+            "topK": 1,
+            "qmax": 127,
+            "keyframeInterval": 0,
+            "indexBytes": 2,
+            "quantizedValueBytes": 1,
+            "format": VOIDTOKEN_LEGACY_FORMAT,
+        }
+        legacy = VoidTokenBackend.decode(legacy_payload, legacy_metadata)
+        canonical = VoidTokenBackend.decode(
+            legacy_payload,
+            {
+                **legacy_metadata,
+                "format": VOIDTOKEN_FORMAT,
+                "canonicalizationVersion": VOIDTOKEN_CANONICALIZATION_VERSION,
+            },
+        )
+        expected_legacy = (
+            np.array([-126], dtype=np.int8).astype(np.float32) / 127.0
+        ) * legacy_norm
+        self.assertEqual(legacy[1, 0].tobytes(), expected_legacy[0].tobytes())
+        self.assertNotEqual(legacy[1, 0].tobytes(), canonical[1, 0].tobytes())
 
     def test_void_payload_formula(self):
         encoded = VoidTokenBackend.encode(
@@ -269,6 +411,18 @@ class IntegrationTests(unittest.TestCase):
         second = run_benchmark(config)
         self.assertEqual(first["runId"], second["runId"])
         self.assertEqual(first["inputDigest"], second["inputDigest"])
+        self.assertEqual(first["coreStateDigest"], second["coreStateDigest"])
+        self.assertEqual(
+            first["voidTokenPayloadDigest"], second["voidTokenPayloadDigest"]
+        )
+        self.assertEqual(
+            first["voidTokenContainerDigest"], second["voidTokenContainerDigest"]
+        )
+        self.assertEqual(
+            first["voidTokenReconstructionDigest"],
+            second["voidTokenReconstructionDigest"],
+        )
+        self.assertEqual(first["coreArithmeticVersion"], CORE_ARITHMETIC_VERSION)
         self.assertTrue(first["invariants"]["deterministicReplay"])
         with TemporaryDirectory() as directory:
             json_path, markdown_path = save_result(first, Path(directory))
@@ -279,11 +433,51 @@ class IntegrationTests(unittest.TestCase):
                 "schemaVersion", "runId", "createdAt", "configuration",
                 "environment", "inputDigest", "coreRuntimeNanoseconds",
                 "methods", "timeSeries", "invariants", "verdict", "verdictReasons",
+                "coreArithmeticVersion", "coreStateDigest",
+                "voidTokenPayloadDigest", "voidTokenContainerDigest",
+                "voidTokenReconstructionDigest",
             }
             self.assertEqual(set(loaded), required)
             self.assertEqual({m["name"] for m in loaded["methods"]}, {"dense", "pca", "voidtoken"})
             self.assertGreater(len(loaded["timeSeries"]), 1)
             self.assertEqual(loaded["timeSeries"][0]["step"], 0)
+
+    def test_result_digests_match_core_and_void_bytes(self):
+        config = ExperimentConfiguration(
+            dimension=8,
+            steps=20,
+            seed=7,
+            input_scenario="uniform_bounded",
+            pca_components=4,
+            top_k=2,
+        )
+        inputs = DeterministicInputGenerator.generate(config)
+        states = CoreLMAdapter(config.dimension).run(inputs)
+        void = VoidTokenBackend.encode(
+            states,
+            top_k=config.top_k,
+            qmax=config.qmax,
+            keyframe_interval=config.keyframe_interval,
+        )
+        result = run_benchmark(config)
+        self.assertEqual(
+            result["coreStateDigest"],
+            hashlib.sha256(states.astype("<f4").tobytes()).hexdigest(),
+        )
+        self.assertEqual(
+            result["voidTokenPayloadDigest"],
+            hashlib.sha256(void.payload).hexdigest(),
+        )
+        self.assertEqual(
+            result["voidTokenContainerDigest"],
+            hashlib.sha256(void.to_bytes()).hexdigest(),
+        )
+        self.assertEqual(
+            result["voidTokenReconstructionDigest"],
+            hashlib.sha256(
+                void.reconstructed.astype("<f4").tobytes()
+            ).hexdigest(),
+        )
 
     def test_failed_threshold_is_fail(self):
         methods = [{

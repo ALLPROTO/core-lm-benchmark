@@ -1,0 +1,2293 @@
+{
+  "configuration": {
+    "dimension": 32,
+    "inputBound": 0.05,
+    "inputScenario": "zero",
+    "keyframeInterval": 0,
+    "pcaComponents": 8,
+    "qmax": 127,
+    "seed": 42,
+    "steps": 5000,
+    "thresholds": {
+      "maximum_invariant_violations": 0,
+      "maximum_mean_energy_relative_drift": 0.05,
+      "maximum_normalized_rmse": 0.1,
+      "minimum_compression_ratio": 4.0,
+      "minimum_cosine_similarity": 0.95
+    },
+    "topK": 4
+  },
+  "coreArithmeticVersion": "fixed-order-f64-v1",
+  "coreRuntimeNanoseconds": 1613669458,
+  "coreStateDigest": "2ee5fe0570740ab4b1ae15dd9e0434a2d95989e6001da82222198a9adddb9b2b",
+  "createdAt": "2026-07-28T21:24:33.113653+00:00",
+  "environment": {
+    "implementationVersion": "0.3.0",
+    "numpy": "2.3.5",
+    "platform": "macOS-26.3-arm64-arm-64bit",
+    "python": "3.12.13"
+  },
+  "inputDigest": "3d00ed86b663cd1b8ac82b105257cd109412f92dca442048532439f920a7f645",
+  "invariants": {
+    "details": [],
+    "deterministicReplay": true,
+    "violations": 0
+  },
+  "methods": [
+    {
+      "compressionRatio": 1.0,
+      "cosineSimilarity": 1.0,
+      "csiRelativeDrift": 0.0,
+      "decodeNanoseconds": 51000,
+      "encodeNanoseconds": 14417,
+      "energyDriftRelativeDifference": 0.0,
+      "fileBytes": 640193,
+      "maximumAbsoluteError": 0.0,
+      "meanEnergyRelativeDrift": 0.0,
+      "metadata": {
+        "dtype": "float32",
+        "format": "dense-v1",
+        "shape": [
+          5001,
+          32
+        ]
+      },
+      "name": "dense",
+      "normalizedRMSE": 0.0,
+      "payloadBytes": 640128,
+      "peakMemoryBytes": 11405036,
+      "rmse": 0.0,
+      "stepsPerSecond": 3098.5279991071084,
+      "trajectoryRMSE": 0.0
+    },
+    {
+      "compressionRatio": 3.9714115544967243,
+      "cosineSimilarity": 1.0,
+      "csiRelativeDrift": 0.0,
+      "decodeNanoseconds": 136750,
+      "encodeNanoseconds": 1441667,
+      "energyDriftRelativeDifference": 0.0,
+      "fileBytes": 161262,
+      "maximumAbsoluteError": 0.0,
+      "meanEnergyRelativeDrift": 0.0,
+      "metadata": {
+        "components": 8,
+        "dtype": "float32",
+        "format": "pca-v1",
+        "shape": [
+          5001,
+          32
+        ]
+      },
+      "name": "pca",
+      "normalizedRMSE": 0.0,
+      "payloadBytes": 161184,
+      "peakMemoryBytes": 11405036,
+      "rmse": 0.0,
+      "stepsPerSecond": 3098.5279991071084,
+      "trajectoryRMSE": 0.0
+    },
+    {
+      "compressionRatio": 21.246946362187998,
+      "cosineSimilarity": 1.0,
+      "csiRelativeDrift": 0.0,
+      "decodeNanoseconds": 323318792,
+      "encodeNanoseconds": 430511709,
+      "energyDriftRelativeDifference": 0.0,
+      "fileBytes": 30406,
+      "maximumAbsoluteError": 0.0,
+      "meanEnergyRelativeDrift": 0.0,
+      "metadata": {
+        "canonicalizationVersion": "fixed-order-v1",
+        "format": "voidtoken-residual-keyframe-v4",
+        "indexBytes": 2,
+        "keyframeInterval": 16,
+        "keyframePolicy": "automatic-byte-budget",
+        "prediction": "decoder-state-error-feedback",
+        "qmax": 127,
+        "quantizedValueBytes": 1,
+        "shape": [
+          5001,
+          32
+        ],
+        "topK": 4
+      },
+      "name": "voidtoken",
+      "normalizedRMSE": 0.0,
+      "payloadBytes": 30128,
+      "peakMemoryBytes": 11405036,
+      "rmse": 0.0,
+      "stepsPerSecond": 3098.5279991071084,
+      "trajectoryRMSE": 0.0
+    }
+  ],
+  "runId": "f71639d9f84e140a",
+  "schemaVersion": "0.3",
+  "timeSeries": [
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 0,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 20,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 41,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 62,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 83,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 104,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 125,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 146,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 167,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 188,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 209,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 230,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 251,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 271,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 292,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 313,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 334,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 355,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 376,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 397,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 418,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 439,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 460,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 481,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 502,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 523,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 543,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 564,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 585,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 606,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 627,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 648,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 669,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 690,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 711,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 732,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 753,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 774,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 794,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 815,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 836,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 857,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 878,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 899,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 920,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 941,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 962,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 983,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1004,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1025,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1046,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1066,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1087,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1108,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1129,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1150,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1171,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1192,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1213,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1234,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1255,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1276,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1297,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1317,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1338,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1359,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1380,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1401,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1422,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1443,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1464,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1485,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1506,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1527,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1548,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1569,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1589,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1610,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1631,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1652,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1673,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1694,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1715,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1736,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1757,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1778,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1799,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1820,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1841,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1861,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1882,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1903,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1924,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1945,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1966,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 1987,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2008,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2029,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2050,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2071,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2092,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2112,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2133,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2154,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2175,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2196,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2217,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2238,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2259,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2280,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2301,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2322,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2343,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2364,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2384,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2405,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2426,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2447,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2468,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2489,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2510,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2531,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2552,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2573,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2594,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2615,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2635,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2656,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2677,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2698,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2719,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2740,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2761,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2782,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2803,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2824,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2845,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2866,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2887,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2907,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2928,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2949,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2970,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 2991,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3012,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3033,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3054,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3075,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3096,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3117,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3138,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3158,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3179,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3200,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3221,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3242,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3263,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3284,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3305,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3326,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3347,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3368,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3389,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3410,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3430,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3451,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3472,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3493,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3514,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3535,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3556,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3577,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3598,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3619,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3640,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3661,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3682,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3702,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3723,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3744,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3765,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3786,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3807,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3828,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3849,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3870,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3891,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3912,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3933,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3953,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3974,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 3995,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4016,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4037,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4058,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4079,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4100,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4121,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4142,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4163,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4184,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4205,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4225,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4246,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4267,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4288,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4309,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4330,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4351,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4372,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4393,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4414,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4435,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4456,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4476,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4497,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4518,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4539,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4560,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4581,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4602,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4623,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4644,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4665,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4686,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4707,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4728,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4748,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4769,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4790,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4811,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4832,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4853,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4874,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4895,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4916,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4937,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4958,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 4979,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0,
+      "stateNorm": 0.0,
+      "step": 5000,
+      "voidTokenRMSE": 0.0
+    }
+  ],
+  "verdict": "PASS",
+  "verdictReasons": [],
+  "voidTokenContainerDigest": "edb67aea71da37412843763107980406a1e7ce3086beb1f0c6eb9630eed9f6be",
+  "voidTokenPayloadDigest": "0c71002552ec62983a66968501806214cd3d397adfa76cbcccbf717b5fa017d6",
+  "voidTokenReconstructionDigest": "2ee5fe0570740ab4b1ae15dd9e0434a2d95989e6001da82222198a9adddb9b2b"
+}

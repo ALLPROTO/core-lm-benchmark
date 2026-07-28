@@ -8,9 +8,9 @@ trace every number in the paper to machine-readable evidence.
 
 - macOS 13 or newer for the SwiftUI application
 - Swift 5.9 or newer
-- Python 3.11 or newer
-- NumPy
-- ReportLab for regenerating the vector paper figures
+- Python 3.12 (the registered evidence uses 3.12.13)
+- NumPy 2.3.5
+- ReportLab 4.4.9 for regenerating the vector paper figures
 
 ## Verify the implementation
 
@@ -21,7 +21,7 @@ python3 -m pip install -r requirements.txt
 ./run_tests.sh
 ```
 
-The expected result is 20 passing tests.
+The expected result is 25 passing tests.
 
 ## Re-run the 115-run benchmark
 
@@ -49,10 +49,12 @@ field against the registered evidence:
 python3 BenchmarkCore/verify_evidence.py
 ```
 
-The verifier requires exact run IDs, input digests, configurations, invariants,
-and verdicts. Floating-point fields use `rtol=1e-4`, `atol=1e-5` to accommodate
-ARM/Accelerate versus x86/OpenBLAS rounding while remaining orders of magnitude
-below every scientific PASS threshold.
+The verifier requires exact run IDs, input digests, configurations, Core state
+SHA-256, VoidToken payload SHA-256, VoidToken container SHA-256, decoded
+VoidToken trajectory SHA-256, invariants, and verdicts. Floating-point
+diagnostics use `rtol=1e-4`, `atol=1e-5` for the PCA/LAPACK baseline; the exact
+digests prevent this tolerance from accepting a different Core or VoidToken
+byte stream or decoded trajectory.
 
 ## Regenerate the paper figures
 

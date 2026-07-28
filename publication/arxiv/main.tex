@@ -140,6 +140,21 @@ implementation uses $\alpha=0.10$, $\beta=0.20$, base $\gamma=0.05$, and
 $\lambda=0.50$. External sources can create the perturbation $U_t$ but cannot
 mutate $S_t$ directly.
 
+\subsection{Canonical arithmetic}
+
+Implementation 0.3 evaluates reductions and matrix--vector products with a
+fixed pairwise float64 tree, uses a fixed rational evaluation of $\tanh$ with
+maximum absolute error below $3\times10^{-14}$ on the tested range, and rounds
+once to float32 at each state boundary. VoidToken norms are rounded to their
+wire float32 value before token decisions, equal-magnitude top-$k$ coordinates
+are ordered by index, and quantization uses scalar ties-to-even rounding. Each
+record stores SHA-256 digests of the complete Core state trajectory, VoidToken
+payload, full binary container, and decoded VoidToken trajectory. The
+closed-loop algorithm remains VoidToken v3; its canonicalized interchange
+encoding is named \texttt{voidtoken-residual-keyframe-v4}, so older readers
+reject it instead of silently applying legacy arithmetic. The prior v3
+interchange encoding remains readable through an explicit legacy path.
+
 \subsection{Perturbation classes}
 
 Five bounded classes are used:
@@ -275,8 +290,9 @@ The full matrix contains 115 unique runs:
 Canonical sparsity is $k=4,8,16$ for $n=32,96,256$, respectively. The
 additional sweep varies $k$ and $q_{\max}$ at $n=96$. Experiments were run on
 Apple silicon under macOS 26.3 with Python 3.12.13 and NumPy 2.3.5. Every run
-records the complete configuration, environment, input digest, method metrics,
-time series, invariant checks, and verdict.
+records the complete configuration, arithmetic version, environment, input and
+state digests, VoidToken payload and container digests, method metrics, time
+series, invariant checks, and verdict.
 
 \subsection{Metrics and acceptance criteria}
 
@@ -347,13 +363,14 @@ The benchmark includes several safeguards against selective reporting:
   \item reconstruction uses backend decoders that parse the binary payload;
   \item all five declared seeds are included;
   \item the aggregate references exact run identifiers;
-  \item repeated execution in the same environment must reproduce materialized
-        inputs and states exactly;
+  \item fixed-order arithmetic must reproduce exact input, Core-state,
+        VoidToken-payload, VoidToken-container, and decoded-trajectory SHA-256
+        digests on both macOS/ARM and Linux/x86;
   \item an automated fresh replay compares all 115 registered scientific
         records while excluding wall-clock timing and platform-memory fields;
-        identifiers and verdicts are exact, while floating-point fields use
-        $\mathrm{rtol}=10^{-4}$ and $\mathrm{atol}=10^{-5}$ to cover
-        ARM/Accelerate versus x86/OpenBLAS rounding;
+        identifiers, digests and verdicts are exact, while floating-point
+        diagnostics use $\mathrm{rtol}=10^{-4}$ and
+        $\mathrm{atol}=10^{-5}$ for the LAPACK-backed PCA baseline;
   \item the UI reads generated JSON and contains no synthetic chart data.
 \end{enumerate}
 The accompanying artifact contains the benchmark core, suite runner, tests,
@@ -428,15 +445,13 @@ partial-pass label exists.
 
 The reproducibility archive contains:
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt]
-  \item the Core LM transition and compression implementation;
-  \item the 115-run suite generator;
+  \item the Core LM transition, compression implementation, and 115-run suite
+        generator;
   \item unit, binary round-trip, corruption, regression, invariant, and report
-        tests;
-  \item an automated verifier that replays and compares all registered
-        scientific fields;
+        tests, plus a verifier that replays all registered scientific fields;
   \item the authoritative aggregate and referenced run JSON files;
-  \item the paper figure generator;
-  \item commands for rebuilding the macOS application and rerunning experiments.
+  \item the paper figure generator and commands for rebuilding the macOS
+        application and rerunning experiments.
 \end{itemize}
 
 \end{document}

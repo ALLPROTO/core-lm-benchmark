@@ -16,9 +16,9 @@ from run_suite import execute_suite, suite_configurations
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTERED_DIRECTORY = PROJECT_ROOT / "benchmark-results"
 REGISTERED_RUN_COUNT = 115
-# NumPy is pinned, but ARM/Accelerate and x86/OpenBLAS can differ by a few
-# float32 rounding units in the recurrent matrix operations.  These tolerances
-# remain orders of magnitude below the benchmark's scientific PASS thresholds.
+# Core states and VoidToken bytes are protected by exact SHA-256 digests.
+# These narrow tolerances cover only derived floating-point diagnostics,
+# principally the LAPACK-backed PCA baseline across platforms.
 FLOAT_RELATIVE_TOLERANCE = 1e-4
 FLOAT_ABSOLUTE_TOLERANCE = 1e-5
 MAX_REPORTED_MISMATCHES = 100
@@ -265,10 +265,12 @@ def main() -> int:
         return 1
 
     print(
-        "EVIDENCE VERIFIED: 115/115 registered runs match their run IDs, "
-        "input digests, invariants, scientific metrics, time series, and aggregate "
-        f"(floating-point rtol={arguments.relative_tolerance:g}, "
-        f"atol={arguments.absolute_tolerance:g})."
+        "EVIDENCE VERIFIED: 115/115 registered runs match exact run IDs, input, "
+        "Core-state, VoidToken payload, container and reconstruction digests, "
+        "configurations, invariants and verdicts; scientific metrics, time "
+        "series and aggregate match with floating-point "
+        f"rtol={arguments.relative_tolerance:g}, "
+        f"atol={arguments.absolute_tolerance:g}."
     )
     return 0
 

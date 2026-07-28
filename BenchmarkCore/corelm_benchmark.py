@@ -24,7 +24,121 @@ from typing import Any, Iterable
 import numpy as np
 
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
+CORE_ARITHMETIC_VERSION = "fixed-order-f64-v1"
+VOIDTOKEN_CANONICALIZATION_VERSION = "fixed-order-v1"
+VOIDTOKEN_FORMAT = "voidtoken-residual-keyframe-v4"
+VOIDTOKEN_LEGACY_FORMAT = "voidtoken-residual-keyframe-v3"
+
+
+def _fixed_pairwise_sum_last(values: np.ndarray) -> np.ndarray:
+    """Reduce the last axis with one platform-independent binary tree."""
+    work = np.ascontiguousarray(values, dtype=np.float64)
+    if work.ndim == 0 or work.shape[-1] == 0:
+        raise ValueError("fixed-order reduction requires a non-empty axis")
+    while work.shape[-1] > 1:
+        width = work.shape[-1]
+        pair_count = width // 2
+        reduced = (
+            work[..., : pair_count * 2 : 2]
+            + work[..., 1 : pair_count * 2 : 2]
+        )
+        if width % 2:
+            work = np.concatenate((reduced, work[..., -1:]), axis=-1)
+        else:
+            work = reduced
+    return work[..., 0]
+
+
+def _fixed_sum(values: np.ndarray) -> float:
+    flattened = np.ascontiguousarray(values, dtype=np.float64).reshape(1, -1)
+    return float(_fixed_pairwise_sum_last(flattened)[0])
+
+
+def _fixed_mean(values: np.ndarray) -> float:
+    array = np.asarray(values)
+    if array.size == 0:
+        raise ValueError("fixed-order mean requires at least one value")
+    return _fixed_sum(array) / array.size
+
+
+def _fixed_dot(left: np.ndarray, right: np.ndarray) -> float:
+    left_array = np.ascontiguousarray(left, dtype=np.float64).reshape(-1)
+    right_array = np.ascontiguousarray(right, dtype=np.float64).reshape(-1)
+    if left_array.shape != right_array.shape or left_array.size == 0:
+        raise ValueError("fixed-order dot operands must have equal non-empty shapes")
+    products = left_array * right_array
+    return _fixed_sum(products)
+
+
+def _fixed_matvec(matrix: np.ndarray, vector: np.ndarray) -> np.ndarray:
+    matrix_array = np.ascontiguousarray(matrix, dtype=np.float64)
+    vector_array = np.ascontiguousarray(vector, dtype=np.float64).reshape(-1)
+    if (
+        matrix_array.ndim != 2
+        or matrix_array.shape[1] != vector_array.size
+        or vector_array.size == 0
+    ):
+        raise ValueError("fixed-order matrix/vector shape mismatch")
+    products = matrix_array * vector_array[np.newaxis, :]
+    return np.asarray(_fixed_pairwise_sum_last(products), dtype=np.float64)
+
+
+def _fixed_variance(values: np.ndarray) -> float:
+    array = np.ascontiguousarray(values, dtype=np.float64).reshape(-1)
+    if array.size == 0:
+        raise ValueError("fixed-order variance requires at least one value")
+    mean = _fixed_sum(array) / array.size
+    deviations = array - mean
+    return _fixed_sum(deviations * deviations) / array.size
+
+
+def _fixed_l2_norm(values: np.ndarray) -> float:
+    squared_norm = _fixed_dot(values, values)
+    return math.sqrt(max(0.0, squared_norm))
+
+
+def _deterministic_tanh(values: np.ndarray | float) -> np.ndarray | float:
+    """Near-machine-precision tanh using only fixed-order IEEE-754 arithmetic."""
+    source = np.asarray(values, dtype=np.float64)
+    reduced = np.clip(source, -16.0, 16.0) / 64.0
+    squared = reduced * reduced
+
+    polynomial = np.full_like(squared, 21844.0 / 6081075.0)
+    polynomial = (-1382.0 / 155925.0) + squared * polynomial
+    polynomial = (62.0 / 2835.0) + squared * polynomial
+    polynomial = (-17.0 / 315.0) + squared * polynomial
+    polynomial = (2.0 / 15.0) + squared * polynomial
+    polynomial = (-1.0 / 3.0) + squared * polynomial
+    result = reduced * (1.0 + squared * polynomial)
+
+    # tanh(2x) = 2 tanh(x) / (1 + tanh(x)^2). Six fixed
+    # doublings undo the division by 64 above.
+    for _ in range(6):
+        result = (2.0 * result) / (1.0 + result * result)
+    result = np.where(source >= 16.0, 1.0, result)
+    result = np.where(source <= -16.0, -1.0, result)
+    if result.ndim == 0:
+        return float(result)
+    return result
+
+
+def _canonical_float32(value: float) -> float:
+    """Round once to the little-endian float stored in the wire format."""
+    return struct.unpack("<f", struct.pack("<f", float(value)))[0]
+
+
+def _void_dequantized_value(quantized: int, qmax: int, norm: float) -> np.float32:
+    normalized = float(quantized) / float(qmax)
+    return np.float32(normalized * float(norm))
+
+
+def _void_advance_state(previous: np.ndarray, residual: np.ndarray) -> np.ndarray:
+    advanced = (
+        np.asarray(previous, dtype=np.float64)
+        + np.asarray(residual, dtype=np.float64)
+    )
+    return advanced.astype(np.float32)
 
 
 @dataclass(frozen=True)
@@ -112,10 +226,12 @@ class CoreLMAdapter:
         weights = rng.normal(0.0, 0.02, size=(dimension, dimension)).astype(np.float32)
         vector = rng.normal(0.0, 1.0, size=(dimension,)).astype(np.float32)
         for _ in range(10):
-            vector = weights.T @ (weights @ vector)
-            vector /= np.linalg.norm(vector) + 1e-8
-        weights /= np.linalg.norm(weights @ vector) + 1e-8
-        self.weights = weights
+            projected = _fixed_matvec(weights, vector)
+            vector64 = _fixed_matvec(weights.T, projected)
+            vector_norm = _fixed_l2_norm(vector64)
+            vector = (vector64 / (vector_norm + 1e-8)).astype(np.float32)
+        weight_scale = _fixed_l2_norm(_fixed_matvec(weights, vector)) + 1e-8
+        self.weights = (weights.astype(np.float64) / weight_scale).astype(np.float32)
 
     def run(self, inputs: np.ndarray) -> np.ndarray:
         if inputs.ndim != 2 or inputs.shape[1] != self.dimension:
@@ -126,12 +242,26 @@ class CoreLMAdapter:
         history: list[np.ndarray] = [state.copy()]
         for index, impulse in enumerate(inputs, 1):
             tail = np.stack(history[-32:])
-            hist_var = float(np.var(tail)) if len(tail) > 1 else 0.0
-            energy = float(np.dot(state, state)) + 0.5 * hist_var
-            gamma = 0.05 * (1.0 + 0.25 * np.tanh(energy / max(1.0, self.dimension)))
-            dynamics = (self.weights @ state) + np.tanh(state)
-            state = state + 0.10 * dynamics + 0.20 * impulse - gamma * (2.0 * state)
-            state = state.astype(np.float32)
+            hist_var = _fixed_variance(tail) if len(tail) > 1 else 0.0
+            state64 = state.astype(np.float64)
+            energy = _fixed_dot(state64, state64) + 0.5 * hist_var
+            gamma = 0.05 * (
+                1.0
+                + 0.25
+                * float(
+                    _deterministic_tanh(
+                        energy / max(1.0, float(self.dimension))
+                    )
+                )
+            )
+            dynamics = (
+                _fixed_matvec(self.weights, state64)
+                + np.asarray(_deterministic_tanh(state64), dtype=np.float64)
+            )
+            next_state = state64 + (0.10 * dynamics)
+            next_state = next_state + (0.20 * impulse.astype(np.float64))
+            next_state = next_state - ((2.0 * gamma) * state64)
+            state = next_state.astype(np.float32)
             states[index] = state
             history.append(state.copy())
         return states
@@ -203,10 +333,8 @@ class EncodedRepresentation:
         decoders = {
             "dense-v1": ("dense", DenseBackend.decode),
             "pca-v1": ("pca", PCABackend.decode),
-            "voidtoken-residual-keyframe-v3": (
-                "voidtoken",
-                VoidTokenBackend.decode,
-            ),
+            VOIDTOKEN_FORMAT: ("voidtoken", VoidTokenBackend.decode),
+            VOIDTOKEN_LEGACY_FORMAT: ("voidtoken", VoidTokenBackend.decode),
         }
         if format_name not in decoders:
             raise ValueError(f"unsupported representation format: {format_name!r}")
@@ -361,9 +489,12 @@ class PCABackend:
 class VoidTokenBackend:
     @staticmethod
     def decode(payload: bytes, metadata: dict[str, Any]) -> np.ndarray:
+        format_name = metadata.get("format")
+        if format_name not in (VOIDTOKEN_FORMAT, VOIDTOKEN_LEGACY_FORMAT):
+            raise ValueError("unsupported VoidToken format")
         rows, columns = _decode_metadata(
             metadata,
-            "voidtoken-residual-keyframe-v3",
+            format_name,
             require_dtype=False,
         )
         top_k = metadata.get("topK")
@@ -371,6 +502,7 @@ class VoidTokenBackend:
         keyframe_interval = metadata.get("keyframeInterval")
         index_bytes = metadata.get("indexBytes")
         quantized_value_bytes = metadata.get("quantizedValueBytes")
+        canonicalization_version = metadata.get("canonicalizationVersion")
         if type(top_k) is not int or not 1 <= top_k <= min(columns, 0xFFFE):
             raise ValueError("invalid VoidToken topK")
         if qmax not in (127, 32767) or type(qmax) is not int:
@@ -386,6 +518,18 @@ class VoidTokenBackend:
             raise ValueError("VoidToken index width does not match the shape")
         if quantized_value_bytes != expected_quantized_bytes:
             raise ValueError("VoidToken quantized value width does not match qmax")
+        if format_name == VOIDTOKEN_LEGACY_FORMAT:
+            if canonicalization_version is not None:
+                raise ValueError(
+                    "legacy VoidToken v3 must not declare canonicalization"
+                )
+            canonical = False
+        else:
+            if canonicalization_version != VOIDTOKEN_CANONICALIZATION_VERSION:
+                raise ValueError(
+                    "unsupported VoidToken canonicalization version"
+                )
+            canonical = True
 
         raw = _payload_bytes(payload)
         initial_state_bytes = columns * 4
@@ -467,10 +611,23 @@ class VoidTokenBackend:
                     )
             residual = np.zeros(columns, dtype=np.float32)
             if count:
-                residual[indices] = (
-                    quantized.astype(np.float32) / float(qmax)
-                ) * norm
-            reconstructed[row] = reconstructed[row - 1] + residual
+                if not canonical:
+                    # Preserve the original v3 float32 vector arithmetic for
+                    # containers written before canonicalizationVersion existed.
+                    residual[indices] = (
+                        quantized.astype(np.float32) / float(qmax)
+                    ) * norm
+                else:
+                    for coordinate, value in zip(indices, quantized):
+                        residual[int(coordinate)] = _void_dequantized_value(
+                            int(value), qmax, norm
+                        )
+            if not canonical:
+                reconstructed[row] = reconstructed[row - 1] + residual
+            else:
+                reconstructed[row] = _void_advance_state(
+                    reconstructed[row - 1], residual
+                )
             if not np.isfinite(reconstructed[row]).all():
                 raise ValueError(
                     f"VoidToken reconstruction is non-finite at row {row}"
@@ -491,6 +648,8 @@ class VoidTokenBackend:
         source = np.asarray(states, dtype=np.float32)
         if source.ndim != 2 or source.shape[0] < 1 or source.shape[1] < 1:
             raise ValueError("states must be a non-empty two-dimensional array")
+        if not np.isfinite(source).all():
+            raise ValueError("states must contain only finite values")
         if (
             type(top_k) is not int
             or not 1 <= top_k <= min(source.shape[1], 0xFFFE)
@@ -526,8 +685,11 @@ class VoidTokenBackend:
             # the decoder actually knows, not relative to the previous dense
             # state. Dropped coordinates remain in the next residual and are
             # eventually corrected instead of accumulating forever.
-            residual = source[row] - reconstructed[row - 1]
-            norm = float(np.linalg.norm(residual))
+            residual = (
+                source[row].astype(np.float64)
+                - reconstructed[row - 1].astype(np.float64)
+            ).astype(np.float32)
+            norm = _canonical_float32(_fixed_l2_norm(residual))
             if (
                 effective_keyframe_interval > 0
                 and row % effective_keyframe_interval == 0
@@ -544,18 +706,26 @@ class VoidTokenBackend:
                 quantized = np.empty(0, dtype=np.int32)
             else:
                 count = min(top_k, len(residual))
-                indices = np.argpartition(np.abs(residual), -count)[-count:]
+                coordinates = np.arange(len(residual), dtype=np.int64)
+                magnitudes = np.abs(residual.astype(np.float64))
+                indices = np.lexsort((coordinates, -magnitudes))[:count]
                 indices = np.sort(indices)
-                quantized = np.clip(
-                    np.rint((residual[indices] / norm) * qmax), -qmax, qmax
-                ).astype(np.int32)
+                quantized = np.empty(count, dtype=np.int32)
+                for token_index, coordinate in enumerate(indices):
+                    normalized = float(residual[int(coordinate)]) / norm
+                    rounded = round(normalized * float(qmax))
+                    quantized[token_index] = max(-qmax, min(qmax, rounded))
             chunks.append(struct.pack("<fH", norm, len(indices)))
             chunks.extend(struct.pack(index_format, int(item)) for item in indices)
             chunks.extend(struct.pack(quant_format, int(item)) for item in quantized)
             decoded = np.zeros(source.shape[1], dtype=np.float32)
-            if len(indices):
-                decoded[indices] = (quantized.astype(np.float32) / float(qmax)) * norm
-            reconstructed[row] = reconstructed[row - 1] + decoded
+            for coordinate, value in zip(indices, quantized):
+                decoded[int(coordinate)] = _void_dequantized_value(
+                    int(value), qmax, norm
+                )
+            reconstructed[row] = _void_advance_state(
+                reconstructed[row - 1], decoded
+            )
         payload = b"".join(chunks)
         encode_ns = time.perf_counter_ns() - started
 
@@ -570,7 +740,8 @@ class VoidTokenBackend:
             "indexBytes": struct.calcsize(index_format),
             "quantizedValueBytes": struct.calcsize(quant_format),
             "prediction": "decoder-state-error-feedback",
-            "format": "voidtoken-residual-keyframe-v3",
+            "canonicalizationVersion": VOIDTOKEN_CANONICALIZATION_VERSION,
+            "format": VOIDTOKEN_FORMAT,
         }
         started = time.perf_counter_ns()
         decoded_states = VoidTokenBackend.decode(payload, metadata)
@@ -586,19 +757,21 @@ class VoidTokenBackend:
 
 
 def trajectory_signals(states: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    energy = np.sum(np.square(states, dtype=np.float64), axis=1)
+    energy = np.empty(len(states), dtype=np.float64)
     csi = np.empty(len(states), dtype=np.float64)
     for index in range(len(states)):
+        energy[index] = _fixed_dot(states[index], states[index])
         tail = states[max(0, index - 31) : index + 1]
-        variance = float(np.var(tail)) if len(tail) > 1 else 0.0
+        variance = _fixed_variance(tail) if len(tail) > 1 else 0.0
         csi[index] = 1.0 / (variance + 1e-8)
     drift = np.abs(np.diff(energy, prepend=energy[0]))
     return energy, csi, drift
 
 
 def relative_mean_drift(reference: np.ndarray, candidate: np.ndarray) -> float:
-    denominator = max(abs(float(np.mean(reference))), 1e-12)
-    return abs(float(np.mean(candidate)) - float(np.mean(reference))) / denominator
+    reference_mean = _fixed_mean(reference)
+    denominator = max(abs(reference_mean), 1e-12)
+    return abs(_fixed_mean(candidate) - reference_mean) / denominator
 
 
 def method_metrics(
@@ -609,16 +782,17 @@ def method_metrics(
 ) -> dict[str, Any]:
     candidate = representation.reconstructed
     difference = candidate.astype(np.float64) - reference.astype(np.float64)
-    rmse = float(np.sqrt(np.mean(np.square(difference))))
-    scale = max(float(np.sqrt(np.mean(np.square(reference.astype(np.float64))))), 1e-12)
+    rmse = math.sqrt(_fixed_mean(difference * difference))
+    reference64 = reference.astype(np.float64)
+    scale = max(math.sqrt(_fixed_mean(reference64 * reference64)), 1e-12)
     nrmse = rmse / scale
-    ref_flat = reference.astype(np.float64).ravel()
+    ref_flat = reference64.ravel()
     candidate_flat = candidate.astype(np.float64).ravel()
-    denominator = float(np.linalg.norm(ref_flat) * np.linalg.norm(candidate_flat))
+    denominator = _fixed_l2_norm(ref_flat) * _fixed_l2_norm(candidate_flat)
     if denominator < 1e-20:
         cosine = 1.0 if np.array_equal(reference, candidate) else 0.0
     else:
-        cosine = float(np.dot(ref_flat, candidate_flat) / denominator)
+        cosine = _fixed_dot(ref_flat, candidate_flat) / denominator
     ref_energy, ref_csi, ref_drift = trajectory_signals(reference)
     energy, csi, drift = trajectory_signals(candidate)
     return {
@@ -662,11 +836,17 @@ def stable_run_id(config: ExperimentConfiguration, input_digest: str) -> str:
             "steps": config.steps,
             "seed": config.seed,
             "scenario": config.input_scenario,
+            "inputBound": config.input_bound,
             "pca": config.pca_components,
             "topK": config.top_k,
             "qmax": config.qmax,
             "keyframeInterval": config.keyframe_interval,
-            "voidTokenFormat": "voidtoken-residual-keyframe-v3",
+            "thresholds": asdict(config.thresholds),
+            "coreArithmeticVersion": CORE_ARITHMETIC_VERSION,
+            "voidTokenCanonicalizationVersion": (
+                VOIDTOKEN_CANONICALIZATION_VERSION
+            ),
+            "voidTokenFormat": VOIDTOKEN_FORMAT,
             "inputDigest": input_digest,
         },
         sort_keys=True,
@@ -687,12 +867,14 @@ def build_time_series(
         void_difference = void_states[index].astype(np.float64) - states[index].astype(np.float64)
         samples.append({
             "step": int(index),
-            "stateNorm": float(np.linalg.norm(states[index])),
+            "stateNorm": _fixed_l2_norm(states[index]),
             "energy": float(energy[index]),
             "csi": float(csi[index]),
             "energyDrift": float(drift[index]),
-            "pcaRMSE": float(np.sqrt(np.mean(np.square(pca_difference)))),
-            "voidTokenRMSE": float(np.sqrt(np.mean(np.square(void_difference)))),
+            "pcaRMSE": math.sqrt(_fixed_mean(pca_difference * pca_difference)),
+            "voidTokenRMSE": math.sqrt(
+                _fixed_mean(void_difference * void_difference)
+            ),
         })
     return samples
 
@@ -751,10 +933,19 @@ def run_benchmark(config: ExperimentConfiguration) -> dict[str, Any]:
 
     violations = invariant_violations(inputs, states, config.input_bound)
     verdict, reasons = choose_verdict(methods, violations, deterministic, config.thresholds)
+    core_state_digest = hashlib.sha256(
+        np.ascontiguousarray(states, dtype="<f4").tobytes()
+    ).hexdigest()
+    void_payload_digest = hashlib.sha256(void.payload).hexdigest()
+    void_container_digest = hashlib.sha256(void.to_bytes()).hexdigest()
+    void_reconstruction_digest = hashlib.sha256(
+        np.ascontiguousarray(void.reconstructed, dtype="<f4").tobytes()
+    ).hexdigest()
     return {
-        "schemaVersion": "0.1",
+        "schemaVersion": "0.3",
         "runId": stable_run_id(config, digest),
         "createdAt": datetime.now(timezone.utc).isoformat(),
+        "coreArithmeticVersion": CORE_ARITHMETIC_VERSION,
         "configuration": {
             "dimension": config.dimension,
             "steps": config.steps,
@@ -774,6 +965,10 @@ def run_benchmark(config: ExperimentConfiguration) -> dict[str, Any]:
             "implementationVersion": VERSION,
         },
         "inputDigest": digest,
+        "coreStateDigest": core_state_digest,
+        "voidTokenPayloadDigest": void_payload_digest,
+        "voidTokenContainerDigest": void_container_digest,
+        "voidTokenReconstructionDigest": void_reconstruction_digest,
         "coreRuntimeNanoseconds": int(elapsed * 1e9),
         "methods": methods,
         "timeSeries": build_time_series(states, pca.reconstructed, void.reconstructed),
@@ -796,6 +991,15 @@ def markdown_report(result: dict[str, Any]) -> str:
         "",
         f"Scenario: `{configuration['inputScenario']}`, n={configuration['dimension']}, "
         f"steps={configuration['steps']}, seed={configuration['seed']}.",
+        "",
+        f"Core arithmetic: `{result['coreArithmeticVersion']}`.",
+        f"Core state SHA-256: `{result['coreStateDigest']}`.",
+        f"VoidToken payload SHA-256: `{result['voidTokenPayloadDigest']}`.",
+        f"VoidToken container SHA-256: `{result['voidTokenContainerDigest']}`.",
+        (
+            "VoidToken reconstruction SHA-256: "
+            f"`{result['voidTokenReconstructionDigest']}`."
+        ),
         "",
         "| Method | Payload bytes | File bytes | Ratio | NRMSE | Cosine | Energy drift |",
         "|---|---:|---:|---:|---:|---:|---:|",
@@ -841,6 +1045,7 @@ def aggregate_suite(results: Iterable[dict[str, Any]]) -> dict[str, Any]:
         next(method for method in item["methods"] if method["name"] == "voidtoken") for item in items
     ]
     return {
+        "coreArithmeticVersion": CORE_ARITHMETIC_VERSION,
         "runs": len(items),
         "verdictCounts": counts,
         "aggregateVerdict": "PASS" if items and counts["PASS"] == len(items)
