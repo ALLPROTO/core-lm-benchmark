@@ -16,8 +16,11 @@ from run_suite import execute_suite, suite_configurations
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTERED_DIRECTORY = PROJECT_ROOT / "benchmark-results"
 REGISTERED_RUN_COUNT = 115
-FLOAT_RELATIVE_TOLERANCE = 1e-6
-FLOAT_ABSOLUTE_TOLERANCE = 1e-7
+# NumPy is pinned, but ARM/Accelerate and x86/OpenBLAS can differ by a few
+# float32 rounding units in the recurrent matrix operations.  These tolerances
+# remain orders of magnitude below the benchmark's scientific PASS thresholds.
+FLOAT_RELATIVE_TOLERANCE = 1e-4
+FLOAT_ABSOLUTE_TOLERANCE = 1e-5
 MAX_REPORTED_MISMATCHES = 100
 
 VOLATILE_RESULT_FIELDS = {"createdAt", "coreRuntimeNanoseconds"}
@@ -67,6 +70,7 @@ def compare_values(
     *,
     relative_tolerance: float,
     absolute_tolerance: float,
+    allow_float_tolerance: bool = True,
 ) -> None:
     if len(differences) >= MAX_REPORTED_MISMATCHES:
         return
@@ -91,6 +95,9 @@ def compare_values(
                 differences,
                 relative_tolerance=relative_tolerance,
                 absolute_tolerance=absolute_tolerance,
+                allow_float_tolerance=(
+                    allow_float_tolerance and key != "configuration"
+                ),
             )
         return
 
@@ -112,6 +119,7 @@ def compare_values(
                 differences,
                 relative_tolerance=relative_tolerance,
                 absolute_tolerance=absolute_tolerance,
+                allow_float_tolerance=allow_float_tolerance,
             )
         return
 
@@ -119,12 +127,18 @@ def compare_values(
         if not isinstance(observed, (int, float)) or isinstance(observed, bool):
             differences.append(f"{path}: expected number, observed {observed!r}")
             return
-        if not math.isclose(
-            expected,
-            float(observed),
-            rel_tol=relative_tolerance,
-            abs_tol=absolute_tolerance,
-        ):
+        observed_float = float(observed)
+        matches = (
+            expected == observed_float
+            if not allow_float_tolerance
+            else math.isclose(
+                expected,
+                observed_float,
+                rel_tol=relative_tolerance,
+                abs_tol=absolute_tolerance,
+            )
+        )
+        if not matches:
             differences.append(f"{path}: expected {expected!r}, observed {observed!r}")
         return
 
@@ -252,7 +266,9 @@ def main() -> int:
 
     print(
         "EVIDENCE VERIFIED: 115/115 registered runs match their run IDs, "
-        "input digests, invariants, scientific metrics, time series, and aggregate."
+        "input digests, invariants, scientific metrics, time series, and aggregate "
+        f"(floating-point rtol={arguments.relative_tolerance:g}, "
+        f"atol={arguments.absolute_tolerance:g})."
     )
     return 0
 

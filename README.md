@@ -34,7 +34,7 @@ Requirements:
 - ReportLab for rebuilding the paper figures
 - macOS 14 and Swift 5.9 or newer for the native application
 
-Run the 19 implementation tests:
+Run the 20 implementation tests:
 
 ```sh
 python3 -m pip install -r requirements.txt
@@ -65,6 +65,11 @@ Verify a fresh 115-run replay against every registered scientific result:
 ```sh
 python3 BenchmarkCore/verify_evidence.py
 ```
+
+Exact identifiers, input digests, configurations, invariants, and verdicts must
+match. Floating-point scientific values use the declared cross-platform
+tolerance `rtol=1e-4`, `atol=1e-5`, which is orders of magnitude below the PASS
+thresholds.
 
 The test suite includes complete Dense, PCA, and VoidToken
 `serialize -> parse -> decode` round trips plus rejection tests for truncated or

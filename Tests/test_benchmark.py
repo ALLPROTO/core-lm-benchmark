@@ -27,6 +27,11 @@ from corelm_benchmark import (  # noqa: E402
     run_benchmark,
     save_result,
 )
+from verify_evidence import (  # noqa: E402
+    FLOAT_ABSOLUTE_TOLERANCE,
+    FLOAT_RELATIVE_TOLERANCE,
+    compare_values,
+)
 
 
 class InputTests(unittest.TestCase):
@@ -229,6 +234,35 @@ class BackendTests(unittest.TestCase):
 
 
 class IntegrationTests(unittest.TestCase):
+    def test_evidence_tolerance_excludes_configuration(self):
+        expected = {
+            "configuration": {
+                "inputBound": 0.05,
+                "thresholds": {"maximumNormalizedRMSE": 0.1},
+            },
+            "methods": [{"normalizedRMSE": 0.05}],
+        }
+        observed = {
+            "configuration": {
+                "inputBound": 0.050005,
+                "thresholds": {"maximumNormalizedRMSE": 0.100005},
+            },
+            "methods": [{"normalizedRMSE": 0.050005}],
+        }
+        differences: list[str] = []
+        compare_values(
+            expected,
+            observed,
+            "run[0]",
+            differences,
+            relative_tolerance=FLOAT_RELATIVE_TOLERANCE,
+            absolute_tolerance=FLOAT_ABSOLUTE_TOLERANCE,
+        )
+        self.assertEqual(len(differences), 2)
+        self.assertTrue(
+            all(".configuration." in difference for difference in differences)
+        )
+
     def test_replay_and_reports(self):
         config = ExperimentConfiguration(dimension=32, steps=40, seed=17, top_k=8)
         first = run_benchmark(config)

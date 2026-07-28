@@ -21,7 +21,7 @@ python3 -m pip install -r requirements.txt
 ./run_tests.sh
 ```
 
-The expected result is 19 passing tests.
+The expected result is 20 passing tests.
 
 ## Re-run the 115-run benchmark
 
@@ -48,6 +48,11 @@ field against the registered evidence:
 ```sh
 python3 BenchmarkCore/verify_evidence.py
 ```
+
+The verifier requires exact run IDs, input digests, configurations, invariants,
+and verdicts. Floating-point fields use `rtol=1e-4`, `atol=1e-5` to accommodate
+ARM/Accelerate versus x86/OpenBLAS rounding while remaining orders of magnitude
+below every scientific PASS threshold.
 
 ## Regenerate the paper figures
 

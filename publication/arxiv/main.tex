@@ -347,9 +347,13 @@ The benchmark includes several safeguards against selective reporting:
   \item reconstruction uses backend decoders that parse the binary payload;
   \item all five declared seeds are included;
   \item the aggregate references exact run identifiers;
-  \item a replay must reproduce inputs and states exactly;
+  \item repeated execution in the same environment must reproduce materialized
+        inputs and states exactly;
   \item an automated fresh replay compares all 115 registered scientific
         records while excluding wall-clock timing and platform-memory fields;
+        identifiers and verdicts are exact, while floating-point fields use
+        $\mathrm{rtol}=10^{-4}$ and $\mathrm{atol}=10^{-5}$ to cover
+        ARM/Accelerate versus x86/OpenBLAS rounding;
   \item the UI reads generated JSON and contains no synthetic chart data.
 \end{enumerate}
 The accompanying artifact contains the benchmark core, suite runner, tests,
