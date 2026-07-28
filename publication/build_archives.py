@@ -86,7 +86,7 @@ def build_arxiv(output_directory: Path = OUTPUT) -> Path:
         "figures/error_feedback.pdf",
     ]
     with deterministic_tar_gz(target) as archive:
-        for relative in include:
+        for relative in sorted(include):
             source = ARXIV / relative
             if not source.is_file():
                 raise FileNotFoundError(source)
