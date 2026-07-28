@@ -231,6 +231,14 @@ A normal token contains:
 The first state is dense. A keyframe token uses the reserved component count
 $65535$ followed by one dense float32 state.
 
+Each representation is wrapped in a \texttt{CLMB} container containing a
+four-byte magic value, a little-endian uint32 metadata length, canonical JSON
+metadata, and the binary payload. Independent Dense, PCA, and VoidToken
+decoders reconstruct from payload bytes and metadata. End-to-end tests parse
+the serialized container and reject truncated data, invalid indices,
+out-of-range quantized values, non-finite values, malformed keyframes, and
+trailing bytes.
+
 \subsection{Byte-budgeted keyframes}
 
 Let
@@ -336,9 +344,12 @@ The benchmark includes several safeguards against selective reporting:
   \item failed configurations remain valid artifacts rather than being silently
         dropped;
   \item actual binary buffers determine payload size;
+  \item reconstruction uses backend decoders that parse the binary payload;
   \item all five declared seeds are included;
   \item the aggregate references exact run identifiers;
   \item a replay must reproduce inputs and states exactly;
+  \item an automated fresh replay compares all 115 registered scientific
+        records while excluding wall-clock timing and platform-memory fields;
   \item the UI reads generated JSON and contains no synthetic chart data.
 \end{enumerate}
 The accompanying artifact contains the benchmark core, suite runner, tests,
@@ -415,7 +426,10 @@ The reproducibility archive contains:
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt]
   \item the Core LM transition and compression implementation;
   \item the 115-run suite generator;
-  \item unit, regression, invariant, and report tests;
+  \item unit, binary round-trip, corruption, regression, invariant, and report
+        tests;
+  \item an automated verifier that replays and compares all registered
+        scientific fields;
   \item the authoritative aggregate and referenced run JSON files;
   \item the paper figure generator;
   \item commands for rebuilding the macOS application and rerunning experiments.

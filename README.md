@@ -5,8 +5,8 @@
 Core LM Benchmark is a native macOS application with an independent Python
 measurement core for comparing Dense, PCA, and VoidToken v3 trajectory
 representations. VoidToken v3 encodes a sparse, quantized residual against the
-state actually reconstructed by the decoder and inserts byte-budgeted
-keyframes.
+state actually reconstructed by the decoder, inserts byte-budgeted keyframes,
+and round-trips through a validated binary container.
 
 ## Registered result
 
@@ -31,9 +31,10 @@ Requirements:
 
 - Python 3.10 or newer
 - NumPy
+- ReportLab for rebuilding the paper figures
 - macOS 14 and Swift 5.9 or newer for the native application
 
-Run the 14 implementation tests:
+Run the 19 implementation tests:
 
 ```sh
 python3 -m pip install -r requirements.txt
@@ -56,8 +57,18 @@ PYTHON_BIN=python3 ./run_benchmark.sh \
 Re-run the registered 115-run matrix:
 
 ```sh
-python3 BenchmarkCore/run_suite.py --full
+python3 BenchmarkCore/run_suite.py --full --output output/replay-results
 ```
+
+Verify a fresh 115-run replay against every registered scientific result:
+
+```sh
+python3 BenchmarkCore/verify_evidence.py
+```
+
+The test suite includes complete Dense, PCA, and VoidToken
+`serialize -> parse -> decode` round trips plus rejection tests for truncated or
+corrupted containers.
 
 The authoritative `benchmark-results/aggregate.json` lists the exact run IDs
 used by the paper. Only those JSON and Markdown records are committed.

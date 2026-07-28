@@ -39,6 +39,20 @@
 | impulse | 18 | 18 | 0.05647 | 0.99865 | 0.04955 |
 | repeating structured | 18 | 18 | 0.04606 | 0.99898 | 0.02085 |
 
+Свежий полный replay автоматически сверяется с зарегистрированными run ID,
+input digest, конфигурациями, инвариантами, научными метриками, time series и
+aggregate. Нестабильные wall-clock timestamps, timings и platform memory в
+научное сравнение не входят.
+
+## Бинарный round trip
+
+- Dense, PCA и VoidToken имеют самостоятельные decoder-функции.
+- `fileBytes` равен фактической длине контейнера `CLMB`.
+- VoidToken reconstruction строится разбором бинарного payload, а не
+  вспомогательными объектами энкодера.
+- Тесты проверяют `serialize -> parse -> decode`, keyframes, обрезанные данные,
+  неверные индексы, NaN/Inf, диапазон quantized values и лишние байты.
+
 ## Исправленная причина
 
 Версия v1 кодировала `S_t - S_(t-1)` относительно плотного состояния, которого

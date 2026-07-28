@@ -59,7 +59,7 @@ def label(c: canvas.Canvas, x: float, y: float, text: str, size: float = 9,
 def architecture_figure() -> None:
     path = FIGURES / "architecture.pdf"
     width, height = 520, 225
-    c = canvas.Canvas(str(path), pagesize=(width, height))
+    c = canvas.Canvas(str(path), pagesize=(width, height), invariant=1)
     c.setTitle("Core LM compression benchmark architecture")
     boxes = [
         (18, 135, 105, 42, "Configuration", "#E8F0FE"),
@@ -134,7 +134,7 @@ def axes(c, left, bottom, width, height, xmin, xmax, ymin, ymax,
 def tradeoff_figure(runs: list[dict]) -> None:
     path = FIGURES / "tradeoff.pdf"
     width, height = 430, 290
-    c = canvas.Canvas(str(path), pagesize=(width, height))
+    c = canvas.Canvas(str(path), pagesize=(width, height), invariant=1)
     c.setTitle("Compression-quality tradeoff")
     points = []
     for run in runs:
@@ -153,8 +153,8 @@ def tradeoff_figure(runs: list[dict]) -> None:
     c.line(tx(4), 54, tx(4), 249)
     c.line(60, ty(0.10), 390, ty(0.10))
     c.setDash()
-    label(c, tx(4) + 4, 235, "4x threshold", 7.5, HexColor("#DC2626"))
-    label(c, 64, ty(0.10) + 4, "NRMSE threshold", 7.5, HexColor("#DC2626"))
+    label(c, tx(4) + 4, 239, "4x", 7.5, HexColor("#DC2626"))
+    label(c, 285, ty(0.10) + 4, "NRMSE threshold", 7.5, HexColor("#DC2626"))
     for x, y, scenario in points:
         c.setFillColor(COLORS[scenario])
         c.circle(tx(x), ty(y), 2.4, fill=1, stroke=0)
@@ -176,7 +176,7 @@ def metrics_by_dimension(runs: list[dict]) -> None:
         grouped[run["configuration"]["dimension"]].append(method)
     path = FIGURES / "metrics_by_dimension.pdf"
     width, height = 430, 270
-    c = canvas.Canvas(str(path), pagesize=(width, height))
+    c = canvas.Canvas(str(path), pagesize=(width, height), invariant=1)
     c.setTitle("Worst-case metrics by state dimension")
     dimensions = sorted(grouped)
     values = {
@@ -261,7 +261,7 @@ def error_feedback_figure() -> None:
     ymax = float(max(legacy_error.max(), corrected_error.max())) * 1.08
     path = FIGURES / "error_feedback.pdf"
     width, height = 430, 275
-    c = canvas.Canvas(str(path), pagesize=(width, height))
+    c = canvas.Canvas(str(path), pagesize=(width, height), invariant=1)
     c.setTitle("Accumulated reconstruction error")
     tx, ty = axes(c, 58, 48, 335, 190, 0, config.steps, 0, ymax,
                   "Time step", "Per-step RMSE")

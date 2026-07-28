@@ -10,21 +10,23 @@ trace every number in the paper to machine-readable evidence.
 - Swift 5.9 or newer
 - Python 3.11 or newer
 - NumPy
+- ReportLab for regenerating the vector paper figures
 
 ## Verify the implementation
 
 From the extracted archive:
 
 ```sh
+python3 -m pip install -r requirements.txt
 ./run_tests.sh
 ```
 
-The expected result is 14 passing tests.
+The expected result is 19 passing tests.
 
 ## Re-run the 115-run benchmark
 
 ```sh
-./run_benchmark.sh
+python3 BenchmarkCore/run_suite.py --full --output replay-results
 ```
 
 The expected aggregate verdict is `PASS`. The exact gate is:
@@ -39,6 +41,22 @@ The expected aggregate verdict is `PASS`. The exact gate is:
 The checked-in `benchmark-results/aggregate.json` names all 115 authoritative
 JSON records. This indirection prevents older exploratory runs in a working
 directory from entering the reported result.
+
+To rerun the full matrix in a temporary directory and compare every scientific
+field against the registered evidence:
+
+```sh
+python3 BenchmarkCore/verify_evidence.py
+```
+
+## Regenerate the paper figures
+
+```sh
+python3 publication/arxiv/generate_figures.py
+```
+
+The generator reads only the registered run IDs named by
+`benchmark-results/aggregate.json`.
 
 ## Build the native application
 

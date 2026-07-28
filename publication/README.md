@@ -18,6 +18,10 @@ universal language-model quality claim. Its aggregate values are generated from
 `benchmark-results/aggregate.json`, which identifies the exact 115 run files
 used in the evaluation.
 
+`python3 publication/build_archives.py` produces the arXiv source archive, the
+reproducibility archive, and `output/SHA256SUMS`. Repeated builds from identical
+inputs are byte-for-byte identical; CI checks this property.
+
 ## Before submission
 
 Open `arxiv/SUBMISSION_CHECKLIST.md`, verify the affiliation, choose an arXiv

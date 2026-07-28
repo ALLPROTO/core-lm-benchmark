@@ -56,7 +56,7 @@ class ExperimentConfiguration:
             raise ValueError("steps must be >= 2")
         if not 1 <= self.pca_components <= min(self.steps + 1, self.dimension):
             raise ValueError("invalid pca_components")
-        if not 1 <= self.top_k <= self.dimension:
+        if not 1 <= self.top_k <= min(self.dimension, 0xFFFE):
             raise ValueError("invalid top_k")
         if self.qmax not in (127, 32767):
             raise ValueError("qmax must be 127 or 32767")
@@ -139,6 +139,8 @@ class CoreLMAdapter:
 
 @dataclass
 class EncodedRepresentation:
+    CONTAINER_MAGIC = b"CLMB"
+
     name: str
     payload: bytes
     metadata: dict[str, Any]
@@ -152,26 +154,142 @@ class EncodedRepresentation:
 
     @property
     def file_bytes(self) -> int:
+        return len(self.to_bytes())
+
+    def to_bytes(self) -> bytes:
         metadata_bytes = json.dumps(
-            self.metadata, sort_keys=True, separators=(",", ":")
+            self.metadata,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
         ).encode("utf-8")
-        return 8 + len(metadata_bytes) + len(self.payload)
+        return (
+            self.CONTAINER_MAGIC
+            + struct.pack("<I", len(metadata_bytes))
+            + metadata_bytes
+            + self.payload
+        )
+
+    @classmethod
+    def from_bytes(cls, container: bytes) -> EncodedRepresentation:
+        try:
+            raw = bytes(container)
+        except (TypeError, ValueError) as error:
+            raise ValueError("container must be bytes-like") from error
+        if len(raw) < 8:
+            raise ValueError("truncated container header")
+        if raw[:4] != cls.CONTAINER_MAGIC:
+            raise ValueError("invalid container magic")
+        metadata_length = struct.unpack_from("<I", raw, 4)[0]
+        metadata_end = 8 + metadata_length
+        if metadata_end > len(raw):
+            raise ValueError("truncated container metadata")
+        try:
+            metadata = json.loads(raw[8:metadata_end].decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("invalid container metadata") from error
+        if not isinstance(metadata, dict):
+            raise ValueError("container metadata must be an object")
+        canonical_metadata = json.dumps(
+            metadata,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        if raw[8:metadata_end] != canonical_metadata:
+            raise ValueError("container metadata is not canonical JSON")
+        payload = raw[metadata_end:]
+        format_name = metadata.get("format")
+        decoders = {
+            "dense-v1": ("dense", DenseBackend.decode),
+            "pca-v1": ("pca", PCABackend.decode),
+            "voidtoken-residual-keyframe-v3": (
+                "voidtoken",
+                VoidTokenBackend.decode,
+            ),
+        }
+        if format_name not in decoders:
+            raise ValueError(f"unsupported representation format: {format_name!r}")
+        name, decoder = decoders[format_name]
+        started = time.perf_counter_ns()
+        reconstructed = decoder(payload, metadata)
+        decode_ns = time.perf_counter_ns() - started
+        return cls(
+            name,
+            payload,
+            metadata,
+            reconstructed,
+            encode_nanoseconds=0,
+            decode_nanoseconds=decode_ns,
+        )
+
+
+def _decode_metadata(
+    metadata: dict[str, Any],
+    expected_format: str,
+    *,
+    require_dtype: bool = True,
+) -> tuple[int, int]:
+    if not isinstance(metadata, dict):
+        raise ValueError("metadata must be an object")
+    if metadata.get("format") != expected_format:
+        raise ValueError(f"expected {expected_format} metadata")
+    dtype = metadata.get("dtype")
+    if (
+        (require_dtype and dtype != "float32")
+        or (not require_dtype and dtype not in (None, "float32"))
+    ):
+        raise ValueError("unsupported dtype")
+    shape = metadata.get("shape")
+    if (
+        not isinstance(shape, list)
+        or len(shape) != 2
+        or any(type(value) is not int or value <= 0 for value in shape)
+    ):
+        raise ValueError("shape must contain two positive integers")
+    return shape[0], shape[1]
+
+
+def _payload_bytes(payload: bytes) -> bytes:
+    try:
+        return bytes(payload)
+    except (TypeError, ValueError) as error:
+        raise ValueError("payload must be bytes-like") from error
 
 
 class DenseBackend:
+    @staticmethod
+    def decode(payload: bytes, metadata: dict[str, Any]) -> np.ndarray:
+        rows, columns = _decode_metadata(metadata, "dense-v1")
+        raw = _payload_bytes(payload)
+        expected_bytes = rows * columns * 4
+        if len(raw) != expected_bytes:
+            raise ValueError(
+                f"dense payload length mismatch: expected {expected_bytes}, got {len(raw)}"
+            )
+        reconstructed = np.frombuffer(raw, dtype="<f4").reshape(rows, columns).copy()
+        if not np.isfinite(reconstructed).all():
+            raise ValueError("dense payload contains non-finite values")
+        return reconstructed
+
     @staticmethod
     def encode(states: np.ndarray) -> EncodedRepresentation:
         started = time.perf_counter_ns()
         contiguous = np.ascontiguousarray(states, dtype="<f4")
         payload = contiguous.tobytes()
         encode_ns = time.perf_counter_ns() - started
+        metadata = {
+            "shape": list(states.shape),
+            "dtype": "float32",
+            "format": "dense-v1",
+        }
         started = time.perf_counter_ns()
-        reconstructed = np.frombuffer(payload, dtype="<f4").reshape(states.shape).copy()
+        reconstructed = DenseBackend.decode(payload, metadata)
         decode_ns = time.perf_counter_ns() - started
         return EncodedRepresentation(
             "dense",
             payload,
-            {"shape": list(states.shape), "dtype": "float32", "format": "dense-v1"},
+            metadata,
             reconstructed,
             encode_ns,
             decode_ns,
@@ -179,6 +297,37 @@ class DenseBackend:
 
 
 class PCABackend:
+    @staticmethod
+    def decode(payload: bytes, metadata: dict[str, Any]) -> np.ndarray:
+        rows, columns = _decode_metadata(metadata, "pca-v1")
+        components = metadata.get("components")
+        if (
+            type(components) is not int
+            or not 1 <= components <= min(rows, columns)
+        ):
+            raise ValueError("invalid PCA component count")
+        raw = _payload_bytes(payload)
+        mean_values = columns
+        basis_values = components * columns
+        score_values = rows * components
+        expected_bytes = (mean_values + basis_values + score_values) * 4
+        if len(raw) != expected_bytes:
+            raise ValueError(
+                f"PCA payload length mismatch: expected {expected_bytes}, got {len(raw)}"
+            )
+        values = np.frombuffer(raw, dtype="<f4")
+        mean_end = mean_values
+        basis_end = mean_end + basis_values
+        mean = values[:mean_end].reshape(1, columns)
+        basis = values[mean_end:basis_end].reshape(components, columns)
+        scores = values[basis_end:].reshape(rows, components)
+        if not np.isfinite(values).all():
+            raise ValueError("PCA payload contains non-finite values")
+        reconstructed = (scores @ basis + mean).astype(np.float32)
+        if not np.isfinite(reconstructed).all():
+            raise ValueError("PCA reconstruction contains non-finite values")
+        return reconstructed
+
     @staticmethod
     def encode(states: np.ndarray, components: int) -> EncodedRepresentation:
         started = time.perf_counter_ns()
@@ -190,18 +339,19 @@ class PCABackend:
         scores = (centered @ basis.T).astype(np.float32)
         payload = mean.astype("<f4").tobytes() + basis.astype("<f4").tobytes() + scores.astype("<f4").tobytes()
         encode_ns = time.perf_counter_ns() - started
+        metadata = {
+            "shape": list(states.shape),
+            "components": components,
+            "dtype": "float32",
+            "format": "pca-v1",
+        }
         started = time.perf_counter_ns()
-        reconstructed = (scores @ basis + mean).astype(np.float32)
+        reconstructed = PCABackend.decode(payload, metadata)
         decode_ns = time.perf_counter_ns() - started
         return EncodedRepresentation(
             "pca",
             payload,
-            {
-                "shape": list(states.shape),
-                "components": components,
-                "dtype": "float32",
-                "format": "pca-v1",
-            },
+            metadata,
             reconstructed,
             encode_ns,
             decode_ns,
@@ -210,11 +360,146 @@ class PCABackend:
 
 class VoidTokenBackend:
     @staticmethod
+    def decode(payload: bytes, metadata: dict[str, Any]) -> np.ndarray:
+        rows, columns = _decode_metadata(
+            metadata,
+            "voidtoken-residual-keyframe-v3",
+            require_dtype=False,
+        )
+        top_k = metadata.get("topK")
+        qmax = metadata.get("qmax")
+        keyframe_interval = metadata.get("keyframeInterval")
+        index_bytes = metadata.get("indexBytes")
+        quantized_value_bytes = metadata.get("quantizedValueBytes")
+        if type(top_k) is not int or not 1 <= top_k <= min(columns, 0xFFFE):
+            raise ValueError("invalid VoidToken topK")
+        if qmax not in (127, 32767) or type(qmax) is not int:
+            raise ValueError("invalid VoidToken qmax")
+        if (
+            type(keyframe_interval) is not int
+            or keyframe_interval < 0
+        ):
+            raise ValueError("invalid VoidToken keyframe interval")
+        expected_index_bytes = 2 if columns <= 65535 else 4
+        expected_quantized_bytes = 1 if qmax == 127 else 2
+        if index_bytes != expected_index_bytes:
+            raise ValueError("VoidToken index width does not match the shape")
+        if quantized_value_bytes != expected_quantized_bytes:
+            raise ValueError("VoidToken quantized value width does not match qmax")
+
+        raw = _payload_bytes(payload)
+        initial_state_bytes = columns * 4
+        if len(raw) < initial_state_bytes:
+            raise ValueError("truncated VoidToken initial state")
+        minimum_payload_bytes = initial_state_bytes + (rows - 1) * 6
+        if len(raw) < minimum_payload_bytes:
+            raise ValueError("truncated VoidToken payload")
+        reconstructed = np.empty((rows, columns), dtype=np.float32)
+        reconstructed[0] = np.frombuffer(
+            raw, dtype="<f4", count=columns, offset=0
+        )
+        if not np.isfinite(reconstructed[0]).all():
+            raise ValueError("VoidToken initial state contains non-finite values")
+        offset = initial_state_bytes
+        index_dtype = "<u2" if index_bytes == 2 else "<u4"
+        quantized_dtype = "<i1" if quantized_value_bytes == 1 else "<i2"
+
+        for row in range(1, rows):
+            if offset + 6 > len(raw):
+                raise ValueError(f"truncated VoidToken header at row {row}")
+            norm, count = struct.unpack_from("<fH", raw, offset)
+            offset += 6
+            if not math.isfinite(norm) or norm < 0.0:
+                raise ValueError(f"invalid VoidToken norm at row {row}")
+
+            if count == 0xFFFF:
+                if norm != 0.0:
+                    raise ValueError(f"invalid VoidToken keyframe sentinel at row {row}")
+                if (
+                    keyframe_interval == 0
+                    or row % keyframe_interval != 0
+                ):
+                    raise ValueError(f"unexpected VoidToken keyframe at row {row}")
+                keyframe_end = offset + initial_state_bytes
+                if keyframe_end > len(raw):
+                    raise ValueError(f"truncated VoidToken keyframe at row {row}")
+                keyframe = np.frombuffer(
+                    raw, dtype="<f4", count=columns, offset=offset
+                )
+                if not np.isfinite(keyframe).all():
+                    raise ValueError(
+                        f"VoidToken keyframe contains non-finite values at row {row}"
+                    )
+                reconstructed[row] = keyframe
+                offset = keyframe_end
+                continue
+
+            if count > top_k or count > columns:
+                raise ValueError(f"invalid VoidToken count at row {row}")
+            if (norm == 0.0) != (count == 0):
+                raise ValueError(
+                    f"VoidToken norm/count mismatch at row {row}"
+                )
+            indices_end = offset + count * index_bytes
+            token_end = indices_end + count * quantized_value_bytes
+            if token_end > len(raw):
+                raise ValueError(f"truncated VoidToken token at row {row}")
+            indices = np.frombuffer(
+                raw, dtype=index_dtype, count=count, offset=offset
+            )
+            quantized = np.frombuffer(
+                raw, dtype=quantized_dtype, count=count, offset=indices_end
+            )
+            if count:
+                indices_i64 = indices.astype(np.int64)
+                if np.any(indices_i64 >= columns):
+                    raise ValueError(
+                        f"VoidToken index out of bounds at row {row}"
+                    )
+                if count > 1 and np.any(np.diff(indices_i64) <= 0):
+                    raise ValueError(
+                        f"VoidToken indices are not strictly increasing at row {row}"
+                    )
+                quantized_i64 = quantized.astype(np.int64)
+                if np.any(np.abs(quantized_i64) > qmax):
+                    raise ValueError(
+                        f"VoidToken quantized value out of range at row {row}"
+                    )
+            residual = np.zeros(columns, dtype=np.float32)
+            if count:
+                residual[indices] = (
+                    quantized.astype(np.float32) / float(qmax)
+                ) * norm
+            reconstructed[row] = reconstructed[row - 1] + residual
+            if not np.isfinite(reconstructed[row]).all():
+                raise ValueError(
+                    f"VoidToken reconstruction is non-finite at row {row}"
+                )
+            offset = token_end
+
+        if offset != len(raw):
+            raise ValueError(
+                f"trailing VoidToken payload bytes: {len(raw) - offset}"
+            )
+        return reconstructed
+
+    @staticmethod
     def encode(
         states: np.ndarray, top_k: int, qmax: int, keyframe_interval: int = 0
     ) -> EncodedRepresentation:
         started = time.perf_counter_ns()
         source = np.asarray(states, dtype=np.float32)
+        if source.ndim != 2 or source.shape[0] < 1 or source.shape[1] < 1:
+            raise ValueError("states must be a non-empty two-dimensional array")
+        if (
+            type(top_k) is not int
+            or not 1 <= top_k <= min(source.shape[1], 0xFFFE)
+        ):
+            raise ValueError("invalid VoidToken topK")
+        if type(qmax) is not int or qmax not in (127, 32767):
+            raise ValueError("invalid VoidToken qmax")
+        if type(keyframe_interval) is not int or keyframe_interval < 0:
+            raise ValueError("invalid VoidToken keyframe interval")
         index_format = "<H" if source.shape[1] <= 65535 else "<I"
         quant_format = "<b" if qmax == 127 else "<h"
         requested_keyframe_interval = keyframe_interval
@@ -234,7 +519,6 @@ class VoidTokenBackend:
                 keyframe_interval = 0
         effective_keyframe_interval = keyframe_interval
         chunks = [source[0].astype("<f4").tobytes()]
-        tokens: list[tuple[bool, float, np.ndarray, np.ndarray, np.ndarray | None]] = []
         reconstructed = np.empty_like(source)
         reconstructed[0] = source[0]
         for row in range(1, len(source)):
@@ -252,13 +536,10 @@ class VoidTokenBackend:
                 keyframe = source[row].astype("<f4", copy=True)
                 chunks.append(struct.pack("<fH", 0.0, 0xFFFF))
                 chunks.append(keyframe.tobytes())
-                tokens.append((
-                    True, 0.0, np.empty(0, dtype=np.int64),
-                    np.empty(0, dtype=np.int32), keyframe,
-                ))
                 reconstructed[row] = source[row]
                 continue
             if norm < 1e-12:
+                norm = 0.0
                 indices = np.empty(0, dtype=np.int64)
                 quantized = np.empty(0, dtype=np.int32)
             else:
@@ -271,7 +552,6 @@ class VoidTokenBackend:
             chunks.append(struct.pack("<fH", norm, len(indices)))
             chunks.extend(struct.pack(index_format, int(item)) for item in indices)
             chunks.extend(struct.pack(quant_format, int(item)) for item in quantized)
-            tokens.append((False, norm, indices, quantized, None))
             decoded = np.zeros(source.shape[1], dtype=np.float32)
             if len(indices):
                 decoded[indices] = (quantized.astype(np.float32) / float(qmax)) * norm
@@ -279,35 +559,26 @@ class VoidTokenBackend:
         payload = b"".join(chunks)
         encode_ns = time.perf_counter_ns() - started
 
+        metadata = {
+            "shape": list(states.shape),
+            "topK": top_k,
+            "qmax": qmax,
+            "keyframeInterval": effective_keyframe_interval,
+            "keyframePolicy": "automatic-byte-budget"
+            if requested_keyframe_interval == 0
+            else "explicit",
+            "indexBytes": struct.calcsize(index_format),
+            "quantizedValueBytes": struct.calcsize(quant_format),
+            "prediction": "decoder-state-error-feedback",
+            "format": "voidtoken-residual-keyframe-v3",
+        }
         started = time.perf_counter_ns()
-        decoded_states = np.empty_like(source)
-        decoded_states[0] = source[0]
-        for row, (is_keyframe, norm, indices, quantized, keyframe) in enumerate(tokens, 1):
-            if is_keyframe:
-                assert keyframe is not None
-                decoded_states[row] = keyframe
-                continue
-            residual = np.zeros(source.shape[1], dtype=np.float32)
-            if len(indices):
-                residual[indices] = (quantized.astype(np.float32) / float(qmax)) * norm
-            decoded_states[row] = decoded_states[row - 1] + residual
+        decoded_states = VoidTokenBackend.decode(payload, metadata)
         decode_ns = time.perf_counter_ns() - started
         return EncodedRepresentation(
             "voidtoken",
             payload,
-            {
-                "shape": list(states.shape),
-                "topK": top_k,
-                "qmax": qmax,
-                "keyframeInterval": effective_keyframe_interval,
-                "keyframePolicy": "automatic-byte-budget"
-                if requested_keyframe_interval == 0
-                else "explicit",
-                "indexBytes": struct.calcsize(index_format),
-                "quantizedValueBytes": struct.calcsize(quant_format),
-                "prediction": "decoder-state-error-feedback",
-                "format": "voidtoken-residual-keyframe-v3",
-            },
+            metadata,
             decoded_states,
             encode_ns,
             decode_ns,
