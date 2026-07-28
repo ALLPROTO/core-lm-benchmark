@@ -109,7 +109,7 @@ final class BenchmarkStore: ObservableObject {
         task.terminationHandler = { [weak self] completed in
             let output = stdout.fileHandleForReading.readDataToEndOfFile()
             let error = stderr.fileHandleForReading.readDataToEndOfFile()
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.isRunning = false
                 self.process = nil

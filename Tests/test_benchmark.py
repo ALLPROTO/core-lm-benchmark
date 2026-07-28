@@ -57,10 +57,14 @@ class InputTests(unittest.TestCase):
         )
         inputs = DeterministicInputGenerator.generate(config)
         states = CoreLMAdapter(8).run(inputs)
-        digest = hashlib.sha256(states.tobytes()).hexdigest()
+        # BLAS implementations may differ by a few float32 ULPs. Quantizing to
+        # 1e-6 before hashing preserves a strict semantic golden value across
+        # macOS Accelerate and Linux OpenBLAS.
+        canonical = np.rint(states.astype(np.float64) * 1_000_000).astype("<i4")
+        digest = hashlib.sha256(canonical.tobytes()).hexdigest()
         self.assertEqual(
             digest,
-            "400f1627e714f9b8cf9b47c2f497800efbbbca2002059b6124ac2c8ff4a9531b",
+            "3c9298157faed2d910ee835befe9e03c624c679ecd8e469d6ce3106304686e18",
         )
 
 
