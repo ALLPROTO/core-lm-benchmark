@@ -1,0 +1,642 @@
+#!/usr/bin/env python3
+"""Reproducible Core LM compression benchmark.
+
+The module intentionally has no UI dependency. It materializes one input stream,
+runs one dense Core LM trajectory, then evaluates lossless dense storage, PCA,
+and delta-based VoidToken storage against that exact trajectory.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import platform
+import struct
+import time
+import tracemalloc
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Iterable
+
+import numpy as np
+
+
+VERSION = "0.2.0"
+
+
+@dataclass(frozen=True)
+class Thresholds:
+    minimum_compression_ratio: float = 4.0
+    maximum_normalized_rmse: float = 0.10
+    minimum_cosine_similarity: float = 0.95
+    maximum_mean_energy_relative_drift: float = 0.05
+    maximum_invariant_violations: int = 0
+
+
+@dataclass(frozen=True)
+class ExperimentConfiguration:
+    dimension: int = 96
+    steps: int = 200
+    seed: int = 42
+    input_scenario: str = "gaussian_bounded"
+    input_bound: float = 0.05
+    pca_components: int = 8
+    top_k: int = 16
+    qmax: int = 127
+    keyframe_interval: int = 0
+    thresholds: Thresholds = Thresholds()
+
+    def validate(self) -> None:
+        if self.dimension < 2:
+            raise ValueError("dimension must be >= 2")
+        if self.steps < 2:
+            raise ValueError("steps must be >= 2")
+        if not 1 <= self.pca_components <= min(self.steps + 1, self.dimension):
+            raise ValueError("invalid pca_components")
+        if not 1 <= self.top_k <= self.dimension:
+            raise ValueError("invalid top_k")
+        if self.qmax not in (127, 32767):
+            raise ValueError("qmax must be 127 or 32767")
+        if self.keyframe_interval < 0:
+            raise ValueError("keyframe_interval must be >= 0")
+        if self.input_scenario not in {
+            "zero",
+            "gaussian_bounded",
+            "uniform_bounded",
+            "impulse",
+            "repeating_structured",
+        }:
+            raise ValueError("unknown input scenario")
+
+
+class DeterministicInputGenerator:
+    @staticmethod
+    def generate(config: ExperimentConfiguration) -> np.ndarray:
+        rng = np.random.default_rng(config.seed)
+        shape = (config.steps, config.dimension)
+        bound = np.float32(config.input_bound)
+        if config.input_scenario == "zero":
+            result = np.zeros(shape, dtype=np.float32)
+        elif config.input_scenario == "gaussian_bounded":
+            result = np.clip(
+                rng.normal(0.0, config.input_bound / 2.0, size=shape),
+                -config.input_bound,
+                config.input_bound,
+            ).astype(np.float32)
+        elif config.input_scenario == "uniform_bounded":
+            result = rng.uniform(-config.input_bound, config.input_bound, size=shape).astype(np.float32)
+        elif config.input_scenario == "impulse":
+            result = np.zeros(shape, dtype=np.float32)
+            indices = rng.choice(config.dimension, size=max(1, config.dimension // 8), replace=False)
+            result[0, indices] = rng.choice(np.array([-bound, bound], dtype=np.float32), size=len(indices))
+        else:
+            period = min(8, config.steps)
+            motif = rng.uniform(-config.input_bound, config.input_bound, size=(period, config.dimension))
+            result = np.tile(motif, (math.ceil(config.steps / period), 1))[: config.steps].astype(np.float32)
+        return np.ascontiguousarray(result, dtype=np.float32)
+
+    @staticmethod
+    def digest(stream: np.ndarray) -> str:
+        return hashlib.sha256(np.ascontiguousarray(stream).tobytes()).hexdigest()
+
+
+class CoreLMAdapter:
+    """Numerically equivalent transition to the v1.5 reference dynamics."""
+
+    def __init__(self, dimension: int, seed: int = 42):
+        self.dimension = dimension
+        rng = np.random.default_rng(seed)
+        weights = rng.normal(0.0, 0.02, size=(dimension, dimension)).astype(np.float32)
+        vector = rng.normal(0.0, 1.0, size=(dimension,)).astype(np.float32)
+        for _ in range(10):
+            vector = weights.T @ (weights @ vector)
+            vector /= np.linalg.norm(vector) + 1e-8
+        weights /= np.linalg.norm(weights @ vector) + 1e-8
+        self.weights = weights
+
+    def run(self, inputs: np.ndarray) -> np.ndarray:
+        if inputs.ndim != 2 or inputs.shape[1] != self.dimension:
+            raise ValueError("input dimension mismatch")
+        state = np.zeros(self.dimension, dtype=np.float32)
+        states = np.empty((len(inputs) + 1, self.dimension), dtype=np.float32)
+        states[0] = state
+        history: list[np.ndarray] = [state.copy()]
+        for index, impulse in enumerate(inputs, 1):
+            tail = np.stack(history[-32:])
+            hist_var = float(np.var(tail)) if len(tail) > 1 else 0.0
+            energy = float(np.dot(state, state)) + 0.5 * hist_var
+            gamma = 0.05 * (1.0 + 0.25 * np.tanh(energy / max(1.0, self.dimension)))
+            dynamics = (self.weights @ state) + np.tanh(state)
+            state = state + 0.10 * dynamics + 0.20 * impulse - gamma * (2.0 * state)
+            state = state.astype(np.float32)
+            states[index] = state
+            history.append(state.copy())
+        return states
+
+
+@dataclass
+class EncodedRepresentation:
+    name: str
+    payload: bytes
+    metadata: dict[str, Any]
+    reconstructed: np.ndarray
+    encode_nanoseconds: int
+    decode_nanoseconds: int
+
+    @property
+    def payload_bytes(self) -> int:
+        return len(self.payload)
+
+    @property
+    def file_bytes(self) -> int:
+        metadata_bytes = json.dumps(
+            self.metadata, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        return 8 + len(metadata_bytes) + len(self.payload)
+
+
+class DenseBackend:
+    @staticmethod
+    def encode(states: np.ndarray) -> EncodedRepresentation:
+        started = time.perf_counter_ns()
+        contiguous = np.ascontiguousarray(states, dtype="<f4")
+        payload = contiguous.tobytes()
+        encode_ns = time.perf_counter_ns() - started
+        started = time.perf_counter_ns()
+        reconstructed = np.frombuffer(payload, dtype="<f4").reshape(states.shape).copy()
+        decode_ns = time.perf_counter_ns() - started
+        return EncodedRepresentation(
+            "dense",
+            payload,
+            {"shape": list(states.shape), "dtype": "float32", "format": "dense-v1"},
+            reconstructed,
+            encode_ns,
+            decode_ns,
+        )
+
+
+class PCABackend:
+    @staticmethod
+    def encode(states: np.ndarray, components: int) -> EncodedRepresentation:
+        started = time.perf_counter_ns()
+        source = np.asarray(states, dtype=np.float32)
+        mean = source.mean(axis=0, keepdims=True)
+        centered = source - mean
+        _, _, vt = np.linalg.svd(centered, full_matrices=False)
+        basis = vt[:components].astype(np.float32)
+        scores = (centered @ basis.T).astype(np.float32)
+        payload = mean.astype("<f4").tobytes() + basis.astype("<f4").tobytes() + scores.astype("<f4").tobytes()
+        encode_ns = time.perf_counter_ns() - started
+        started = time.perf_counter_ns()
+        reconstructed = (scores @ basis + mean).astype(np.float32)
+        decode_ns = time.perf_counter_ns() - started
+        return EncodedRepresentation(
+            "pca",
+            payload,
+            {
+                "shape": list(states.shape),
+                "components": components,
+                "dtype": "float32",
+                "format": "pca-v1",
+            },
+            reconstructed,
+            encode_ns,
+            decode_ns,
+        )
+
+
+class VoidTokenBackend:
+    @staticmethod
+    def encode(
+        states: np.ndarray, top_k: int, qmax: int, keyframe_interval: int = 0
+    ) -> EncodedRepresentation:
+        started = time.perf_counter_ns()
+        source = np.asarray(states, dtype=np.float32)
+        index_format = "<H" if source.shape[1] <= 65535 else "<I"
+        quant_format = "<b" if qmax == 127 else "<h"
+        requested_keyframe_interval = keyframe_interval
+        if keyframe_interval == 0:
+            dense_per_state = source.shape[1] * 4
+            token_bytes = 6 + top_k * (
+                struct.calcsize(index_format) + struct.calcsize(quant_format)
+            )
+            keyframe_bytes = 6 + dense_per_state
+            byte_budget = dense_per_state / 4.1
+            if byte_budget > token_bytes:
+                required = math.ceil(
+                    (keyframe_bytes - token_bytes) / (byte_budget - token_bytes)
+                )
+                keyframe_interval = max(8, 1 << (max(1, required) - 1).bit_length())
+            else:
+                keyframe_interval = 0
+        effective_keyframe_interval = keyframe_interval
+        chunks = [source[0].astype("<f4").tobytes()]
+        tokens: list[tuple[bool, float, np.ndarray, np.ndarray, np.ndarray | None]] = []
+        reconstructed = np.empty_like(source)
+        reconstructed[0] = source[0]
+        for row in range(1, len(source)):
+            # Error-feedback residual: encode the target state relative to what
+            # the decoder actually knows, not relative to the previous dense
+            # state. Dropped coordinates remain in the next residual and are
+            # eventually corrected instead of accumulating forever.
+            residual = source[row] - reconstructed[row - 1]
+            norm = float(np.linalg.norm(residual))
+            if (
+                effective_keyframe_interval > 0
+                and row % effective_keyframe_interval == 0
+                and norm >= 1e-12
+            ):
+                keyframe = source[row].astype("<f4", copy=True)
+                chunks.append(struct.pack("<fH", 0.0, 0xFFFF))
+                chunks.append(keyframe.tobytes())
+                tokens.append((
+                    True, 0.0, np.empty(0, dtype=np.int64),
+                    np.empty(0, dtype=np.int32), keyframe,
+                ))
+                reconstructed[row] = source[row]
+                continue
+            if norm < 1e-12:
+                indices = np.empty(0, dtype=np.int64)
+                quantized = np.empty(0, dtype=np.int32)
+            else:
+                count = min(top_k, len(residual))
+                indices = np.argpartition(np.abs(residual), -count)[-count:]
+                indices = np.sort(indices)
+                quantized = np.clip(
+                    np.rint((residual[indices] / norm) * qmax), -qmax, qmax
+                ).astype(np.int32)
+            chunks.append(struct.pack("<fH", norm, len(indices)))
+            chunks.extend(struct.pack(index_format, int(item)) for item in indices)
+            chunks.extend(struct.pack(quant_format, int(item)) for item in quantized)
+            tokens.append((False, norm, indices, quantized, None))
+            decoded = np.zeros(source.shape[1], dtype=np.float32)
+            if len(indices):
+                decoded[indices] = (quantized.astype(np.float32) / float(qmax)) * norm
+            reconstructed[row] = reconstructed[row - 1] + decoded
+        payload = b"".join(chunks)
+        encode_ns = time.perf_counter_ns() - started
+
+        started = time.perf_counter_ns()
+        decoded_states = np.empty_like(source)
+        decoded_states[0] = source[0]
+        for row, (is_keyframe, norm, indices, quantized, keyframe) in enumerate(tokens, 1):
+            if is_keyframe:
+                assert keyframe is not None
+                decoded_states[row] = keyframe
+                continue
+            residual = np.zeros(source.shape[1], dtype=np.float32)
+            if len(indices):
+                residual[indices] = (quantized.astype(np.float32) / float(qmax)) * norm
+            decoded_states[row] = decoded_states[row - 1] + residual
+        decode_ns = time.perf_counter_ns() - started
+        return EncodedRepresentation(
+            "voidtoken",
+            payload,
+            {
+                "shape": list(states.shape),
+                "topK": top_k,
+                "qmax": qmax,
+                "keyframeInterval": effective_keyframe_interval,
+                "keyframePolicy": "automatic-byte-budget"
+                if requested_keyframe_interval == 0
+                else "explicit",
+                "indexBytes": struct.calcsize(index_format),
+                "quantizedValueBytes": struct.calcsize(quant_format),
+                "prediction": "decoder-state-error-feedback",
+                "format": "voidtoken-residual-keyframe-v3",
+            },
+            decoded_states,
+            encode_ns,
+            decode_ns,
+        )
+
+
+def trajectory_signals(states: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    energy = np.sum(np.square(states, dtype=np.float64), axis=1)
+    csi = np.empty(len(states), dtype=np.float64)
+    for index in range(len(states)):
+        tail = states[max(0, index - 31) : index + 1]
+        variance = float(np.var(tail)) if len(tail) > 1 else 0.0
+        csi[index] = 1.0 / (variance + 1e-8)
+    drift = np.abs(np.diff(energy, prepend=energy[0]))
+    return energy, csi, drift
+
+
+def relative_mean_drift(reference: np.ndarray, candidate: np.ndarray) -> float:
+    denominator = max(abs(float(np.mean(reference))), 1e-12)
+    return abs(float(np.mean(candidate)) - float(np.mean(reference))) / denominator
+
+
+def method_metrics(
+    representation: EncodedRepresentation,
+    reference: np.ndarray,
+    dense_payload_bytes: int,
+    elapsed_seconds: float,
+) -> dict[str, Any]:
+    candidate = representation.reconstructed
+    difference = candidate.astype(np.float64) - reference.astype(np.float64)
+    rmse = float(np.sqrt(np.mean(np.square(difference))))
+    scale = max(float(np.sqrt(np.mean(np.square(reference.astype(np.float64))))), 1e-12)
+    nrmse = rmse / scale
+    ref_flat = reference.astype(np.float64).ravel()
+    candidate_flat = candidate.astype(np.float64).ravel()
+    denominator = float(np.linalg.norm(ref_flat) * np.linalg.norm(candidate_flat))
+    if denominator < 1e-20:
+        cosine = 1.0 if np.array_equal(reference, candidate) else 0.0
+    else:
+        cosine = float(np.dot(ref_flat, candidate_flat) / denominator)
+    ref_energy, ref_csi, ref_drift = trajectory_signals(reference)
+    energy, csi, drift = trajectory_signals(candidate)
+    return {
+        "name": representation.name,
+        "payloadBytes": representation.payload_bytes,
+        "fileBytes": representation.file_bytes,
+        "compressionRatio": dense_payload_bytes / max(1, representation.payload_bytes),
+        "rmse": rmse,
+        "normalizedRMSE": nrmse,
+        "cosineSimilarity": cosine,
+        "maximumAbsoluteError": float(np.max(np.abs(difference))),
+        "trajectoryRMSE": rmse,
+        "meanEnergyRelativeDrift": relative_mean_drift(ref_energy, energy),
+        "csiRelativeDrift": relative_mean_drift(ref_csi, csi),
+        "energyDriftRelativeDifference": relative_mean_drift(ref_drift, drift),
+        "encodeNanoseconds": representation.encode_nanoseconds,
+        "decodeNanoseconds": representation.decode_nanoseconds,
+        "stepsPerSecond": (len(reference) - 1) / max(elapsed_seconds, 1e-12),
+        "peakMemoryBytes": None,
+        "metadata": representation.metadata,
+    }
+
+
+def invariant_violations(inputs: np.ndarray, states: np.ndarray, bound: float) -> list[str]:
+    problems: list[str] = []
+    if states.shape[0] != inputs.shape[0] + 1 or states.shape[1] != inputs.shape[1]:
+        problems.append("dimension consistency")
+    if not np.isfinite(inputs).all():
+        problems.append("non-finite input")
+    if not np.isfinite(states).all():
+        problems.append("non-finite state")
+    if float(np.nanmax(np.abs(inputs))) > bound + 1e-6:
+        problems.append("input bound")
+    return problems
+
+
+def stable_run_id(config: ExperimentConfiguration, input_digest: str) -> str:
+    material = json.dumps(
+        {
+            "dimension": config.dimension,
+            "steps": config.steps,
+            "seed": config.seed,
+            "scenario": config.input_scenario,
+            "pca": config.pca_components,
+            "topK": config.top_k,
+            "qmax": config.qmax,
+            "keyframeInterval": config.keyframe_interval,
+            "voidTokenFormat": "voidtoken-residual-keyframe-v3",
+            "inputDigest": input_digest,
+        },
+        sort_keys=True,
+    ).encode()
+    return hashlib.sha256(material).hexdigest()[:16]
+
+
+def build_time_series(
+    states: np.ndarray, pca_states: np.ndarray, void_states: np.ndarray, maximum_points: int = 240
+) -> list[dict[str, float | int]]:
+    energy, csi, drift = trajectory_signals(states)
+    indices = np.unique(
+        np.linspace(0, len(states) - 1, min(maximum_points, len(states))).astype(int)
+    )
+    samples: list[dict[str, float | int]] = []
+    for index in indices:
+        pca_difference = pca_states[index].astype(np.float64) - states[index].astype(np.float64)
+        void_difference = void_states[index].astype(np.float64) - states[index].astype(np.float64)
+        samples.append({
+            "step": int(index),
+            "stateNorm": float(np.linalg.norm(states[index])),
+            "energy": float(energy[index]),
+            "csi": float(csi[index]),
+            "energyDrift": float(drift[index]),
+            "pcaRMSE": float(np.sqrt(np.mean(np.square(pca_difference)))),
+            "voidTokenRMSE": float(np.sqrt(np.mean(np.square(void_difference)))),
+        })
+    return samples
+
+
+def choose_verdict(methods: list[dict[str, Any]], violations: list[str], deterministic: bool,
+                   thresholds: Thresholds) -> tuple[str, list[str]]:
+    void = next((item for item in methods if item["name"] == "voidtoken"), None)
+    if void is None:
+        return "INCONCLUSIVE", ["VoidToken result missing"]
+    reasons: list[str] = []
+    checks = [
+        (void["compressionRatio"] >= thresholds.minimum_compression_ratio,
+         f"compression {void['compressionRatio']:.4f}x < {thresholds.minimum_compression_ratio:.4f}x"),
+        (void["normalizedRMSE"] <= thresholds.maximum_normalized_rmse,
+         f"NRMSE {void['normalizedRMSE']:.6f} > {thresholds.maximum_normalized_rmse:.6f}"),
+        (void["cosineSimilarity"] >= thresholds.minimum_cosine_similarity,
+         f"cosine {void['cosineSimilarity']:.6f} < {thresholds.minimum_cosine_similarity:.6f}"),
+        (void["meanEnergyRelativeDrift"] <= thresholds.maximum_mean_energy_relative_drift,
+         f"energy drift {void['meanEnergyRelativeDrift']:.6f} > "
+         f"{thresholds.maximum_mean_energy_relative_drift:.6f}"),
+        (len(violations) <= thresholds.maximum_invariant_violations,
+         f"invariant violations {len(violations)} > {thresholds.maximum_invariant_violations}"),
+        (deterministic, "deterministic replay failed"),
+    ]
+    reasons.extend(message for passed, message in checks if not passed)
+    return ("PASS" if not reasons else "FAIL"), reasons
+
+
+def run_benchmark(config: ExperimentConfiguration) -> dict[str, Any]:
+    config.validate()
+    tracemalloc.start()
+    inputs = DeterministicInputGenerator.generate(config)
+    digest = DeterministicInputGenerator.digest(inputs)
+    core = CoreLMAdapter(config.dimension)
+    started = time.perf_counter()
+    states = core.run(inputs)
+    elapsed = time.perf_counter() - started
+
+    replay_inputs = DeterministicInputGenerator.generate(config)
+    replay_states = CoreLMAdapter(config.dimension).run(replay_inputs)
+    deterministic = np.array_equal(inputs, replay_inputs) and np.array_equal(states, replay_states)
+
+    dense = DenseBackend.encode(states)
+    pca = PCABackend.encode(states, config.pca_components)
+    void = VoidTokenBackend.encode(
+        states, config.top_k, config.qmax, config.keyframe_interval
+    )
+    representations = [dense, pca, void]
+    methods = [
+        method_metrics(item, states, dense.payload_bytes, elapsed) for item in representations
+    ]
+    _, peak_memory = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    for item in methods:
+        item["peakMemoryBytes"] = peak_memory
+
+    violations = invariant_violations(inputs, states, config.input_bound)
+    verdict, reasons = choose_verdict(methods, violations, deterministic, config.thresholds)
+    return {
+        "schemaVersion": "0.1",
+        "runId": stable_run_id(config, digest),
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "configuration": {
+            "dimension": config.dimension,
+            "steps": config.steps,
+            "seed": config.seed,
+            "inputScenario": config.input_scenario,
+            "inputBound": config.input_bound,
+            "pcaComponents": config.pca_components,
+            "topK": config.top_k,
+            "qmax": config.qmax,
+            "keyframeInterval": config.keyframe_interval,
+            "thresholds": asdict(config.thresholds),
+        },
+        "environment": {
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+            "implementationVersion": VERSION,
+        },
+        "inputDigest": digest,
+        "coreRuntimeNanoseconds": int(elapsed * 1e9),
+        "methods": methods,
+        "timeSeries": build_time_series(states, pca.reconstructed, void.reconstructed),
+        "invariants": {
+            "violations": len(violations),
+            "deterministicReplay": deterministic,
+            "details": violations,
+        },
+        "verdict": verdict,
+        "verdictReasons": reasons,
+    }
+
+
+def markdown_report(result: dict[str, Any]) -> str:
+    configuration = result["configuration"]
+    lines = [
+        f"# Core LM Benchmark — {result['runId']}",
+        "",
+        f"Verdict: **{result['verdict']}**",
+        "",
+        f"Scenario: `{configuration['inputScenario']}`, n={configuration['dimension']}, "
+        f"steps={configuration['steps']}, seed={configuration['seed']}.",
+        "",
+        "| Method | Payload bytes | File bytes | Ratio | NRMSE | Cosine | Energy drift |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for method in result["methods"]:
+        lines.append(
+            f"| {method['name']} | {method['payloadBytes']} | {method['fileBytes']} | "
+            f"{method['compressionRatio']:.3f}× | {method['normalizedRMSE']:.6f} | "
+            f"{method['cosineSimilarity']:.6f} | {method['meanEnergyRelativeDrift']:.6f} |"
+        )
+    lines += [
+        "",
+        f"Invariant violations: {result['invariants']['violations']}.",
+        f"Deterministic replay: {result['invariants']['deterministicReplay']}.",
+        "",
+        "## Verdict reasons",
+        "",
+    ]
+    lines.extend(
+        [f"- {reason}" for reason in result["verdictReasons"]]
+        or ["- All configured PASS thresholds were satisfied."]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def save_result(result: dict[str, Any], output_directory: Path) -> tuple[Path, Path]:
+    output_directory.mkdir(parents=True, exist_ok=True)
+    stem = result["runId"]
+    json_path = output_directory / f"{stem}.json"
+    markdown_path = output_directory / f"{stem}.md"
+    json_path.write_text(
+        json.dumps(result, indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    markdown_path.write_text(markdown_report(result), encoding="utf-8")
+    return json_path, markdown_path
+
+
+def aggregate_suite(results: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    items = list(results)
+    counts = {name: sum(item["verdict"] == name for item in items) for name in ("PASS", "FAIL", "INCONCLUSIVE")}
+    void_results = [
+        next(method for method in item["methods"] if method["name"] == "voidtoken") for item in items
+    ]
+    return {
+        "runs": len(items),
+        "verdictCounts": counts,
+        "aggregateVerdict": "PASS" if items and counts["PASS"] == len(items)
+        else ("INCONCLUSIVE" if counts["INCONCLUSIVE"] else "FAIL"),
+        "voidToken": {
+            "minimumCompressionRatio": min((x["compressionRatio"] for x in void_results), default=None),
+            "maximumNormalizedRMSE": max((x["normalizedRMSE"] for x in void_results), default=None),
+            "minimumCosineSimilarity": min((x["cosineSimilarity"] for x in void_results), default=None),
+            "maximumMeanEnergyRelativeDrift": max(
+                (x["meanEnergyRelativeDrift"] for x in void_results), default=None
+            ),
+        },
+        "runIds": [item["runId"] for item in items],
+    }
+
+
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dimension", type=int, default=96)
+    parser.add_argument("--steps", type=int, default=200)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--scenario", default="gaussian_bounded")
+    parser.add_argument("--pca-components", type=int, default=8)
+    parser.add_argument("--top-k", type=int, default=16)
+    parser.add_argument("--qmax", type=int, default=127)
+    parser.add_argument("--keyframe-interval", type=int, default=0)
+    parser.add_argument("--minimum-compression-ratio", type=float, default=4.0)
+    parser.add_argument("--maximum-normalized-rmse", type=float, default=0.10)
+    parser.add_argument("--minimum-cosine-similarity", type=float, default=0.95)
+    parser.add_argument("--maximum-energy-drift", type=float, default=0.05)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path(__file__).resolve().parents[1] / "benchmark-results",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_arguments()
+    configuration = ExperimentConfiguration(
+        dimension=args.dimension,
+        steps=args.steps,
+        seed=args.seed,
+        input_scenario=args.scenario,
+        pca_components=args.pca_components,
+        top_k=args.top_k,
+        qmax=args.qmax,
+        keyframe_interval=args.keyframe_interval,
+        thresholds=Thresholds(
+            minimum_compression_ratio=args.minimum_compression_ratio,
+            maximum_normalized_rmse=args.maximum_normalized_rmse,
+            minimum_cosine_similarity=args.minimum_cosine_similarity,
+            maximum_mean_energy_relative_drift=args.maximum_energy_drift,
+        ),
+    )
+    result = run_benchmark(configuration)
+    json_path, markdown_path = save_result(result, args.output)
+    print(json.dumps({
+        "verdict": result["verdict"],
+        "runId": result["runId"],
+        "json": str(json_path),
+        "markdown": str(markdown_path),
+        "reasons": result["verdictReasons"],
+    }, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

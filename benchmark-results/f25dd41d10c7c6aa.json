@@ -1,0 +1,2287 @@
+{
+  "configuration": {
+    "dimension": 32,
+    "inputBound": 0.05,
+    "inputScenario": "impulse",
+    "keyframeInterval": 0,
+    "pcaComponents": 8,
+    "qmax": 127,
+    "seed": 42,
+    "steps": 5000,
+    "thresholds": {
+      "maximum_invariant_violations": 0,
+      "maximum_mean_energy_relative_drift": 0.05,
+      "maximum_normalized_rmse": 0.1,
+      "minimum_compression_ratio": 4.0,
+      "minimum_cosine_similarity": 0.95
+    },
+    "topK": 4
+  },
+  "coreRuntimeNanoseconds": 661160749,
+  "createdAt": "2026-07-28T07:52:11.805494+00:00",
+  "environment": {
+    "implementationVersion": "0.2.0",
+    "numpy": "2.3.5",
+    "platform": "macOS-26.3-arm64-arm-64bit",
+    "python": "3.12.13"
+  },
+  "inputDigest": "d61cc4e631bb2f0e65f1227b6029fea24941a3199aa13485841d1a4103082ab0",
+  "invariants": {
+    "details": [],
+    "deterministicReplay": true,
+    "violations": 0
+  },
+  "methods": [
+    {
+      "compressionRatio": 1.0,
+      "cosineSimilarity": 1.0,
+      "csiRelativeDrift": 0.0,
+      "decodeNanoseconds": 22209,
+      "encodeNanoseconds": 15959,
+      "energyDriftRelativeDifference": 0.0,
+      "fileBytes": 640193,
+      "maximumAbsoluteError": 0.0,
+      "meanEnergyRelativeDrift": 0.0,
+      "metadata": {
+        "dtype": "float32",
+        "format": "dense-v1",
+        "shape": [
+          5001,
+          32
+        ]
+      },
+      "name": "dense",
+      "normalizedRMSE": 0.0,
+      "payloadBytes": 640128,
+      "peakMemoryBytes": 10872476,
+      "rmse": 0.0,
+      "stepsPerSecond": 7562.45739034261,
+      "trajectoryRMSE": 0.0
+    },
+    {
+      "compressionRatio": 3.9714115544967243,
+      "cosineSimilarity": 0.9999998804036048,
+      "csiRelativeDrift": 0.002501200518366488,
+      "decodeNanoseconds": 71292,
+      "encodeNanoseconds": 3752500,
+      "energyDriftRelativeDifference": 9.613983987338685e-06,
+      "fileBytes": 161262,
+      "maximumAbsoluteError": 0.007944762706756592,
+      "meanEnergyRelativeDrift": 2.9395813178125207e-07,
+      "metadata": {
+        "components": 8,
+        "dtype": "float32",
+        "format": "pca-v1",
+        "shape": [
+          5001,
+          32
+        ]
+      },
+      "name": "pca",
+      "normalizedRMSE": 0.0004890734621198873,
+      "payloadBytes": 161184,
+      "peakMemoryBytes": 10872476,
+      "rmse": 0.0004941354635973263,
+      "stepsPerSecond": 7562.45739034261,
+      "trajectoryRMSE": 0.0004941354635973263
+    },
+    {
+      "compressionRatio": 11.53051372577275,
+      "cosineSimilarity": 0.9999906284128297,
+      "csiRelativeDrift": 0.0010128366461553114,
+      "decodeNanoseconds": 120577167,
+      "encodeNanoseconds": 306134542,
+      "energyDriftRelativeDifference": 0.038097622576381336,
+      "fileBytes": 55751,
+      "maximumAbsoluteError": 0.08726859092712402,
+      "meanEnergyRelativeDrift": 0.0004819907151601207,
+      "metadata": {
+        "format": "voidtoken-residual-keyframe-v3",
+        "indexBytes": 2,
+        "keyframeInterval": 16,
+        "keyframePolicy": "automatic-byte-budget",
+        "prediction": "decoder-state-error-feedback",
+        "qmax": 127,
+        "quantizedValueBytes": 1,
+        "shape": [
+          5001,
+          32
+        ],
+        "topK": 4
+      },
+      "name": "voidtoken",
+      "normalizedRMSE": 0.004335521830012359,
+      "payloadBytes": 55516,
+      "peakMemoryBytes": 10872476,
+      "rmse": 0.004380395288927642,
+      "stepsPerSecond": 7562.45739034261,
+      "trajectoryRMSE": 0.004380395288927642
+    }
+  ],
+  "runId": "f25dd41d10c7c6aa",
+  "schemaVersion": "0.1",
+  "timeSeries": [
+    {
+      "csi": 100000000.0,
+      "energy": 0.0,
+      "energyDrift": 0.0,
+      "pcaRMSE": 0.0031932801443770617,
+      "stateNorm": 0.0,
+      "step": 0,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 53936.88874339657,
+      "energy": 0.0012162802393758671,
+      "energyDrift": 0.00012165118165798181,
+      "pcaRMSE": 0.001273565396760956,
+      "stateNorm": 0.034875210374593735,
+      "step": 20,
+      "voidTokenRMSE": 0.0007883874057689776
+    },
+    {
+      "csi": 8829.728841768563,
+      "energy": 0.012438029920350348,
+      "energyDrift": 0.0012606309611042088,
+      "pcaRMSE": 0.00100154576105128,
+      "stateNorm": 0.11152591556310654,
+      "step": 41,
+      "voidTokenRMSE": 0.003204588936273779
+    },
+    {
+      "csi": 1008.9745021815158,
+      "energy": 0.10037830896921793,
+      "energyDrift": 0.00893255226412551,
+      "pcaRMSE": 0.0017256978673504527,
+      "stateNorm": 0.31682536005973816,
+      "step": 62,
+      "voidTokenRMSE": 0.00824754524420448
+    },
+    {
+      "csi": 146.53821735139778,
+      "energy": 0.6295139612088887,
+      "energyDrift": 0.049753544186026954,
+      "pcaRMSE": 0.0015857305292025327,
+      "stateNorm": 0.7934191823005676,
+      "step": 83,
+      "voidTokenRMSE": 0.010652458945635353
+    },
+    {
+      "csi": 26.633480192352515,
+      "energy": 3.065163315280967,
+      "energyDrift": 0.200093582430648,
+      "pcaRMSE": 0.0017873586887995271,
+      "stateNorm": 1.7507606744766235,
+      "step": 104,
+      "voidTokenRMSE": 0.029845657963456573
+    },
+    {
+      "csi": 6.705164433213171,
+      "energy": 9.64256830691755,
+      "energyDrift": 0.39430188049220405,
+      "pcaRMSE": 0.0013407013595952515,
+      "stateNorm": 3.10524845123291,
+      "step": 125,
+      "voidTokenRMSE": 0.04129849495149007
+    },
+    {
+      "csi": 2.688811461701684,
+      "energy": 18.038352310603926,
+      "energyDrift": 0.379370896914633,
+      "pcaRMSE": 0.0016183915790953453,
+      "stateNorm": 4.247158050537109,
+      "step": 146,
+      "voidTokenRMSE": 0.01713404094914063
+    },
+    {
+      "csi": 1.6044623055489173,
+      "energy": 25.382306796786022,
+      "energyDrift": 0.3248744044788161,
+      "pcaRMSE": 0.002303202138726991,
+      "stateNorm": 5.038085460662842,
+      "step": 167,
+      "voidTokenRMSE": 0.028620982136019782
+    },
+    {
+      "csi": 1.1920194341367696,
+      "energy": 31.219934945650355,
+      "energyDrift": 0.22032591366324183,
+      "pcaRMSE": 0.002021635775890126,
+      "stateNorm": 5.587480545043945,
+      "step": 188,
+      "voidTokenRMSE": 0.02129116663551457
+    },
+    {
+      "csi": 1.0049535920352277,
+      "energy": 34.31068841624694,
+      "energyDrift": 0.08788313976370432,
+      "pcaRMSE": 0.0015444491812231533,
+      "stateNorm": 5.857532501220703,
+      "step": 209,
+      "voidTokenRMSE": 0.0025542740725345483
+    },
+    {
+      "csi": 0.9319959902876913,
+      "energy": 35.27681450730425,
+      "energyDrift": 0.017576868113785338,
+      "pcaRMSE": 0.0015535564090547551,
+      "stateNorm": 5.939428806304932,
+      "step": 230,
+      "voidTokenRMSE": 0.003991104583821066
+    },
+    {
+      "csi": 0.9124790550169015,
+      "energy": 35.30634657401044,
+      "energyDrift": 0.008743562998866139,
+      "pcaRMSE": 0.0019256606243230347,
+      "stateNorm": 5.9419145584106445,
+      "step": 251,
+      "voidTokenRMSE": 0.0024124608676374835
+    },
+    {
+      "csi": 0.9131660249565474,
+      "energy": 35.040244771646634,
+      "energyDrift": 0.015727459129330157,
+      "pcaRMSE": 0.001196038291679841,
+      "stateNorm": 5.919480323791504,
+      "step": 271,
+      "voidTokenRMSE": 0.0018991499361942317
+    },
+    {
+      "csi": 0.9205587218349459,
+      "energy": 34.70429168344941,
+      "energyDrift": 0.015550422094918304,
+      "pcaRMSE": 0.0007432349878380655,
+      "stateNorm": 5.891035079956055,
+      "step": 292,
+      "voidTokenRMSE": 0.001097265504946044
+    },
+    {
+      "csi": 0.9292139309128208,
+      "energy": 34.4054009634449,
+      "energyDrift": 0.012873404029086544,
+      "pcaRMSE": 0.001318489250025569,
+      "stateNorm": 5.865612030029297,
+      "step": 313,
+      "voidTokenRMSE": 0.0017480635581570664
+    },
+    {
+      "csi": 0.9369983444433404,
+      "energy": 34.168299618107774,
+      "energyDrift": 0.009886608005380992,
+      "pcaRMSE": 0.0015678600442260147,
+      "stateNorm": 5.845365524291992,
+      "step": 334,
+      "voidTokenRMSE": 0.0015377988035765954
+    },
+    {
+      "csi": 0.9433344186141629,
+      "energy": 33.989894105770446,
+      "energyDrift": 0.0073151199645025144,
+      "pcaRMSE": 0.0013790776390544155,
+      "stateNorm": 5.830085277557373,
+      "step": 355,
+      "voidTokenRMSE": 0.0008162479867656641
+    },
+    {
+      "csi": 0.9482602494614328,
+      "energy": 33.85959233822345,
+      "energyDrift": 0.0052777121874925115,
+      "pcaRMSE": 0.0009197893022894545,
+      "stateNorm": 5.818899631500244,
+      "step": 376,
+      "voidTokenRMSE": 0.0011970874921307475
+    },
+    {
+      "csi": 0.9519949158145763,
+      "energy": 33.76673534327465,
+      "energyDrift": 0.0037112581662057664,
+      "pcaRMSE": 0.00042247096498300993,
+      "stateNorm": 5.810915470123291,
+      "step": 397,
+      "voidTokenRMSE": 0.0011296230628963769
+    },
+    {
+      "csi": 0.9547718080810929,
+      "energy": 33.70232248199813,
+      "energyDrift": 0.0025373610168841765,
+      "pcaRMSE": 0.0004327039019222694,
+      "stateNorm": 5.805370330810547,
+      "step": 418,
+      "voidTokenRMSE": 0.00036035631521294715
+    },
+    {
+      "csi": 0.9567972472216658,
+      "energy": 33.65892179098687,
+      "energyDrift": 0.0016847307521317134,
+      "pcaRMSE": 0.0007973882386541988,
+      "stateNorm": 5.801630973815918,
+      "step": 439,
+      "voidTokenRMSE": 0.0005869202445850664
+    },
+    {
+      "csi": 0.9582494776863548,
+      "energy": 33.63045912318519,
+      "energyDrift": 0.001091732450497318,
+      "pcaRMSE": 0.0010670175595579898,
+      "stateNorm": 5.799177646636963,
+      "step": 460,
+      "voidTokenRMSE": 0.0005380115134272173
+    },
+    {
+      "csi": 0.9592785485079123,
+      "energy": 33.612190691670165,
+      "energyDrift": 0.0006950788230568605,
+      "pcaRMSE": 0.0012000257323657203,
+      "stateNorm": 5.79760217666626,
+      "step": 481,
+      "voidTokenRMSE": 0.00012036457335473263
+    },
+    {
+      "csi": 0.9600047515497054,
+      "energy": 33.60063340945104,
+      "energyDrift": 0.0004361197548874429,
+      "pcaRMSE": 0.001217105304100348,
+      "stateNorm": 5.796605587005615,
+      "step": 502,
+      "voidTokenRMSE": 0.00036138416283745296
+    },
+    {
+      "csi": 0.960518972358779,
+      "energy": 33.593435907222705,
+      "energyDrift": 0.00026954331977435686,
+      "pcaRMSE": 0.001152553383206581,
+      "stateNorm": 5.795984268188477,
+      "step": 523,
+      "voidTokenRMSE": 0.0003835290732299252
+    },
+    {
+      "csi": 0.9608696132569796,
+      "energy": 33.58925100849531,
+      "energyDrift": 0.0001622137993493311,
+      "pcaRMSE": 0.0010460646330542117,
+      "stateNorm": 5.795623302459717,
+      "step": 543,
+      "voidTokenRMSE": 0.00033253311762128585
+    },
+    {
+      "csi": 0.9611333951861669,
+      "energy": 33.586744975134906,
+      "energyDrift": 8.488071799916952e-05,
+      "pcaRMSE": 0.000912702225706076,
+      "stateNorm": 5.795407295227051,
+      "step": 564,
+      "voidTokenRMSE": 0.0001611412311289913
+    },
+    {
+      "csi": 0.961318437189047,
+      "energy": 33.58558981928606,
+      "energyDrift": 3.209363439538038e-05,
+      "pcaRMSE": 0.0007755574374657472,
+      "stateNorm": 5.795307159423828,
+      "step": 585,
+      "voidTokenRMSE": 0.00018596576828106183
+    },
+    {
+      "csi": 0.9614451439304619,
+      "energy": 33.58536249928504,
+      "energyDrift": 5.280590919198858e-06,
+      "pcaRMSE": 0.0006460438610259698,
+      "stateNorm": 5.7952880859375,
+      "step": 606,
+      "voidTokenRMSE": 0.0001882346380032192
+    },
+    {
+      "csi": 0.9615281273981929,
+      "energy": 33.58576862270024,
+      "energyDrift": 2.9127338706302908e-05,
+      "pcaRMSE": 0.0005298022717609435,
+      "stateNorm": 5.795322895050049,
+      "step": 627,
+      "voidTokenRMSE": 7.679374376688931e-05
+    },
+    {
+      "csi": 0.9615790486487176,
+      "energy": 33.58655923076669,
+      "energyDrift": 4.3128437184236645e-05,
+      "pcaRMSE": 0.0004288690416871746,
+      "stateNorm": 5.795391082763672,
+      "step": 648,
+      "voidTokenRMSE": 9.495040535675245e-05
+    },
+    {
+      "csi": 0.9616072670752631,
+      "energy": 33.587551869163576,
+      "energyDrift": 4.955239820247925e-05,
+      "pcaRMSE": 0.00034309852973411396,
+      "stateNorm": 5.795476913452148,
+      "step": 669,
+      "voidTokenRMSE": 9.417849649462152e-05
+    },
+    {
+      "csi": 0.961619943860674,
+      "energy": 33.58860853778717,
+      "energyDrift": 5.0736975168774734e-05,
+      "pcaRMSE": 0.0002714256976099696,
+      "stateNorm": 5.795567989349365,
+      "step": 690,
+      "voidTokenRMSE": 2.8923757479305595e-05
+    },
+    {
+      "csi": 0.961622699727817,
+      "energy": 33.58964344588001,
+      "energyDrift": 4.772176833256481e-05,
+      "pcaRMSE": 0.00021221493716933341,
+      "stateNorm": 5.795657634735107,
+      "step": 711,
+      "voidTokenRMSE": 4.66480318648769e-05
+    },
+    {
+      "csi": 0.9616198336263168,
+      "energy": 33.59059071669307,
+      "energyDrift": 4.2576812994354896e-05,
+      "pcaRMSE": 0.00016386614584699763,
+      "stateNorm": 5.79573917388916,
+      "step": 732,
+      "voidTokenRMSE": 4.448719557211803e-05
+    },
+    {
+      "csi": 0.96161388100856,
+      "energy": 33.59143336660695,
+      "energyDrift": 3.636485259761457e-05,
+      "pcaRMSE": 0.000124889107207824,
+      "stateNorm": 5.795811653137207,
+      "step": 753,
+      "voidTokenRMSE": 7.600189327525135e-06
+    },
+    {
+      "csi": 0.9616066056869375,
+      "energy": 33.592155874516045,
+      "energyDrift": 3.116413176229571e-05,
+      "pcaRMSE": 9.40435696317245e-05,
+      "stateNorm": 5.795874118804932,
+      "step": 774,
+      "voidTokenRMSE": 2.29515954596686e-05
+    },
+    {
+      "csi": 0.961599771394178,
+      "energy": 33.59273244172817,
+      "energyDrift": 2.6631713446079175e-05,
+      "pcaRMSE": 7.136476678927768e-05,
+      "stateNorm": 5.795924186706543,
+      "step": 794,
+      "voidTokenRMSE": 2.0508474566072275e-05
+    },
+    {
+      "csi": 0.9615928269703972,
+      "energy": 33.59323776898489,
+      "energyDrift": 2.1618817697799386e-05,
+      "pcaRMSE": 5.398145297884946e-05,
+      "stateNorm": 5.7959675788879395,
+      "step": 815,
+      "voidTokenRMSE": 1.881801402562011e-05
+    },
+    {
+      "csi": 0.9615867644602123,
+      "energy": 33.59364746072666,
+      "energyDrift": 1.7767792314771214e-05,
+      "pcaRMSE": 4.287299958712978e-05,
+      "stateNorm": 5.7960028648376465,
+      "step": 836,
+      "voidTokenRMSE": 9.753214111581973e-06
+    },
+    {
+      "csi": 0.9615815838302644,
+      "energy": 33.593981184747236,
+      "energyDrift": 1.4075215482023395e-05,
+      "pcaRMSE": 3.7292082121828165e-05,
+      "stateNorm": 5.796031475067139,
+      "step": 857,
+      "voidTokenRMSE": 1.012586806892744e-05
+    },
+    {
+      "csi": 0.9615770646029186,
+      "energy": 33.594249245390046,
+      "energyDrift": 1.1447155259247666e-05,
+      "pcaRMSE": 3.61192647780954e-05,
+      "stateNorm": 5.796054840087891,
+      "step": 878,
+      "voidTokenRMSE": 8.36653426269213e-06
+    },
+    {
+      "csi": 0.9615733169831923,
+      "energy": 33.59446675583587,
+      "energyDrift": 8.702053570175394e-06,
+      "pcaRMSE": 3.743227674640211e-05,
+      "stateNorm": 5.7960734367370605,
+      "step": 899,
+      "voidTokenRMSE": 3.831609120873379e-06
+    },
+    {
+      "csi": 0.9615702307300577,
+      "energy": 33.59463682043562,
+      "energyDrift": 7.380579553739608e-06,
+      "pcaRMSE": 3.9677724727599865e-05,
+      "stateNorm": 5.796088218688965,
+      "step": 920,
+      "voidTokenRMSE": 4.624194309286394e-06
+    },
+    {
+      "csi": 0.961567585385996,
+      "energy": 33.59477486152977,
+      "energyDrift": 5.875501599916788e-06,
+      "pcaRMSE": 4.2095917186156054e-05,
+      "stateNorm": 5.796099662780762,
+      "step": 941,
+      "voidTokenRMSE": 3.898113578532202e-06
+    },
+    {
+      "csi": 0.9615654911656029,
+      "energy": 33.59488023183147,
+      "energyDrift": 5.684220234059012e-06,
+      "pcaRMSE": 4.4365143915399013e-05,
+      "stateNorm": 5.796109199523926,
+      "step": 962,
+      "voidTokenRMSE": 1.285284540283202e-06
+    },
+    {
+      "csi": 0.9615639480616767,
+      "energy": 33.594963444612276,
+      "energyDrift": 2.758763656629526e-06,
+      "pcaRMSE": 4.6310371845754656e-05,
+      "stateNorm": 5.796116352081299,
+      "step": 983,
+      "voidTokenRMSE": 2.0864219908684874e-06
+    },
+    {
+      "csi": 0.9615625151838941,
+      "energy": 33.59503106132232,
+      "energyDrift": 2.5748866718799945e-06,
+      "pcaRMSE": 4.788471021507703e-05,
+      "stateNorm": 5.796122074127197,
+      "step": 1004,
+      "voidTokenRMSE": 1.741898897963064e-06
+    },
+    {
+      "csi": 0.9615615231940848,
+      "energy": 33.59508252485768,
+      "energyDrift": 2.5869847988246875e-06,
+      "pcaRMSE": 4.916629272883757e-05,
+      "stateNorm": 5.796126365661621,
+      "step": 1025,
+      "voidTokenRMSE": 3.1478151938732876e-07
+    },
+    {
+      "csi": 0.9615606414270836,
+      "energy": 33.59511991525192,
+      "energyDrift": 1.2963389721676322e-06,
+      "pcaRMSE": 5.019842983930544e-05,
+      "stateNorm": 5.7961297035217285,
+      "step": 1046,
+      "voidTokenRMSE": 8.933864406867976e-07
+    },
+    {
+      "csi": 0.9615600903235291,
+      "energy": 33.5951496063481,
+      "energyDrift": 6.868960014116965e-07,
+      "pcaRMSE": 5.095658158126512e-05,
+      "stateNorm": 5.796132564544678,
+      "step": 1066,
+      "voidTokenRMSE": 8.018984822674817e-07
+    },
+    {
+      "csi": 0.9615596494411404,
+      "energy": 33.59517313437625,
+      "energyDrift": 1.5095094312300716e-06,
+      "pcaRMSE": 5.1593532225263324e-05,
+      "stateNorm": 5.7961344718933105,
+      "step": 1087,
+      "voidTokenRMSE": 6.905767880748208e-07
+    },
+    {
+      "csi": 0.9615592085591559,
+      "energy": 33.59518971337181,
+      "energyDrift": 2.697854952771195e-07,
+      "pcaRMSE": 5.207632622312886e-05,
+      "stateNorm": 5.796135902404785,
+      "step": 1108,
+      "voidTokenRMSE": 2.8434484656544597e-07
+    },
+    {
+      "csi": 0.9615589881183153,
+      "energy": 33.595202241495144,
+      "energyDrift": 5.459429530674242e-07,
+      "pcaRMSE": 5.246705363176006e-05,
+      "stateNorm": 5.796136379241943,
+      "step": 1129,
+      "voidTokenRMSE": 3.4224045508670365e-07
+    },
+    {
+      "csi": 0.9615587676775758,
+      "energy": 33.59521028805693,
+      "energyDrift": 2.0344079132428305e-07,
+      "pcaRMSE": 5.270939216788884e-05,
+      "stateNorm": 5.796137809753418,
+      "step": 1150,
+      "voidTokenRMSE": 2.6577798994983686e-07
+    },
+    {
+      "csi": 0.9615584370166559,
+      "energy": 33.595224228077164,
+      "energyDrift": 3.353746294010307e-07,
+      "pcaRMSE": 5.289576910827333e-05,
+      "stateNorm": 5.796138763427734,
+      "step": 1171,
+      "voidTokenRMSE": 9.996002811937585e-08
+    },
+    {
+      "csi": 0.9615584370166559,
+      "energy": 33.595228545470654,
+      "energyDrift": 7.903156671318357e-07,
+      "pcaRMSE": 5.303134201018858e-05,
+      "stateNorm": 5.796138763427734,
+      "step": 1192,
+      "voidTokenRMSE": 7.634573255449234e-08
+    },
+    {
+      "csi": 0.9615583267963999,
+      "energy": 33.595228438747085,
+      "energyDrift": 2.0789826749023632e-07,
+      "pcaRMSE": 5.308869627624714e-05,
+      "stateNorm": 5.796139240264893,
+      "step": 1213,
+      "voidTokenRMSE": 5.5755039852469285e-08
+    },
+    {
+      "csi": 0.9615583267963999,
+      "energy": 33.59523439921689,
+      "energyDrift": 5.475778763752714e-07,
+      "pcaRMSE": 5.3231047583833404e-05,
+      "stateNorm": 5.796139717102051,
+      "step": 1234,
+      "voidTokenRMSE": 5.188728972220465e-08
+    },
+    {
+      "csi": 0.9615581063559635,
+      "energy": 33.59523770028861,
+      "energyDrift": 1.9358628833288094e-07,
+      "pcaRMSE": 5.335957735711073e-05,
+      "stateNorm": 5.796139717102051,
+      "step": 1255,
+      "voidTokenRMSE": 1.4901161193847656e-08
+    },
+    {
+      "csi": 0.9615581063559635,
+      "energy": 33.59523625644748,
+      "energyDrift": 2.507170364651756e-07,
+      "pcaRMSE": 5.330964688092602e-05,
+      "stateNorm": 5.796139717102051,
+      "step": 1276,
+      "voidTokenRMSE": 4.046701077818951e-08
+    },
+    {
+      "csi": 0.9615581063559635,
+      "energy": 33.595246924107585,
+      "energyDrift": 1.5081470650102347e-07,
+      "pcaRMSE": 5.3336539911289144e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1297,
+      "voidTokenRMSE": 5.268356063861754e-09
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524774772798,
+      "energyDrift": 5.220274346129372e-08,
+      "pcaRMSE": 5.330680094149709e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1317,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1338,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1359,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1380,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1401,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1422,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1443,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1464,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1485,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1506,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1527,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1548,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1569,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1589,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1610,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1631,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1652,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1673,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1694,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1715,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1736,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1757,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1778,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1799,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1820,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1841,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1861,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1882,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1903,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1924,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1945,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1966,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 1987,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2008,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2029,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2050,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2071,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2092,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2112,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2133,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2154,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2175,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2196,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2217,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2238,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2259,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2280,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2301,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2322,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2343,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2364,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2384,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2405,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2426,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2447,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2468,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2489,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2510,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2531,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2552,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2573,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2594,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2615,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2635,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2656,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2677,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2698,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2719,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2740,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2761,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2782,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2803,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2824,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2845,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2866,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2887,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2907,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2928,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2949,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2970,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 2991,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3012,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3033,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3054,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3075,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3096,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3117,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3138,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3158,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3179,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3200,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3221,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3242,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3263,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3284,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3305,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3326,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3347,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3368,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3389,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3410,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3430,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3451,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3472,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3493,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3514,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3535,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3556,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3577,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3598,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3619,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3640,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3661,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3682,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3702,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3723,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3744,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3765,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3786,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3807,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3828,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3849,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3870,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3891,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3912,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3933,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3953,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3974,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 3995,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4016,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4037,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4058,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4079,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4100,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4121,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4142,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4163,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4184,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4205,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4225,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4246,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4267,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4288,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4309,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4330,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4351,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4372,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4393,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4414,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4435,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4456,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4476,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4497,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4518,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4539,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4560,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4581,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4602,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4623,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4644,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4665,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4686,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4707,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4728,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4748,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4769,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4790,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4811,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4832,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4853,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4874,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4895,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4916,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4937,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4958,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 4979,
+      "voidTokenRMSE": 0.0
+    },
+    {
+      "csi": 0.9615578859156282,
+      "energy": 33.59524735353975,
+      "energyDrift": 0.0,
+      "pcaRMSE": 5.331554628041621e-05,
+      "stateNorm": 5.796140670776367,
+      "step": 5000,
+      "voidTokenRMSE": 0.0
+    }
+  ],
+  "verdict": "PASS",
+  "verdictReasons": []
+}

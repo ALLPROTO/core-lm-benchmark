@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Core LM Benchmark Result",
+  "type": "object",
+  "required": ["schemaVersion", "runId", "createdAt", "configuration", "methods", "invariants", "verdict"],
+  "properties": {
+    "schemaVersion": {"type": "string"},
+    "runId": {"type": "string"},
+    "createdAt": {"type": "string"},
+    "configuration": {"type": "object"},
+    "environment": {"type": "object"},
+    "inputDigest": {"type": "string"},
+    "coreRuntimeNanoseconds": {"type": "integer"},
+    "methods": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "payloadBytes", "fileBytes", "compressionRatio", "normalizedRMSE", "cosineSimilarity"]
+      }
+    },
+    "timeSeries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "stateNorm", "energy", "csi", "energyDrift", "pcaRMSE", "voidTokenRMSE"]
+      }
+    },
+    "invariants": {
+      "type": "object",
+      "required": ["violations", "deterministicReplay", "details"]
+    },
+    "verdict": {"enum": ["PASS", "FAIL", "INCONCLUSIVE"]},
+    "verdictReasons": {"type": "array", "items": {"type": "string"}}
+  }
+}

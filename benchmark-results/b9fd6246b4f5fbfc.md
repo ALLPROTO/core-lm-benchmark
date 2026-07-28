@@ -1,0 +1,18 @@
+# Core LM Benchmark — b9fd6246b4f5fbfc
+
+Verdict: **PASS**
+
+Scenario: `gaussian_bounded`, n=96, steps=200, seed=7.
+
+| Method | Payload bytes | File bytes | Ratio | NRMSE | Cosine | Energy drift |
+|---|---:|---:|---:|---:|---:|---:|
+| dense | 77184 | 77248 | 1.000× | 0.000000 | 1.000000 | 0.000000 |
+| pca | 9888 | 9965 | 7.806× | 0.013434 | 0.999910 | 0.000180 |
+| voidtoken | 15384 | 15617 | 5.017× | 0.038964 | 0.999266 | 0.015614 |
+
+Invariant violations: 0.
+Deterministic replay: True.
+
+## Verdict reasons
+
+- All configured PASS thresholds were satisfied.

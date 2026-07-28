@@ -1,0 +1,18 @@
+.DS_Store
+.build/
+dist/
+tmp/
+output/
+**/__pycache__/
+*.py[cod]
+
+# Local delivery and progress notes are not part of the scientific artifact.
+COMPLETION_AUDIT.md
+FINAL_REPORT.md
+PROGRESS.md
+
+# The working directory can contain exploratory runs. The initial public commit
+# force-adds only the 115 run IDs named by aggregate.json.
+benchmark-results/*
+!benchmark-results/aggregate.json
+!benchmark-results/README.md
