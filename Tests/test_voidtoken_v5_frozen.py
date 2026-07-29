@@ -2,6 +2,7 @@ import errno
 import json
 import sys
 import tempfile
+import types
 import unittest
 from contextlib import redirect_stderr
 from io import StringIO
@@ -374,6 +375,22 @@ class FrozenVoidTokenV5ProtocolTests(unittest.TestCase):
 
             registration_digest = registration_sha256()
             implementation_digest = implementation_sha256()
+            fake_torch = types.SimpleNamespace(
+                manual_seed=lambda _seed: None,
+                use_deterministic_algorithms=(
+                    lambda _enabled, warn_only: None
+                ),
+            )
+            runtime_dependencies = (
+                object(),
+                object(),
+                object(),
+                object(),
+                fake_torch,
+                object(),
+                object(),
+                object(),
+            )
             try:
                 with (
                     patch.object(
@@ -415,6 +432,11 @@ class FrozenVoidTokenV5ProtocolTests(unittest.TestCase):
                     patch.object(
                         frozen_runner,
                         "_validate_runtime_versions",
+                    ),
+                    patch.object(
+                        frozen_runner,
+                        "_load_runtime_dependencies",
+                        return_value=runtime_dependencies,
                     ),
                     patch.object(
                         frozen_runner,

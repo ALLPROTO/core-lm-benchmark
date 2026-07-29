@@ -1849,6 +1849,28 @@ def _write_verified_result(
     _exclusive_write(Path(PHASES[phase_name]["output"]), serialized)
 
 
+def _load_runtime_dependencies() -> tuple[Any, ...]:
+    """Load the heavyweight execution stack only when a phase reaches runtime."""
+    import pyarrow
+    import huggingface_hub
+    import safetensors
+    import tokenizers
+    import torch
+    import transformers
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    return (
+        pyarrow,
+        huggingface_hub,
+        safetensors,
+        tokenizers,
+        torch,
+        transformers,
+        AutoModelForCausalLM,
+        AutoTokenizer,
+    )
+
+
 def run_phase(phase_name: str, local_files_only: bool) -> dict[str, Any]:
     if phase_name not in PHASES:
         raise ValueError("phase must be selection or holdout")
@@ -1889,13 +1911,16 @@ def run_phase(phase_name: str, local_files_only: bool) -> dict[str, Any]:
     freeze = execution_freeze if phase_name == "holdout" else None
     phase = PHASES[phase_name]
 
-    import pyarrow
-    import huggingface_hub
-    import safetensors
-    import tokenizers
-    import torch
-    import transformers
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    (
+        pyarrow,
+        huggingface_hub,
+        safetensors,
+        tokenizers,
+        torch,
+        transformers,
+        AutoModelForCausalLM,
+        AutoTokenizer,
+    ) = _load_runtime_dependencies()
 
     _validate_runtime_versions(
         torch,
