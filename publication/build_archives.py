@@ -7,7 +7,10 @@ import argparse
 import gzip
 import hashlib
 import json
+import re
 import shutil
+import subprocess
+import sys
 import tarfile
 import tempfile
 from contextlib import contextmanager
@@ -20,6 +23,207 @@ PUBLICATION = ROOT / "publication"
 ARXIV = PUBLICATION / "arxiv"
 OUTPUT = ROOT / "output"
 ARCHIVE_MTIME = 0
+PUBLIC_ORIGIN = "https://github.com/ALLPROTO/core-lm-benchmark"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+V5_PHASE_PATHS = {
+    "selectionAttempt": ROOT
+    / "real-llm-v5-results"
+    / "selection.attempt.json",
+    "selectionResult": ROOT / "real-llm-v5-results" / "selection.json",
+    "holdoutAttempt": ROOT / "real-llm-v5-results" / "holdout.attempt.json",
+    "holdoutResult": ROOT / "real-llm-v5-results" / "holdout.json",
+}
+
+
+def _git(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    completed = subprocess.run(
+        ["git", *arguments],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if check and completed.returncode:
+        message = completed.stderr.strip() or completed.stdout.strip()
+        raise ValueError(f"git {' '.join(arguments)} failed: {message}")
+    return completed
+
+
+def _normalized_origin(value: str) -> str:
+    return value.removesuffix(".git").rstrip("/")
+
+
+def _build_context(release_tag: str | None) -> dict[str, object]:
+    top = _git("rev-parse", "--show-toplevel", check=False)
+    if top.returncode:
+        if release_tag is not None:
+            raise ValueError("a final release archive requires a Git worktree")
+        return {
+            "buildMode": "preview-artifact-tree",
+            "builtFromCleanHead": False,
+            "gitHeadCommit": None,
+            "releaseTag": None,
+            "remoteTagVerified": False,
+            "trackedFiles": None,
+        }
+    if Path(top.stdout.strip()).resolve() != ROOT.resolve():
+        raise ValueError("archive builder must run from its exact Git worktree")
+    head = _git("rev-parse", "HEAD").stdout.strip()
+    status = _git(
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+        "--ignored=no",
+    ).stdout
+    clean = not status.strip()
+    tracked_files = set(_git("ls-files", "-z").stdout.split("\0"))
+    tracked_files.discard("")
+    context: dict[str, object] = {
+        "buildMode": "preview-working-tree",
+        "builtFromCleanHead": clean,
+        "gitHeadCommit": head,
+        "releaseTag": None,
+        "remoteTagVerified": False,
+        "trackedFiles": tracked_files,
+    }
+    if release_tag is None:
+        return context
+    if (
+        not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*", release_tag)
+        or ".." in release_tag
+        or "//" in release_tag
+    ):
+        raise ValueError("release tag contains unsafe or ambiguous characters")
+    if not clean:
+        raise ValueError(
+            "final release archives require a completely clean worktree"
+        )
+    reference = f"refs/tags/{release_tag}"
+    if _git("cat-file", "-t", reference).stdout.strip() != "commit":
+        raise ValueError("final release tag must be a lightweight Git tag")
+    tag_commit = _git(
+        "rev-parse", "--verify", f"{reference}^{{commit}}"
+    ).stdout.strip()
+    if tag_commit != head:
+        raise ValueError("final release tag does not resolve to HEAD")
+    origin = _git("remote", "get-url", "origin").stdout.strip()
+    if _normalized_origin(origin) != _normalized_origin(PUBLIC_ORIGIN):
+        raise ValueError("origin does not match the registered public repository")
+    remote = _git("ls-remote", "--exit-code", "origin", reference)
+    remote_lines = [line.split() for line in remote.stdout.splitlines()]
+    if remote_lines != [[head, reference]]:
+        raise ValueError("public origin does not expose the exact release tag")
+    context.update(
+        {
+            "buildMode": "clean-public-tag-release",
+            "releaseTag": release_tag,
+            "remoteTagVerified": True,
+        }
+    )
+    return context
+
+
+def _assert_release_source(
+    source: Path, build_context: dict[str, object]
+) -> None:
+    if build_context.get("releaseTag") is None:
+        return
+    try:
+        relative = source.resolve(strict=True).relative_to(
+            ROOT.resolve(strict=True)
+        ).as_posix()
+    except (OSError, ValueError) as error:
+        raise ValueError(f"release input is outside the worktree: {source}") from error
+    tracked = build_context.get("trackedFiles")
+    if not isinstance(tracked, set) or relative not in tracked:
+        raise ValueError(f"release input is not tracked by Git: {relative}")
+    committed = subprocess.run(
+        ["git", "show", f"HEAD:{relative}"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+    )
+    if committed.returncode or committed.stdout != source.read_bytes():
+        raise ValueError(f"release input differs from HEAD: {relative}")
+
+
+def _load_json_object(path: Path) -> dict[str, object]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise ValueError(f"cannot read JSON artifact {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise ValueError(f"JSON artifact is not an object: {path}")
+    return value
+
+
+def _v5_evidence_state() -> tuple[str, list[Path]]:
+    present = {name: path.is_file() for name, path in V5_PHASE_PATHS.items()}
+    if present["selectionResult"] and not present["selectionAttempt"]:
+        raise ValueError("selection result exists without its attempt marker")
+    if present["holdoutResult"] and not present["holdoutAttempt"]:
+        raise ValueError("holdout result exists without its attempt marker")
+    if (
+        present["holdoutAttempt"] or present["holdoutResult"]
+    ) and not present["selectionResult"]:
+        raise ValueError("holdout artifact exists without a selection result")
+    included: list[Path] = []
+    if not present["selectionAttempt"]:
+        if any(present.values()):
+            raise ValueError("prospective v5 artifact state is inconsistent")
+        return "registration-only", included
+    included.append(V5_PHASE_PATHS["selectionAttempt"])
+    if not present["selectionResult"]:
+        return "selection-consumed-incomplete", included
+    selection = _load_json_object(V5_PHASE_PATHS["selectionResult"])
+    if type(selection.get("pass")) is not bool:
+        raise ValueError("selection result has no strict boolean verdict")
+    included.append(V5_PHASE_PATHS["selectionResult"])
+    if selection["pass"] is False:
+        if present["holdoutAttempt"] or present["holdoutResult"]:
+            raise ValueError("holdout exists after terminal selection FAIL")
+        return "selection-fail-terminal", included
+    if not present["holdoutAttempt"]:
+        if present["holdoutResult"]:
+            raise ValueError("holdout result exists without its attempt marker")
+        return "selection-pass-awaiting-holdout", included
+    included.append(V5_PHASE_PATHS["holdoutAttempt"])
+    if not present["holdoutResult"]:
+        return "holdout-consumed-incomplete", included
+    holdout = _load_json_object(V5_PHASE_PATHS["holdoutResult"])
+    if type(holdout.get("pass")) is not bool:
+        raise ValueError("holdout result has no strict boolean verdict")
+    included.append(V5_PHASE_PATHS["holdoutResult"])
+    return (
+        "holdout-pass" if holdout["pass"] else "holdout-fail",
+        included,
+    )
+
+
+def _validate_v5_evidence(
+    *, git_provenance: bool
+) -> tuple[str, list[Path]]:
+    from RealLLM.verify_voidtoken_v5_development import (
+        verify_development_evidence,
+    )
+    from RealLLM.verify_voidtoken_v5_evidence import verify_available_evidence
+
+    development_errors, _ = verify_development_evidence()
+    if development_errors:
+        raise ValueError(
+            "v5 development evidence is invalid: "
+            + "; ".join(development_errors)
+        )
+    prospective_errors, _ = verify_available_evidence(
+        git_provenance=git_provenance
+    )
+    if prospective_errors:
+        raise ValueError(
+            "v5 prospective evidence is invalid: "
+            + "; ".join(prospective_errors)
+        )
+    return _v5_evidence_state()
 
 
 def normalized_tarinfo(info: tarfile.TarInfo) -> tarfile.TarInfo:
@@ -72,7 +276,11 @@ def deterministic_tar_gz(target: Path) -> Iterator[tarfile.TarFile]:
                 yield archive
 
 
-def build_arxiv(output_directory: Path = OUTPUT) -> Path:
+def build_arxiv(
+    output_directory: Path = OUTPUT,
+    build_context: dict[str, object] | None = None,
+) -> Path:
+    context = build_context or _build_context(None)
     target = output_directory / "corelm_arxiv_source.tar.gz"
     include = [
         "main.tex",
@@ -90,11 +298,83 @@ def build_arxiv(output_directory: Path = OUTPUT) -> Path:
             source = ARXIV / relative
             if not source.is_file():
                 raise FileNotFoundError(source)
+            _assert_release_source(source, context)
             add_path(archive, source, relative)
     return target
 
 
-def build_reproducibility(output_directory: Path = OUTPUT) -> Path:
+def _v5_provenance_document(
+    build_context: dict[str, object],
+    evidence_state: str,
+    prospective_artifacts: list[Path],
+) -> dict[str, object]:
+    from RealLLM.run_voidtoken_v5_frozen import (
+        FROZEN_CONFIGURATION_SHA256,
+        SUITE_ID,
+        implementation_sha256,
+        registration_sha256,
+    )
+
+    evidence_paths = [
+        ROOT / "benchmark-results" / "aggregate.json",
+        ROOT / "real-llm-results" / "aggregate.json",
+        ROOT / "RealLLM" / "v5_registration.json",
+        ROOT / "real-llm-v5-development" / "manifest.json",
+        *[
+            ROOT / artifact["path"]
+            for artifact in json.loads(
+                (
+                    ROOT
+                    / "real-llm-v5-development"
+                    / "manifest.json"
+                ).read_text(encoding="utf-8")
+            )["artifacts"]
+        ],
+        *prospective_artifacts,
+    ]
+    files: list[dict[str, object]] = []
+    for path in evidence_paths:
+        _assert_release_source(path, build_context)
+        files.append(
+            {
+                "path": path.relative_to(ROOT).as_posix(),
+                "sizeBytes": path.stat().st_size,
+                "sha256": sha256(path),
+            }
+        )
+    return {
+        "schemaVersion": "corelm-reproducibility-provenance-v1",
+        "repository": PUBLIC_ORIGIN,
+        "buildMode": build_context["buildMode"],
+        "builtFromCleanHead": build_context["builtFromCleanHead"],
+        "gitHeadCommit": build_context["gitHeadCommit"],
+        "releaseTag": build_context["releaseTag"],
+        "remoteTagVerified": build_context["remoteTagVerified"],
+        "gitObjectsIncluded": False,
+        "provenanceScope": (
+            "This manifest records the builder's source state and hashes. "
+            "It is not a substitute for Git objects, tags, or a public "
+            "timestamp. Full Git provenance requires a tagged clone."
+        ),
+        "voidTokenV5": {
+            "suiteId": SUITE_ID,
+            "evidenceState": evidence_state,
+            "configurationSHA256": FROZEN_CONFIGURATION_SHA256,
+            "registrationSHA256": registration_sha256(),
+            "implementationSHA256": implementation_sha256(),
+        },
+        "evidenceFiles": files,
+    }
+
+
+def build_reproducibility(
+    output_directory: Path = OUTPUT,
+    build_context: dict[str, object] | None = None,
+) -> Path:
+    context = build_context or _build_context(None)
+    evidence_state, prospective_artifacts = _validate_v5_evidence(
+        git_provenance=bool(context.get("builtFromCleanHead"))
+    )
     target = output_directory / "corelm_reproducibility.tar.gz"
     aggregate = json.loads((ROOT / "benchmark-results/aggregate.json").read_text())
 
@@ -117,7 +397,9 @@ def build_reproducibility(output_directory: Path = OUTPUT) -> Path:
             "package_app.sh",
         ]
         for relative in files:
-            shutil.copy2(ROOT / relative, stage / relative)
+            source = ROOT / relative
+            _assert_release_source(source, context)
+            shutil.copy2(source, stage / relative)
 
         source_files = [
             ".github/workflows/verify.yml",
@@ -130,55 +412,124 @@ def build_reproducibility(output_directory: Path = OUTPUT) -> Path:
             "BenchmarkCore/run_suite.py",
             "BenchmarkCore/verify_evidence.py",
             "Tests/test_benchmark.py",
+            "Tests/test_publication_archives.py",
             "Tests/test_real_llm.py",
+            "Tests/test_voidtoken_v5.py",
+            "Tests/test_voidtoken_v5_development.py",
+            "Tests/test_voidtoken_v5_frozen.py",
             "schemas/benchmark-result.schema.json",
             "schemas/real-llm-result.schema.json",
+            "schemas/voidtoken-v5-attempt.schema.json",
+            "schemas/voidtoken-v5-phase-result.schema.json",
             "RealLLM/__init__.py",
             "RealLLM/README.md",
             "RealLLM/PROTOCOL.md",
+            "RealLLM/V5_PROTOCOL.md",
             "RealLLM/benchmark_real_llm.py",
             "RealLLM/codecs.py",
+            "RealLLM/develop_voidtoken_v5.py",
             "RealLLM/registration.json",
             "RealLLM/requirements.txt",
+            "RealLLM/run_voidtoken_v5_frozen.py",
+            "RealLLM/v5_registration.json",
             "RealLLM/verify_real_llm_evidence.py",
+            "RealLLM/verify_voidtoken_v5_development.py",
+            "RealLLM/verify_voidtoken_v5_evidence.py",
+            "RealLLM/voidtoken_v5.py",
+            "publication/build_archives.py",
             "real-llm-results/aggregate.json",
             "real-llm-results/README.md",
+            "real-llm-v5-development/README.md",
+            "real-llm-v5-development/manifest.json",
+            "real-llm-v5-development/validation-000-007.json",
+            "real-llm-v5-development/validation-008-015.json",
+            "real-llm-v5-development/validation-016-023.json",
+            "real-llm-v5-development/validation-024-031.json",
+            "real-llm-v5-results/README.md",
         ]
         for relative in source_files:
             source = ROOT / relative
+            _assert_release_source(source, context)
+            destination = stage / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+
+        for source in prospective_artifacts:
+            _assert_release_source(source, context)
+            relative = source.relative_to(ROOT)
             destination = stage / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
 
         results = stage / "benchmark-results"
         results.mkdir()
-        shutil.copy2(ROOT / "benchmark-results/aggregate.json", results)
-        shutil.copy2(ROOT / "benchmark-results/README.md", results)
+        aggregate_path = ROOT / "benchmark-results/aggregate.json"
+        benchmark_readme = ROOT / "benchmark-results/README.md"
+        _assert_release_source(aggregate_path, context)
+        _assert_release_source(benchmark_readme, context)
+        shutil.copy2(aggregate_path, results)
+        shutil.copy2(benchmark_readme, results)
         for run_id in aggregate["runIds"]:
             for suffix in [".json", ".md"]:
                 source = ROOT / "benchmark-results" / f"{run_id}{suffix}"
                 if not source.is_file():
                     raise FileNotFoundError(source)
+                _assert_release_source(source, context)
                 shutil.copy2(source, results)
 
         publication_arxiv = stage / "publication/arxiv"
         publication_arxiv.mkdir(parents=True)
+        reproducibility_readme = PUBLICATION / "reproducibility/README.md"
+        figure_generator = ARXIV / "generate_figures.py"
+        _assert_release_source(reproducibility_readme, context)
+        _assert_release_source(figure_generator, context)
         shutil.copy2(
-            PUBLICATION / "reproducibility/README.md",
+            reproducibility_readme,
             stage / "publication/README.md",
         )
-        shutil.copy2(ARXIV / "generate_figures.py", publication_arxiv)
+        original_reproducibility_path = (
+            stage / "publication/reproducibility/README.md"
+        )
+        original_reproducibility_path.parent.mkdir(
+            parents=True, exist_ok=True
+        )
+        shutil.copy2(
+            reproducibility_readme,
+            original_reproducibility_path,
+        )
+        shutil.copy2(figure_generator, publication_arxiv)
+
+        provenance = _v5_provenance_document(
+            context,
+            evidence_state,
+            prospective_artifacts,
+        )
+        (stage / "PROVENANCE.json").write_text(
+            json.dumps(
+                provenance,
+                sort_keys=True,
+                indent=2,
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
         with deterministic_tar_gz(target) as archive:
             add_path(archive, stage, stage.name)
     return target
 
 
-def build_all(output_directory: Path = OUTPUT) -> list[Path]:
+def build_all(
+    output_directory: Path = OUTPUT,
+    build_context: dict[str, object] | None = None,
+) -> list[Path]:
+    context = build_context or _build_context(None)
     output_directory.mkdir(parents=True, exist_ok=True)
     return [
-        build_arxiv(output_directory),
-        build_reproducibility(output_directory),
+        build_arxiv(output_directory, context),
+        build_reproducibility(output_directory, context),
     ]
 
 
@@ -199,11 +550,14 @@ def write_checksums(artifacts: list[Path], output_directory: Path) -> Path:
     return target
 
 
-def verify_determinism() -> bool:
+def verify_determinism(
+    build_context: dict[str, object] | None = None,
+) -> bool:
+    context = build_context or _build_context(None)
     with tempfile.TemporaryDirectory(prefix="corelm-archive-check-") as temporary:
         root = Path(temporary)
-        first = build_all(root / "first")
-        second = build_all(root / "second")
+        first = build_all(root / "first", context)
+        second = build_all(root / "second", context)
         matches = True
         for first_path, second_path in zip(first, second):
             first_digest = sha256(first_path)
@@ -230,14 +584,31 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="Build each archive twice in temporary directories and compare SHA-256",
     )
+    parser.add_argument(
+        "--release-tag",
+        help=(
+            "Build a final archive only from clean HEAD at this lightweight "
+            "tag after the exact tag is visible on public origin"
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     arguments = parse_arguments()
-    if arguments.verify_determinism:
-        return 0 if verify_determinism() else 1
-    artifacts = build_all(arguments.output)
+    try:
+        context = _build_context(arguments.release_tag)
+    except ValueError as error:
+        print(f"ARCHIVE RELEASE PREFLIGHT FAILED: {error}")
+        return 1
+    try:
+        if arguments.verify_determinism:
+            if not verify_determinism(context):
+                return 1
+        artifacts = build_all(arguments.output, context)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"ARCHIVE BUILD FAILED: {error}")
+        return 1
     for artifact in artifacts:
         print(artifact)
     print(write_checksums(artifacts, arguments.output))

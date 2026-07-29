@@ -122,7 +122,13 @@ def _unpack_codes(packed: bytes, bits: int, count: int) -> np.ndarray:
         )
 
     mask = (1 << bits) - 1
-    codes = np.empty(count, dtype=np.uint8)
+    if bits <= 8:
+        code_dtype = np.uint8
+    elif bits <= 16:
+        code_dtype = np.uint16
+    else:
+        code_dtype = np.uint32
+    codes = np.empty(count, dtype=code_dtype)
     accumulator = 0
     buffered_bits = 0
     output_index = 0

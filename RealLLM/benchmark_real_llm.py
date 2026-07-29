@@ -33,6 +33,7 @@ if str(BENCHMARK_CORE) not in sys.path:
 from corelm_benchmark import EncodedRepresentation, VoidTokenBackend  # noqa: E402
 
 from RealLLM.codecs import PackedGroupQuantBackend  # noqa: E402
+from RealLLM.voidtoken_v5 import VoidTokenV5Backend  # noqa: E402
 
 
 SCHEMA_VERSION = "corelm-real-llm-kv-pilot-v1"
@@ -65,6 +66,8 @@ PREDICTIONS_PER_BLOCK = BLOCK_TOKENS - PREFILL_TOKENS - 1
 VALIDATION_BLOCKS = 4
 TEST_BLOCKS = 8
 REGISTERED_TEST_START_BLOCK = 8
+V5_PROTECTED_TEST_START_BLOCK = 384
+V5_PROTECTED_TEST_END_BLOCK = 448
 
 THRESHOLDS = {
     "minimumCompressionRatioVsBF16": 2.0,
@@ -168,6 +171,15 @@ class RuntimeOptions:
             raise ValueError("test_blocks must be at least one")
         if self.test_start_block < 0:
             raise ValueError("test_start_block must be non-negative")
+        test_end_block = self.test_start_block + self.test_blocks
+        if (
+            self.test_start_block < V5_PROTECTED_TEST_END_BLOCK
+            and test_end_block > V5_PROTECTED_TEST_START_BLOCK
+        ):
+            raise ValueError(
+                "test range overlaps the prospectively frozen VoidToken v5 "
+                "holdout/reserve"
+            )
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -695,6 +707,39 @@ def _encode_layers(
                 qmax=int(configuration["qmax"]),
                 keyframe_interval=int(configuration["keyframeInterval"]),
             )
+        elif configuration["backend"] == "voidtoken-v5":
+            bits_by_layer = configuration.get("bitsByLayer")
+            bits_by_kv_by_layer = configuration.get("bitsByKVByLayer")
+            if bits_by_layer is not None and bits_by_kv_by_layer is not None:
+                raise ValueError(
+                    "voidtoken-v5 cannot combine layer and KV bit schedules"
+                )
+            if bits_by_kv_by_layer is not None:
+                bits = None
+                bits_by_column_group = [
+                    int(value)
+                    for value in bits_by_kv_by_layer[layer_index]
+                ]
+            else:
+                bits = (
+                    int(bits_by_layer[layer_index])
+                    if bits_by_layer is not None
+                    else int(configuration["bits"])
+                )
+                bits_by_column_group = None
+            representation = VoidTokenV5Backend.encode(
+                layer,
+                bits=bits,
+                bits_by_column_group=bits_by_column_group,
+                group_size=int(configuration["groupSize"]),
+                transform_block_size=int(
+                    configuration["transformBlockSize"]
+                ),
+                layer_index=layer_index,
+                scale_compression=str(configuration["scaleCompression"]),
+                code_compression=str(configuration["codeCompression"]),
+                sign_mode=str(configuration.get("signMode", "shake256")),
+            )
         elif configuration["backend"] == "group-quant":
             bits_by_layer = configuration.get("bitsByLayer")
             bits = (
@@ -713,6 +758,8 @@ def _encode_layers(
         container = representation.to_bytes()
         if configuration["backend"] == "voidtoken":
             parsed = EncodedRepresentation.from_bytes(container)
+        elif configuration["backend"] == "voidtoken-v5":
+            parsed = VoidTokenV5Backend.from_bytes(container)
         else:
             parsed = PackedGroupQuantBackend.from_bytes(container)
         if parsed.to_bytes() != container:

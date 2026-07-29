@@ -1,5 +1,6 @@
 import json
 import hashlib
+import subprocess
 import struct
 import sys
 import unittest
@@ -376,6 +377,22 @@ class BackendTests(unittest.TestCase):
 
 
 class IntegrationTests(unittest.TestCase):
+    def test_evidence_verifier_bootstraps_in_isolated_python(self):
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                "-B",
+                str(ROOT / "BenchmarkCore" / "verify_evidence.py"),
+                "--help",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("Replay and verify", completed.stdout)
+
     def test_evidence_tolerance_excludes_configuration(self):
         expected = {
             "configuration": {

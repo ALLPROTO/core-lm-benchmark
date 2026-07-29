@@ -48,6 +48,32 @@ synthetic PASS.
 See [`RealLLM/PROTOCOL.md`](RealLLM/PROTOCOL.md) and
 [`real-llm-results/README.md`](real-llm-results/README.md).
 
+## Prospective VoidToken v5 redesign
+
+The v4 failure was traced to large value-cache reconstruction error hidden by
+the key cache's much larger energy. VoidToken v5 replaces temporal sparse
+residuals with per-layer Walsh-Hadamard group quantization, canonical zigzag
+codes, complete binary containers, and fresh-parser replay.
+
+The frozen v5 configuration was engineered only on validation source blocks
+0–31. Its development observation is **2.055836×** complete-container
+compression, ΔNLL **+0.000804**, top-1 agreement **99.5605%**, one-sided
+95% ΔNLL upper bound **+0.001378**, and one-sided Wilson lower bound
+**99.3548%** over 4,096 predictions. The separate one-sided blockwise top-1
+lower bound is **99.3638%**.
+
+These are development metrics, not the prospective verdict. The code now
+freezes a one-shot acceptance phase on validation blocks 32–63 and a disjoint
+test holdout on blocks 384–415. The exact protocol must be public before
+selection; the holdout remains locked until the passing selection result and
+its durable pre-split attempt marker are committed under a second public tag.
+A crash after marker creation consumes the phase rather than permitting a
+retry. The four exact development shards and their digest/range manifest are
+published in
+[`real-llm-v5-development/`](real-llm-v5-development/). See
+[`RealLLM/V5_PROTOCOL.md`](RealLLM/V5_PROTOCOL.md) and
+[`real-llm-v5-results/README.md`](real-llm-v5-results/README.md).
+
 ## Reproduce the evidence
 
 Requirements:
@@ -57,7 +83,7 @@ Requirements:
 - ReportLab 4.4.9 for rebuilding the paper figures
 - macOS 14 and Swift 5.9 or newer for the native application
 
-Run the 34 lightweight implementation tests:
+Run the lightweight implementation tests:
 
 ```sh
 python3 -m pip install -r requirements.txt
@@ -108,7 +134,14 @@ Verify the checked-in real-LLM result without downloading model weights:
 ```sh
 python -m pip install numpy==2.5.1 jsonschema==4.25.1
 python RealLLM/verify_real_llm_evidence.py
+python RealLLM/verify_voidtoken_v5_development.py
+python RealLLM/verify_voidtoken_v5_evidence.py --require-git-provenance
 ```
+
+The last command requires a full clone with tags. In the extracted
+reproducibility tar, omit `--require-git-provenance`; the verifier then reports
+artifact self-consistency without claiming Git-tag or public-timestamp
+provenance.
 
 To repeat the heavy model run, create a separate environment from
 `RealLLM/requirements.txt`, set `HF_HOME` if desired, and run:
@@ -135,6 +168,8 @@ results, and does not synthesize dashboard values.
 - `benchmark-results/` — aggregate plus the 115 registered evidence records
 - `RealLLM/` — pinned real-model protocol, codec baseline, runner, and verifier
 - `real-llm-results/` — separate exploratory Qwen KV-cache pilot artifact
+- `real-llm-v5-development/` — exact adaptive v5 development shards and manifest
+- `real-llm-v5-results/` — frozen v5 attempt/result artifacts when present
 - `publication/arxiv/` — self-contained paper source and vector figures
 - `publication/corelm_voidtoken_v3.pdf` — visually inspected paper
 - `EVIDENCE.md` — result summary and acceptance gates

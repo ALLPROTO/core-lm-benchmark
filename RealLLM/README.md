@@ -82,6 +82,33 @@ independently preregistered or cross-platform production claim. A pilot PASS
 requires an aggregate that validates against the schema and passes the
 independent evidence verifier.
 
+## Separate prospective v5 suite
+
+The negative v1 pilot above remains immutable. A separate VoidToken v5
+redesign and prospective protocol live in:
+
+- `voidtoken_v5.py` — canonical transform/group codec and strict byte parser;
+- `develop_voidtoken_v5.py` — validation-only engineering runner;
+- `v5_registration.json` and `V5_PROTOCOL.md` — frozen prospective protocol;
+- `run_voidtoken_v5_frozen.py` — locked one-shot selection/holdout runner;
+- `verify_voidtoken_v5_development.py` — recomputation of the four published
+  validation-only development shards;
+- `verify_voidtoken_v5_evidence.py` — full Git-provenance verifier in a tagged
+  clone and explicitly limited artifact-self-consistency verifier in a tar;
+- `../real-llm-v5-development/` — exact adaptive development artifacts; and
+- `../real-llm-v5-results/` — v5 phase results and durable attempt markers.
+
+Development blocks 0–31 do not count toward the prospective verdict. The
+configuration, statistical confidence gates, later source blocks, MPS runtime,
+and public protocol tag are fixed before the one-shot acceptance. The passing
+selection result and its marker must then be public under the pretest tag before
+holdout. Both frozen modes require `python -I -B`; once a marker is created before
+split access, a crash consumes that phase and retry is forbidden.
+
+A selection FAIL is also a valid terminal scientific artifact: it is published
+unchanged and permanently forbids the pretest tag and holdout. Runner exit code
+`2` means recorded scientific FAIL, not an execution crash.
+
 ## Claim boundary
 
 This P0 experiment tests compression of Qwen2.5-0.5B prefill KV cache on pinned

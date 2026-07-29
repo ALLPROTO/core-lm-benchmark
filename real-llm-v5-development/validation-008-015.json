@@ -1,0 +1,1641 @@
+{
+  "aggregates": [
+    {
+      "allPayloadDigestsUnique": true,
+      "baselineNLLNatPerToken": 2.2673014402389526,
+      "blocks": 8,
+      "cacheCosineSimilarity": 0.999994786844805,
+      "cacheMaximumAbsoluteError": 0.38168907165527344,
+      "cacheNormalizedRMSE": 0.0032289942975180503,
+      "candidateNLLNatPerToken": 2.2685907930135727,
+      "compressionRatioVsBF16": 2.0549214996246605,
+      "configuration": {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-top-2-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      "configurationId": "4c7be8c836aa7257",
+      "decodeNanoseconds": 3211375952,
+      "deltaNLLNatPerToken": 0.0012893527746200562,
+      "denseBF16Bytes": 37650432,
+      "encodeNanoseconds": 6463504173,
+      "encodedFileBytes": 18322078,
+      "gates": {
+        "compression": true,
+        "deltaNLL": true,
+        "top1Agreement": true
+      },
+      "meanKLDivergenceNat": 0.00013565765522471906,
+      "modelContinuationNanoseconds": 1665347044,
+      "pass": true,
+      "perplexityRatio": 1.0012901843472672,
+      "predictionTokens": 1024,
+      "top1Agreement": 0.9921875
+    }
+  ],
+  "baselines": [
+    {
+      "baselineContinuationNanoseconds": 178161833,
+      "blockIndex": 8,
+      "canonicalBF16NLLNatPerToken": 1.984079360961914,
+      "canonicalCacheBF16SHA256": "21fea9dab6e477520b3c6e010a66b9729220e26d31aa2d1a774d9c5972fe5b4c",
+      "denseBF16Bytes": 4706304,
+      "exactRebuildMaxAbsLogitDifference": 0.0,
+      "exactRebuildTop1Identical": true,
+      "headDimension": 64,
+      "kvHeads": 2,
+      "layers": 24,
+      "layoutRebuildMaxAbsLogitDifference": 0.0,
+      "layoutRebuildTop1Identical": true,
+      "nativeBF16DeltaNLLNatPerToken": 0.000583648681640625,
+      "nativeBF16Top1Agreement": 0.9921875,
+      "originalContinuationNanoseconds": 191529000,
+      "originalFP32NLLNatPerToken": 1.9834957122802734,
+      "originalRebuildContinuationNanoseconds": 170533208,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "bf1efdd0124e6bb1ca42268690c3693d9185521ccb0fc1d6bc25072a98bb1de2",
+      "trajectoryShapePerLayer": [
+        383,
+        256
+      ]
+    },
+    {
+      "baselineContinuationNanoseconds": 169513333,
+      "blockIndex": 9,
+      "canonicalBF16NLLNatPerToken": 2.2967379093170166,
+      "canonicalCacheBF16SHA256": "db0bb7d7f147f6d00be7b62c0dda90e93ad3619d4c648b04a21bf2185fdfa1a5",
+      "denseBF16Bytes": 4706304,
+      "exactRebuildMaxAbsLogitDifference": 0.0,
+      "exactRebuildTop1Identical": true,
+      "headDimension": 64,
+      "kvHeads": 2,
+      "layers": 24,
+      "layoutRebuildMaxAbsLogitDifference": 0.0,
+      "layoutRebuildTop1Identical": true,
+      "nativeBF16DeltaNLLNatPerToken": 0.00018095970153808594,
+      "nativeBF16Top1Agreement": 0.9921875,
+      "originalContinuationNanoseconds": 169403917,
+      "originalFP32NLLNatPerToken": 2.2965569496154785,
+      "originalRebuildContinuationNanoseconds": 170833000,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "905a67f654601828638612023c32ce65dfe17d94e6dc0c023ad48dac392e3e2a",
+      "trajectoryShapePerLayer": [
+        383,
+        256
+      ]
+    },
+    {
+      "baselineContinuationNanoseconds": 169541250,
+      "blockIndex": 10,
+      "canonicalBF16NLLNatPerToken": 2.202543258666992,
+      "canonicalCacheBF16SHA256": "3b35caaabba018051215fbbd4359f6baeca0932d7b23ed127ee8dcf444e73b17",
+      "denseBF16Bytes": 4706304,
+      "exactRebuildMaxAbsLogitDifference": 0.0,
+      "exactRebuildTop1Identical": true,
+      "headDimension": 64,
+      "kvHeads": 2,
+      "layers": 24,
+      "layoutRebuildMaxAbsLogitDifference": 0.0,
+      "layoutRebuildTop1Identical": true,
+      "nativeBF16DeltaNLLNatPerToken": 0.001142740249633789,
+      "nativeBF16Top1Agreement": 1.0,
+      "originalContinuationNanoseconds": 170817500,
+      "originalFP32NLLNatPerToken": 2.2014005184173584,
+      "originalRebuildContinuationNanoseconds": 171484042,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "e87421f34da8781f56f1b87e9d0fcb2127330863fa780a0acfcbaf5dc670fbc1",
+      "trajectoryShapePerLayer": [
+        383,
+        256
+      ]
+    },
+    {
+      "baselineContinuationNanoseconds": 169156875,
+      "blockIndex": 11,
+      "canonicalBF16NLLNatPerToken": 1.8281896114349365,
+      "canonicalCacheBF16SHA256": "2628be8e02ba7fef80c40e8c10dbe08cc1a3dfc3aa7264c7b02411f989ed0778",
+      "denseBF16Bytes": 4706304,
+      "exactRebuildMaxAbsLogitDifference": 0.0,
+      "exactRebuildTop1Identical": true,
+      "headDimension": 64,
+      "kvHeads": 2,
+      "layers": 24,
+      "layoutRebuildMaxAbsLogitDifference": 0.0,
+      "layoutRebuildTop1Identical": true,
+      "nativeBF16DeltaNLLNatPerToken": 0.0013979673385620117,
+      "nativeBF16Top1Agreement": 0.9921875,
+      "originalContinuationNanoseconds": 170662083,
+      "originalFP32NLLNatPerToken": 1.8267916440963745,
+      "originalRebuildContinuationNanoseconds": 171915708,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "0fea5c6697503cc7f33085064d896446add3b0ba30d7e240654e0af3b9be7a5b",
+      "trajectoryShapePerLayer": [
+        383,
+        256
+      ]
+    },
+    {
+      "baselineContinuationNanoseconds": 169695042,
+      "blockIndex": 12,
+      "canonicalBF16NLLNatPerToken": 2.0808117389678955,
+      "canonicalCacheBF16SHA256": "5ea80047dbf022817b0b970cb66df3ac45efda5168b4f58ea7e02d9a58eb57bd",
+      "denseBF16Bytes": 4706304,
+      "exactRebuildMaxAbsLogitDifference": 0.0,
+      "exactRebuildTop1Identical": true,
+      "headDimension": 64,
+      "kvHeads": 2,
+      "layers": 24,
+      "layoutRebuildMaxAbsLogitDifference": 0.0,
+      "layoutRebuildTop1Identical": true,
+      "nativeBF16DeltaNLLNatPerToken": -0.0006821155548095703,
+      "nativeBF16Top1Agreement": 0.9921875,
+      "originalContinuationNanoseconds": 171039667,
+      "originalFP32NLLNatPerToken": 2.081493854522705,
+      "originalRebuildContinuationNanoseconds": 172223000,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "33eb4727f47d1dbc184069e872973b6e5d2db456983ccad6717fd35ee9214560",
+      "trajectoryShapePerLayer": [
+        383,
+        256
+      ]
+    },
+    {
+      "baselineContinuationNanoseconds": 170041834,
+      "blockIndex": 13,
+      "canonicalBF16NLLNatPerToken": 2.3709828853607178,
+      "canonicalCacheBF16SHA256": "21fd043bc3d498827fa4bbb7387d2f3cd265ab6412532abb7541d6a5f5d39da6",
+      "denseBF16Bytes": 4706304,
+      "exactRebuildMaxAbsLogitDifference": 0.0,
+      "exactRebuildTop1Identical": true,
+      "headDimension": 64,
+      "kvHeads": 2,
+      "layers": 24,
+      "layoutRebuildMaxAbsLogitDifference": 0.0,
+      "layoutRebuildTop1Identical": true,
+      "nativeBF16DeltaNLLNatPerToken": 0.00037407875061035156,
+      "nativeBF16Top1Agreement": 0.9921875,
+      "originalContinuationNanoseconds": 169985084,
+      "originalFP32NLLNatPerToken": 2.3706088066101074,
+      "originalRebuildContinuationNanoseconds": 171685000,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "5b3053383e78586f8110ffe54a177343e0a6e58fb5d9480bbcad961db255025e",
+      "trajectoryShapePerLayer": [
+        383,
+        256
+      ]
+    },
+    {
+      "baselineContinuationNanoseconds": 170128000,
+      "blockIndex": 14,
+      "canonicalBF16NLLNatPerToken": 2.553791046142578,
+      "canonicalCacheBF16SHA256": "bdc761b870673e2a9a55710a57804789253fe486ea973e47a7b3ac5f35ef0e0d",
+      "denseBF16Bytes": 4706304,
+      "exactRebuildMaxAbsLogitDifference": 0.0,
+      "exactRebuildTop1Identical": true,
+      "headDimension": 64,
+      "kvHeads": 2,
+      "layers": 24,
+      "layoutRebuildMaxAbsLogitDifference": 0.0,
+      "layoutRebuildTop1Identical": true,
+      "nativeBF16DeltaNLLNatPerToken": 0.00021529197692871094,
+      "nativeBF16Top1Agreement": 1.0,
+      "originalContinuationNanoseconds": 171299084,
+      "originalFP32NLLNatPerToken": 2.5535757541656494,
+      "originalRebuildContinuationNanoseconds": 171850917,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "9ffab9a286adeb43794807ac05e81f4c6a468d28f0e8ab174bded6668ecccb6e",
+      "trajectoryShapePerLayer": [
+        383,
+        256
+      ]
+    },
+    {
+      "baselineContinuationNanoseconds": 170208792,
+      "blockIndex": 15,
+      "canonicalBF16NLLNatPerToken": 2.8212757110595703,
+      "canonicalCacheBF16SHA256": "ca93369710819d496208dbea2619bce559308c1e35fbcd89a16fd07d6fc17e12",
+      "denseBF16Bytes": 4706304,
+      "exactRebuildMaxAbsLogitDifference": 0.0,
+      "exactRebuildTop1Identical": true,
+      "headDimension": 64,
+      "kvHeads": 2,
+      "layers": 24,
+      "layoutRebuildMaxAbsLogitDifference": 0.0,
+      "layoutRebuildTop1Identical": true,
+      "nativeBF16DeltaNLLNatPerToken": 0.0003733634948730469,
+      "nativeBF16Top1Agreement": 1.0,
+      "originalContinuationNanoseconds": 170312375,
+      "originalFP32NLLNatPerToken": 2.8209023475646973,
+      "originalRebuildContinuationNanoseconds": 172211583,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "97de8b3e58b48d48647a19ebda46d42d8cbd53d9dd1121c4e0bcd784aa5bad8e",
+      "trajectoryShapePerLayer": [
+        383,
+        256
+      ]
+    }
+  ],
+  "createdAt": "2026-07-29T12:29:37+00:00",
+  "environment": {
+    "device": "mps",
+    "hfHome": "/Users/ivan/.cache/corelm-huggingface",
+    "machine": "arm64",
+    "numpy": "2.5.1",
+    "platform": "macOS-26.3-arm64-arm-64bit",
+    "pyarrow": "23.0.1",
+    "python": "3.12.13",
+    "seed": 20260729,
+    "torch": "2.13.0",
+    "transformers": "5.14.1"
+  },
+  "protocol": {
+    "datasetRepository": "Salesforce/wikitext",
+    "datasetRevision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "evaluatedCandidateIndices": [
+      32
+    ],
+    "evaluatedGrid": [
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-top-2-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      }
+    ],
+    "fullDevelopmentGrid": [
+      {
+        "backend": "voidtoken-v5",
+        "bits": 6,
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "signMode": "shake256",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 6,
+        "codeCompression": "zlib-9",
+        "groupSize": 32,
+        "scaleCompression": "zlib-9",
+        "signMode": "shake256",
+        "transformBlockSize": 32
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 6,
+        "codeCompression": "zlib-9",
+        "groupSize": 64,
+        "scaleCompression": "zlib-9",
+        "signMode": "shake256",
+        "transformBlockSize": 64
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 7,
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "signMode": "shake256",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 7,
+        "codeCompression": "zlib-9",
+        "groupSize": 32,
+        "scaleCompression": "zlib-9",
+        "signMode": "shake256",
+        "transformBlockSize": 32
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 7,
+        "codeCompression": "zlib-9",
+        "groupSize": 64,
+        "scaleCompression": "zlib-9",
+        "signMode": "shake256",
+        "transformBlockSize": 64
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "signMode": "shake256",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 32,
+        "scaleCompression": "zlib-9",
+        "signMode": "shake256",
+        "transformBlockSize": 32
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 64,
+        "scaleCompression": "zlib-9",
+        "signMode": "shake256",
+        "transformBlockSize": 64
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          5,
+          5,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          5,
+          8,
+          8,
+          5,
+          5,
+          8,
+          8,
+          8,
+          5
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "schedule": "validation-kl-top-16-8bit-rest-5bit",
+        "signMode": "shake256",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          5,
+          5,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          5,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          5
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "schedule": "validation-kl-top-17-8bit-rest-5bit",
+        "signMode": "shake256",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          5,
+          5,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          5
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "schedule": "validation-kl-top-18-8bit-rest-5bit",
+        "signMode": "shake256",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          5,
+          5,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "schedule": "validation-kl-top-20-8bit-rest-5bit",
+        "signMode": "shake256",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "schedule": "validation-kl-top-22-8bit-rest-5bit",
+        "signMode": "shake256",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "schedule": "validation-kl-top-24-8bit-rest-5bit",
+        "signMode": "shake256",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "signMode": "none",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 32,
+        "scaleCompression": "zlib-9",
+        "signMode": "none",
+        "transformBlockSize": 32
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 64,
+        "scaleCompression": "zlib-9",
+        "signMode": "none",
+        "transformBlockSize": 64
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          5,
+          5,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          5,
+          8,
+          8,
+          5,
+          5,
+          8,
+          8,
+          8,
+          5
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "schedule": "validation-kl-top-16-8bit-rest-5bit-unsigned",
+        "signMode": "none",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          5,
+          5,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          5,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          5
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "schedule": "validation-kl-top-17-8bit-rest-5bit-unsigned",
+        "signMode": "none",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          5,
+          5,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          5,
+          8,
+          8,
+          5,
+          8,
+          8,
+          8,
+          8,
+          5
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 16,
+        "scaleCompression": "zlib-9",
+        "schedule": "validation-kl-top-18-8bit-rest-5bit-unsigned",
+        "signMode": "none",
+        "transformBlockSize": 16
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "signMode": "none",
+        "transformBlockSize": 64
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 64,
+        "scaleCompression": "zlib-9",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 64,
+        "scaleCompression": "zlib-9",
+        "signMode": "none",
+        "transformBlockSize": 256
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 8,
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "signMode": "none",
+        "transformBlockSize": 256
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 9,
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bits": 10,
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          9,
+          9,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-top-4-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          9,
+          9,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-top-5-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          8,
+          9,
+          9,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "kv-forensics-top-4-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          9,
+          9,
+          9,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "kv-forensics-top-5-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-top-2-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          9,
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-top-3-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByKVByLayer": [
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ]
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-value-top-4-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByKVByLayer": [
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ]
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-value-top-6-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByKVByLayer": [
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            9
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ],
+          [
+            8,
+            8
+          ]
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-value-top-8-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      },
+      {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          10,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-top1-10bit-top2-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      }
+    ],
+    "modelRepository": "Qwen/Qwen2.5-0.5B",
+    "modelRevision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+    "modelWeightsSHA256": "88c142557820ccad55bb59756bfcfcf891de9cc6202816bd346445188a0ed342",
+    "split": "validation",
+    "thresholds": {
+      "maximumDeltaNLLNatPerToken": 0.01,
+      "minimumCompressionRatioVsBF16": 2.0,
+      "minimumTop1Agreement": 0.99
+    },
+    "validationBlocks": 8,
+    "validationStartBlock": 8
+  },
+  "records": [
+    {
+      "baselineNLLNatPerToken": 1.984079360961914,
+      "blockIndex": 8,
+      "cacheCandidateSumSquares": 112291529.66713671,
+      "cacheDifferenceSumSquares": 1168.5903578704942,
+      "cacheDotProduct": 112289907.4366981,
+      "cacheMaximumAbsoluteError": 0.35465240478515625,
+      "cacheReferenceSumSquares": 112289453.7966173,
+      "candidateNLLNatPerToken": 1.9874399900436401,
+      "canonicalCacheBF16SHA256": "21fea9dab6e477520b3c6e010a66b9729220e26d31aa2d1a774d9c5972fe5b4c",
+      "configurationId": "4c7be8c836aa7257",
+      "decodeNanoseconds": 402397374,
+      "deltaNLLNatPerToken": 0.0033606290817260742,
+      "denseBF16Bytes": 4706304,
+      "encodeNanoseconds": 811928624,
+      "encodedFileBytes": 2294640,
+      "meanKLDivergenceNat": 0.00016536807788725127,
+      "modelContinuationNanoseconds": 209988167,
+      "payloadBytes": 2274230,
+      "payloadSHA256": "cb25a19ed5625c0c76b17f17ac2d37456ba47c9ec2dcbab61b88a0bce5218075",
+      "perplexityRatio": 1.0033662823266845,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "bf1efdd0124e6bb1ca42268690c3693d9185521ccb0fc1d6bc25072a98bb1de2",
+      "top1Agreement": 0.9765625,
+      "top1AgreementCount": 125
+    },
+    {
+      "baselineNLLNatPerToken": 2.2967379093170166,
+      "blockIndex": 9,
+      "cacheCandidateSumSquares": 112129346.95333137,
+      "cacheDifferenceSumSquares": 1167.0496374735378,
+      "cacheDotProduct": 112128592.24458271,
+      "cacheMaximumAbsoluteError": 0.3502906560897827,
+      "cacheReferenceSumSquares": 112129004.58547153,
+      "candidateNLLNatPerToken": 2.2996227741241455,
+      "canonicalCacheBF16SHA256": "db0bb7d7f147f6d00be7b62c0dda90e93ad3619d4c648b04a21bf2185fdfa1a5",
+      "configurationId": "4c7be8c836aa7257",
+      "decodeNanoseconds": 402301042,
+      "deltaNLLNatPerToken": 0.0028848648071289062,
+      "denseBF16Bytes": 4706304,
+      "encodeNanoseconds": 809513710,
+      "encodedFileBytes": 2290271,
+      "meanKLDivergenceNat": 0.00014678825141345442,
+      "modelContinuationNanoseconds": 204143542,
+      "payloadBytes": 2269861,
+      "payloadSHA256": "d0132ff62a2aff408f64c7eb2bb911336d0e3cd689bb27070b06e744f4076858",
+      "perplexityRatio": 1.0028890300340156,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "905a67f654601828638612023c32ce65dfe17d94e6dc0c023ad48dac392e3e2a",
+      "top1Agreement": 1.0,
+      "top1AgreementCount": 128
+    },
+    {
+      "baselineNLLNatPerToken": 2.202543258666992,
+      "blockIndex": 10,
+      "cacheCandidateSumSquares": 112216785.12836447,
+      "cacheDifferenceSumSquares": 1171.3196214405684,
+      "cacheDotProduct": 112216035.42558207,
+      "cacheMaximumAbsoluteError": 0.36650753021240234,
+      "cacheReferenceSumSquares": 112216457.0424211,
+      "candidateNLLNatPerToken": 2.200773000717163,
+      "canonicalCacheBF16SHA256": "3b35caaabba018051215fbbd4359f6baeca0932d7b23ed127ee8dcf444e73b17",
+      "configurationId": "4c7be8c836aa7257",
+      "decodeNanoseconds": 399207583,
+      "deltaNLLNatPerToken": -0.0017702579498291016,
+      "denseBF16Bytes": 4706304,
+      "encodeNanoseconds": 804429796,
+      "encodedFileBytes": 2294467,
+      "meanKLDivergenceNat": 0.0002450829007898392,
+      "modelContinuationNanoseconds": 208802084,
+      "payloadBytes": 2274057,
+      "payloadSHA256": "8b378a4459646ef2b54b8e1eb21f8e30c12958103e920fbeed1b0d6d051a3b97",
+      "perplexityRatio": 0.9982313080325748,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "e87421f34da8781f56f1b87e9d0fcb2127330863fa780a0acfcbaf5dc670fbc1",
+      "top1Agreement": 1.0,
+      "top1AgreementCount": 128
+    },
+    {
+      "baselineNLLNatPerToken": 1.8281896114349365,
+      "blockIndex": 11,
+      "cacheCandidateSumSquares": 112385346.41867092,
+      "cacheDifferenceSumSquares": 1168.37612051446,
+      "cacheDotProduct": 112384025.63751358,
+      "cacheMaximumAbsoluteError": 0.3609650135040283,
+      "cacheReferenceSumSquares": 112383873.23247677,
+      "candidateNLLNatPerToken": 1.8271350860595703,
+      "canonicalCacheBF16SHA256": "2628be8e02ba7fef80c40e8c10dbe08cc1a3dfc3aa7264c7b02411f989ed0778",
+      "configurationId": "4c7be8c836aa7257",
+      "decodeNanoseconds": 397481663,
+      "deltaNLLNatPerToken": -0.001054525375366211,
+      "denseBF16Bytes": 4706304,
+      "encodeNanoseconds": 800768666,
+      "encodedFileBytes": 2286945,
+      "meanKLDivergenceNat": 6.645790136872165e-05,
+      "modelContinuationNanoseconds": 211154333,
+      "payloadBytes": 2266535,
+      "payloadSHA256": "1bdb8ff82711914ad8b053652952b845c78bb6ceb9dc507b5035bfac16ddcfd6",
+      "perplexityRatio": 0.9989460304411261,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "0fea5c6697503cc7f33085064d896446add3b0ba30d7e240654e0af3b9be7a5b",
+      "top1Agreement": 0.9765625,
+      "top1AgreementCount": 125
+    },
+    {
+      "baselineNLLNatPerToken": 2.0808117389678955,
+      "blockIndex": 12,
+      "cacheCandidateSumSquares": 112321768.54959276,
+      "cacheDifferenceSumSquares": 1173.1915284895492,
+      "cacheDotProduct": 112320124.56477061,
+      "cacheMaximumAbsoluteError": 0.3593648672103882,
+      "cacheReferenceSumSquares": 112319653.77147691,
+      "candidateNLLNatPerToken": 2.0833117961883545,
+      "canonicalCacheBF16SHA256": "5ea80047dbf022817b0b970cb66df3ac45efda5168b4f58ea7e02d9a58eb57bd",
+      "configurationId": "4c7be8c836aa7257",
+      "decodeNanoseconds": 401195497,
+      "deltaNLLNatPerToken": 0.0025000572204589844,
+      "denseBF16Bytes": 4706304,
+      "encodeNanoseconds": 807464749,
+      "encodedFileBytes": 2285021,
+      "meanKLDivergenceNat": 5.875735760696443e-05,
+      "modelContinuationNanoseconds": 202587750,
+      "payloadBytes": 2264611,
+      "payloadSHA256": "05fe1cc7461b1a3ca8065b46264d8900a3e1b6e29bdd7549343a530d7eab7ed6",
+      "perplexityRatio": 1.0025031849694859,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "33eb4727f47d1dbc184069e872973b6e5d2db456983ccad6717fd35ee9214560",
+      "top1Agreement": 1.0,
+      "top1AgreementCount": 128
+    },
+    {
+      "baselineNLLNatPerToken": 2.3709828853607178,
+      "blockIndex": 13,
+      "cacheCandidateSumSquares": 112321539.36311397,
+      "cacheDifferenceSumSquares": 1176.2511833926958,
+      "cacheDotProduct": 112320453.59063405,
+      "cacheMaximumAbsoluteError": 0.33983421325683594,
+      "cacheReferenceSumSquares": 112320544.06933753,
+      "candidateNLLNatPerToken": 2.3705995082855225,
+      "canonicalCacheBF16SHA256": "21fd043bc3d498827fa4bbb7387d2f3cd265ab6412532abb7541d6a5f5d39da6",
+      "configurationId": "4c7be8c836aa7257",
+      "decodeNanoseconds": 400906460,
+      "deltaNLLNatPerToken": -0.0003833770751953125,
+      "denseBF16Bytes": 4706304,
+      "encodeNanoseconds": 807278294,
+      "encodedFileBytes": 2285018,
+      "meanKLDivergenceNat": 0.00010318358533822902,
+      "modelContinuationNanoseconds": 210058209,
+      "payloadBytes": 2264608,
+      "payloadSHA256": "c803cfa2c339383df0d96185fe5e2bfdf0663978eaf61c8201e8c6355ccdb708",
+      "perplexityRatio": 0.9996166964044052,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "5b3053383e78586f8110ffe54a177343e0a6e58fb5d9480bbcad961db255025e",
+      "top1Agreement": 0.9921875,
+      "top1AgreementCount": 127
+    },
+    {
+      "baselineNLLNatPerToken": 2.553791046142578,
+      "blockIndex": 14,
+      "cacheCandidateSumSquares": 112112469.42864381,
+      "cacheDifferenceSumSquares": 1170.6986111515187,
+      "cacheDotProduct": 112110582.36049381,
+      "cacheMaximumAbsoluteError": 0.3625056743621826,
+      "cacheReferenceSumSquares": 112109865.99095504,
+      "candidateNLLNatPerToken": 2.554549217224121,
+      "canonicalCacheBF16SHA256": "bdc761b870673e2a9a55710a57804789253fe486ea973e47a7b3ac5f35ef0e0d",
+      "configurationId": "4c7be8c836aa7257",
+      "decodeNanoseconds": 403945667,
+      "deltaNLLNatPerToken": 0.0007581710815429688,
+      "denseBF16Bytes": 4706304,
+      "encodeNanoseconds": 809930583,
+      "encodedFileBytes": 2294274,
+      "meanKLDivergenceNat": 7.30732131160039e-05,
+      "modelContinuationNanoseconds": 207547709,
+      "payloadBytes": 2273864,
+      "payloadSHA256": "6e5c1722faaf18ddbd46454fac7991fb17f486f89431b968a2edeb108bc334f7",
+      "perplexityRatio": 1.0007584585658869,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "9ffab9a286adeb43794807ac05e81f4c6a468d28f0e8ab174bded6668ecccb6e",
+      "top1Agreement": 1.0,
+      "top1AgreementCount": 128
+    },
+    {
+      "baselineNLLNatPerToken": 2.8212757110595703,
+      "blockIndex": 15,
+      "cacheCandidateSumSquares": 112145147.34472327,
+      "cacheDifferenceSumSquares": 1166.5324609690038,
+      "cacheDotProduct": 112144336.10344787,
+      "cacheMaximumAbsoluteError": 0.38168907165527344,
+      "cacheReferenceSumSquares": 112144691.39463338,
+      "candidateNLLNatPerToken": 2.8252949714660645,
+      "canonicalCacheBF16SHA256": "ca93369710819d496208dbea2619bce559308c1e35fbcd89a16fd07d6fc17e12",
+      "configurationId": "4c7be8c836aa7257",
+      "decodeNanoseconds": 403940666,
+      "deltaNLLNatPerToken": 0.004019260406494141,
+      "denseBF16Bytes": 4706304,
+      "encodeNanoseconds": 812189751,
+      "encodedFileBytes": 2291442,
+      "meanKLDivergenceNat": 0.00022654995427728863,
+      "modelContinuationNanoseconds": 211065250,
+      "payloadBytes": 2271032,
+      "payloadSHA256": "980ede9e72553fd14921f6728177b95710530aa2dca089025e543798c77dfcd1",
+      "perplexityRatio": 1.0040273484659772,
+      "predictionTokens": 128,
+      "tokenIdsSHA256": "97de8b3e58b48d48647a19ebda46d42d8cbd53d9dd1121c4e0bcd784aa5bad8e",
+      "top1Agreement": 0.9921875,
+      "top1AgreementCount": 127
+    }
+  ],
+  "resultSHA256": "3e5c3ecbf517768c003951efee3c516ea0f8bcb67c6306d132a255a6d38da3e7",
+  "schemaVersion": "corelm-voidtoken-v5-validation-development-v1",
+  "selected": {
+    "backend": "voidtoken-v5",
+    "bitsByLayer": [
+      9,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      9,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "codeCompression": "zlib-9",
+    "groupSize": 128,
+    "scaleCompression": "zlib-9",
+    "schedule": "group-kl-top-2-9bit-rest-8bit",
+    "signMode": "none",
+    "transformBlockSize": 128
+  },
+  "selectedTokenIdsSHA256": "c132ae822307f3edfec3dc08c0fa9bb2f1255f4a8a3850c3818ba8cadffe07c0",
+  "selectionError": null,
+  "status": "validation-only-development",
+  "testDataOpened": false
+}
