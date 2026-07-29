@@ -113,6 +113,7 @@ def build_reproducibility(output_directory: Path = OUTPUT) -> Path:
             "requirements.txt",
             "run_tests.sh",
             "run_benchmark.sh",
+            "run_real_llm_benchmark.sh",
             "package_app.sh",
         ]
         for relative in files:
@@ -129,7 +130,19 @@ def build_reproducibility(output_directory: Path = OUTPUT) -> Path:
             "BenchmarkCore/run_suite.py",
             "BenchmarkCore/verify_evidence.py",
             "Tests/test_benchmark.py",
+            "Tests/test_real_llm.py",
             "schemas/benchmark-result.schema.json",
+            "schemas/real-llm-result.schema.json",
+            "RealLLM/__init__.py",
+            "RealLLM/README.md",
+            "RealLLM/PROTOCOL.md",
+            "RealLLM/benchmark_real_llm.py",
+            "RealLLM/codecs.py",
+            "RealLLM/registration.json",
+            "RealLLM/requirements.txt",
+            "RealLLM/verify_real_llm_evidence.py",
+            "real-llm-results/aggregate.json",
+            "real-llm-results/README.md",
         ]
         for relative in source_files:
             source = ROOT / relative

@@ -1,0 +1,9 @@
+# Standalone environment used by the recorded real-model pilot.
+numpy==2.5.1
+torch==2.13.0
+transformers==5.14.1
+tokenizers==0.22.2
+safetensors==0.8.0
+huggingface-hub==1.25.1
+pyarrow==23.0.1
+jsonschema==4.25.1

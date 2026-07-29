@@ -18,7 +18,10 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: python -m pip install -r requirements.txt
+      - run: python -m pip install jsonschema==4.25.1
       - run: PYTHON_BIN=python ./run_tests.sh
+      - name: Verify exploratory real-LLM pilot artifact
+        run: python RealLLM/verify_real_llm_evidence.py
       - name: Replay and verify registered evidence
         run: python BenchmarkCore/verify_evidence.py
       - name: Verify deterministic publication archives

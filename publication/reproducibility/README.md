@@ -21,7 +21,7 @@ python3 -m pip install -r requirements.txt
 ./run_tests.sh
 ```
 
-The expected result is 25 passing tests.
+The expected result is 34 passing tests.
 
 ## Re-run the 115-run benchmark
 
@@ -80,3 +80,30 @@ verdict, and serialization. `BenchmarkCore/run_suite.py` defines the evaluation
 matrix. `Tests/test_benchmark.py` exercises invariants and regression gates.
 `benchmark-results/aggregate.json` records the authoritative run identifiers.
 The paper figure generator reads that aggregate and those records directly.
+
+## Verify the separate real-LLM pilot
+
+The archive also includes the checked-in Qwen KV-cache pilot. It does not alter
+the 115-run paper result.
+
+```sh
+python3 -m pip install numpy==2.5.1 jsonschema==4.25.1
+python3 RealLLM/verify_real_llm_evidence.py
+```
+
+The expected result is a successful evidence verification with two independent
+scientific verdicts inside the aggregate: VoidToken `FAIL` and packed group
+quantization `FAIL`. The latter passes the 2× compression and ΔNLL gates but
+misses the runner's fixed 99% top-1 gate. This exploratory pilot had no
+independent external preregistration timestamp before first test execution.
+
+Repeating model inference requires the separate pinned environment and downloads
+the pinned Qwen weights plus two pinned WikiText-2 parquet files:
+
+```sh
+python3 -m pip install -r RealLLM/requirements.txt
+./run_real_llm_benchmark.sh
+```
+
+The recorded result is an Apple-Silicon/MPS pilot. Cross-device exact PyTorch
+logits are not claimed.

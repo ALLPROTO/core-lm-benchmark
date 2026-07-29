@@ -1,0 +1,969 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/real-llm-result.schema.json",
+  "title": "Repository-recorded exploratory Qwen2.5-0.5B KV-cache pilot aggregate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "implementationVersion",
+    "evidenceClass",
+    "createdAt",
+    "registrationDisclosure",
+    "claimBoundary",
+    "protocol",
+    "environment",
+    "validation",
+    "test",
+    "resultSHA256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "corelm-real-llm-kv-pilot-v1"
+    },
+    "implementationVersion": {
+      "const": "0.4.0-pilot"
+    },
+    "evidenceClass": {
+      "const": "registered-real-llm-pilot"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "registrationDisclosure": {
+      "const": {
+        "externallyTimestampedBeforeTest": false,
+        "status": "exploratory-pilot",
+        "statement": "Validation and test were separated and the selected configuration was held fixed for test, but no independent external timestamp existed before the first test execution."
+      }
+    },
+    "claimBoundary": {
+      "const": "Qwen2.5-0.5B KV-cache replay on pinned WikiText-2 blocks; separate from the 115 synthetic Core LM runs"
+    },
+    "protocol": {
+      "$ref": "#/$defs/protocol"
+    },
+    "environment": {
+      "$ref": "#/$defs/environment"
+    },
+    "validation": {
+      "$ref": "#/$defs/validationPhase"
+    },
+    "test": {
+      "$ref": "#/$defs/testPhase"
+    },
+    "resultSHA256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "configurationId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "nonNegativeNumber": {
+      "type": "number",
+      "minimum": 0
+    },
+    "positiveNumber": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "unitInterval": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "voidConfiguration": {
+      "enum": [
+        {
+          "backend": "voidtoken",
+          "topK": 32,
+          "qmax": 127,
+          "keyframeInterval": 32
+        },
+        {
+          "backend": "voidtoken",
+          "topK": 32,
+          "qmax": 127,
+          "keyframeInterval": 64
+        },
+        {
+          "backend": "voidtoken",
+          "topK": 48,
+          "qmax": 127,
+          "keyframeInterval": 64
+        },
+        {
+          "backend": "voidtoken",
+          "topK": 64,
+          "qmax": 127,
+          "keyframeInterval": 64
+        },
+        {
+          "backend": "voidtoken",
+          "topK": 64,
+          "qmax": 127,
+          "keyframeInterval": 128
+        }
+      ]
+    },
+    "groupConfiguration": {
+      "enum": [
+        {
+          "backend": "group-quant",
+          "bits": 4,
+          "groupSize": 16,
+          "scaleCompression": "none"
+        },
+        {
+          "backend": "group-quant",
+          "bits": 4,
+          "groupSize": 32,
+          "scaleCompression": "none"
+        },
+        {
+          "backend": "group-quant",
+          "bits": 5,
+          "groupSize": 16,
+          "scaleCompression": "none"
+        },
+        {
+          "backend": "group-quant",
+          "bits": 5,
+          "groupSize": 32,
+          "scaleCompression": "none"
+        },
+        {
+          "backend": "group-quant",
+          "bits": 6,
+          "groupSize": 16,
+          "scaleCompression": "none"
+        },
+        {
+          "backend": "group-quant",
+          "bits": 6,
+          "groupSize": 32,
+          "scaleCompression": "none"
+        },
+        {
+          "backend": "group-quant",
+          "bits": 7,
+          "groupSize": 16,
+          "scaleCompression": "zlib-9"
+        },
+        {
+          "backend": "group-quant",
+          "bits": 7,
+          "groupSize": 32,
+          "scaleCompression": "none"
+        },
+        {
+          "backend": "group-quant",
+          "bits": 7,
+          "groupSize": 64,
+          "scaleCompression": "none"
+        },
+        {
+          "backend": "group-quant",
+          "bitsByLayer": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            5,
+            5,
+            5,
+            8,
+            8,
+            5,
+            8,
+            8,
+            8,
+            8,
+            5,
+            8,
+            8,
+            5,
+            5,
+            8,
+            8,
+            8,
+            5
+          ],
+          "groupSize": 16,
+          "scaleCompression": "zlib-9",
+          "schedule": "validation-kl-top-16-8bit-rest-5bit"
+        },
+        {
+          "backend": "group-quant",
+          "bitsByLayer": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            5,
+            5,
+            5,
+            8,
+            8,
+            5,
+            8,
+            8,
+            8,
+            8,
+            5,
+            8,
+            8,
+            5,
+            8,
+            8,
+            8,
+            8,
+            5
+          ],
+          "groupSize": 16,
+          "scaleCompression": "zlib-9",
+          "schedule": "validation-kl-top-17-8bit-rest-5bit"
+        }
+      ]
+    },
+    "configuration": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/voidConfiguration"
+        },
+        {
+          "$ref": "#/$defs/groupConfiguration"
+        }
+      ]
+    },
+    "datasetFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "dataset",
+        "tensorTap",
+        "blockTokens",
+        "prefillTokens",
+        "predictionsPerBlock",
+        "validationBlocks",
+        "testBlocks",
+        "testStartBlock",
+        "thresholds",
+        "selectionRule",
+        "validationGrid"
+      ],
+      "properties": {
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "revision",
+            "weightsSHA256",
+            "weightsBytes",
+            "license"
+          ],
+          "properties": {
+            "repository": {
+              "const": "Qwen/Qwen2.5-0.5B"
+            },
+            "revision": {
+              "const": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+            },
+            "weightsSHA256": {
+              "const": "88c142557820ccad55bb59756bfcfcf891de9cc6202816bd346445188a0ed342"
+            },
+            "weightsBytes": {
+              "const": 988097824
+            },
+            "license": {
+              "const": "Apache-2.0"
+            }
+          }
+        },
+        "dataset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "revision",
+            "configuration",
+            "files",
+            "join",
+            "tokenization",
+            "selection"
+          ],
+          "properties": {
+            "repository": {
+              "const": "Salesforce/wikitext"
+            },
+            "revision": {
+              "const": "b08601e04326c79dfdd32d625aee71d232d685c3"
+            },
+            "configuration": {
+              "const": "wikitext-2-raw-v1"
+            },
+            "files": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "validation",
+                "test"
+              ],
+              "properties": {
+                "validation": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/datasetFile"
+                    },
+                    {
+                      "properties": {
+                        "path": {
+                          "const": "wikitext-2-raw-v1/validation-00000-of-00001.parquet"
+                        },
+                        "sha256": {
+                          "const": "204929b7ff9d6184953f867dedb860e40aa69c078fc1e54b3baaa8fb28511c4c"
+                        },
+                        "bytes": {
+                          "const": 657209
+                        }
+                      }
+                    }
+                  ]
+                },
+                "test": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/datasetFile"
+                    },
+                    {
+                      "properties": {
+                        "path": {
+                          "const": "wikitext-2-raw-v1/test-00000-of-00001.parquet"
+                        },
+                        "sha256": {
+                          "const": "5f1bea067869d04849c0f975a2b29c4ff47d867f484f5010ea5e861eab246d91"
+                        },
+                        "bytes": {
+                          "const": 732610
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "join": {
+              "const": "text rows joined with two LF characters"
+            },
+            "tokenization": {
+              "const": "add_special_tokens=false"
+            },
+            "selection": {
+              "const": "validation starts at block 0; registered test starts at the declared testStartBlock; all blocks are non-overlapping"
+            }
+          }
+        },
+        "tensorTap": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "sourceShape",
+            "codecShape",
+            "canonicalInput",
+            "layersEncodedSeparately",
+            "behavioralReplay"
+          ],
+          "properties": {
+            "name": {
+              "const": "per-layer-key-value-cache"
+            },
+            "sourceShape": {
+              "const": "[1, 2, 383, 64] for K and V"
+            },
+            "codecShape": {
+              "const": "[383, 256] per layer"
+            },
+            "canonicalInput": {
+              "const": "round-to-BF16 then exact conversion to float32"
+            },
+            "layersEncodedSeparately": {
+              "const": true
+            },
+            "behavioralReplay": {
+              "const": "decoded DynamicCache drives 128 next-token predictions"
+            }
+          }
+        },
+        "blockTokens": {
+          "const": 512
+        },
+        "prefillTokens": {
+          "const": 383
+        },
+        "predictionsPerBlock": {
+          "const": 128
+        },
+        "validationBlocks": {
+          "const": 4
+        },
+        "testBlocks": {
+          "const": 8
+        },
+        "testStartBlock": {
+          "const": 8
+        },
+        "thresholds": {
+          "const": {
+            "minimumCompressionRatioVsBF16": 2.0,
+            "maximumDeltaNLLNatPerToken": 0.01,
+            "minimumTop1Agreement": 0.99
+          }
+        },
+        "selectionRule": {
+          "const": "Within each backend family, retain validation configurations with compression >=2x and prefer those passing every validation gate; if none pass, keep the family as a negative control. Minimize mean KL, with higher top-1 agreement, fewer bytes, and configuration ID as tie breakers. Test is run once."
+        },
+        "validationGrid": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/configuration"
+          }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "python",
+        "platform",
+        "machine",
+        "device",
+        "torch",
+        "transformers",
+        "numpy",
+        "pyarrow",
+        "attentionImplementation",
+        "modelDtype",
+        "seed",
+        "hfHome"
+      ],
+      "properties": {
+        "python": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "machine": {
+          "type": "string"
+        },
+        "device": {
+          "enum": [
+            "cpu",
+            "mps",
+            "cuda"
+          ]
+        },
+        "torch": {
+          "type": "string"
+        },
+        "transformers": {
+          "type": "string"
+        },
+        "numpy": {
+          "type": "string"
+        },
+        "pyarrow": {
+          "type": "string"
+        },
+        "attentionImplementation": {
+          "const": "eager"
+        },
+        "modelDtype": {
+          "const": "torch.float32"
+        },
+        "seed": {
+          "const": 20260729
+        },
+        "hfHome": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockIndex",
+        "tokenIdsSHA256",
+        "canonicalCacheBF16SHA256",
+        "layers",
+        "kvHeads",
+        "headDimension",
+        "trajectoryShapePerLayer",
+        "predictionTokens",
+        "denseBF16Bytes",
+        "originalFP32NLLNatPerToken",
+        "canonicalBF16NLLNatPerToken",
+        "nativeBF16DeltaNLLNatPerToken",
+        "nativeBF16Top1Agreement",
+        "exactRebuildMaxAbsLogitDifference",
+        "exactRebuildTop1Identical",
+        "layoutRebuildMaxAbsLogitDifference",
+        "layoutRebuildTop1Identical",
+        "originalContinuationNanoseconds",
+        "originalRebuildContinuationNanoseconds",
+        "baselineContinuationNanoseconds"
+      ],
+      "properties": {
+        "blockIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "tokenIdsSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonicalCacheBF16SHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "layers": {
+          "const": 24
+        },
+        "kvHeads": {
+          "const": 2
+        },
+        "headDimension": {
+          "const": 64
+        },
+        "trajectoryShapePerLayer": {
+          "const": [
+            383,
+            256
+          ]
+        },
+        "predictionTokens": {
+          "const": 128
+        },
+        "denseBF16Bytes": {
+          "const": 4706304
+        },
+        "originalFP32NLLNatPerToken": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "canonicalBF16NLLNatPerToken": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "nativeBF16DeltaNLLNatPerToken": {
+          "type": "number"
+        },
+        "nativeBF16Top1Agreement": {
+          "$ref": "#/$defs/unitInterval"
+        },
+        "exactRebuildMaxAbsLogitDifference": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "exactRebuildTop1Identical": {
+          "type": "boolean"
+        },
+        "layoutRebuildMaxAbsLogitDifference": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "layoutRebuildTop1Identical": {
+          "type": "boolean"
+        },
+        "originalContinuationNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "originalRebuildContinuationNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baselineContinuationNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "candidateRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockIndex",
+        "tokenIdsSHA256",
+        "canonicalCacheBF16SHA256",
+        "configurationId",
+        "predictionTokens",
+        "denseBF16Bytes",
+        "encodedFileBytes",
+        "payloadBytes",
+        "payloadSHA256",
+        "encodeNanoseconds",
+        "decodeNanoseconds",
+        "cacheDifferenceSumSquares",
+        "cacheReferenceSumSquares",
+        "cacheCandidateSumSquares",
+        "cacheDotProduct",
+        "cacheMaximumAbsoluteError",
+        "baselineNLLNatPerToken",
+        "candidateNLLNatPerToken",
+        "deltaNLLNatPerToken",
+        "perplexityRatio",
+        "top1AgreementCount",
+        "top1Agreement",
+        "meanKLDivergenceNat",
+        "modelContinuationNanoseconds"
+      ],
+      "properties": {
+        "blockIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "tokenIdsSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonicalCacheBF16SHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "configurationId": {
+          "$ref": "#/$defs/configurationId"
+        },
+        "predictionTokens": {
+          "const": 128
+        },
+        "denseBF16Bytes": {
+          "const": 4706304
+        },
+        "encodedFileBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payloadBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payloadSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "encodeNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "decodeNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cacheDifferenceSumSquares": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "cacheReferenceSumSquares": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "cacheCandidateSumSquares": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "cacheDotProduct": {
+          "type": "number"
+        },
+        "cacheMaximumAbsoluteError": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "baselineNLLNatPerToken": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "candidateNLLNatPerToken": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "deltaNLLNatPerToken": {
+          "type": "number"
+        },
+        "perplexityRatio": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "top1AgreementCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "top1Agreement": {
+          "$ref": "#/$defs/unitInterval"
+        },
+        "meanKLDivergenceNat": {
+          "type": "number"
+        },
+        "modelContinuationNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compression",
+        "deltaNLL",
+        "top1Agreement"
+      ],
+      "properties": {
+        "compression": {
+          "type": "boolean"
+        },
+        "deltaNLL": {
+          "type": "boolean"
+        },
+        "top1Agreement": {
+          "type": "boolean"
+        }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "configuration",
+        "configurationId",
+        "blocks",
+        "predictionTokens",
+        "denseBF16Bytes",
+        "encodedFileBytes",
+        "compressionRatioVsBF16",
+        "baselineNLLNatPerToken",
+        "candidateNLLNatPerToken",
+        "deltaNLLNatPerToken",
+        "perplexityRatio",
+        "top1Agreement",
+        "meanKLDivergenceNat",
+        "cacheNormalizedRMSE",
+        "cacheCosineSimilarity",
+        "cacheMaximumAbsoluteError",
+        "encodeNanoseconds",
+        "decodeNanoseconds",
+        "modelContinuationNanoseconds",
+        "allPayloadDigestsUnique",
+        "pass",
+        "gates"
+      ],
+      "properties": {
+        "configuration": {
+          "$ref": "#/$defs/configuration"
+        },
+        "configurationId": {
+          "$ref": "#/$defs/configurationId"
+        },
+        "blocks": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "predictionTokens": {
+          "type": "integer",
+          "minimum": 128
+        },
+        "denseBF16Bytes": {
+          "type": "integer",
+          "minimum": 4706304
+        },
+        "encodedFileBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "compressionRatioVsBF16": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "baselineNLLNatPerToken": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "candidateNLLNatPerToken": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "deltaNLLNatPerToken": {
+          "type": "number"
+        },
+        "perplexityRatio": {
+          "$ref": "#/$defs/positiveNumber"
+        },
+        "top1Agreement": {
+          "$ref": "#/$defs/unitInterval"
+        },
+        "meanKLDivergenceNat": {
+          "type": "number"
+        },
+        "cacheNormalizedRMSE": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "cacheCosineSimilarity": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "cacheMaximumAbsoluteError": {
+          "$ref": "#/$defs/nonNegativeNumber"
+        },
+        "encodeNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "decodeNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "modelContinuationNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "allPayloadDigestsUnique": {
+          "type": "boolean"
+        },
+        "pass": {
+          "type": "boolean"
+        },
+        "gates": {
+          "$ref": "#/$defs/gates"
+        }
+      }
+    },
+    "selected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "voidtoken",
+        "groupQuant"
+      ],
+      "properties": {
+        "voidtoken": {
+          "$ref": "#/$defs/voidConfiguration"
+        },
+        "groupQuant": {
+          "$ref": "#/$defs/groupConfiguration"
+        }
+      }
+    },
+    "validationPhase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selectedTokenIdsSHA256",
+        "baselines",
+        "records",
+        "aggregates",
+        "selected"
+      ],
+      "properties": {
+        "selectedTokenIdsSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "baselines": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/baseline"
+          }
+        },
+        "records": {
+          "type": "array",
+          "minItems": 64,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/candidateRecord"
+          }
+        },
+        "aggregates": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/aggregate"
+          }
+        },
+        "selected": {
+          "$ref": "#/$defs/selected"
+        }
+      }
+    },
+    "testPhase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selectedTokenIdsSHA256",
+        "baselines",
+        "records",
+        "aggregates",
+        "allPassed"
+      ],
+      "properties": {
+        "selectedTokenIdsSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "baselines": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/baseline"
+          }
+        },
+        "records": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/candidateRecord"
+          }
+        },
+        "aggregates": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/aggregate"
+          }
+        },
+        "allPassed": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

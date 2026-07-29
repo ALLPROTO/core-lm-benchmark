@@ -28,6 +28,26 @@ The claim is deliberately bounded: these values establish a reproducible
 operating region for the registered test matrix, not universal performance on
 arbitrary learned-model states or task-level language-model quality.
 
+## Real pretrained-model pilot
+
+A separate exploratory pilot now compresses the actual 24-layer KV cache of the
+pinned pretrained `Qwen/Qwen2.5-0.5B` model and feeds the decoded cache back
+into Qwen for 1,024 held-out WikiText-2 next-token predictions.
+
+| Family | Ratio vs BF16 | ΔNLL | PPL ratio | Top-1 agreement | Verdict |
+|---|---:|---:|---:|---:|---|
+| VoidToken v4 | 2.4184× | +0.203580 | 1.225783 | 79.88% | **FAIL** |
+| Mixed group quant baseline | 2.0214× | +0.001356 | 1.001357 | 97.95% | **FAIL** |
+
+Both verdicts use the runner's fixed gates of ≥2× compression, ΔNLL ≤0.01
+nat/token, and ≥99% top-1 agreement. This exploratory pilot was not externally
+preregistered before first test execution. The baseline passes the compression
+and NLL gates but misses top-1; VoidToken misses both quality gates. These
+negative results are kept intact and do not alter the separate 115/115
+synthetic PASS.
+See [`RealLLM/PROTOCOL.md`](RealLLM/PROTOCOL.md) and
+[`real-llm-results/README.md`](real-llm-results/README.md).
+
 ## Reproduce the evidence
 
 Requirements:
@@ -37,7 +57,7 @@ Requirements:
 - ReportLab 4.4.9 for rebuilding the paper figures
 - macOS 14 and Swift 5.9 or newer for the native application
 
-Run the 25 implementation tests:
+Run the 34 lightweight implementation tests:
 
 ```sh
 python3 -m pip install -r requirements.txt
@@ -83,6 +103,20 @@ corrupted containers.
 The authoritative `benchmark-results/aggregate.json` lists the exact run IDs
 used by the paper. Only those JSON and Markdown records are committed.
 
+Verify the checked-in real-LLM result without downloading model weights:
+
+```sh
+python -m pip install numpy==2.5.1 jsonschema==4.25.1
+python RealLLM/verify_real_llm_evidence.py
+```
+
+To repeat the heavy model run, create a separate environment from
+`RealLLM/requirements.txt`, set `HF_HOME` if desired, and run:
+
+```sh
+PYTHON_BIN=python ./run_real_llm_benchmark.sh --device mps
+```
+
 ## Native macOS application
 
 ```sh
@@ -99,6 +133,8 @@ results, and does not synthesize dashboard values.
 - `Tests/` — unit and integration tests
 - `App/` — native SwiftUI benchmark interface
 - `benchmark-results/` — aggregate plus the 115 registered evidence records
+- `RealLLM/` — pinned real-model protocol, codec baseline, runner, and verifier
+- `real-llm-results/` — separate exploratory Qwen KV-cache pilot artifact
 - `publication/arxiv/` — self-contained paper source and vector figures
 - `publication/corelm_voidtoken_v3.pdf` — visually inspected paper
 - `EVIDENCE.md` — result summary and acceptance gates

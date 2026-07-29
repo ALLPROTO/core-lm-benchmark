@@ -16,3 +16,9 @@ PROGRESS.md
 benchmark-results/*
 !benchmark-results/aggregate.json
 !benchmark-results/README.md
+
+# Real-model exploratory outputs remain local; only the recorded aggregate
+# and its human-readable interpretation are scientific evidence.
+real-llm-results/*
+!real-llm-results/aggregate.json
+!real-llm-results/README.md
