@@ -109,7 +109,7 @@ Runner использует фиксированные пороги: сжати�
 дали нулевую максимальную разницу logits. В модель подавался результат нового
 разбора фактического бинарного контейнера, а не объект энкодера в памяти.
 
-## Проспективный VoidToken v5 — пока без финального вердикта
+## Проспективный VoidToken v5 — финальный PASS
 
 Отрицательный pilot выше не перезаписан. Отдельная реализация VoidToken v5
 была разработана только на validation-блоках 0–31. Инженерное наблюдение:
@@ -117,13 +117,35 @@ Runner использует фиксированные пороги: сжати�
 односторонняя 95% верхняя граница ΔNLL +0.001378 и block-aware нижняя граница
 top-1 99.3638%.
 
-Эти числа не являются prospective PASS. Конфигурация, 32 новых
-validation-блока, 32 disjoint test-блока, статистические gates, runtime и код
-зафиксированы в `RealLLM/v5_registration.json`. До selection требуется
-публичный protocol tag; до holdout — второй tag с неизменёнными selection
-result и attempt marker. Маркер создаётся до доступа к split, а сбой после его
-создания запрещает повтор той же фазы. До появления проверенного
-`real-llm-v5-results/holdout.json` финальный v5-вердикт отсутствует.
+Эти development-числа сами по себе не являются prospective PASS.
+Конфигурация, 32 новых validation-блока, 32 disjoint test-блока,
+статистические gates, runtime и код были зафиксированы в
+`RealLLM/v5_registration.json` и опубликованы под
+`voidtoken-v5-selection-protocol-v1` до one-shot selection.
+
+Selection на validation-блоках 32–63 завершился PASS: 2.054320×, ΔNLL
++0.000573, односторонняя 95% верхняя граница ΔNLL +0.001222, top-1
+4072/4096 = 99.4141% и Wilson lower95 99.1827%. Его неизменённые result и
+attempt marker были опубликованы под `voidtoken-v5-pretest-v1` на commit
+`34fbd0556bd4e8fb889e628ae35175ff596818af` до первого доступа v5 runner к
+test split.
+
+Prospective holdout на test-блоках 384–415 был выполнен один раз из точного
+публичного pretest tag и завершился PASS: 2.053291×, ΔNLL −0.000061,
+односторонняя 95% верхняя граница ΔNLL +0.000549, top-1 4071/4096 =
+99.3896%, blockwise lower95 99.2472%, Wilson lower95 99.1543% и mean KL
+0.00013431 nat. Все семь зарегистрированных gates истинны. Канонический
+result SHA-256:
+`d1c16e88655c1fbc9884324742dee3f0b9b4bc86d973c2bf38df3a02cc090eaa`.
+
+Точные `holdout.attempt.json` и `holdout.json` опубликованы в
+`real-llm-v5-results/`; их file SHA-256 равны
+`7f6bc0867db1e3d633c3ecb68aa968be94c73c818b2a5163793495cfb63c17a0` и
+`499c067d6ccff4bf1ac4a9f98436a52fa6c414ccced495719532347b89b46167`.
+Команда
+`python RealLLM/verify_voidtoken_v5_evidence.py --require-git-provenance`
+проверяет обе фазы, marker/result links, Git tags, исходные digests, метрики,
+confidence bounds, gates и финальный verdict.
 
 Точные четыре development-shard, их диапазоны, file/result SHA-256 и
 объединённая рекомпутация опубликованы в
@@ -131,4 +153,7 @@ result и attempt marker. Маркер создаётся до доступа к
 `python RealLLM/verify_voidtoken_v5_development.py` проверяет их без модели и
 датасета. Это доказывает целостность и арифметическую воспроизводимость
 записанных артефактов, но не превращает адаптивную разработку в prospective
-evidence.
+evidence. Финальный PASS ограничен закреплёнными Qwen revision, WikiText-2
+окнами, MPS runtime, teacher-forced replay и полным container byte accounting;
+он не является универсальным утверждением о других моделях или production
+latency.
