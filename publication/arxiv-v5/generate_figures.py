@@ -530,7 +530,7 @@ def results_table(
             "Development",
             "adaptive; val. 0--31",
             development_values,
-            "not evidence",
+            "not prospective",
         ),
         phase_row(
             "Selection",

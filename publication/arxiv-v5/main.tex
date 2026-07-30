@@ -22,6 +22,11 @@ KV-Cache Compression on a Real Language Model}}
   \small \href{\PaperRepository}{\PaperRepository}}
 \date{}
 
+\hypersetup{
+  pdftitle={VoidToken v5: Prospectively Frozen Evidence for KV-Cache Compression on a Real Language Model},
+  pdfauthor={Ivan Tyshchenko}
+}
+
 \newcommand{\dNLL}{\Delta\mathrm{NLL}}
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\VTL}{\textsc{VTL5}}
@@ -151,11 +156,11 @@ the two KV heads are flattened token-major and key and value are concatenated:
 \end{equation}
 Native float32 cache values are rounded once through bfloat16 and restored to
 float32 for computation. This canonical cache is the common input to both the
-dense reference and codec. Its registered storage denominator is
+dense reference and codec. Its registered dense-byte total is
 \begin{equation}
   24\cdot383\cdot256\cdot2
   =4{,}706{,}304\ \text{bytes per block}.
-  \label{eq:denominator}
+  \label{eq:dense-bytes}
 \end{equation}
 The codec therefore compresses only a batch-1, 383-token prefill KV cache. It
 does not compress model weights or all process memory.
@@ -168,7 +173,9 @@ that the lossy codec is exact.
 
 Continuation inputs are block tokens 383--510 and targets are tokens
 384--511. Each block contributes 128 teacher-forced predictions conditioned on
-the supplied prefill cache.
+the supplied prefill cache. These continuation tokens are not recoded:
+continuation runs with \texttt{use\_cache=False}, so no new KV state is
+appended and only the fixed prefill cache differs between replay paths.
 
 \section{VoidToken v5 Codec}
 \label{sec:codec}
@@ -191,9 +198,9 @@ Each layer is serialized as
   \texttt{"VTL5"}\;|\;\texttt{uint32-le}(m)\;|\;
   \texttt{canonical JSON}_m\;|\;\texttt{payload}.
 \end{equation}
-All 24 complete containers count toward the compressed-byte total, which is
-the compression-ratio denominator, including magic bytes, length fields,
-metadata, scale streams, and code streams. Model replay receives only arrays
+All 24 complete containers count toward the compressed-byte total, including
+magic bytes, length fields, metadata, scale streams, and code streams. Model
+replay receives only arrays
 reconstructed from a fresh strict parse of these serialized bytes. The parser
 is a separate byte entry path, but it shares the canonical payload decoder
 with the encoder self-check and is not claimed as an independent
@@ -276,8 +283,12 @@ prefill cache. Define
 \end{equation}
 Top-1 agreement is agreement between decoded-cache and canonical-cache next
 token decisions; it is not predictive accuracy against a benchmark label.
-The complete-container compression ratio is the total denominator in
-Eq.~\ref{eq:denominator} divided by the actual bytes of all 24 containers.
+Writing $B_{\BF}$ for the canonical dense-byte total in
+Eq.~\ref{eq:dense-bytes} and $B_{\mathrm{container}}$ for the actual bytes of
+all 24 complete containers, the reported compression ratio is
+\begin{equation}
+  \rho=\frac{B_{\BF}}{B_{\mathrm{container}}}.
+\end{equation}
 
 For $n=32$ equal-sized blocks, let $\bar d$ and $s_d$ be the sample mean and
 standard deviation of block $\dNLL$. The registered one-sided upper bound is
@@ -447,7 +458,7 @@ builder are available at
 \url{https://github.com/ALLPROTO/core-lm-benchmark}. The scientific evidence
 state is identified by lightweight tag
 \path{voidtoken-v5-evidence-v1}; the publication package is identified by
-\path{voidtoken-v5-paper-v1}. Repository software is distributed under the
+\path{voidtoken-v5-paper-v2}. Repository software is distributed under the
 MIT License. The arXiv manuscript distribution license is selected separately
 by the author during submission.
 
