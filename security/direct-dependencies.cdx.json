@@ -171,16 +171,16 @@
         "pkg:pypi/torch@2.13.0",
         "pkg:pypi/transformers@5.14.1"
       ],
-      "ref": "pkg:github/ALLPROTO/core-lm-benchmark@voidtoken-v5-paper-v3"
+      "ref": "pkg:github/ALLPROTO/core-lm-benchmark@voidtoken-v5-paper-v4"
     }
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pkg:github/ALLPROTO/core-lm-benchmark@voidtoken-v5-paper-v3",
+      "bom-ref": "pkg:github/ALLPROTO/core-lm-benchmark@voidtoken-v5-paper-v4",
       "name": "CoreLMBenchmark",
-      "purl": "pkg:github/ALLPROTO/core-lm-benchmark@voidtoken-v5-paper-v3",
+      "purl": "pkg:github/ALLPROTO/core-lm-benchmark@voidtoken-v5-paper-v4",
       "type": "application",
-      "version": "voidtoken-v5-paper-v3"
+      "version": "voidtoken-v5-paper-v4"
     },
     "properties": [
       {

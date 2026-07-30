@@ -200,7 +200,7 @@ from this extracted tar—only after the lightweight release tag is public and
 the worktree is clean:
 
 ```sh
-RELEASE_TAG=voidtoken-v5-paper-v3
+RELEASE_TAG=voidtoken-v5-paper-v4
 python3 publication/build_archives.py \
   --release-tag "$RELEASE_TAG" \
   --verify-determinism

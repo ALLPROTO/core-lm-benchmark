@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import sys
 import tarfile
@@ -30,6 +31,35 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
+    def test_publication_release_identifier_is_synchronized(self):
+        citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
+        match = re.search(r'(?m)^version: "([^"]+)"$', citation)
+        self.assertIsNotNone(match)
+        release_tag = match.group(1)
+        self.assertRegex(release_tag, r"^voidtoken-v5-paper-v[1-9][0-9]*$")
+
+        for relative in (
+            "publication/README.md",
+            "publication/reproducibility/README.md",
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn(f"RELEASE_TAG={release_tag}", text)
+
+        manuscript = (
+            ROOT / "publication/arxiv-v5/main.tex"
+        ).read_text(encoding="utf-8")
+        self.assertIn(rf"\path{{{release_tag}}}", manuscript)
+
+        sbom = json.loads(
+            (
+                ROOT / "security/direct-dependencies.cdx.json"
+            ).read_text(encoding="utf-8")
+        )
+        component = sbom["metadata"]["component"]
+        self.assertEqual(component["version"], release_tag)
+        self.assertTrue(component["purl"].endswith(f"@{release_tag}"))
+        self.assertEqual(sbom["dependencies"][0]["ref"], component["bom-ref"])
+
     def _phase_paths(self, root: Path) -> dict[str, Path]:
         return {
             "selectionAttempt": root / "selection.attempt.json",

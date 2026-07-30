@@ -57,7 +57,7 @@ Do not move or reuse `voidtoken-v5-evidence-v1`; that tag identifies the
 earlier frozen scientific evidence state.
 
 ```sh
-RELEASE_TAG=voidtoken-v5-paper-v3
+RELEASE_TAG=voidtoken-v5-paper-v4
 git status --short
 git tag "$RELEASE_TAG"
 git push origin HEAD
