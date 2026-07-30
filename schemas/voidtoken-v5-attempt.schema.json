@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/voidtoken-v5-attempt.schema.json",
+  "title": "VoidToken v5 one-shot attempt marker",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "suiteId",
+    "phase",
+    "status",
+    "startedAt",
+    "registrationSHA256",
+    "implementationSHA256",
+    "gitCommitAtExecution",
+    "phaseSpec",
+    "testSplitWillBeResolved",
+    "configurationSHA256",
+    "executionFreeze",
+    "attemptSHA256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "corelm-voidtoken-v5-attempt-v1"
+    },
+    "suiteId": {
+      "const": "qwen2.5-0.5b-kv-voidtoken-v5-prospective-v1"
+    },
+    "phase": {
+      "enum": [
+        "selection",
+        "holdout"
+      ]
+    },
+    "status": {
+      "const": "attempt-started-split-not-yet-resolved"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "registrationSHA256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "implementationSHA256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "gitCommitAtExecution": {
+      "$ref": "#/$defs/gitCommit"
+    },
+    "phaseSpec": {
+      "type": "object"
+    },
+    "testSplitWillBeResolved": {
+      "type": "boolean"
+    },
+    "configurationSHA256": {
+      "const": "4c7be8c836aa725722b51f66dce78af7a5094e887432e622b5322f7ca2cf0af8"
+    },
+    "executionFreeze": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/selectionFreeze"
+        },
+        {
+          "$ref": "#/$defs/pretestFreeze"
+        }
+      ]
+    },
+    "attemptSHA256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "phase": {
+            "const": "selection"
+          }
+        },
+        "required": [
+          "phase"
+        ]
+      },
+      "then": {
+        "properties": {
+          "phaseSpec": {
+            "const": {
+              "split": "validation",
+              "startBlock": 32,
+              "blocks": 32
+            }
+          },
+          "testSplitWillBeResolved": {
+            "const": false
+          },
+          "executionFreeze": {
+            "$ref": "#/$defs/selectionFreeze"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "phaseSpec": {
+            "const": {
+              "split": "test",
+              "startBlock": 384,
+              "blocks": 32
+            }
+          },
+          "testSplitWillBeResolved": {
+            "const": true
+          },
+          "executionFreeze": {
+            "$ref": "#/$defs/pretestFreeze"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "selectionFreeze": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freezeGitCommit",
+        "freezeGitTag",
+        "publicRepository"
+      ],
+      "properties": {
+        "freezeGitCommit": {
+          "$ref": "#/$defs/gitCommit"
+        },
+        "freezeGitTag": {
+          "const": "voidtoken-v5-selection-protocol-v1"
+        },
+        "publicRepository": {
+          "const": "https://github.com/ALLPROTO/core-lm-benchmark"
+        }
+      }
+    },
+    "pretestFreeze": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pretestGitCommit",
+        "pretestGitTag",
+        "publicRepository",
+        "selectionResultSHA256",
+        "selectionArtifactSHA256",
+        "selectionAttemptArtifactSHA256"
+      ],
+      "properties": {
+        "pretestGitCommit": {
+          "$ref": "#/$defs/gitCommit"
+        },
+        "pretestGitTag": {
+          "const": "voidtoken-v5-pretest-v1"
+        },
+        "publicRepository": {
+          "const": "https://github.com/ALLPROTO/core-lm-benchmark"
+        },
+        "selectionResultSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selectionArtifactSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "selectionAttemptArtifactSHA256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

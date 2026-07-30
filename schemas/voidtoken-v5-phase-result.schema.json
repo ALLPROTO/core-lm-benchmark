@@ -1,0 +1,827 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/voidtoken-v5-phase-result.schema.json",
+  "title": "Frozen prospective VoidToken v5 phase result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "suiteId",
+    "phase",
+    "status",
+    "createdAt",
+    "registrationSHA256",
+    "implementationSHA256",
+    "gitCommitAtExecution",
+    "phaseSpec",
+    "testSplitResolvedThisRun",
+    "attemptMarkerSHA256",
+    "attemptArtifactSHA256",
+    "configuration",
+    "configurationSHA256",
+    "gatesDefinition",
+    "environment",
+    "selectedTokenIdsSHA256",
+    "baselines",
+    "records",
+    "aggregate",
+    "confidence",
+    "gates",
+    "pass",
+    "pretestFreeze",
+    "resultSHA256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "corelm-voidtoken-v5-phase-result-v1"
+    },
+    "suiteId": {
+      "const": "qwen2.5-0.5b-kv-voidtoken-v5-prospective-v1"
+    },
+    "phase": {
+      "enum": [
+        "selection",
+        "holdout"
+      ]
+    },
+    "status": {
+      "enum": [
+        "one-shot-frozen-selection",
+        "prospective-holdout"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "registrationSHA256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "implementationSHA256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "gitCommitAtExecution": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "phaseSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "split",
+        "startBlock",
+        "blocks"
+      ],
+      "properties": {
+        "split": {
+          "enum": [
+            "validation",
+            "test"
+          ]
+        },
+        "startBlock": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocks": {
+          "const": 32
+        }
+      }
+    },
+    "testSplitResolvedThisRun": {
+      "type": "boolean"
+    },
+    "attemptMarkerSHA256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "attemptArtifactSHA256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "configuration": {
+      "$ref": "#/$defs/configuration"
+    },
+    "configurationSHA256": {
+      "const": "4c7be8c836aa725722b51f66dce78af7a5094e887432e622b5322f7ca2cf0af8"
+    },
+    "gatesDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimumCompressionRatioVsBF16",
+        "maximumDeltaNLLNatPerToken",
+        "maximumBlockwiseDeltaNLLUpperOneSided95",
+        "minimumTop1Agreement",
+        "minimumBlockwiseTop1LowerOneSided95",
+        "minimumWilsonLowerOneSided95",
+        "requireStructuralReplay"
+      ],
+      "properties": {
+        "minimumCompressionRatioVsBF16": {
+          "const": 2.0
+        },
+        "maximumDeltaNLLNatPerToken": {
+          "const": 0.01
+        },
+        "maximumBlockwiseDeltaNLLUpperOneSided95": {
+          "const": 0.01
+        },
+        "minimumTop1Agreement": {
+          "const": 0.99
+        },
+        "minimumBlockwiseTop1LowerOneSided95": {
+          "const": 0.99
+        },
+        "minimumWilsonLowerOneSided95": {
+          "const": 0.99
+        },
+        "requireStructuralReplay": {
+          "const": true
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attentionImplementation",
+        "device",
+        "hfHome",
+        "huggingfaceHub",
+        "localPythonBytecode",
+        "machine",
+        "modelDtype",
+        "numpy",
+        "platform",
+        "pyarrow",
+        "python",
+        "pythonBytecodeWrites",
+        "pythonIsolatedMode",
+        "safetensors",
+        "seed",
+        "tokenizers",
+        "torch",
+        "transformers",
+        "zlibCompileVersion",
+        "zlibRuntimeVersion"
+      ],
+      "properties": {
+        "attentionImplementation": {
+          "const": "eager"
+        },
+        "device": {
+          "const": "mps"
+        },
+        "hfHome": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "huggingfaceHub": {
+          "const": "1.25.1"
+        },
+        "localPythonBytecode": {
+          "const": "absent"
+        },
+        "machine": {
+          "type": "string"
+        },
+        "modelDtype": {
+          "const": "torch.float32"
+        },
+        "numpy": {
+          "const": "2.5.1"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "pyarrow": {
+          "const": "23.0.1"
+        },
+        "python": {
+          "const": "3.12.13"
+        },
+        "pythonBytecodeWrites": {
+          "const": false
+        },
+        "pythonIsolatedMode": {
+          "const": true
+        },
+        "safetensors": {
+          "const": "0.8.0"
+        },
+        "seed": {
+          "const": 20260729
+        },
+        "tokenizers": {
+          "const": "0.22.2"
+        },
+        "torch": {
+          "const": "2.13.0"
+        },
+        "transformers": {
+          "const": "5.14.1"
+        },
+        "zlibCompileVersion": {
+          "const": "1.2.12"
+        },
+        "zlibRuntimeVersion": {
+          "const": "1.2.12"
+        }
+      }
+    },
+    "selectedTokenIdsSHA256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "baselines": {
+      "type": "array",
+      "minItems": 32,
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/baseline"
+      }
+    },
+    "records": {
+      "type": "array",
+      "minItems": 32,
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    },
+    "aggregate": {
+      "$ref": "#/$defs/aggregate"
+    },
+    "confidence": {
+      "$ref": "#/$defs/confidence"
+    },
+    "gates": {
+      "$ref": "#/$defs/gates"
+    },
+    "pass": {
+      "type": "boolean"
+    },
+    "pretestFreeze": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pretestGitCommit",
+            "pretestGitTag",
+            "publicRepository",
+            "selectionResultSHA256",
+            "selectionArtifactSHA256",
+            "selectionAttemptArtifactSHA256"
+          ],
+          "properties": {
+            "pretestGitCommit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "pretestGitTag": {
+              "const": "voidtoken-v5-pretest-v1"
+            },
+            "publicRepository": {
+              "const": "https://github.com/ALLPROTO/core-lm-benchmark"
+            },
+            "selectionResultSHA256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "selectionArtifactSHA256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "selectionAttemptArtifactSHA256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      ]
+    },
+    "resultSHA256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "phase": {
+            "const": "selection"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "one-shot-frozen-selection"
+          },
+          "phaseSpec": {
+            "const": {
+              "split": "validation",
+              "startBlock": 32,
+              "blocks": 32
+            }
+          },
+          "testSplitResolvedThisRun": {
+            "const": false
+          },
+          "pretestFreeze": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "status": {
+            "const": "prospective-holdout"
+          },
+          "phaseSpec": {
+            "const": {
+              "split": "test",
+              "startBlock": 384,
+              "blocks": 32
+            }
+          },
+          "testSplitResolvedThisRun": {
+            "const": true
+          },
+          "pretestFreeze": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "configuration": {
+      "const": {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          9,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8,
+          8
+        ],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-top-2-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockIndex",
+        "tokenIdsSHA256",
+        "canonicalCacheBF16SHA256",
+        "layers",
+        "kvHeads",
+        "headDimension",
+        "trajectoryShapePerLayer",
+        "predictionTokens",
+        "denseBF16Bytes",
+        "originalFP32NLLNatPerToken",
+        "canonicalBF16NLLNatPerToken",
+        "nativeBF16DeltaNLLNatPerToken",
+        "nativeBF16Top1Agreement",
+        "exactRebuildMaxAbsLogitDifference",
+        "exactRebuildTop1Identical",
+        "layoutRebuildMaxAbsLogitDifference",
+        "layoutRebuildTop1Identical",
+        "originalContinuationNanoseconds",
+        "originalRebuildContinuationNanoseconds",
+        "baselineContinuationNanoseconds"
+      ],
+      "properties": {
+        "blockIndex": {
+          "type": "integer"
+        },
+        "tokenIdsSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonicalCacheBF16SHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "layers": {
+          "const": 24
+        },
+        "kvHeads": {
+          "const": 2
+        },
+        "headDimension": {
+          "const": 64
+        },
+        "trajectoryShapePerLayer": {
+          "const": [
+            383,
+            256
+          ]
+        },
+        "predictionTokens": {
+          "const": 128
+        },
+        "denseBF16Bytes": {
+          "const": 4706304
+        },
+        "originalFP32NLLNatPerToken": {
+          "type": "number"
+        },
+        "canonicalBF16NLLNatPerToken": {
+          "type": "number"
+        },
+        "nativeBF16DeltaNLLNatPerToken": {
+          "type": "number"
+        },
+        "nativeBF16Top1Agreement": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "exactRebuildMaxAbsLogitDifference": {
+          "const": 0.0
+        },
+        "exactRebuildTop1Identical": {
+          "const": true
+        },
+        "layoutRebuildMaxAbsLogitDifference": {
+          "const": 0.0
+        },
+        "layoutRebuildTop1Identical": {
+          "const": true
+        },
+        "originalContinuationNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "originalRebuildContinuationNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baselineContinuationNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockIndex",
+        "tokenIdsSHA256",
+        "canonicalCacheBF16SHA256",
+        "configurationId",
+        "predictionTokens",
+        "denseBF16Bytes",
+        "encodedFileBytes",
+        "payloadBytes",
+        "payloadSHA256",
+        "encodeNanoseconds",
+        "decodeNanoseconds",
+        "cacheDifferenceSumSquares",
+        "cacheReferenceSumSquares",
+        "cacheCandidateSumSquares",
+        "cacheDotProduct",
+        "cacheMaximumAbsoluteError",
+        "baselineNLLNatPerToken",
+        "candidateNLLNatPerToken",
+        "deltaNLLNatPerToken",
+        "perplexityRatio",
+        "top1AgreementCount",
+        "top1Agreement",
+        "meanKLDivergenceNat",
+        "modelContinuationNanoseconds"
+      ],
+      "properties": {
+        "blockIndex": {
+          "type": "integer"
+        },
+        "tokenIdsSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonicalCacheBF16SHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "configurationId": {
+          "const": "4c7be8c836aa7257"
+        },
+        "predictionTokens": {
+          "const": 128
+        },
+        "denseBF16Bytes": {
+          "const": 4706304
+        },
+        "encodedFileBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payloadBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payloadSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "encodeNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "decodeNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cacheDifferenceSumSquares": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cacheReferenceSumSquares": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cacheCandidateSumSquares": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cacheDotProduct": {
+          "type": "number"
+        },
+        "cacheMaximumAbsoluteError": {
+          "type": "number",
+          "minimum": 0
+        },
+        "baselineNLLNatPerToken": {
+          "type": "number"
+        },
+        "candidateNLLNatPerToken": {
+          "type": "number"
+        },
+        "deltaNLLNatPerToken": {
+          "type": "number"
+        },
+        "perplexityRatio": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "top1AgreementCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "top1Agreement": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "meanKLDivergenceNat": {
+          "type": "number"
+        },
+        "modelContinuationNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "configuration",
+        "configurationId",
+        "blocks",
+        "predictionTokens",
+        "denseBF16Bytes",
+        "encodedFileBytes",
+        "compressionRatioVsBF16",
+        "baselineNLLNatPerToken",
+        "candidateNLLNatPerToken",
+        "deltaNLLNatPerToken",
+        "perplexityRatio",
+        "top1Agreement",
+        "meanKLDivergenceNat",
+        "cacheNormalizedRMSE",
+        "cacheCosineSimilarity",
+        "cacheMaximumAbsoluteError",
+        "encodeNanoseconds",
+        "decodeNanoseconds",
+        "modelContinuationNanoseconds",
+        "allPayloadDigestsUnique",
+        "pass",
+        "gates"
+      ],
+      "properties": {
+        "configuration": {
+          "$ref": "#/$defs/configuration"
+        },
+        "configurationId": {
+          "const": "4c7be8c836aa7257"
+        },
+        "blocks": {
+          "const": 32
+        },
+        "predictionTokens": {
+          "const": 4096
+        },
+        "denseBF16Bytes": {
+          "const": 150601728
+        },
+        "encodedFileBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "compressionRatioVsBF16": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "baselineNLLNatPerToken": {
+          "type": "number"
+        },
+        "candidateNLLNatPerToken": {
+          "type": "number"
+        },
+        "deltaNLLNatPerToken": {
+          "type": "number"
+        },
+        "perplexityRatio": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "top1Agreement": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "meanKLDivergenceNat": {
+          "type": "number"
+        },
+        "cacheNormalizedRMSE": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cacheCosineSimilarity": {
+          "type": "number"
+        },
+        "cacheMaximumAbsoluteError": {
+          "type": "number",
+          "minimum": 0
+        },
+        "encodeNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "decodeNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "modelContinuationNanoseconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "allPayloadDigestsUnique": {
+          "type": "boolean"
+        },
+        "pass": {
+          "type": "boolean"
+        },
+        "gates": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "compression",
+            "deltaNLL",
+            "top1Agreement"
+          ],
+          "properties": {
+            "compression": {
+              "type": "boolean"
+            },
+            "deltaNLL": {
+              "type": "boolean"
+            },
+            "top1Agreement": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockDeltaNLLMean",
+        "blockDeltaNLLSampleStandardDeviation",
+        "blockwiseDeltaNLLUpperOneSided95",
+        "blockTop1Mean",
+        "blockTop1SampleStandardDeviation",
+        "blockwiseTop1LowerOneSided95",
+        "predictionTokens",
+        "top1AgreementCount",
+        "wilsonLowerOneSided95"
+      ],
+      "properties": {
+        "blockDeltaNLLMean": {
+          "type": "number"
+        },
+        "blockDeltaNLLSampleStandardDeviation": {
+          "type": "number",
+          "minimum": 0
+        },
+        "blockwiseDeltaNLLUpperOneSided95": {
+          "type": "number"
+        },
+        "blockTop1Mean": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "blockTop1SampleStandardDeviation": {
+          "type": "number",
+          "minimum": 0
+        },
+        "blockwiseTop1LowerOneSided95": {
+          "type": "number"
+        },
+        "predictionTokens": {
+          "const": 4096
+        },
+        "top1AgreementCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "wilsonLowerOneSided95": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compressionRatioVsBF16",
+        "deltaNLLNatPerToken",
+        "blockwiseDeltaNLLUpperOneSided95",
+        "top1Agreement",
+        "blockwiseTop1LowerOneSided95",
+        "wilsonLowerOneSided95",
+        "structuralReplay"
+      ],
+      "properties": {
+        "compressionRatioVsBF16": {
+          "type": "boolean"
+        },
+        "deltaNLLNatPerToken": {
+          "type": "boolean"
+        },
+        "blockwiseDeltaNLLUpperOneSided95": {
+          "type": "boolean"
+        },
+        "top1Agreement": {
+          "type": "boolean"
+        },
+        "blockwiseTop1LowerOneSided95": {
+          "type": "boolean"
+        },
+        "wilsonLowerOneSided95": {
+          "type": "boolean"
+        },
+        "structuralReplay": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -6,14 +6,19 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
+BENCHMARK_CORE_DIRECTORY = Path(__file__).resolve().parent
+if str(BENCHMARK_CORE_DIRECTORY) not in sys.path:
+    sys.path.insert(0, str(BENCHMARK_CORE_DIRECTORY))
+
 from run_suite import execute_suite, suite_configurations
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = BENCHMARK_CORE_DIRECTORY.parent
 DEFAULT_REGISTERED_DIRECTORY = PROJECT_ROOT / "benchmark-results"
 REGISTERED_RUN_COUNT = 115
 # Core states and VoidToken bytes are protected by exact SHA-256 digests.

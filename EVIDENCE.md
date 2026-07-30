@@ -85,3 +85,79 @@ keyframes дополнительно ограничивают ошибку, а �
 каноническому бинарному формату v4 и проверенной матрице. Он доказывает
 выполнение заданных критериев в этой области, но не является универсальной
 гарантией для любых распределений и размерностей.
+
+## Отдельный pilot на реальной LLM
+
+Синтетический вердикт выше не переносится на learned KV-cache. Поэтому в
+`real-llm-results/aggregate.json` отдельно записан exploratory-эксперимент на
+настоящей pretrained-модели `Qwen/Qwen2.5-0.5B`: 24 слоя KV-cache,
+WikiText-2, 8 test-блоков и 1024 next-token prediction.
+
+| Семейство | Сжатие к BF16 | ΔNLL | Top-1 | Вердикт |
+|---|---:|---:|---:|---|
+| VoidToken v4 | 2.4184× | +0.203580 | 79.88% | **FAIL** |
+| Mixed group quant baseline | 2.0214× | +0.001356 | 97.95% | **FAIL** |
+
+Runner использует фиксированные пороги: сжатие не менее 2×, ΔNLL не более
+0.01 nat/token и top-1 agreement не менее 99%. Pilot не был независимо
+предзарегистрирован или externally timestamped до первого test. Baseline
+прошёл первые два порога, но не прошёл top-1; VoidToken не прошёл оба порога
+качества. Этот результат публикуется как отрицательный и не смешивается с 115
+синтетическими PASS.
+
+Для каждого блока прямой исходный `DynamicCache` и его flatten/rebuild копия
+дали нулевую максимальную разницу logits. В модель подавался результат нового
+разбора фактического бинарного контейнера, а не объект энкодера в памяти.
+
+## Проспективный VoidToken v5 — финальный PASS
+
+Отрицательный pilot выше не перезаписан. Записанный development-процесс
+VoidToken v5 использовал validation-блоки 0–31. Инженерное наблюдение:
+2.055836× полного container compression, ΔNLL +0.000804, top-1 99.5605%,
+односторонняя 95% верхняя граница ΔNLL +0.001378 и block-aware нижняя граница
+top-1 99.3638%.
+
+Эти development-числа сами по себе не являются prospective PASS.
+Конфигурация, 32 новых validation-блока, 32 disjoint test-блока,
+статистические gates, runtime и код были зафиксированы в
+`RealLLM/v5_registration.json` и опубликованы под
+`voidtoken-v5-selection-protocol-v1` до one-shot selection.
+
+Selection на validation-блоках 32–63 завершился PASS: 2.054320×, ΔNLL
++0.000573, односторонняя 95% верхняя граница ΔNLL +0.001222, top-1
+4072/4096 = 99.4141% и Wilson lower95 99.1827%. Его неизменённые result и
+attempt marker были опубликованы под `voidtoken-v5-pretest-v1` на commit
+`34fbd0556bd4e8fb889e628ae35175ff596818af` до первого доступа v5 runner к
+test split.
+
+Зафиксированная one-shot попытка prospective holdout на test-блоках 384–415
+из точного публичного pretest tag завершилась PASS: 2.053291×, ΔNLL −0.000061,
+односторонняя 95% верхняя граница ΔNLL +0.000549, top-1 4071/4096 =
+99.3896%, blockwise lower95 99.2472%, Wilson lower95 99.1543% и mean KL
+0.00013431 nat. Все семь зарегистрированных gates истинны. Канонический
+result SHA-256:
+`d1c16e88655c1fbc9884324742dee3f0b9b4bc86d973c2bf38df3a02cc090eaa`.
+Финальный evidence tag `voidtoken-v5-evidence-v1` указывает на commit
+`531e4ab8d1de61ce93e83164d13caff7bb0759bc`. Отдельные исходники статьи и
+проверенный PDF находятся в `publication/arxiv-v5/` и
+`publication/corelm_voidtoken_v5.pdf`.
+
+Точные `holdout.attempt.json` и `holdout.json` опубликованы в
+`real-llm-v5-results/`; их file SHA-256 равны
+`7f6bc0867db1e3d633c3ecb68aa968be94c73c818b2a5163793495cfb63c17a0` и
+`499c067d6ccff4bf1ac4a9f98436a52fa6c414ccced495719532347b89b46167`.
+Команда
+`python RealLLM/verify_voidtoken_v5_evidence.py --require-git-provenance`
+проверяет обе фазы, marker/result links, Git tags, исходные digests, метрики,
+confidence bounds, gates и финальный verdict.
+
+Точные четыре development-shard, их диапазоны, file/result SHA-256 и
+объединённая рекомпутация опубликованы в
+`real-llm-v5-development/manifest.json`. Команда
+`python RealLLM/verify_voidtoken_v5_development.py` проверяет их без модели и
+датасета. Это доказывает целостность и арифметическую воспроизводимость
+записанных артефактов, но не превращает адаптивную разработку в prospective
+evidence. Финальный PASS ограничен закреплёнными Qwen revision, WikiText-2
+окнами, MPS runtime, teacher-forced replay и полным container byte accounting;
+он не является универсальным утверждением о других моделях или production
+latency.

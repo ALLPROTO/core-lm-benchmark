@@ -1,0 +1,371 @@
+{
+  "author": {
+    "github": "https://github.com/ALLPROTO",
+    "name": "Ivan Tyshchenko",
+    "orcid": "https://orcid.org/0009-0000-7935-6090"
+  },
+  "attemptPolicy": {
+    "crashConsumesPhase": true,
+    "createdBeforeSplitResolution": true,
+    "exclusiveCreation": true,
+    "firstPublicAttemptIsNormative": true,
+    "markers": {
+      "holdout": "real-llm-v5-results/holdout.attempt.json",
+      "selection": "real-llm-v5-results/selection.attempt.json"
+    },
+    "rerunAfterMarker": false
+  },
+  "claimBoundary": {
+    "excludes": [
+      "models or revisions other than the pinned Qwen target",
+      "datasets or token windows other than the registered WikiText-2 blocks",
+      "free-running or sampled generation",
+      "latency, energy, and production-serving claims",
+      "cross-device exact-logit reproducibility",
+      "unregistered codec or threshold changes"
+    ],
+    "statement": "Prospective replay evidence for compression of the canonical bfloat16-rounded Qwen2.5-0.5B prefill KV cache with a freshly parsed VoidToken v5 container."
+  },
+  "codec": {
+    "codeCompression": "zlib-9",
+    "codeMapping": "zigzag-symmetric-v1",
+    "format": "voidtoken-rotated-entropy-v5",
+    "groupSize": 128,
+    "packing": {
+      "bitsAtLayers0And8": "byte-low-plus-lsb-high-fields-v1",
+      "bitsAtRemainingLayers": "lsb-first-v1"
+    },
+    "quantization": "symmetric-max-abs-v1",
+    "scaleCompression": "zlib-9",
+    "scaleDtype": "float16-le",
+    "signMode": "none",
+    "transform": "normalized-walsh-hadamard-v1",
+    "transformBlockSize": 128,
+    "wireContainer": "VTL5 | uint32-le metadata length | canonical JSON | payload"
+  },
+  "configuration": {
+    "backend": "voidtoken-v5",
+    "bitsByLayer": [
+      9,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      9,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "codeCompression": "zlib-9",
+    "groupSize": 128,
+    "scaleCompression": "zlib-9",
+    "schedule": "group-kl-top-2-9bit-rest-8bit",
+    "signMode": "none",
+    "transformBlockSize": 128
+  },
+  "configurationSHA256": "4c7be8c836aa725722b51f66dce78af7a5094e887432e622b5322f7ca2cf0af8",
+  "corpus": {
+    "blockTokens": 512,
+    "configuration": "wikitext-2-raw-v1",
+    "joinSeparator": "\n\n",
+    "normalization": "none",
+    "overlapTokens": 0,
+    "repository": "Salesforce/wikitext",
+    "revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "rowOrder": "stored-order",
+    "splits": {
+      "test": {
+        "file": "wikitext-2-raw-v1/test-00000-of-00001.parquet",
+        "fileBytes": 732610,
+        "fileSha256": "5f1bea067869d04849c0f975a2b29c4ff47d867f484f5010ea5e861eab246d91"
+      },
+      "validation": {
+        "file": "wikitext-2-raw-v1/validation-00000-of-00001.parquet",
+        "fileBytes": 657209,
+        "fileSha256": "204929b7ff9d6184953f867dedb860e40aa69c078fc1e54b3baaa8fb28511c4c"
+      }
+    },
+    "tokenization": {
+      "addSpecialTokens": false,
+      "tokenizerRevision": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+    }
+  },
+  "developmentDisclosure": {
+    "adaptiveEngineering": true,
+    "candidateIndex": 32,
+    "configurationChosenAfterDevelopment": true,
+    "developmentManifest": {
+      "fileSHA256": "ee0d4b64efaa961e7abb32c2f2571e5f81e9dbead1d4d83fc19ca594241874de",
+      "manifestSHA256": "09926e921f288e144f9bece3c656eeb4c50a736aedcb69ed682a75da952e599f",
+      "path": "real-llm-v5-development/manifest.json",
+      "sizeBytes": 2383
+    },
+    "developmentArtifacts": [
+      {
+        "blocks": 8,
+        "fileSHA256": "f8c900246c8dafe50ffea309ce86793822cf6fb93e438e3f16b7450bd1f9f224",
+        "path": "real-llm-v5-development/validation-000-007.json",
+        "resultSHA256": "a2cd9d2e4ca62427f608f7e2bfef2076979698db4d158a51c84d1c9c19785bf5",
+        "sizeBytes": 40867,
+        "split": "validation",
+        "startBlock": 0
+      },
+      {
+        "blocks": 8,
+        "fileSHA256": "04ef609cf32f0828de70e6adc47eefc717b6c7c67240035d856f047450860d34",
+        "path": "real-llm-v5-development/validation-008-015.json",
+        "resultSHA256": "3e5c3ecbf517768c003951efee3c516ea0f8bcb67c6306d132a255a6d38da3e7",
+        "sizeBytes": 40921,
+        "split": "validation",
+        "startBlock": 8
+      },
+      {
+        "blocks": 8,
+        "fileSHA256": "65ac4c9bbb1e3d3821d08c9a2f11aa970b0390582388f6ffdbb8ff6f235ad827",
+        "path": "real-llm-v5-development/validation-016-023.json",
+        "resultSHA256": "542b67278955420a1d6b84a18715980fe79fb6033c3133d03201783b9aea283e",
+        "sizeBytes": 40893,
+        "split": "validation",
+        "startBlock": 16
+      },
+      {
+        "blocks": 8,
+        "fileSHA256": "ab3a981349e5d2bfcda51d5c32235499fc35af396e827b2f916ed64af769ce1e",
+        "path": "real-llm-v5-development/validation-024-031.json",
+        "resultSHA256": "c72d433eea71e3bb60cd5cfab0b30bd25b12a6b7ba5bb9c1e0411bd7f89f2773",
+        "sizeBytes": 40912,
+        "split": "validation",
+        "startBlock": 24
+      }
+    ],
+    "developmentSourceBlocks": {
+      "count": 32,
+      "split": "validation",
+      "start": 0
+    },
+    "observedDevelopmentAggregate": {
+      "blocks": 32,
+      "blockwiseDeltaNLLUpperOneSided95": 0.001378464012472557,
+      "blockwiseTop1LowerOneSided95": 0.9936384394443587,
+      "compressionRatioVsBF16": 2.0558361700293513,
+      "deltaNLLNatPerToken": 0.0008044950664043427,
+      "denseBF16Bytes": 150601728,
+      "encodedFileBytes": 73255705,
+      "meanKLDivergenceNat": 0.00013694787391482777,
+      "predictionTokens": 4096,
+      "top1Agreement": 0.99560546875,
+      "top1AgreementCount": 4078,
+      "wilsonLowerOneSided95": 0.99354768675646
+    },
+    "statement": "Blocks validation-000 through validation-031 were used adaptively for engineering and are not prospective evidence."
+  },
+  "evidencePhases": {
+    "development": {
+      "blocks": 32,
+      "countsTowardProspectiveVerdict": false,
+      "split": "validation",
+      "startBlock": 0
+    },
+    "holdout": {
+      "blocks": 32,
+      "countsTowardProspectiveVerdict": true,
+      "split": "test",
+      "startBlock": 384
+    },
+    "reserve": {
+      "blocks": 32,
+      "countsTowardProspectiveVerdict": false,
+      "readDisclosure": "The holdout tokenizer reads the complete public test parquet; reserve blocks are unscored, not unread.",
+      "runnerAccess": "disabled",
+      "split": "test",
+      "startBlock": 416
+    },
+    "selection": {
+      "blocks": 32,
+      "countsTowardProspectiveVerdict": false,
+      "purpose": "one-shot acceptance of the already frozen configuration",
+      "split": "validation",
+      "startBlock": 32
+    }
+  },
+  "historicalDisclosure": {
+    "previousExploratoryTestBlocks": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "statement": "The public test parquet was read by the earlier v1 exploratory runner, which evaluated source blocks 8-15. The v5 prospective holdout uses disjoint source blocks 384-415 and is frozen by a public Git tag before v5 evaluation."
+  },
+  "model": {
+    "architecture": "Qwen2ForCausalLM",
+    "attentionHeads": 14,
+    "headDimension": 64,
+    "hiddenSize": 896,
+    "kvHeads": 2,
+    "layers": 24,
+    "license": "Apache-2.0",
+    "repository": "Qwen/Qwen2.5-0.5B",
+    "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+    "trustRemoteCode": false,
+    "verifiedFiles": [
+      {
+        "path": "config.json",
+        "sha256": "479dcf0c5286339e41ad3992cd08ae88a467c4187587936248e2b7c96283484b",
+        "sizeBytes": 681
+      },
+      {
+        "path": "generation_config.json",
+        "sha256": "8c970692323e3ea0e9b8b0a4dca79388d31226e41f83c9fd6014804280ebf6e8",
+        "sizeBytes": 138
+      },
+      {
+        "path": "merges.txt",
+        "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3",
+        "sizeBytes": 1671839
+      },
+      {
+        "path": "tokenizer.json",
+        "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+        "sizeBytes": 7031645
+      },
+      {
+        "path": "tokenizer_config.json",
+        "sha256": "c91efca15ceff6e9ee9424db58a6f59cd41294e550a86cbd07e3c1fb500b34f9",
+        "sizeBytes": 7228
+      },
+      {
+        "path": "vocab.json",
+        "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+        "sizeBytes": 2776833
+      }
+    ],
+    "weightFile": "model.safetensors",
+    "weightSha256": "88c142557820ccad55bb59756bfcfcf891de9cc6202816bd346445188a0ed342",
+    "weightSizeBytes": 988097824
+  },
+  "pretestFreeze": {
+    "publicRepository": "https://github.com/ALLPROTO/core-lm-benchmark",
+    "requiredGitRemote": "origin",
+    "requiredLightweightTag": "voidtoken-v5-pretest-v1",
+    "selectionArtifact": "real-llm-v5-results/selection.json",
+    "selectionAttemptArtifact": "real-llm-v5-results/selection.attempt.json"
+  },
+  "protocol": {
+    "cacheCanonicalization": "native-float32-to-bfloat16-to-float32",
+    "continuationInputTokens": 128,
+    "continuationTargets": "block[384:512]",
+    "denseReferenceBytesPerScalar": 2,
+    "flattening": "per-layer token-major concat(K,V)",
+    "freshContainerParseRequired": true,
+    "layerTrajectoryShape": [
+      383,
+      256
+    ],
+    "predictionTokensPerBlock": 128,
+    "prefillTokens": 383,
+    "structuralReplayExactnessRequired": true,
+    "teacherForcedContinuationInputs": "block[383:511]",
+    "uncompressedBytesPerBlock": 4706304
+  },
+  "protocolSourceFiles": [
+    "BenchmarkCore/corelm_benchmark.py",
+    "RealLLM/__init__.py",
+    "RealLLM/V5_PROTOCOL.md",
+    "RealLLM/benchmark_real_llm.py",
+    "RealLLM/codecs.py",
+    "RealLLM/develop_voidtoken_v5.py",
+    "RealLLM/requirements.txt",
+    "RealLLM/run_voidtoken_v5_frozen.py",
+    "RealLLM/v5_registration.json",
+    "RealLLM/verify_voidtoken_v5_development.py",
+    "RealLLM/verify_voidtoken_v5_evidence.py",
+    "RealLLM/voidtoken_v5.py",
+    "Tests/test_voidtoken_v5.py",
+    "Tests/test_voidtoken_v5_development.py",
+    "Tests/test_voidtoken_v5_frozen.py",
+    "real-llm-v5-development/manifest.json",
+    "schemas/voidtoken-v5-attempt.schema.json",
+    "schemas/voidtoken-v5-phase-result.schema.json"
+  ],
+  "registeredAt": "2026-07-29",
+  "registrationStatus": "frozen-before-one-shot-selection-and-v5-holdout",
+  "registrationVersion": "1.0",
+  "runtime": {
+    "attentionImplementation": "eager",
+    "device": "mps",
+    "huggingfaceHub": "1.25.1",
+    "localPythonBytecode": "forbidden",
+    "modelDtype": "float32",
+    "numpy": "2.5.1",
+    "pyarrow": "23.0.1",
+    "python": "3.12.13",
+    "pythonBytecodeWrites": false,
+    "pythonIsolatedMode": true,
+    "safetensors": "0.8.0",
+    "tokenizers": "0.22.2",
+    "torch": "2.13.0",
+    "torchDeterministicAlgorithms": "warn-only",
+    "transformers": "5.14.1",
+    "zlibCompileVersion": "1.2.12",
+    "zlibRuntimeVersion": "1.2.12"
+  },
+  "selectionFreeze": {
+    "publicRepository": "https://github.com/ALLPROTO/core-lm-benchmark",
+    "requiredGitRemote": "origin",
+    "requiredLightweightTag": "voidtoken-v5-selection-protocol-v1"
+  },
+  "schemaVersion": "corelm-voidtoken-v5-registration-v1",
+  "statisticalGates": {
+    "blockwiseTop1LowerOneSided95": {
+      "criticalValue": 1.6955187825458675,
+      "minimum": 0.99,
+      "method": "Student-t lower confidence bound over 32 block top-1 agreement rates",
+      "sampleDegreesOfFreedom": 31
+    },
+    "blockwiseDeltaNllUpperOneSided95": {
+      "criticalValue": 1.6955187825458675,
+      "maximum": 0.01,
+      "method": "Student-t upper confidence bound over 32 block means",
+      "sampleDegreesOfFreedom": 31
+    },
+    "compressionRatioVsBF16": {
+      "minimum": 2.0
+    },
+    "deltaNllNatPerToken": {
+      "maximum": 0.01
+    },
+    "structuralReplay": {
+      "required": true
+    },
+    "top1Agreement": {
+      "minimum": 0.99
+    },
+    "wilsonLowerOneSided95": {
+      "criticalValue": 1.6448536269514715,
+      "minimum": 0.99,
+      "method": "Wilson score lower confidence bound over all token decisions",
+      "scopeNote": "Adjacent teacher-forced token decisions are correlated; this registered gate is workflow evidence, not a proof of independent Bernoulli sampling."
+    }
+  },
+  "suiteId": "qwen2.5-0.5b-kv-voidtoken-v5-prospective-v1"
+}

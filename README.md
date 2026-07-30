@@ -28,6 +28,64 @@ The claim is deliberately bounded: these values establish a reproducible
 operating region for the registered test matrix, not universal performance on
 arbitrary learned-model states or task-level language-model quality.
 
+## Real pretrained-model pilot
+
+A separate exploratory pilot now compresses the actual 24-layer KV cache of the
+pinned pretrained `Qwen/Qwen2.5-0.5B` model and feeds the decoded cache back
+into Qwen for 1,024 held-out WikiText-2 next-token predictions.
+
+| Family | Ratio vs BF16 | ΔNLL | PPL ratio | Top-1 agreement | Verdict |
+|---|---:|---:|---:|---:|---|
+| VoidToken v4 | 2.4184× | +0.203580 | 1.225783 | 79.88% | **FAIL** |
+| Mixed group quant baseline | 2.0214× | +0.001356 | 1.001357 | 97.95% | **FAIL** |
+
+Both verdicts use the runner's fixed gates of ≥2× compression, ΔNLL ≤0.01
+nat/token, and ≥99% top-1 agreement. This exploratory pilot was not externally
+preregistered before first test execution. The baseline passes the compression
+and NLL gates but misses top-1; VoidToken misses both quality gates. These
+negative results are kept intact and do not alter the separate 115/115
+synthetic PASS.
+See [`RealLLM/PROTOCOL.md`](RealLLM/PROTOCOL.md) and
+[`real-llm-results/README.md`](real-llm-results/README.md).
+
+## Prospective VoidToken v5 result
+
+An engineering diagnosis attributed the v4 failure to value-cache
+reconstruction error being obscured by the key cache's larger energy; the
+published aggregate does not independently establish that causal split.
+VoidToken v5 replaces temporal sparse residuals with per-layer
+Walsh-Hadamard group quantization, canonical zigzag codes, complete binary
+containers, and fresh-parser replay.
+
+The frozen workflow is complete. Adaptive development used validation blocks
+0–31 and does not count as prospective evidence. The already fixed
+configuration then passed one-shot selection on validation blocks 32–63 and a
+later prospective holdout on test blocks 384–415.
+
+| Phase | Role | Ratio vs canonical BF16 | ΔNLL | Top-1 | Block lower 95% | Wilson lower 95% | Verdict |
+|---|---|---:|---:|---:|---:|---:|---|
+| Development | adaptive, disclosed | 2.055836× | +0.000804 | 99.5605% | 99.3638% | 99.3548% | not evidence |
+| Selection | one-shot acceptance | 2.054320× | +0.000573 | 99.4141% | 99.1762% | 99.1827% | **PASS** |
+| Holdout | prospective test | 2.053291× | −0.000061 | 99.3896% | 99.2472% | 99.1543% | **PASS** |
+
+The holdout compressed 150,601,728 canonical BF16 prefill-cache bytes to
+73,346,513 complete-container bytes (51.30% fewer bytes) over 4,096
+teacher-forced predictions. All seven registered gates passed, including the
+one-sided block ΔNLL upper bound and both top-1 lower bounds.
+
+The public chronology is bound by
+`voidtoken-v5-selection-protocol-v1`,
+`voidtoken-v5-pretest-v1`, and final evidence tag
+`voidtoken-v5-evidence-v1`. A crash after durable marker creation consumes a
+phase rather than permitting a retry. The claim covers only the pinned
+Qwen2.5-0.5B revision, registered WikiText-2 windows, canonical BF16 prefill
+KV cache, teacher-forced replay, and recorded MPS runtime. It is not a
+full-model, free-running generation, latency, serving, or SOTA claim.
+
+See [`RealLLM/V5_PROTOCOL.md`](RealLLM/V5_PROTOCOL.md),
+[`real-llm-v5-results/README.md`](real-llm-v5-results/README.md), and the
+[VoidToken v5 paper source](publication/arxiv-v5/).
+
 ## Reproduce the evidence
 
 Requirements:
@@ -37,7 +95,7 @@ Requirements:
 - ReportLab 4.4.9 for rebuilding the paper figures
 - macOS 14 and Swift 5.9 or newer for the native application
 
-Run the 25 implementation tests:
+Run the lightweight implementation tests:
 
 ```sh
 python3 -m pip install -r requirements.txt
@@ -83,6 +141,27 @@ corrupted containers.
 The authoritative `benchmark-results/aggregate.json` lists the exact run IDs
 used by the paper. Only those JSON and Markdown records are committed.
 
+Verify the checked-in real-LLM result without downloading model weights:
+
+```sh
+python -m pip install numpy==2.5.1 jsonschema==4.25.1
+python RealLLM/verify_real_llm_evidence.py
+python RealLLM/verify_voidtoken_v5_development.py
+python RealLLM/verify_voidtoken_v5_evidence.py --require-git-provenance
+```
+
+The last command requires a full clone with tags. In the extracted
+reproducibility tar, omit `--require-git-provenance`; the verifier then reports
+artifact self-consistency without claiming Git-tag or public-timestamp
+provenance.
+
+To repeat the heavy model run, create a separate environment from
+`RealLLM/requirements.txt`, set `HF_HOME` if desired, and run:
+
+```sh
+PYTHON_BIN=python ./run_real_llm_benchmark.sh --device mps
+```
+
 ## Native macOS application
 
 ```sh
@@ -99,17 +178,25 @@ results, and does not synthesize dashboard values.
 - `Tests/` — unit and integration tests
 - `App/` — native SwiftUI benchmark interface
 - `benchmark-results/` — aggregate plus the 115 registered evidence records
-- `publication/arxiv/` — self-contained paper source and vector figures
-- `publication/corelm_voidtoken_v3.pdf` — visually inspected paper
+- `RealLLM/` — pinned real-model protocol, codec baseline, runner, and verifier
+- `real-llm-results/` — separate exploratory Qwen KV-cache pilot artifact
+- `real-llm-v5-development/` — exact adaptive v5 development shards and manifest
+- `real-llm-v5-results/` — frozen selection and holdout attempt/result artifacts
+- `publication/arxiv/` — historical VoidToken v3 paper source
+- `publication/arxiv-v5/` — prospective real-model VoidToken v5 paper source
+- `publication/corelm_voidtoken_v3.pdf` — visually inspected v3 paper
+- `publication/corelm_voidtoken_v5.pdf` — visually inspected v5 paper
 - `EVIDENCE.md` — result summary and acceptance gates
 - `KNOWN_LIMITATIONS.md` — explicit boundary of the demonstrated claim
 
 ## Citation
 
-Use the metadata in `CITATION.cff`. The paper is:
+Use the metadata in `CITATION.cff`. The current real-model paper is:
 
-> Ivan Tyshchenko. “Closed-Loop Residual Tokenization for Stable Compression
-> of Dynamical State Trajectories.” 2026.
+> Ivan Tyshchenko. “VoidToken v5: Prospectively Frozen Evidence for KV-Cache
+> Compression on a Real Language Model.” 2026.
+
+The historical v3 synthetic benchmark paper remains in `publication/arxiv/`.
 
 Author ORCID: [0009-0000-7935-6090](https://orcid.org/0009-0000-7935-6090).
 

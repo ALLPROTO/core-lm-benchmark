@@ -22,6 +22,8 @@
 - [x] Submission archive excludes build logs and temporary files.
 - [x] PDF was rendered to images and visually inspected.
 - [x] Reproducibility archive is separate from the TeX submission archive.
+- [x] Current paper scope is VoidToken v3 plus 115 synthetic runs; it does not
+      claim a prospective VoidToken v5 result.
 
 ## arXiv web steps
 

@@ -16,3 +16,26 @@ PROGRESS.md
 benchmark-results/*
 !benchmark-results/aggregate.json
 !benchmark-results/README.md
+
+# Real-model exploratory outputs remain local; only the recorded aggregate
+# and its human-readable interpretation are scientific evidence.
+real-llm-results/*
+!real-llm-results/aggregate.json
+!real-llm-results/README.md
+
+# Only the four registered v5 development shards and their manifest are public.
+real-llm-v5-development/*
+!real-llm-v5-development/README.md
+!real-llm-v5-development/manifest.json
+!real-llm-v5-development/validation-000-007.json
+!real-llm-v5-development/validation-008-015.json
+!real-llm-v5-development/validation-016-023.json
+!real-llm-v5-development/validation-024-031.json
+
+# Only the frozen prospective v5 artifacts belong in the repository.
+real-llm-v5-results/*
+!real-llm-v5-results/README.md
+!real-llm-v5-results/selection.attempt.json
+!real-llm-v5-results/selection.json
+!real-llm-v5-results/holdout.attempt.json
+!real-llm-v5-results/holdout.json

@@ -13,3 +13,41 @@
 6. Контрольный результат относится только к опубликованной реализации версии
    0.3.0, арифметике `fixed-order-f64-v1`, каноническому бинарному формату
    `voidtoken-residual-keyframe-v4` и зафиксированной матрице входов.
+7. Отдельный real-LLM pilot относится только к pinned
+   `Qwen/Qwen2.5-0.5B`, указанным блокам WikiText-2, teacher-forced replay и
+   записанному Apple-Silicon/MPS runtime. Он не доказывает качество
+   free-running generation, других моделей или production serving.
+8. Real-LLM pilot дал отрицательный строгий вердикт обоим семействам:
+   VoidToken существенно ухудшил NLL и top-1, а mixed group quant при 2.02×
+   сохранил NLL, но достиг 97.95% top-1 вместо требуемых 99%.
+9. PyTorch logits не обещаны побитно одинаковыми между MPS, CUDA и CPU.
+   Точными остаются pins исходников, token/cache/container SHA-256 и
+   внутренние layout/container round trips записанного запуска.
+10. Первоначальный real-LLM pilot не имел независимой внешней временной метки
+    до первого test-запуска. Его следует считать exploratory. Отдельный v5
+    workflow использует публичные protocol/pretest/evidence tags, но Git tags
+    и локальные marker-файлы всё равно не являются криптографически
+    неизменяемым журналом.
+11. Метрики VoidToken v5 на validation-блоках 0–31 использовались адаптивно
+    для разработки и не являются prospective доказательством. One-shot
+    selection на validation 32–63 и prospective holdout на test 384–415
+    завершены с PASS по всем семи gates. Этот PASS относится только к
+    зарегистрированному узкому scope и не превращает development-блоки в
+    prospective evidence.
+12. Локальный durable attempt marker предотвращает штатный retry после crash,
+    но сам по себе не может криптографически доказать, что человек не удалял
+    файл или не запускал изменённую копию. Нормативной считается первая
+    публично зафиксированная попытка, включая incomplete marker.
+13. Token-level Wilson bound использует коррелированные teacher-forced решения
+    и не интерпретируется как независимая Bernoulli-выборка. Поэтому v5
+    дополнительно требует Student-t lower bound по 32 block-level top-1 rates.
+14. Reproducibility tar не содержит Git object database. В нём v5 verifier
+    проверяет схемы, байты, SHA-256, связи marker/result и рекомпутацию метрик,
+    но не Git tags и не публичную временную метку. Проверка Git-object и
+    локальных tag targets требует клона репозитория с тегами и флага
+    `--require-git-provenance`; публичная хронология проверяется отдельно по
+    remote/GitHub record.
+15. Development-shard содержат самодекларируемое
+    `testDataOpened: false` и хеши промежуточных данных. Offline-проверка
+    подтверждает их целостность и арифметику, но не может независимо доказать
+    историю доступа исходного процесса к данным.

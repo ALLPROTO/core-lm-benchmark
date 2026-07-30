@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "corelm-voidtoken-v5-development-manifest-v1",
+  "suiteId": "qwen2.5-0.5b-kv-voidtoken-v5-prospective-v1",
+  "status": "adaptive-development-not-prospective-evidence",
+  "configurationSHA256": "4c7be8c836aa725722b51f66dce78af7a5094e887432e622b5322f7ca2cf0af8",
+  "candidateIndex": 32,
+  "testDataOpened": false,
+  "manifestSHA256": "09926e921f288e144f9bece3c656eeb4c50a736aedcb69ed682a75da952e599f",
+  "artifacts": [
+    {
+      "path": "real-llm-v5-development/validation-000-007.json",
+      "split": "validation",
+      "startBlock": 0,
+      "blocks": 8,
+      "sizeBytes": 40867,
+      "resultSHA256": "a2cd9d2e4ca62427f608f7e2bfef2076979698db4d158a51c84d1c9c19785bf5",
+      "fileSHA256": "f8c900246c8dafe50ffea309ce86793822cf6fb93e438e3f16b7450bd1f9f224"
+    },
+    {
+      "path": "real-llm-v5-development/validation-008-015.json",
+      "split": "validation",
+      "startBlock": 8,
+      "blocks": 8,
+      "sizeBytes": 40921,
+      "resultSHA256": "3e5c3ecbf517768c003951efee3c516ea0f8bcb67c6306d132a255a6d38da3e7",
+      "fileSHA256": "04ef609cf32f0828de70e6adc47eefc717b6c7c67240035d856f047450860d34"
+    },
+    {
+      "path": "real-llm-v5-development/validation-016-023.json",
+      "split": "validation",
+      "startBlock": 16,
+      "blocks": 8,
+      "sizeBytes": 40893,
+      "resultSHA256": "542b67278955420a1d6b84a18715980fe79fb6033c3133d03201783b9aea283e",
+      "fileSHA256": "65ac4c9bbb1e3d3821d08c9a2f11aa970b0390582388f6ffdbb8ff6f235ad827"
+    },
+    {
+      "path": "real-llm-v5-development/validation-024-031.json",
+      "split": "validation",
+      "startBlock": 24,
+      "blocks": 8,
+      "sizeBytes": 40912,
+      "resultSHA256": "c72d433eea71e3bb60cd5cfab0b30bd25b12a6b7ba5bb9c1e0411bd7f89f2773",
+      "fileSHA256": "ab3a981349e5d2bfcda51d5c32235499fc35af396e827b2f916ed64af769ce1e"
+    }
+  ],
+  "combinedObservation": {
+    "blocks": 32,
+    "predictionTokens": 4096,
+    "denseBF16Bytes": 150601728,
+    "encodedFileBytes": 73255705,
+    "compressionRatioVsBF16": 2.0558361700293513,
+    "deltaNLLNatPerToken": 0.0008044950664043427,
+    "blockwiseDeltaNLLUpperOneSided95": 0.001378464012472557,
+    "top1AgreementCount": 4078,
+    "top1Agreement": 0.99560546875,
+    "blockwiseTop1LowerOneSided95": 0.9936384394443587,
+    "wilsonLowerOneSided95": 0.99354768675646,
+    "meanKLDivergenceNat": 0.00013694787391482777
+  }
+}

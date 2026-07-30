@@ -1,0 +1,18 @@
+\begin{table*}[t]
+\centering
+\caption{Registered phase results. Each phase has 32 blocks and 4,096 teacher-forced predictions. Development was adaptive and is shown only for disclosure; it does not contribute to the prospective verdict. Ratios count every serialized container byte.}
+\label{tab:phase-results}
+\scriptsize
+\setlength{\tabcolsep}{3.1pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrrrrrl}
+\toprule
+Phase & Role / blocks & Ratio & $\Delta$NLL & $\Delta$NLL U95 & Top-1 & Block L95 & Wilson L95 & Mean KL & Verdict \\
+\midrule
+Development & adaptive; val. 0--31 & 2.055836 & +0.0008045 & 0.0013785 & 99.5605\% & 99.3638\% & 99.3548\% & 0.0001369 & not evidence \\
+Selection & one-shot; val. 32--63 & 2.054320 & +0.0005730 & 0.0012222 & 99.4141\% & 99.1762\% & 99.1827\% & 0.0001367 & PASS \\
+Holdout & prospective; test 384--415 & 2.053291 & -0.0000609 & 0.0005492 & 99.3896\% & 99.2472\% & 99.1543\% & 0.0001343 & PASS \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}

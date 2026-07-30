@@ -1,28 +1,30 @@
 cff-version: 1.2.0
-message: "If you use this benchmark or codec, please cite the paper and this software artifact."
-title: "Core LM Benchmark: VoidToken v3"
+message: "If you use this benchmark, codec, or evidence protocol, please cite the paper and this software artifact."
+title: "Core LM Benchmark: VoidToken v3 and VoidToken v5"
 type: software
 authors:
   - family-names: "Tyshchenko"
     given-names: "Ivan"
     orcid: "https://orcid.org/0009-0000-7935-6090"
-version: 0.3.0
-date-released: 2026-07-28
+version: "voidtoken-v5-paper-v1"
+date-released: 2026-07-30
 license: MIT
 repository-code: "https://github.com/ALLPROTO/core-lm-benchmark"
 url: "https://github.com/ALLPROTO/core-lm-benchmark"
 abstract: >-
-  A native macOS benchmark and independent Python core for reproducible
-  comparison of dense, PCA, and closed-loop residual-keyframe trajectory
-  representations.
+  A native macOS benchmark and independent Python evidence core. The artifact
+  contains the registered VoidToken v3 synthetic trajectory benchmark and a
+  prospectively frozen VoidToken v5 evaluation of complete serialized
+  Qwen2.5-0.5B prefill KV-cache containers.
 keywords:
   - state trajectory compression
-  - residual quantization
-  - error feedback
+  - KV-cache compression
+  - language-model inference
+  - prospective evaluation
   - reproducible benchmark
 preferred-citation:
   type: article
-  title: "Closed-Loop Residual Tokenization for Stable Compression of Dynamical State Trajectories"
+  title: "VoidToken v5: Prospectively Frozen Evidence for KV-Cache Compression on a Real Language Model"
   authors:
     - family-names: "Tyshchenko"
       given-names: "Ivan"

@@ -1,0 +1,326 @@
+{
+  "claimBoundary": {
+    "excludes": [
+      "other model revisions or architectures",
+      "contexts other than the registered WikiText-2 windows",
+      "free-running or sampled generation",
+      "production-serving or cross-platform exact-logit claims",
+      "unregistered codec parameter changes"
+    ],
+    "statement": "Compression of canonical bfloat16-rounded Qwen2.5-0.5B prefill KV cache with downstream teacher-forced continuation replay."
+  },
+  "codecFamilies": {
+    "packedGroupQuant": {
+      "candidates": [
+        {
+          "bits": 4,
+          "groupSize": 16,
+          "scaleCompression": "none"
+        },
+        {
+          "bits": 4,
+          "groupSize": 32,
+          "scaleCompression": "none"
+        },
+        {
+          "bits": 5,
+          "groupSize": 16,
+          "scaleCompression": "none"
+        },
+        {
+          "bits": 5,
+          "groupSize": 32,
+          "scaleCompression": "none"
+        },
+        {
+          "bits": 6,
+          "groupSize": 16,
+          "scaleCompression": "none"
+        },
+        {
+          "bits": 6,
+          "groupSize": 32,
+          "scaleCompression": "none"
+        },
+        {
+          "bits": 7,
+          "groupSize": 16,
+          "scaleCompression": "zlib-9"
+        },
+        {
+          "bits": 7,
+          "groupSize": 32,
+          "scaleCompression": "none"
+        },
+        {
+          "bits": 7,
+          "groupSize": 64,
+          "scaleCompression": "none"
+        },
+        {
+          "bitsByLayer": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            5,
+            5,
+            5,
+            8,
+            8,
+            5,
+            8,
+            8,
+            8,
+            8,
+            5,
+            8,
+            8,
+            5,
+            5,
+            8,
+            8,
+            8,
+            5
+          ],
+          "groupSize": 16,
+          "scaleCompression": "zlib-9",
+          "schedule": "validation-kl-top-16-8bit-rest-5bit"
+        },
+        {
+          "bitsByLayer": [
+            8,
+            8,
+            8,
+            8,
+            8,
+            5,
+            5,
+            5,
+            8,
+            8,
+            5,
+            8,
+            8,
+            8,
+            8,
+            5,
+            8,
+            8,
+            5,
+            8,
+            8,
+            8,
+            8,
+            5
+          ],
+          "groupSize": 16,
+          "scaleCompression": "zlib-9",
+          "schedule": "validation-kl-top-17-8bit-rest-5bit"
+        }
+      ],
+      "format": "packed-group-quant-v1",
+      "role": "strong-baseline"
+    },
+    "voidToken": {
+      "candidates": [
+        {
+          "keyframeInterval": 32,
+          "qmax": 127,
+          "topK": 32
+        },
+        {
+          "keyframeInterval": 64,
+          "qmax": 127,
+          "topK": 32
+        },
+        {
+          "keyframeInterval": 64,
+          "qmax": 127,
+          "topK": 48
+        },
+        {
+          "keyframeInterval": 64,
+          "qmax": 127,
+          "topK": 64
+        },
+        {
+          "keyframeInterval": 128,
+          "qmax": 127,
+          "topK": 64
+        }
+      ],
+      "canonicalizationVersion": "fixed-order-v1",
+      "format": "voidtoken-residual-keyframe-v4",
+      "role": "research-method"
+    }
+  },
+  "corpus": {
+    "configuration": "wikitext-2-raw-v1",
+    "construction": {
+      "addSpecialTokens": false,
+      "blockTokens": 512,
+      "joinSeparator": "\n\n",
+      "normalization": "none",
+      "overlapTokens": 0,
+      "rowOrder": "stored-order",
+      "validationStartBlock": 0,
+      "testStartBlock": 8
+    },
+    "licenses": [
+      "CC-BY-SA-3.0",
+      "GFDL"
+    ],
+    "repository": "Salesforce/wikitext",
+    "revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "splits": {
+      "test": {
+        "caseIds": [
+          "test-008",
+          "test-009",
+          "test-010",
+          "test-011",
+          "test-012",
+          "test-013",
+          "test-014",
+          "test-015"
+        ],
+        "file": "wikitext-2-raw-v1/test-00000-of-00001.parquet",
+        "fileSha256": "5f1bea067869d04849c0f975a2b29c4ff47d867f484f5010ea5e861eab246d91"
+      },
+      "validation": {
+        "caseIds": [
+          "validation-000",
+          "validation-001",
+          "validation-002",
+          "validation-003"
+        ],
+        "file": "wikitext-2-raw-v1/validation-00000-of-00001.parquet",
+        "fileSha256": "204929b7ff9d6184953f867dedb860e40aa69c078fc1e54b3baaa8fb28511c4c"
+      }
+    }
+  },
+  "evidence": {
+    "aggregatePath": "real-llm-results/aggregate.json",
+    "resultDirectory": "real-llm-results",
+    "resultSchema": "schemas/real-llm-result.schema.json",
+    "testConfigurationPolicy": "selected-on-validation-and-frozen-before-test",
+    "verdictPolicy": "independent-per-codec-family"
+  },
+  "model": {
+    "architecture": "Qwen2ForCausalLM",
+    "attentionHeads": 14,
+    "headDimension": 64,
+    "hiddenSize": 896,
+    "kvHeads": 2,
+    "layers": 24,
+    "license": "Apache-2.0",
+    "repository": "Qwen/Qwen2.5-0.5B",
+    "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+    "snapshotFileCount": 10,
+    "trustRemoteCode": false,
+    "verifiedFiles": [
+      {
+        "path": "config.json",
+        "sha256": "479dcf0c5286339e41ad3992cd08ae88a467c4187587936248e2b7c96283484b",
+        "sizeBytes": 681
+      },
+      {
+        "path": "generation_config.json",
+        "sha256": "8c970692323e3ea0e9b8b0a4dca79388d31226e41f83c9fd6014804280ebf6e8",
+        "sizeBytes": 138
+      },
+      {
+        "path": "merges.txt",
+        "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3",
+        "sizeBytes": 1671839
+      },
+      {
+        "path": "model.safetensors",
+        "sha256": "88c142557820ccad55bb59756bfcfcf891de9cc6202816bd346445188a0ed342",
+        "sizeBytes": 988097824
+      },
+      {
+        "path": "tokenizer.json",
+        "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+        "sizeBytes": 7031645
+      },
+      {
+        "path": "tokenizer_config.json",
+        "sha256": "c91efca15ceff6e9ee9424db58a6f59cd41294e550a86cbd07e3c1fb500b34f9",
+        "sizeBytes": 7228
+      },
+      {
+        "path": "vocab.json",
+        "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+        "sizeBytes": 2776833
+      }
+    ],
+    "weightSha256": "88c142557820ccad55bb59756bfcfcf891de9cc6202816bd346445188a0ed342",
+    "weightSizeBytes": 988097824
+  },
+  "pilotDisclosure": {
+    "countsTowardPilotVerdict": true,
+    "crossPlatformExactnessClaimed": false,
+    "externallyTimestampedBeforeTest": false,
+    "statement": "This is exploratory repository-registered evidence, not an independently preregistered study. Validation and test were separated, but no external timestamp existed before first test execution. An MPS result is not a cross-platform exact-logit result."
+  },
+  "protocol": {
+    "cacheCanonicalization": {
+      "canonicalComputationDtype": "float32",
+      "operation": "float32-to-bfloat16-to-float32",
+      "referenceStorageBytesPerValue": 2,
+      "referenceStorageDtype": "bfloat16"
+    },
+    "cacheReconstruction": "ordered DynamicCache.update calls",
+    "continuationInputTokens": 128,
+    "continuationTargets": "block[384:512]",
+    "flattening": "per-layer token-major concat(K,V)",
+    "layerTrajectoryShape": [
+      383,
+      256
+    ],
+    "predictionTokens": 128,
+    "prefillTokens": 383,
+    "teacherForcedContinuationInputs": "block[383:511]",
+    "uncompressedBytesPerCase": 4706304,
+    "version": "qwen-kv-replay-v1"
+  },
+  "registeredAt": "2026-07-29",
+  "registrationStatus": "frozen-exploratory-pilot-protocol",
+  "registrationVersion": "1.0",
+  "runtime": {
+    "attentionImplementation": "eager",
+    "devicePolicy": "auto:mps-then-cuda-then-cpu",
+    "huggingfaceHub": "1.25.1",
+    "inferenceMode": true,
+    "modelDtype": "float32",
+    "numpy": "2.5.1",
+    "pyarrow": "23.0.1",
+    "python": "3.12.13",
+    "safetensors": "0.8.0",
+    "tokenizers": "0.22.2",
+    "torch": "2.13.0",
+    "torchDeterministicAlgorithms": "warn-only",
+    "transformers": "5.14.1",
+    "useCache": true
+  },
+  "selectionRule": [
+    "reject invariant or structural replay failures",
+    "retain validation aggregate compressionRatio >= 2.0",
+    "prefer candidates passing all validation quality gates",
+    "if a family has no validation PASS, retain it as a negative control",
+    "minimize validation mean KL divergence",
+    "break ties by higher top1Agreement",
+    "then fewer compressed bytes",
+    "then lexicographic configuration order"
+  ],
+  "suiteId": "qwen2.5-0.5b-kv-v1",
+  "thresholds": {
+    "maximumDeltaNll": 0.01,
+    "minimumCompressionRatio": 2.0,
+    "minimumTop1Agreement": 0.99,
+    "requireStructuralReplay": true
+  }
+}

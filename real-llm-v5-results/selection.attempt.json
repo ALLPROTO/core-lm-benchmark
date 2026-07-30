@@ -1,0 +1,23 @@
+{
+  "attemptSHA256": "aff52b029c39ad80120e8e7fcbb6378ce4d6330deacb8f31c4df9be22c7d8aaa",
+  "configurationSHA256": "4c7be8c836aa725722b51f66dce78af7a5094e887432e622b5322f7ca2cf0af8",
+  "executionFreeze": {
+    "freezeGitCommit": "467538875402265b2ca915768376e2a5548f3069",
+    "freezeGitTag": "voidtoken-v5-selection-protocol-v1",
+    "publicRepository": "https://github.com/ALLPROTO/core-lm-benchmark"
+  },
+  "gitCommitAtExecution": "467538875402265b2ca915768376e2a5548f3069",
+  "implementationSHA256": "55b2f589aae027e4353cf8011547d821a7d885d1fde8b9c3d9dd7af3cd90d783",
+  "phase": "selection",
+  "phaseSpec": {
+    "blocks": 32,
+    "split": "validation",
+    "startBlock": 32
+  },
+  "registrationSHA256": "ad5b75791f5385740bcdd472bf81ec546fa17fa59a0715a343ed91a193c1af32",
+  "schemaVersion": "corelm-voidtoken-v5-attempt-v1",
+  "startedAt": "2026-07-29T21:58:13+00:00",
+  "status": "attempt-started-split-not-yet-resolved",
+  "suiteId": "qwen2.5-0.5b-kv-voidtoken-v5-prospective-v1",
+  "testSplitWillBeResolved": false
+}
