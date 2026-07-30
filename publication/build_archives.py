@@ -35,6 +35,16 @@ V5_PHASE_PATHS = {
     "holdoutAttempt": ROOT / "real-llm-v5-results" / "holdout.attempt.json",
     "holdoutResult": ROOT / "real-llm-v5-results" / "holdout.json",
 }
+V5_ARXIV_SOURCE_FILES = (
+    "main.tex",
+    "author.tex",
+    "references.bib",
+    "main.bbl",
+    "results_table.tex",
+    "figures/block_metrics.pdf",
+    "figures/codec_pipeline.pdf",
+    "figures/protocol_timeline.pdf",
+)
 
 
 def _git(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -285,16 +295,6 @@ def build_arxiv_v5(
     target = (
         output_directory / "corelm_voidtoken_v5_arxiv_source.tar.gz"
     )
-    include = [
-        "main.tex",
-        "author.tex",
-        "references.bib",
-        "main.bbl",
-        "results_table.tex",
-        "figures/block_metrics.pdf",
-        "figures/codec_pipeline.pdf",
-        "figures/protocol_timeline.pdf",
-    ]
     main_source = (ARXIV_V5 / "main.tex").read_text(encoding="ascii")
     required_main_fragments = [
         "VoidToken v5: Prospectively Frozen Evidence",
@@ -326,7 +326,7 @@ def build_arxiv_v5(
                 f"VoidToken v5 result table is missing: {fragment}"
             )
     with deterministic_tar_gz(target) as archive:
-        for relative in sorted(include):
+        for relative in sorted(V5_ARXIV_SOURCE_FILES):
             source = ARXIV_V5 / relative
             if not source.is_file():
                 raise FileNotFoundError(source)
@@ -520,9 +520,7 @@ def build_reproducibility(
         publication_arxiv = stage / "publication/arxiv-v5"
         publication_arxiv.mkdir(parents=True)
         reproducibility_readme = PUBLICATION / "reproducibility/README.md"
-        figure_generator = ARXIV_V5 / "generate_figures.py"
         _assert_release_source(reproducibility_readme, context)
-        _assert_release_source(figure_generator, context)
         shutil.copy2(
             reproducibility_readme,
             stage / "publication/README.md",
@@ -537,7 +535,14 @@ def build_reproducibility(
             reproducibility_readme,
             original_reproducibility_path,
         )
-        shutil.copy2(figure_generator, publication_arxiv)
+        for relative in ("generate_figures.py", *V5_ARXIV_SOURCE_FILES):
+            source = ARXIV_V5 / relative
+            if not source.is_file():
+                raise FileNotFoundError(source)
+            _assert_release_source(source, context)
+            destination = publication_arxiv / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
 
         provenance = _v5_provenance_document(
             context,
