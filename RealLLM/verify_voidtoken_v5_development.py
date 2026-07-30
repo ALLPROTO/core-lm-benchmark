@@ -23,6 +23,7 @@ from RealLLM.benchmark_real_llm import (  # noqa: E402
     MODEL_REPOSITORY,
     MODEL_REVISION,
     MODEL_WEIGHTS_SHA256,
+    validate_v5_container_manifest,
 )
 from RealLLM.run_voidtoken_v5_frozen import (  # noqa: E402
     DEVELOPMENT_ARTIFACTS,
@@ -109,7 +110,7 @@ ENVIRONMENT_KEYS = {
     "torch",
     "transformers",
 }
-RECORD_KEYS = {
+LEGACY_RECORD_KEYS = {
     "baselineNLLNatPerToken",
     "blockIndex",
     "cacheCandidateSumSquares",
@@ -134,6 +135,10 @@ RECORD_KEYS = {
     "tokenIdsSHA256",
     "top1Agreement",
     "top1AgreementCount",
+}
+RECORD_KEYS = LEGACY_RECORD_KEYS | {
+    "containerManifest",
+    "containerManifestSHA256",
 }
 BASELINE_KEYS = {
     "baselineContinuationNanoseconds",
@@ -266,6 +271,14 @@ def _close(left: Any, right: Any) -> bool:
             float(left), float(right), rel_tol=1e-12, abs_tol=1e-12
         )
     return left == right
+
+
+def _less_than_or_close(left: float, right: float) -> bool:
+    tolerance = max(
+        1e-12,
+        1e-12 * max(abs(left), abs(right)),
+    )
+    return left <= right + tolerance
 
 
 def _compare_mapping(
@@ -460,6 +473,12 @@ def independent_aggregate_candidate_records(
     if baseline_nll < 0.0 or candidate_nll < 0.0 or mean_kl < 0.0:
         raise ValueError("NLL and KL aggregates must be non-negative")
     delta_nll = candidate_nll - baseline_nll
+    cache_cosine = dot_product / max(
+        math.sqrt(reference_sum_squares * candidate_sum_squares),
+        1e-30,
+    )
+    if not -1.0 <= cache_cosine <= 1.0:
+        raise ValueError("aggregate cache cosine is outside [-1, 1]")
     result: dict[str, Any] = {
         "configuration": configuration,
         "configurationId": _sha256_bytes(
@@ -479,11 +498,7 @@ def independent_aggregate_candidate_records(
         "cacheNormalizedRMSE": math.sqrt(
             difference_sum_squares / max(reference_sum_squares, 1e-30)
         ),
-        "cacheCosineSimilarity": dot_product
-        / max(
-            math.sqrt(reference_sum_squares * candidate_sum_squares),
-            1e-30,
-        ),
+        "cacheCosineSimilarity": cache_cosine,
         "cacheMaximumAbsoluteError": max(
             _strict_real(
                 record.get("cacheMaximumAbsoluteError"),
@@ -687,10 +702,15 @@ def _verify_record_pair(
     record: Any,
     baseline: Any,
     block_index: int,
+    *,
+    require_container_manifest: bool,
 ) -> list[str]:
     label = f"block {block_index}"
     errors: list[str] = []
-    if not isinstance(record, dict) or set(record) != RECORD_KEYS:
+    expected_record_keys = (
+        RECORD_KEYS if require_container_manifest else LEGACY_RECORD_KEYS
+    )
+    if not isinstance(record, dict) or set(record) != expected_record_keys:
         return [f"{label} candidate record fields are not exact"]
     if not isinstance(baseline, dict) or set(baseline) != BASELINE_KEYS:
         return [f"{label} baseline record fields are not exact"]
@@ -730,6 +750,30 @@ def _verify_record_pair(
         )
     ):
         errors.append(f"{label} baseline trajectory shape is inconsistent")
+    try:
+        trajectory_shape = baseline["trajectoryShapePerLayer"]
+        scalar_count = (
+            _strict_int(baseline["layers"], f"{label} baseline layers", minimum=1)
+            * _strict_int(
+                trajectory_shape[0],
+                f"{label} baseline trajectory rows",
+                minimum=1,
+            )
+            * _strict_int(
+                trajectory_shape[1],
+                f"{label} baseline trajectory columns",
+                minimum=1,
+            )
+        )
+        expected_dense_bytes = scalar_count * 2
+        if (
+            baseline.get("denseBF16Bytes") != expected_dense_bytes
+            or record.get("denseBF16Bytes") != expected_dense_bytes
+        ):
+            errors.append(f"{label} cache scalar count is inconsistent")
+    except (IndexError, KeyError, TypeError, ValueError):
+        scalar_count = 0
+        errors.append(f"{label} cache scalar count is invalid")
     if (
         baseline.get("exactRebuildMaxAbsLogitDifference") != 0.0
         or baseline.get("exactRebuildTop1Identical") is not True
@@ -799,10 +843,18 @@ def _verify_record_pair(
         and type(record.get("encodedFileBytes")) is int
         and (
             record["payloadBytes"] <= 0
-            or record["payloadBytes"] > record["encodedFileBytes"]
+            or record["encodedFileBytes"]
+            < record["payloadBytes"] + (24 * 8)
         )
     ):
         errors.append(f"{label} container byte accounting is inconsistent")
+    if require_container_manifest:
+        try:
+            validate_v5_container_manifest(record, FROZEN_CONFIGURATION)
+        except (IndexError, KeyError, TypeError, ValueError) as error:
+            errors.append(
+                f"{label} container manifest is inconsistent: {error}"
+            )
     for field in (
         "baselineContinuationNanoseconds",
         "originalContinuationNanoseconds",
@@ -828,6 +880,20 @@ def _verify_record_pair(
             )
         except ValueError as error:
             errors.append(str(error))
+    try:
+        native_agreement = _strict_real(
+            baseline["nativeBF16Top1Agreement"],
+            f"{label} baseline nativeBF16Top1Agreement",
+            minimum=0.0,
+            maximum=1.0,
+        )
+        native_agreement_count = native_agreement * 128.0
+        if not _close(native_agreement_count, round(native_agreement_count)):
+            errors.append(
+                f"{label} native BF16 top-1 agreement is not k/128"
+            )
+    except (KeyError, TypeError, ValueError, OverflowError):
+        errors.append(f"{label} native BF16 top-1 agreement is invalid")
     try:
         delta = _strict_real(
             record["candidateNLLNatPerToken"],
@@ -862,6 +928,66 @@ def _verify_record_pair(
             errors.append(f"{label} candidate/baseline NLL values differ")
     except (KeyError, TypeError, ValueError, OverflowError):
         errors.append(f"{label} NLL fields are invalid")
+    try:
+        reference_sum_squares = _strict_real(
+            record["cacheReferenceSumSquares"],
+            f"{label} cacheReferenceSumSquares",
+            minimum=0.0,
+        )
+        candidate_sum_squares = _strict_real(
+            record["cacheCandidateSumSquares"],
+            f"{label} cacheCandidateSumSquares",
+            minimum=0.0,
+        )
+        dot_product = _strict_real(
+            record["cacheDotProduct"],
+            f"{label} cacheDotProduct",
+        )
+        difference_sum_squares = _strict_real(
+            record["cacheDifferenceSumSquares"],
+            f"{label} cacheDifferenceSumSquares",
+            minimum=0.0,
+        )
+        maximum_absolute_error = _strict_real(
+            record["cacheMaximumAbsoluteError"],
+            f"{label} cacheMaximumAbsoluteError",
+            minimum=0.0,
+        )
+        cache_identity = (
+            reference_sum_squares
+            + candidate_sum_squares
+            - (2.0 * dot_product)
+        )
+        if not math.isfinite(cache_identity) or not math.isclose(
+            difference_sum_squares,
+            cache_identity,
+            rel_tol=1e-9,
+            abs_tol=1e-6,
+        ):
+            errors.append(f"{label} cache accumulators are inconsistent")
+        norm_product = math.sqrt(reference_sum_squares) * math.sqrt(
+            candidate_sum_squares
+        )
+        if not _less_than_or_close(abs(dot_product), norm_product):
+            errors.append(f"{label} cache Cauchy-Schwarz bound is violated")
+        maximum_error_squared = maximum_absolute_error**2
+        maximum_error_sum_bound = scalar_count * maximum_error_squared
+        if (
+            scalar_count <= 0
+            or not math.isfinite(maximum_error_squared)
+            or not math.isfinite(maximum_error_sum_bound)
+            or not _less_than_or_close(
+                maximum_error_squared,
+                difference_sum_squares,
+            )
+            or not _less_than_or_close(
+                difference_sum_squares,
+                maximum_error_sum_bound,
+            )
+        ):
+            errors.append(f"{label} cache maximum-error bounds are violated")
+    except (KeyError, TypeError, ValueError, OverflowError):
+        errors.append(f"{label} cache accumulators are invalid")
     return errors
 
 
@@ -873,9 +999,10 @@ def _verify_shard(
     errors: list[str] = []
     if set(shard) != TOP_LEVEL_KEYS:
         errors.append(f"{label} top-level fields are not exact")
-    if shard.get("schemaVersion") != (
-        "corelm-voidtoken-v5-validation-development-v1"
-    ):
+    if shard.get("schemaVersion") not in {
+        "corelm-voidtoken-v5-validation-development-v1",
+        "corelm-voidtoken-v5-validation-development-v2",
+    }:
         errors.append(f"{label} schema version is inconsistent")
     if shard.get("status") != "validation-only-development":
         errors.append(f"{label} status is inconsistent")
@@ -930,8 +1057,15 @@ def _verify_shard(
     environment = shard.get("environment")
     if not isinstance(environment, dict) or set(environment) != ENVIRONMENT_KEYS:
         errors.append(f"{label} environment fields are not exact")
-    elif environment != EXPECTED_ENVIRONMENT:
-        errors.append(f"{label} development environment is inconsistent")
+    else:
+        expected_environment = dict(EXPECTED_ENVIRONMENT)
+        if (
+            shard.get("schemaVersion")
+            == "corelm-voidtoken-v5-validation-development-v2"
+        ):
+            expected_environment["hfHome"] = "configured"
+        if environment != expected_environment:
+            errors.append(f"{label} development environment is inconsistent")
 
     records = shard.get("records")
     baselines = shard.get("baselines")
@@ -953,6 +1087,10 @@ def _verify_shard(
                 records[relative_index],
                 baselines[relative_index],
                 block_index,
+                require_container_manifest=(
+                    shard.get("schemaVersion")
+                    == "corelm-voidtoken-v5-validation-development-v2"
+                ),
             )
         )
 

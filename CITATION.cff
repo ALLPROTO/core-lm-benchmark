@@ -6,7 +6,7 @@ authors:
   - family-names: "Tyshchenko"
     given-names: "Ivan"
     orcid: "https://orcid.org/0009-0000-7935-6090"
-version: "voidtoken-v5-paper-v2"
+version: "voidtoken-v5-paper-v3"
 date-released: 2026-07-30
 license: MIT
 repository-code: "https://github.com/ALLPROTO/core-lm-benchmark"
@@ -14,8 +14,9 @@ url: "https://github.com/ALLPROTO/core-lm-benchmark"
 abstract: >-
   A native macOS benchmark and independent Python evidence core. The artifact
   contains the registered VoidToken v3 synthetic trajectory benchmark and a
-  prospectively frozen VoidToken v5 evaluation of complete serialized
-  Qwen2.5-0.5B prefill KV-cache containers.
+  prospectively frozen VoidToken v5 quality evaluation with an
+  integrity-protected, runner-recorded complete-container measurement for
+  Qwen2.5-0.5B prefill KV caches.
 keywords:
   - state trajectory compression
   - KV-cache compression

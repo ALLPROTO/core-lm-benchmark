@@ -17,3 +17,7 @@ submission archive is built by `publication/build_archives.py` and is named
 The manuscript cites frozen evidence tag `voidtoken-v5-evidence-v1` and
 canonical holdout result SHA-256
 `d1c16e88655c1fbc9884324742dee3f0b9b4bc86d973c2bf38df3a02cc090eaa`.
+The manuscript explicitly discloses that the consumed historical v1 artifacts
+did not retain per-layer container manifests: their compression totals are
+digest/provenance-protected runner records, not independently reconstructed
+byte accounting.

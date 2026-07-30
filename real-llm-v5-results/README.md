@@ -15,6 +15,17 @@ execution from that exact public tag has a scientific PASS, and its frozen
 `holdout.attempt.json` and `holdout.json` artifacts are present. The
 Git-provenance verifier accepts both frozen phases.
 
+Accounting limitation: these already-consumed phase artifacts use the
+historical v1 result format, which did not record per-layer container
+manifests. Their complete-container totals and compression gates are
+runner-recorded and bound to immutable canonical result digests, physical file
+SHA-256 values, execution commits, and public Git tags, but cannot be
+independently reconstructed per layer. They must not be rerun or rewritten.
+Any mutation fails the legacy digest/provenance allowlist. Quality metrics and
+aggregate/gate arithmetic remain independently recomputed. A future separately
+registered v2 suite is required for an independently reconstructed compression
+claim.
+
 | Metric | Frozen selection result |
 |---|---:|
 | Complete-container ratio vs BF16 | 2.054320× |

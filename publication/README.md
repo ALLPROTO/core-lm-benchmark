@@ -17,11 +17,14 @@ The two papers must not be conflated. The v3 paper reports the registered
 115-run synthetic dynamical benchmark. The v5 paper reports the separately
 frozen Qwen2.5-0.5B prefill KV-cache selection and prospective holdout.
 
-The v5 holdout compressed 150,601,728 canonical BF16 bytes to 73,346,513
-complete-container bytes (`2.0532909x`) with delta NLL
-`-0.0000609346`, top-1 agreement `4071/4096`, and all seven registered
-gates passing. The evidence is bounded to the registered model revision,
-WikiText-2 windows, teacher-forced replay, and MPS runtime.
+The historical v1 runner recorded 150,601,728 canonical BF16 bytes and
+73,346,513 complete-container bytes (`2.0532909x`) for the v5 holdout, with
+delta NLL `-0.0000609346`, top-1 agreement `4071/4096`, and all seven
+registered gates passing. Those immutable v1 artifacts did not retain
+per-layer container manifests, so their compression total is protected by
+result/file/Git digests but is not independently reconstructible. The evidence
+is bounded to the registered model revision, WikiText-2 windows,
+teacher-forced replay, and MPS runtime.
 
 ## Generate and preview
 
@@ -54,7 +57,7 @@ Do not move or reuse `voidtoken-v5-evidence-v1`; that tag identifies the
 earlier frozen scientific evidence state.
 
 ```sh
-RELEASE_TAG=voidtoken-v5-paper-v2
+RELEASE_TAG=voidtoken-v5-paper-v3
 git status --short
 git tag "$RELEASE_TAG"
 git push origin HEAD

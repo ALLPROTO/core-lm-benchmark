@@ -81,10 +81,8 @@ def execute_suite(
 
     aggregate = aggregate_suite(results)
     aggregate_path = output_directory / "aggregate.json"
-    aggregate_path.write_text(
-        json.dumps(aggregate, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    with aggregate_path.open("x", encoding="utf-8") as handle:
+        handle.write(json.dumps(aggregate, indent=2, sort_keys=True) + "\n")
     return aggregate
 
 

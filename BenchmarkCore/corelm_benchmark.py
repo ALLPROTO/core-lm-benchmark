@@ -29,6 +29,10 @@ CORE_ARITHMETIC_VERSION = "fixed-order-f64-v1"
 VOIDTOKEN_CANONICALIZATION_VERSION = "fixed-order-v1"
 VOIDTOKEN_FORMAT = "voidtoken-residual-keyframe-v4"
 VOIDTOKEN_LEGACY_FORMAT = "voidtoken-residual-keyframe-v3"
+MAX_CONTAINER_BYTES = 256 * 1024 * 1024
+MAX_METADATA_BYTES = 1024 * 1024
+MAX_DECODED_MATRIX_ELEMENTS = 8 * 1024 * 1024
+MAX_DECODED_MATRIX_BYTES = MAX_DECODED_MATRIX_ELEMENTS * 4
 
 
 def _fixed_pairwise_sum_last(values: np.ndarray) -> np.ndarray:
@@ -168,6 +172,14 @@ class ExperimentConfiguration:
             raise ValueError("dimension must be >= 2")
         if self.steps < 2:
             raise ValueError("steps must be >= 2")
+        if (self.steps + 1) * self.dimension > MAX_DECODED_MATRIX_ELEMENTS:
+            raise ValueError(
+                "state trajectory exceeds the decoded-matrix resource limit"
+            )
+        if self.dimension * self.dimension > MAX_DECODED_MATRIX_ELEMENTS:
+            raise ValueError(
+                "Core LM weight matrix exceeds the decoded-matrix resource limit"
+            )
         if not 1 <= self.pca_components <= min(self.steps + 1, self.dimension):
             raise ValueError("invalid pca_components")
         if not 1 <= self.top_k <= min(self.dimension, 0xFFFE):
@@ -293,12 +305,17 @@ class EncodedRepresentation:
             separators=(",", ":"),
             allow_nan=False,
         ).encode("utf-8")
-        return (
+        if len(metadata_bytes) > MAX_METADATA_BYTES:
+            raise ValueError("container metadata exceeds the encoder resource limit")
+        container = (
             self.CONTAINER_MAGIC
             + struct.pack("<I", len(metadata_bytes))
             + metadata_bytes
             + self.payload
         )
+        if len(container) > MAX_CONTAINER_BYTES:
+            raise ValueError("container exceeds the encoder resource limit")
+        return container
 
     @classmethod
     def from_bytes(cls, container: bytes) -> EncodedRepresentation:
@@ -308,9 +325,13 @@ class EncodedRepresentation:
             raise ValueError("container must be bytes-like") from error
         if len(raw) < 8:
             raise ValueError("truncated container header")
+        if len(raw) > MAX_CONTAINER_BYTES:
+            raise ValueError("container exceeds the decoder resource limit")
         if raw[:4] != cls.CONTAINER_MAGIC:
             raise ValueError("invalid container magic")
         metadata_length = struct.unpack_from("<I", raw, 4)[0]
+        if metadata_length > MAX_METADATA_BYTES:
+            raise ValueError("container metadata exceeds the decoder resource limit")
         metadata_end = 8 + metadata_length
         if metadata_end > len(raw):
             raise ValueError("truncated container metadata")
@@ -375,7 +396,13 @@ def _decode_metadata(
         or any(type(value) is not int or value <= 0 for value in shape)
     ):
         raise ValueError("shape must contain two positive integers")
-    return shape[0], shape[1]
+    rows, columns = shape
+    elements = rows * columns
+    if elements > MAX_DECODED_MATRIX_ELEMENTS:
+        raise ValueError(
+            "shape exceeds the decoded-matrix resource limit"
+        )
+    return rows, columns
 
 
 def _payload_bytes(payload: bytes) -> bytes:
@@ -1025,16 +1052,21 @@ def markdown_report(result: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _exclusive_write_text(path: Path, content: str) -> None:
+    with path.open("x", encoding="utf-8") as handle:
+        handle.write(content)
+
+
 def save_result(result: dict[str, Any], output_directory: Path) -> tuple[Path, Path]:
     output_directory.mkdir(parents=True, exist_ok=True)
     stem = result["runId"]
     json_path = output_directory / f"{stem}.json"
     markdown_path = output_directory / f"{stem}.md"
-    json_path.write_text(
+    _exclusive_write_text(
+        json_path,
         json.dumps(result, indent=2, sort_keys=True, allow_nan=False) + "\n",
-        encoding="utf-8",
     )
-    markdown_path.write_text(markdown_report(result), encoding="utf-8")
+    _exclusive_write_text(markdown_path, markdown_report(result))
     return json_path, markdown_path
 
 
@@ -1111,7 +1143,7 @@ def main() -> int:
         "markdown": str(markdown_path),
         "reasons": result["verdictReasons"],
     }, indent=2))
-    return 0
+    return 0 if result["verdict"] == "PASS" else 2
 
 
 if __name__ == "__main__":

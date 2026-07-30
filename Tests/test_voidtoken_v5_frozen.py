@@ -1,5 +1,7 @@
+import copy
 import errno
 import json
+import subprocess
 import sys
 import tempfile
 import types
@@ -23,6 +25,7 @@ from RealLLM.run_voidtoken_v5_frozen import (  # noqa: E402
     _create_attempt_marker,
     _exclusive_write,
     _load_json_object,
+    _run_git_process,
     _require_clean_head,
     _require_public_pretest_freeze,
     _write_verified_result,
@@ -41,6 +44,16 @@ from RealLLM.benchmark_real_llm import RuntimeOptions  # noqa: E402
 
 
 class FrozenVoidTokenV5ProtocolTests(unittest.TestCase):
+    def _selection_reference(self):
+        candidates = (
+            ROOT / "real-llm-v5-results" / "selection.json",
+            ROOT / "Tests" / "fixtures" / "v5-selection-reference.json",
+        )
+        for path in candidates:
+            if path.is_file():
+                return json.loads(path.read_text(encoding="utf-8"))
+        self.fail("published selection reference is unavailable")
+
     def _records(self, *, delta=0.001, mismatches=0):
         records = []
         base_mismatches, extra_blocks = divmod(mismatches, 32)
@@ -163,6 +176,26 @@ class FrozenVoidTokenV5ProtocolTests(unittest.TestCase):
             schema["$defs"]["record"]["properties"]["configurationId"],
             {"const": "4c7be8c836aa7257"},
         )
+        self.assertEqual(
+            schema["properties"]["schemaVersion"]["const"],
+            "corelm-voidtoken-v5-phase-result-v2",
+        )
+        self.assertIn(
+            "containerManifest",
+            schema["$defs"]["record"]["required"],
+        )
+        self.assertEqual(
+            schema["$defs"]["record"]["properties"]["containerManifest"][
+                "minItems"
+            ],
+            24,
+        )
+        self.assertEqual(
+            schema["$defs"]["record"]["properties"]["containerManifest"][
+                "maxItems"
+            ],
+            24,
+        )
 
     def test_frozen_json_loader_rejects_duplicate_and_nonfinite_values(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -190,6 +223,104 @@ class FrozenVoidTokenV5ProtocolTests(unittest.TestCase):
             "every candidate record must be an object",
             errors,
         )
+
+    def test_forged_legacy_byte_accounting_fails_registered_digest(self):
+        forged = copy.deepcopy(self._selection_reference())
+        first = forged["records"][0]
+        first["encodedFileBytes"] = first["payloadBytes"]
+        first["cacheDifferenceSumSquares"] = 0.0
+        forged["records"][1]["payloadSHA256"] = first["payloadSHA256"]
+        digest_input = dict(forged)
+        digest_input.pop("resultSHA256")
+        forged["resultSHA256"] = frozen_runner.sha256_bytes(
+            frozen_runner.canonical_json_bytes(digest_input)
+        )
+        errors = verify_phase_artifact_self_consistency(
+            forged, "selection"
+        )
+        self.assertTrue(
+            any(
+                "immutable registered historical result" in error
+                for error in errors
+            )
+        )
+        self.assertTrue(
+            any("canonical result digest differs" in error for error in errors)
+        )
+
+    def test_clean_historical_selection_is_exact_legacy_exception(self):
+        self.assertEqual(
+            verify_phase_artifact_self_consistency(
+                self._selection_reference(), "selection"
+            ),
+            [],
+        )
+
+    def test_frozen_verifier_rejects_impossible_cache_geometry(self):
+        forged = copy.deepcopy(self._selection_reference())
+        record = forged["records"][0]
+        baseline = forged["baselines"][0]
+        baseline["nativeBF16Top1Agreement"] = 0.5 + (1 / 256)
+        baseline["denseBF16Bytes"] -= 2
+        record["denseBF16Bytes"] -= 2
+        record["cacheReferenceSumSquares"] = 1.0
+        record["cacheCandidateSumSquares"] = 1.0
+        record["cacheDotProduct"] = -2.0
+        record["cacheDifferenceSumSquares"] = 6.0
+        record["cacheMaximumAbsoluteError"] = 0.0
+        errors = verify_phase_artifact_self_consistency(
+            forged, "selection"
+        )
+        self.assertTrue(
+            any(
+                "immutable registered historical result" in error
+                for error in errors
+            )
+        )
+
+    def test_frozen_verifier_handles_exponential_overflow(self):
+        forged = copy.deepcopy(self._selection_reference())
+        forged["records"][0]["candidateNLLNatPerToken"] = 1e300
+        errors = verify_phase_artifact_self_consistency(
+            forged, "selection"
+        )
+        self.assertTrue(
+            any(
+                "immutable registered historical result" in error
+                for error in errors
+            )
+        )
+
+    def test_git_process_uses_absolute_binary_bounded_sanitized_environment(self):
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        with (
+            patch.dict(
+                frozen_runner.os.environ,
+                {
+                    "GIT_EXEC_PATH": "/tmp/injected",
+                    "DYLD_INSERT_LIBRARIES": "/tmp/injected.dylib",
+                    "LD_PRELOAD": "/tmp/injected.so",
+                },
+            ),
+            patch.object(
+                frozen_runner, "_git_executable", return_value="/usr/bin/git"
+            ),
+            patch.object(
+                frozen_runner.subprocess, "run", return_value=completed
+            ) as runner,
+        ):
+            self.assertIs(
+                _run_git_process(["rev-parse", "HEAD"], text=True),
+                completed,
+            )
+        arguments, keywords = runner.call_args
+        self.assertEqual(arguments[0][0], "/usr/bin/git")
+        self.assertNotIn("GIT_EXEC_PATH", keywords["env"])
+        self.assertNotIn("DYLD_INSERT_LIBRARIES", keywords["env"])
+        self.assertNotIn("LD_PRELOAD", keywords["env"])
+        self.assertEqual(keywords["timeout"], frozen_runner._GIT_TIMEOUT_SECONDS)
 
     def test_clean_worktree_guard_rejects_untracked_injection(self):
         def fake_git(*arguments):

@@ -28,15 +28,18 @@ key-value (KV) cache codec on a pinned real language model. VoidToken v5
 applies independent normalized Walsh-Hadamard transforms to the key and value
 halves of each layer cache, token-wise max-absolute scaling, symmetric
 quantization at 8 bits except 9 bits for layers 0 and 8, and canonical zlib
-compression. The complete wire containers, including framing, metadata,
-scales, and codes, are counted. The protocol fixes Qwen2.5-0.5B, WikiText-2
+compression. The historical v1 runner records complete wire-container totals,
+including framing, metadata, scales, and codes. The protocol fixes
+Qwen2.5-0.5B, WikiText-2
 source windows, a canonical bfloat16 cache, wire-format byte accounting,
 statistical gates, and one-shot execution rules before frozen selection and
 the prospective holdout. On the registered
 32-block holdout (4,096 teacher-forced predictions), complete containers
 reduced canonical bfloat16 prefill-cache storage from 150,601,728 to
-73,346,513 bytes (2.05329x; 51.30% fewer bytes). Relative to canonical
-bfloat16-cache replay, the decoded cache produced delta NLL of
+73,346,513 runner-recorded bytes (2.05329x; 51.30% fewer bytes). The immutable
+v1 artifacts did not retain per-layer container manifests, so this storage
+total is integrity-protected but not independently reconstructible. Relative
+to canonical bfloat16-cache replay, the decoded cache produced delta NLL of
 -6.09e-5 nat/token and 99.3896% top-1 agreement. The one-sided 95% block
 upper bound for delta NLL was 0.000549, the block lower bound for agreement was
 99.2472%, and the Wilson lower bound was 99.1543%; all seven prespecified gates

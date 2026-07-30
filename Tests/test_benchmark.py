@@ -1,5 +1,6 @@
 import json
 import hashlib
+import math
 import subprocess
 import struct
 import sys
@@ -7,14 +8,18 @@ import unittest
 from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "BenchmarkCore"))
 
+import corelm_benchmark as benchmark_module  # noqa: E402
 from corelm_benchmark import (  # noqa: E402
     CORE_ARITHMETIC_VERSION,
+    MAX_DECODED_MATRIX_ELEMENTS,
     VOIDTOKEN_CANONICALIZATION_VERSION,
     VOIDTOKEN_FORMAT,
     VOIDTOKEN_LEGACY_FORMAT,
@@ -42,6 +47,7 @@ from verify_evidence import (  # noqa: E402
     FLOAT_ABSOLUTE_TOLERANCE,
     FLOAT_RELATIVE_TOLERANCE,
     compare_values,
+    verify_evidence,
 )
 
 
@@ -126,6 +132,28 @@ class InputTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ExperimentConfiguration(
                 dimension=65535, steps=2, pca_components=1, top_k=65535
+            ).validate()
+
+    def test_configuration_rejects_large_matrices_before_allocation(self):
+        oversized_trajectory = ExperimentConfiguration(
+            dimension=2,
+            steps=MAX_DECODED_MATRIX_ELEMENTS // 2,
+            pca_components=1,
+            top_k=1,
+        )
+        with patch.object(DeterministicInputGenerator, "generate") as generate:
+            with self.assertRaisesRegex(
+                ValueError, "state trajectory.*resource limit"
+            ):
+                run_benchmark(oversized_trajectory)
+        generate.assert_not_called()
+        oversized_dimension = math.isqrt(MAX_DECODED_MATRIX_ELEMENTS) + 1
+        with self.assertRaisesRegex(ValueError, "weight matrix.*resource limit"):
+            ExperimentConfiguration(
+                dimension=oversized_dimension,
+                steps=2,
+                pca_components=1,
+                top_k=1,
             ).validate()
 
     def test_core_golden_trajectory(self):
@@ -227,6 +255,36 @@ class BackendTests(unittest.TestCase):
         struct.pack_into("<f", corrupted_pca, 0, float("nan"))
         with self.assertRaises(ValueError):
             PCABackend.decode(corrupted_pca, pca.metadata)
+
+    def test_decoders_reject_shapes_over_the_resource_budget(self):
+        oversized_shape = [MAX_DECODED_MATRIX_ELEMENTS + 1, 1]
+        with self.assertRaisesRegex(ValueError, "resource limit"):
+            PCABackend.decode(
+                b"",
+                {
+                    "format": "pca-v1",
+                    "dtype": "float32",
+                    "shape": oversized_shape,
+                    "components": 1,
+                },
+            )
+        with self.assertRaisesRegex(ValueError, "resource limit"):
+            VoidTokenBackend.decode(
+                b"",
+                {
+                    "format": VOIDTOKEN_FORMAT,
+                    "dtype": "float32",
+                    "shape": oversized_shape,
+                    "topK": 1,
+                    "qmax": 127,
+                    "keyframeInterval": 0,
+                    "indexBytes": 2,
+                    "quantizedValueBytes": 1,
+                    "canonicalizationVersion": (
+                        VOIDTOKEN_CANONICALIZATION_VERSION
+                    ),
+                },
+            )
 
     def test_void_zero_is_compact_and_exact(self):
         zero = np.zeros((21, 32), dtype=np.float32)
@@ -458,6 +516,60 @@ class IntegrationTests(unittest.TestCase):
             self.assertEqual({m["name"] for m in loaded["methods"]}, {"dense", "pca", "voidtoken"})
             self.assertGreater(len(loaded["timeSeries"]), 1)
             self.assertEqual(loaded["timeSeries"][0]["step"], 0)
+            with self.assertRaises(FileExistsError):
+                save_result(first, Path(directory))
+
+    def test_evidence_verifier_rejects_unsafe_run_ids_before_replay(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "aggregate.json").write_text(
+                json.dumps({"runIds": ["../outside"]}),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                verify_evidence(root),
+                [
+                    "aggregate.runIds: every run ID must be exactly 16 "
+                    "lowercase hexadecimal characters"
+                ],
+            )
+
+    def test_single_run_cli_returns_nonzero_for_scientific_fail(self):
+        arguments = SimpleNamespace(
+            dimension=8,
+            steps=20,
+            seed=7,
+            scenario="zero",
+            pca_components=4,
+            top_k=2,
+            qmax=127,
+            keyframe_interval=0,
+            minimum_compression_ratio=4.0,
+            maximum_normalized_rmse=0.1,
+            minimum_cosine_similarity=0.95,
+            maximum_energy_drift=0.05,
+            output=Path("/unused"),
+        )
+        with (
+            patch.object(
+                benchmark_module, "parse_arguments", return_value=arguments
+            ),
+            patch.object(
+                benchmark_module,
+                "run_benchmark",
+                return_value={
+                    "runId": "0000000000000000",
+                    "verdict": "FAIL",
+                    "verdictReasons": [],
+                },
+            ),
+            patch.object(
+                benchmark_module,
+                "save_result",
+                return_value=(Path("result.json"), Path("result.md")),
+            ),
+        ):
+            self.assertEqual(benchmark_module.main(), 2)
 
     def test_result_digests_match_core_and_void_bytes(self):
         config = ExperimentConfiguration(

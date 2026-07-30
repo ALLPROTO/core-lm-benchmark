@@ -1,0 +1,194 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "bom-ref": "pkg:pypi/huggingface-hub@1.25.1",
+      "name": "huggingface-hub",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "RealLLM/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/huggingface-hub@1.25.1",
+      "scope": "required",
+      "type": "library",
+      "version": "1.25.1"
+    },
+    {
+      "bom-ref": "pkg:pypi/jsonschema@4.25.1",
+      "name": "jsonschema",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "RealLLM/requirements.txt, requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/jsonschema@4.25.1",
+      "scope": "required",
+      "type": "library",
+      "version": "4.25.1"
+    },
+    {
+      "bom-ref": "pkg:pypi/numpy@2.3.5",
+      "name": "numpy",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/numpy@2.3.5",
+      "scope": "required",
+      "type": "library",
+      "version": "2.3.5"
+    },
+    {
+      "bom-ref": "pkg:pypi/numpy@2.5.1",
+      "name": "numpy",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "RealLLM/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/numpy@2.5.1",
+      "scope": "required",
+      "type": "library",
+      "version": "2.5.1"
+    },
+    {
+      "bom-ref": "pkg:pypi/pyarrow@23.0.1",
+      "name": "pyarrow",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "RealLLM/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pyarrow@23.0.1",
+      "scope": "required",
+      "type": "library",
+      "version": "23.0.1"
+    },
+    {
+      "bom-ref": "pkg:pypi/pyyaml@6.0.3",
+      "name": "pyyaml",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/pyyaml@6.0.3",
+      "scope": "required",
+      "type": "library",
+      "version": "6.0.3"
+    },
+    {
+      "bom-ref": "pkg:pypi/reportlab@4.4.9",
+      "name": "reportlab",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/reportlab@4.4.9",
+      "scope": "required",
+      "type": "library",
+      "version": "4.4.9"
+    },
+    {
+      "bom-ref": "pkg:pypi/safetensors@0.8.0",
+      "name": "safetensors",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "RealLLM/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/safetensors@0.8.0",
+      "scope": "required",
+      "type": "library",
+      "version": "0.8.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/tokenizers@0.22.2",
+      "name": "tokenizers",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "RealLLM/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/tokenizers@0.22.2",
+      "scope": "required",
+      "type": "library",
+      "version": "0.22.2"
+    },
+    {
+      "bom-ref": "pkg:pypi/torch@2.13.0",
+      "name": "torch",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "RealLLM/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/torch@2.13.0",
+      "scope": "required",
+      "type": "library",
+      "version": "2.13.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/transformers@5.14.1",
+      "name": "transformers",
+      "properties": [
+        {
+          "name": "corelm:source-manifests",
+          "value": "RealLLM/requirements.txt"
+        }
+      ],
+      "purl": "pkg:pypi/transformers@5.14.1",
+      "scope": "required",
+      "type": "library",
+      "version": "5.14.1"
+    }
+  ],
+  "dependencies": [
+    {
+      "dependsOn": [
+        "pkg:pypi/huggingface-hub@1.25.1",
+        "pkg:pypi/jsonschema@4.25.1",
+        "pkg:pypi/numpy@2.3.5",
+        "pkg:pypi/numpy@2.5.1",
+        "pkg:pypi/pyarrow@23.0.1",
+        "pkg:pypi/pyyaml@6.0.3",
+        "pkg:pypi/reportlab@4.4.9",
+        "pkg:pypi/safetensors@0.8.0",
+        "pkg:pypi/tokenizers@0.22.2",
+        "pkg:pypi/torch@2.13.0",
+        "pkg:pypi/transformers@5.14.1"
+      ],
+      "ref": "pkg:github/ALLPROTO/core-lm-benchmark@voidtoken-v5-paper-v3"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "bom-ref": "pkg:github/ALLPROTO/core-lm-benchmark@voidtoken-v5-paper-v3",
+      "name": "CoreLMBenchmark",
+      "purl": "pkg:github/ALLPROTO/core-lm-benchmark@voidtoken-v5-paper-v3",
+      "type": "application",
+      "version": "voidtoken-v5-paper-v3"
+    },
+    "properties": [
+      {
+        "name": "corelm:sbom-scope",
+        "value": "direct-python-dependencies-only"
+      }
+    ]
+  },
+  "specVersion": "1.5",
+  "version": 1
+}

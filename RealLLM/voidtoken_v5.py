@@ -48,6 +48,9 @@ _CONTAINER_HEADER = struct.Struct("<4sI")
 _SCALE_DTYPE = np.dtype("<f2")
 _SHA256_HEX_LENGTH = 64
 _COMPRESSION_MODES = frozenset(("none", "zlib-9"))
+MAX_CONTAINER_BYTES = 256 * 1024 * 1024
+MAX_METADATA_BYTES = 1024 * 1024
+MAX_DECODED_MATRIX_ELEMENTS = 2 * 1024 * 1024
 
 
 def _bytes_like(value: bytes | bytearray | memoryview, name: str) -> bytes:
@@ -122,13 +125,16 @@ def _decompress_canonical(
 
 def _build_container(metadata: dict[str, Any], payload: bytes) -> bytes:
     metadata_bytes = canonical_json_bytes(metadata)
-    if len(metadata_bytes) > 0xFFFFFFFF:
-        raise ValueError("metadata is too large for the v5 container")
-    return (
+    if len(metadata_bytes) > MAX_METADATA_BYTES:
+        raise ValueError("metadata exceeds the v5 container resource limit")
+    container = (
         _CONTAINER_HEADER.pack(VOIDTOKEN_V5_MAGIC, len(metadata_bytes))
         + metadata_bytes
         + payload
     )
+    if len(container) > MAX_CONTAINER_BYTES:
+        raise ValueError("VoidToken v5 container exceeds the resource limit")
+    return container
 
 
 def _parse_container(
@@ -137,9 +143,13 @@ def _parse_container(
     raw = _bytes_like(container, "container")
     if len(raw) < _CONTAINER_HEADER.size:
         raise ValueError("truncated VoidToken v5 container header")
+    if len(raw) > MAX_CONTAINER_BYTES:
+        raise ValueError("VoidToken v5 container exceeds the resource limit")
     magic, metadata_length = _CONTAINER_HEADER.unpack_from(raw)
     if magic != VOIDTOKEN_V5_MAGIC:
         raise ValueError("invalid VoidToken v5 container magic")
+    if metadata_length > MAX_METADATA_BYTES:
+        raise ValueError("VoidToken v5 metadata exceeds the resource limit")
     metadata_start = _CONTAINER_HEADER.size
     metadata_end = metadata_start + metadata_length
     if metadata_end > len(raw):
@@ -350,6 +360,8 @@ class VoidTokenV5Backend:
         rows, columns = array.shape
         if rows <= 0 or columns <= 0:
             raise ValueError("matrix dimensions must be positive")
+        if rows * columns > MAX_DECODED_MATRIX_ELEMENTS:
+            raise ValueError("matrix exceeds the VoidToken v5 resource limit")
         if not np.all(np.isfinite(array)):
             raise ValueError("matrix contains non-finite values")
         group_size = _positive_int(group_size, "group_size")
@@ -424,6 +436,8 @@ class VoidTokenV5Backend:
     ]:
         if not isinstance(metadata, dict):
             raise ValueError("metadata must be an object")
+        if len(canonical_json_bytes(metadata)) > MAX_METADATA_BYTES:
+            raise ValueError("metadata exceeds the VoidToken v5 resource limit")
         expected_strings = {
             "format": VOIDTOKEN_V5_FORMAT,
             "dtype": "float32",
@@ -457,6 +471,8 @@ class VoidTokenV5Backend:
         ):
             raise ValueError("shape must contain two positive integers")
         rows, columns = shape
+        if rows * columns > MAX_DECODED_MATRIX_ELEMENTS:
+            raise ValueError("shape exceeds the decoded-matrix resource limit")
         group_size = _positive_int(metadata.get("groupSize"), "groupSize")
         transform_block_size = _positive_int(
             metadata.get("transformBlockSize"), "transformBlockSize"
@@ -589,6 +605,8 @@ class VoidTokenV5Backend:
         if code_compression == "none" and stored_code_bytes != packed_bytes:
             raise ValueError("uncompressed v5 code length mismatch")
         payload_bytes = stored_scale_bytes + stored_code_bytes
+        if payload_bytes > MAX_CONTAINER_BYTES:
+            raise ValueError("payload exceeds the VoidToken v5 resource limit")
         expected_integers = {
             "groupsPerRow": groups_per_row,
             "scaleCount": scale_count,
@@ -618,6 +636,11 @@ class VoidTokenV5Backend:
             packed_bytes_by_group,
             stored_code_bytes,
         )
+
+    @classmethod
+    def validate_metadata_layout(cls, metadata: dict[str, Any]) -> None:
+        """Validate canonical v5 metadata without requiring the payload bytes."""
+        cls._validate_metadata(metadata)
 
     @classmethod
     def encode(
@@ -785,6 +808,8 @@ class VoidTokenV5Backend:
         require_reconstruction_digest: bool,
     ) -> np.ndarray:
         raw = _bytes_like(payload, "payload")
+        if len(raw) > MAX_CONTAINER_BYTES:
+            raise ValueError("payload exceeds the VoidToken v5 resource limit")
         validation_metadata = metadata
         if not require_reconstruction_digest:
             validation_metadata = dict(metadata)

@@ -1,7 +1,12 @@
+import copy
 import json
 import sys
+import tempfile
+import types
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 
@@ -9,12 +14,20 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import RealLLM.benchmark_real_llm as benchmark_module  # noqa: E402
+import RealLLM.develop_voidtoken_v5 as development_module  # noqa: E402
 from RealLLM.benchmark_real_llm import (  # noqa: E402
+    DATASET_FILES,
     GROUP_QUANT_GRID,
+    MODEL_ASSET_FILES,
+    MODEL_WEIGHTS_BYTES,
+    MODEL_WEIGHTS_SHA256,
     PREDICTIONS_PER_BLOCK,
     REGISTERED_TEST_START_BLOCK,
     THRESHOLDS,
     VOIDTOKEN_GRID,
+    _download_and_verify_inputs,
+    _exclusive_write_bytes,
     aggregate_candidate_records,
     canonical_json_bytes,
     configuration_id,
@@ -22,9 +35,12 @@ from RealLLM.benchmark_real_llm import (  # noqa: E402
     validate_registered_protocol,
 )
 from RealLLM.codecs import (  # noqa: E402
+    MAX_DECODED_MATRIX_ELEMENTS,
     PackedGroupQuantBackend,
     PackedGroupQuantRepresentation,
+    sha256_bytes,
 )
+from RealLLM.verify_real_llm_evidence import verify_result  # noqa: E402
 
 
 class PackedGroupQuantTests(unittest.TestCase):
@@ -139,6 +155,33 @@ class PackedGroupQuantTests(unittest.TestCase):
             PackedGroupQuantBackend.from_bytes(corrupted)
         with self.assertRaises(ValueError):
             PackedGroupQuantBackend.from_bytes(encoded.to_bytes()[:-1])
+
+    def test_decoder_rejects_metadata_that_declares_an_oversized_matrix(self):
+        encoded = PackedGroupQuantBackend.encode(
+            self.matrix, bits=7, group_size=16
+        )
+        metadata = dict(encoded.metadata)
+        metadata["shape"] = [MAX_DECODED_MATRIX_ELEMENTS + 1, 1]
+        with self.assertRaisesRegex(ValueError, "resource limit"):
+            PackedGroupQuantBackend.decode(encoded.payload, metadata)
+
+    def test_zlib_decoder_stops_when_scales_exceed_declared_bound(self):
+        encoded = PackedGroupQuantBackend.encode(
+            self.matrix, bits=7, group_size=16, scale_compression="zlib-9"
+        )
+        import zlib
+
+        oversized_scales = zlib.compress(
+            b"\0" * (encoded.metadata["scaleBytes"] + 1024), level=9
+        )
+        packed = encoded.payload[encoded.metadata["storedScaleBytes"] :]
+        payload = oversized_scales + packed
+        metadata = dict(encoded.metadata)
+        metadata["storedScaleBytes"] = len(oversized_scales)
+        metadata["payloadBytes"] = len(payload)
+        metadata["payloadSha256"] = sha256_bytes(payload)
+        with self.assertRaisesRegex(ValueError, "exceed"):
+            PackedGroupQuantBackend.decode(payload, metadata)
 
 
 def _record(
@@ -298,6 +341,154 @@ class RealLLMProtocolTests(unittest.TestCase):
             selected["compressionRatioVsBF16"],
             THRESHOLDS["minimumCompressionRatioVsBF16"],
         )
+
+    def test_evidence_rejects_duplicate_block_coverage(self):
+        with (ROOT / "real-llm-results" / "aggregate.json").open(
+            encoding="utf-8"
+        ) as handle:
+            result = json.load(handle)
+        forged = copy.deepcopy(result)
+        for baseline in forged["validation"]["baselines"]:
+            baseline["blockIndex"] = 0
+        for record in forged["validation"]["records"]:
+            record["blockIndex"] = 0
+        errors = verify_result(forged)
+        self.assertTrue(
+            any("cover the registered blocks exactly" in error for error in errors)
+        )
+        self.assertTrue(
+            any("duplicate baseline block indices" in error for error in errors)
+        )
+
+    def test_evidence_recomputes_record_level_metrics(self):
+        with (ROOT / "real-llm-results" / "aggregate.json").open(
+            encoding="utf-8"
+        ) as handle:
+            result = json.load(handle)
+        forged = copy.deepcopy(result)
+        record = forged["validation"]["records"][0]
+        record["deltaNLLNatPerToken"] += 0.25
+        record["perplexityRatio"] += 0.25
+        record["top1Agreement"] = 1.0 - record["top1Agreement"]
+        errors = verify_result(forged)
+        self.assertTrue(any("delta NLL is inconsistent" in error for error in errors))
+        self.assertTrue(
+            any("perplexity ratio is inconsistent" in error for error in errors)
+        )
+        self.assertTrue(any("top-1 fields are inconsistent" in error for error in errors))
+
+    def test_evidence_handles_exponential_overflow_as_a_verification_error(self):
+        with (ROOT / "real-llm-results" / "aggregate.json").open(
+            encoding="utf-8"
+        ) as handle:
+            result = json.load(handle)
+        forged = copy.deepcopy(result)
+        forged["validation"]["records"][0][
+            "candidateNLLNatPerToken"
+        ] = 1e300
+        errors = verify_result(forged)
+        self.assertTrue(
+            any(
+                "invalid derived fields" in error
+                or "cannot be aggregated" in error
+                for error in errors
+            )
+        )
+
+    def test_real_llm_cli_returns_nonzero_for_scientific_fail(self):
+        arguments = SimpleNamespace(
+            output=Path("/unused"),
+            device="cpu",
+            validation_blocks=4,
+            test_blocks=8,
+            test_start_block=REGISTERED_TEST_START_BLOCK,
+            local_files_only=True,
+        )
+        result = {"test": {"allPassed": False}}
+        with (
+            patch.object(
+                benchmark_module, "parse_arguments", return_value=arguments
+            ),
+            patch.object(
+                benchmark_module, "run_registered_pilot", return_value=result
+            ),
+            patch.object(benchmark_module, "_summary", return_value="FAIL"),
+        ):
+            self.assertEqual(benchmark_module.main(), 2)
+
+    def test_result_output_is_exclusive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "result.json"
+            _exclusive_write_bytes(path, b"first")
+            with self.assertRaises(FileExistsError):
+                _exclusive_write_bytes(path, b"second")
+            self.assertEqual(path.read_bytes(), b"first")
+
+    def test_all_model_runtime_assets_are_verified(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            snapshot = root / "snapshot"
+            dataset_root = root / "dataset"
+            snapshot.mkdir()
+            requested: list[tuple[str, str]] = []
+            digests: dict[Path, str] = {}
+
+            model_path = snapshot / "model.safetensors"
+            with model_path.open("wb") as handle:
+                handle.truncate(MODEL_WEIGHTS_BYTES)
+            digests[model_path] = MODEL_WEIGHTS_SHA256
+            for filename, specification in MODEL_ASSET_FILES.items():
+                path = snapshot / filename
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with path.open("wb") as handle:
+                    handle.truncate(specification["bytes"])
+                digests[path] = specification["sha256"]
+            for specification in DATASET_FILES.values():
+                path = dataset_root / specification["path"]
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with path.open("wb") as handle:
+                    handle.truncate(specification["bytes"])
+                digests[path] = specification["sha256"]
+
+            def fake_download(repository, *, filename, **kwargs):
+                requested.append((repository, filename))
+                if kwargs.get("repo_type") == "dataset":
+                    return dataset_root / filename
+                return snapshot / filename
+
+            fake_hub = types.SimpleNamespace(hf_hub_download=fake_download)
+            with (
+                patch.dict(sys.modules, {"huggingface_hub": fake_hub}),
+                patch.object(
+                    benchmark_module,
+                    "sha256_file",
+                    side_effect=lambda path: digests[Path(path)],
+                ),
+                patch.object(
+                    development_module,
+                    "sha256_file",
+                    side_effect=lambda path: digests[Path(path)],
+                ),
+            ):
+                resolved = _download_and_verify_inputs(True)
+                validation_only = development_module._download_validation_only(
+                    True
+                )
+
+            requested_names = {filename for _, filename in requested}
+            self.assertTrue(MODEL_ASSET_FILES.keys() <= requested_names)
+            self.assertEqual(resolved["modelSnapshot"], snapshot)
+            self.assertEqual(validation_only["modelSnapshot"], snapshot)
+            self.assertNotIn(
+                DATASET_FILES["test"]["path"],
+                [
+                    filename
+                    for repository, filename in requested[
+                        len(MODEL_ASSET_FILES) + 3 :
+                    ]
+                    if repository != benchmark_module.MODEL_REPOSITORY
+                ],
+            )
 
 
 if __name__ == "__main__":

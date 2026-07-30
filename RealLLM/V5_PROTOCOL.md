@@ -109,6 +109,32 @@ entry path over serialized bytes, but it intentionally shares the canonical
 payload-decoding routine with the encoder's self-check; it is not claimed as a
 second independent implementation.
 
+Every current v5 candidate record must also contain an ordered, exactly
+24-entry `containerManifest`. Each entry records the layer index, the exact
+canonical codec metadata object, payload bytes, complete container bytes, and
+complete-container SHA-256. `containerManifestSHA256` covers the canonical
+manifest JSON. v2/current verifiers independently validate the codec layout, reconstruct
+each byte count as `8 + canonical_metadata_bytes + payload_bytes`, reject
+impossible zlib lengths, and require the per-layer payload/container sums to
+equal the record and aggregate totals. Payload bodies are not duplicated in
+JSON; their SHA-256 commitments remain in the metadata. Development v1 shards
+without this manifest remain immutable legacy adaptive observations and are
+explicitly non-gating; they cannot satisfy current v5 result verification.
+
+The already-consumed historical selection and holdout were emitted as v1
+before `containerManifest` existed and cannot be rerun without violating the
+one-shot protocol. They are accepted only as byte-identical legacy exceptions:
+the verifier pins each canonical result digest, physical artifact SHA-256,
+execution commit, historical implementation digest, and registration digest,
+then checks the original Git/tag provenance. Any mutation is rejected even if
+an attacker recomputes the embedded digest. For those two historical artifacts,
+the complete-container byte totals and compression gate are therefore
+**runner-recorded, not independently reconstructible per layer**. Their
+quality metrics, aggregate arithmetic, gates, and artifact/provenance links are
+still independently recomputed. The prospective claim must carry this storage
+accounting limitation; only a future, separately registered v2 suite can claim
+independent per-layer container accounting.
+
 ## Fixed gates
 
 Both the one-shot selection phase and holdout must independently satisfy every
@@ -189,7 +215,9 @@ public history provides.
 ## Claim boundary
 
 A holdout PASS supports only the pinned Qwen revision, canonical BF16 cache,
-registered WikiText-2 windows, teacher-forced replay, MPS environment, and
-complete-container byte accounting above. It is not a claim about other
+registered WikiText-2 windows, teacher-forced replay, and MPS environment. Its
+historical v1 compression ratio uses integrity-protected but runner-recorded
+complete-container totals; it is not an independently reconstructed storage
+measurement. It is not a claim about other
 models, long contexts, free-running generation, latency, energy, production
 serving, or exact cross-device logits. A FAIL is published unchanged.

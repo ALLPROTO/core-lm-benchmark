@@ -67,14 +67,15 @@ a VoidToken failure remains part of the published evidence.
   thresholds, and claim boundary.
 - `PROTOCOL.md` — normative extraction, canonicalization, reconstruction, and
   evaluation procedure.
-- `requirements.txt` — pinned direct Python dependencies for the heavy replay.
+- `requirements.txt` — pinned direct Python dependencies for review.
+- `requirements.lock` — hash-complete dependency closure for the heavy replay.
 - `../schemas/real-llm-result.schema.json` — strict schema for the recorded
   aggregate, including all block-level records and both family verdicts.
 
 Install the separate environment with:
 
 ```sh
-python3.12 -m pip install -r RealLLM/requirements.txt
+python3.12 -m pip install --require-hashes -r RealLLM/requirements.lock
 ```
 
 The output is explicitly a repository-recorded exploratory pilot, not an

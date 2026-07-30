@@ -1,3 +1,4 @@
+import copy
 import sys
 import unittest
 import zlib
@@ -10,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from RealLLM.voidtoken_v5 import (  # noqa: E402
+    MAX_DECODED_MATRIX_ELEMENTS,
     VOIDTOKEN_V5_CODE_MAPPING,
     VOIDTOKEN_V5_FORMAT,
     VoidTokenV5Backend,
@@ -22,6 +24,11 @@ from RealLLM.voidtoken_v5 import (  # noqa: E402
     _unpack_v5_codes,
 )
 from RealLLM.codecs import sha256_bytes  # noqa: E402
+from RealLLM.benchmark_real_llm import (  # noqa: E402
+    _encode_layers,
+    canonical_json_bytes,
+    validate_v5_container_manifest,
+)
 
 
 class VoidTokenV5Tests(unittest.TestCase):
@@ -132,6 +139,81 @@ class VoidTokenV5Tests(unittest.TestCase):
             + first.metadata["storedCodeBytes"],
         )
         self.assertEqual(first.container_bytes, len(first.to_bytes()))
+
+    def test_real_llm_manifest_reconstructs_all_24_container_lengths(self):
+        configuration = {
+            "backend": "voidtoken-v5",
+            "bits": 8,
+            "groupSize": 16,
+            "transformBlockSize": 16,
+            "scaleCompression": "zlib-9",
+            "codeCompression": "zlib-9",
+            "signMode": "none",
+        }
+        layers = [
+            np.full((5, 32), layer_index / 32, dtype=np.float32)
+            for layer_index in range(24)
+        ]
+        _, record = _encode_layers(layers, configuration)
+        validate_v5_container_manifest(
+            record,
+            configuration,
+            expected_shape=(5, 32),
+        )
+        self.assertEqual(
+            [entry["layerIndex"] for entry in record["containerManifest"]],
+            list(range(24)),
+        )
+        self.assertEqual(
+            record["payloadBytes"],
+            sum(
+                entry["payloadBytes"]
+                for entry in record["containerManifest"]
+            ),
+        )
+        self.assertEqual(
+            record["encodedFileBytes"],
+            sum(
+                entry["containerBytes"]
+                for entry in record["containerManifest"]
+            ),
+        )
+        self.assertTrue(
+            all(
+                "payload" not in entry
+                and "container" not in entry
+                for entry in record["containerManifest"]
+            )
+        )
+
+        impossible = copy.deepcopy(record)
+        for entry in impossible["containerManifest"]:
+            entry["containerBytes"] = entry["payloadBytes"] + 8
+        impossible["encodedFileBytes"] = sum(
+            entry["containerBytes"]
+            for entry in impossible["containerManifest"]
+        )
+        impossible["containerManifestSHA256"] = sha256_bytes(
+            canonical_json_bytes(impossible["containerManifest"])
+        )
+        with self.assertRaisesRegex(ValueError, "container bytes"):
+            validate_v5_container_manifest(
+                impossible,
+                configuration,
+                expected_shape=(5, 32),
+            )
+
+        missing_layer = copy.deepcopy(record)
+        missing_layer["containerManifest"].pop()
+        missing_layer["containerManifestSHA256"] = sha256_bytes(
+            canonical_json_bytes(missing_layer["containerManifest"])
+        )
+        with self.assertRaisesRegex(ValueError, "exactly 24"):
+            validate_v5_container_manifest(
+                missing_layer,
+                configuration,
+                expected_shape=(5, 32),
+            )
 
     def test_full_container_has_a_frozen_golden_digest(self):
         matrix = (
@@ -322,6 +404,18 @@ class VoidTokenV5Tests(unittest.TestCase):
         bad_sign["signMode"] = []
         with self.assertRaises(ValueError):
             VoidTokenV5Backend.decode(encoded.payload, bad_sign)
+
+    def test_decoder_rejects_metadata_that_declares_an_oversized_matrix(self):
+        encoded = VoidTokenV5Backend.encode(
+            self.matrix,
+            bits=8,
+            group_size=64,
+            transform_block_size=64,
+        )
+        metadata = dict(encoded.metadata)
+        metadata["shape"] = [MAX_DECODED_MATRIX_ELEMENTS + 1, 1]
+        with self.assertRaisesRegex(ValueError, "resource limit"):
+            VoidTokenV5Backend.decode(encoded.payload, metadata)
 
     def test_unused_all_ones_code_is_rejected(self):
         zero = np.zeros((1, 256), dtype=np.float32)

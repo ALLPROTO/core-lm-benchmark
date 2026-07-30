@@ -18,7 +18,7 @@ result to machine-readable evidence.
 From the extracted archive:
 
 ```sh
-python3 -m pip install -r requirements.txt
+python3 -m pip install --require-hashes -r requirements.lock
 ./run_tests.sh
 ```
 
@@ -71,10 +71,19 @@ full repository clone under `publication/arxiv/`.
 ## Build the native application
 
 ```sh
-./package_app.sh
+python3.12 -m venv "$HOME/.cache/corelm-real-llm-venv-v5"
+"$HOME/.cache/corelm-real-llm-venv-v5/bin/python" -m pip install \
+  --require-hashes -r RealLLM/requirements.lock
+ALLOW_ADHOC_SIGNING=1 ./package_app.sh
 ```
 
-The application bundle is produced at `dist/CoreLMBenchmark.app`.
+The application bundle is produced at `dist/CoreLMBenchmark.app`. This is an
+explicit local/CI ad-hoc build with hardened runtime. Its signed resource
+manifest authenticates the loadable external Python base prefix and venv
+before each worker launch; volatile `__pycache__` is bypassed with a private
+empty `-X pycache_prefix`. This also makes the build path-specific. Public
+distribution requires Developer ID signing and notarization as documented in
+`SECURITY.md`.
 
 ## Evidence chain
 
@@ -91,7 +100,6 @@ negative verdicts remain intact and do not alter either the historical
 115-run v3 result or the separate prospective v5 result.
 
 ```sh
-python3 -m pip install numpy==2.5.1 jsonschema==4.25.1
 python3 RealLLM/verify_real_llm_evidence.py
 ```
 
@@ -105,7 +113,7 @@ Repeating model inference requires the separate pinned environment and downloads
 the pinned Qwen weights plus two pinned WikiText-2 parquet files:
 
 ```sh
-python3 -m pip install -r RealLLM/requirements.txt
+python3 -m pip install --require-hashes -r RealLLM/requirements.lock
 ./run_real_llm_benchmark.sh
 ```
 
@@ -163,10 +171,12 @@ limitation explicitly. A tar extracted inside some other Git worktree is
 rejected to prevent an accidental provenance downgrade.
 
 The registered artifact state is `holdout-pass`. Selection and holdout each
-pass all seven gates. The holdout records `2.0532909x` complete-container
-compression, delta NLL `-0.0000609346`, top-1 agreement `4071/4096`,
-blockwise top-1 lower 95% `0.9924722061`, and Wilson lower 95%
-`0.9915430006`.
+pass all seven gates. The historical v1 holdout records `2.0532909x`
+runner-recorded complete-container compression, delta NLL `-0.0000609346`,
+top-1 agreement `4071/4096`, blockwise top-1 lower 95% `0.9924722061`, and
+Wilson lower 95% `0.9915430006`. Because the consumed v1 artifact did not
+retain per-layer container manifests, the compression total is
+digest/provenance-protected but not independently reconstructible.
 
 Frozen runner exits have scientific meaning:
 
@@ -190,7 +200,7 @@ from this extracted tar—only after the lightweight release tag is public and
 the worktree is clean:
 
 ```sh
-RELEASE_TAG=voidtoken-v5-paper-v2
+RELEASE_TAG=voidtoken-v5-paper-v3
 python3 publication/build_archives.py \
   --release-tag "$RELEASE_TAG" \
   --verify-determinism

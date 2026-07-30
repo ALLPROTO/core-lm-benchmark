@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/real-llm-result.schema.json",
   "title": "Repository-recorded exploratory Qwen2.5-0.5B KV-cache pilot aggregate",
+  "description": "This schema validates recorded structure and ranges. It does not independently replay model inference or authenticate the runtime producer.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -597,7 +598,10 @@
           "type": "number"
         },
         "nativeBF16Top1Agreement": {
-          "$ref": "#/$defs/unitInterval"
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "multipleOf": 0.0078125
         },
         "exactRebuildMaxAbsLogitDifference": {
           "$ref": "#/$defs/nonNegativeNumber"
@@ -623,6 +627,116 @@
           "type": "integer",
           "minimum": 0
         }
+      }
+    },
+    "v5ContainerMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "codeCompression",
+        "codeCount",
+        "codeMapping",
+        "dtype",
+        "format",
+        "groupSize",
+        "groupsPerRow",
+        "inputSha256",
+        "layerIndex",
+        "packedBytes",
+        "packing",
+        "payloadBytes",
+        "payloadSha256",
+        "quantization",
+        "reconstructionSha256",
+        "scaleBytes",
+        "scaleCompression",
+        "scaleCount",
+        "scaleDtype",
+        "shape",
+        "signDerivation",
+        "signMode",
+        "storedCodeBytes",
+        "storedScaleBytes",
+        "transform",
+        "transformBlockSize"
+      ],
+      "properties": {
+        "bits": {"type": "integer", "enum": [4, 5, 6, 7, 8, 9, 10, 12, 16]},
+        "bitsByColumnGroup": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "enum": [4, 5, 6, 7, 8, 9, 10, 12, 16]}
+        },
+        "codeCompression": {"enum": ["none", "zlib-9"]},
+        "codeCount": {"type": "integer", "minimum": 1},
+        "codeMapping": {"const": "zigzag-symmetric-v1"},
+        "dtype": {"const": "float32"},
+        "format": {"const": "voidtoken-rotated-entropy-v5"},
+        "groupSize": {"type": "integer", "minimum": 1},
+        "groupsPerRow": {"type": "integer", "minimum": 1},
+        "inputSha256": {"$ref": "#/$defs/sha256"},
+        "layerIndex": {"type": "integer", "minimum": 0, "maximum": 23},
+        "packedBytes": {"type": "integer", "minimum": 1},
+        "packedBytesByColumnGroup": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "minimum": 1}
+        },
+        "packing": {
+          "enum": [
+            "lsb-first-v1",
+            "byte-low-plus-lsb-high-fields-v1",
+            "column-group-major-mixed-v1"
+          ]
+        },
+        "payloadBytes": {"type": "integer", "minimum": 1},
+        "payloadSha256": {"$ref": "#/$defs/sha256"},
+        "quantization": {"const": "symmetric-max-abs-v1"},
+        "reconstructionSha256": {"$ref": "#/$defs/sha256"},
+        "scaleBytes": {"type": "integer", "minimum": 1},
+        "scaleCompression": {"enum": ["none", "zlib-9"]},
+        "scaleCount": {"type": "integer", "minimum": 1},
+        "scaleDtype": {"const": "float16-le"},
+        "shape": {"const": [383, 256]},
+        "signDerivation": {"const": "shake256-layer-column-v1"},
+        "signMode": {"enum": ["none", "shake256"]},
+        "storedCodeBytes": {"type": "integer", "minimum": 1},
+        "storedScaleBytes": {"type": "integer", "minimum": 1},
+        "transform": {"const": "normalized-walsh-hadamard-v1"},
+        "transformBlockSize": {"type": "integer", "minimum": 1}
+      },
+      "oneOf": [
+        {
+          "required": ["bits"],
+          "not": {
+            "anyOf": [
+              {"required": ["bitsByColumnGroup"]},
+              {"required": ["packedBytesByColumnGroup"]}
+            ]
+          }
+        },
+        {
+          "required": ["bitsByColumnGroup", "packedBytesByColumnGroup"],
+          "not": {"required": ["bits"]}
+        }
+      ]
+    },
+    "containerManifestEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layerIndex",
+        "metadata",
+        "payloadBytes",
+        "containerBytes",
+        "containerSHA256"
+      ],
+      "properties": {
+        "layerIndex": {"type": "integer", "minimum": 0, "maximum": 23},
+        "metadata": {"$ref": "#/$defs/v5ContainerMetadata"},
+        "payloadBytes": {"type": "integer", "minimum": 1},
+        "containerBytes": {"type": "integer", "minimum": 1},
+        "containerSHA256": {"$ref": "#/$defs/sha256"}
       }
     },
     "candidateRecord": {
@@ -686,6 +800,15 @@
         "payloadSHA256": {
           "$ref": "#/$defs/sha256"
         },
+        "containerManifest": {
+          "type": "array",
+          "minItems": 24,
+          "maxItems": 24,
+          "items": {"$ref": "#/$defs/containerManifestEntry"}
+        },
+        "containerManifestSHA256": {
+          "$ref": "#/$defs/sha256"
+        },
         "encodeNanoseconds": {
           "type": "integer",
           "minimum": 0
@@ -736,7 +859,23 @@
           "type": "integer",
           "minimum": 0
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "configurationId": {"const": "4c7be8c836aa7257"}
+            },
+            "required": ["configurationId"]
+          },
+          "then": {
+            "required": [
+              "containerManifest",
+              "containerManifestSHA256"
+            ]
+          }
+        }
+      ]
     },
     "gates": {
       "type": "object",

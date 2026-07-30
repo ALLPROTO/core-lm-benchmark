@@ -44,6 +44,44 @@ MODEL_WEIGHTS_SHA256 = (
     "88c142557820ccad55bb59756bfcfcf891de9cc6202816bd346445188a0ed342"
 )
 MODEL_WEIGHTS_BYTES = 988_097_824
+MODEL_ASSET_FILES = {
+    "config.json": {
+        "bytes": 681,
+        "sha256": (
+            "479dcf0c5286339e41ad3992cd08ae88a467c4187587936248e2b7c96283484b"
+        ),
+    },
+    "generation_config.json": {
+        "bytes": 138,
+        "sha256": (
+            "8c970692323e3ea0e9b8b0a4dca79388d31226e41f83c9fd6014804280ebf6e8"
+        ),
+    },
+    "merges.txt": {
+        "bytes": 1_671_839,
+        "sha256": (
+            "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+        ),
+    },
+    "tokenizer.json": {
+        "bytes": 7_031_645,
+        "sha256": (
+            "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"
+        ),
+    },
+    "tokenizer_config.json": {
+        "bytes": 7_228,
+        "sha256": (
+            "c91efca15ceff6e9ee9424db58a6f59cd41294e550a86cbd07e3c1fb500b34f9"
+        ),
+    },
+    "vocab.json": {
+        "bytes": 2_776_833,
+        "sha256": (
+            "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        ),
+    },
+}
 DATASET_REPOSITORY = "Salesforce/wikitext"
 DATASET_REVISION = "b08601e04326c79dfdd32d625aee71d232d685c3"
 DATASET_CONFIGURATION = "wikitext-2-raw-v1"
@@ -204,6 +242,12 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _exclusive_write_bytes(path: Path, content: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("xb") as handle:
+        handle.write(content)
+
+
 def configuration_id(configuration: dict[str, Any]) -> str:
     return sha256_bytes(canonical_json_bytes(configuration))[:16]
 
@@ -248,11 +292,33 @@ def _weighted_average(records: Iterable[dict[str, Any]], key: str) -> float:
     denominator = 0
     for record in records:
         tokens = int(record["predictionTokens"])
-        numerator += float(record[key]) * tokens
+        value = float(record[key])
+        if tokens <= 0 or not math.isfinite(value):
+            raise ValueError(f"invalid {key} aggregation input")
+        numerator += value * tokens
         denominator += tokens
-    if denominator == 0:
+    if denominator == 0 or not math.isfinite(numerator):
         raise ValueError("cannot aggregate zero prediction tokens")
     return numerator / denominator
+
+
+def _finite_sum(records: Iterable[dict[str, Any]], key: str) -> float:
+    result = sum(float(record[key]) for record in records)
+    if not math.isfinite(result):
+        raise ValueError(f"non-finite aggregate for {key}")
+    return result
+
+
+def _finite_exp(value: float, label: str) -> float:
+    if not math.isfinite(value):
+        raise ValueError(f"{label} must be finite")
+    try:
+        result = math.exp(value)
+    except OverflowError as error:
+        raise ValueError(f"{label} is outside the supported range") from error
+    if not math.isfinite(result):
+        raise ValueError(f"{label} produced a non-finite exponential")
+    return result
 
 
 def aggregate_candidate_records(
@@ -265,16 +331,16 @@ def aggregate_candidate_records(
     encoded_bytes = sum(int(record["encodedFileBytes"]) for record in records)
     tokens = sum(int(record["predictionTokens"]) for record in records)
     agreements = sum(int(record["top1AgreementCount"]) for record in records)
-    difference_sum_squares = sum(
-        float(record["cacheDifferenceSumSquares"]) for record in records
-    )
-    reference_sum_squares = sum(
-        float(record["cacheReferenceSumSquares"]) for record in records
-    )
-    candidate_sum_squares = sum(
-        float(record["cacheCandidateSumSquares"]) for record in records
-    )
-    dot_product = sum(float(record["cacheDotProduct"]) for record in records)
+    difference_sum_squares = _finite_sum(records, "cacheDifferenceSumSquares")
+    reference_sum_squares = _finite_sum(records, "cacheReferenceSumSquares")
+    candidate_sum_squares = _finite_sum(records, "cacheCandidateSumSquares")
+    dot_product = _finite_sum(records, "cacheDotProduct")
+    if min(
+        difference_sum_squares,
+        reference_sum_squares,
+        candidate_sum_squares,
+    ) < 0.0:
+        raise ValueError("cache sum-of-squares aggregates must be non-negative")
     normalized_rmse = math.sqrt(
         difference_sum_squares / max(reference_sum_squares, 1e-30)
     )
@@ -294,7 +360,9 @@ def aggregate_candidate_records(
         "baselineNLLNatPerToken": baseline_nll,
         "candidateNLLNatPerToken": candidate_nll,
         "deltaNLLNatPerToken": candidate_nll - baseline_nll,
-        "perplexityRatio": math.exp(candidate_nll - baseline_nll),
+        "perplexityRatio": _finite_exp(
+            candidate_nll - baseline_nll, "aggregate delta NLL"
+        ),
         "top1Agreement": agreements / max(tokens, 1),
         "meanKLDivergenceNat": _weighted_average(
             records, "meanKLDivergenceNat"
@@ -467,6 +535,22 @@ def _download_and_verify_inputs(local_files_only: bool) -> dict[str, Path]:
     if sha256_file(model_path) != MODEL_WEIGHTS_SHA256:
         raise RuntimeError("pinned model weight digest mismatch")
     paths["modelWeights"] = model_path
+    paths["modelSnapshot"] = model_path.parent
+    for filename, asset in MODEL_ASSET_FILES.items():
+        asset_path = Path(
+            hf_hub_download(
+                MODEL_REPOSITORY,
+                revision=MODEL_REVISION,
+                filename=filename,
+                local_files_only=local_files_only,
+            )
+        )
+        if asset_path.stat().st_size != asset["bytes"]:
+            raise RuntimeError(f"pinned model asset size mismatch: {filename}")
+        if sha256_file(asset_path) != asset["sha256"]:
+            raise RuntimeError(
+                f"pinned model asset digest mismatch: {filename}"
+            )
     for split, specification in DATASET_FILES.items():
         path = Path(
             hf_hub_download(
@@ -695,6 +779,7 @@ def _encode_layers(
 ) -> tuple[list[np.ndarray], dict[str, Any]]:
     reconstructed: list[np.ndarray] = []
     digest = hashlib.sha256()
+    container_manifest: list[dict[str, Any]] = []
     encoded_file_bytes = 0
     payload_bytes = 0
     encode_nanoseconds = 0
@@ -776,13 +861,204 @@ def _encode_layers(
         payload_bytes += int(representation.payload_bytes)
         encode_nanoseconds += int(representation.encode_nanoseconds)
         decode_nanoseconds += int(representation.decode_nanoseconds)
-    return reconstructed, {
+        if configuration["backend"] == "voidtoken-v5":
+            container_manifest.append(
+                {
+                    "layerIndex": layer_index,
+                    "metadata": representation.metadata,
+                    "payloadBytes": int(representation.payload_bytes),
+                    "containerBytes": len(container),
+                    "containerSHA256": sha256_bytes(container),
+                }
+            )
+    encoding = {
         "encodedFileBytes": encoded_file_bytes,
         "payloadBytes": payload_bytes,
         "payloadSHA256": digest.hexdigest(),
         "encodeNanoseconds": encode_nanoseconds,
         "decodeNanoseconds": decode_nanoseconds,
     }
+    if configuration["backend"] == "voidtoken-v5":
+        encoding["containerManifest"] = container_manifest
+        encoding["containerManifestSHA256"] = sha256_bytes(
+            canonical_json_bytes(container_manifest)
+        )
+    return reconstructed, encoding
+
+
+_V5_CONTAINER_MANIFEST_ENTRY_KEYS = {
+    "layerIndex",
+    "metadata",
+    "payloadBytes",
+    "containerBytes",
+    "containerSHA256",
+}
+
+
+def _zlib_compress_bound(source_bytes: int) -> int:
+    """Return zlib's documented conservative deflate upper bound."""
+    if type(source_bytes) is not int or source_bytes < 0:
+        raise ValueError("zlib source length must be a non-negative integer")
+    return (
+        source_bytes
+        + (source_bytes >> 12)
+        + (source_bytes >> 14)
+        + (source_bytes >> 25)
+        + 13
+    )
+
+
+def validate_v5_container_manifest(
+    record: dict[str, Any],
+    configuration: dict[str, Any],
+    *,
+    expected_layers: int = 24,
+    expected_shape: tuple[int, int] = (PREFILL_TOKENS, 256),
+) -> None:
+    """Independently reconstruct every v5 container's byte accounting.
+
+    Payload bytes are intentionally not embedded in an evidence JSON document.
+    Their per-layer SHA-256 commitments remain in the exact codec metadata, and
+    each full-container commitment is recorded separately.  Container length is
+    nevertheless exactly reconstructible as the fixed eight-byte header,
+    canonical metadata JSON, and the declared payload length.
+    """
+    if not isinstance(record, dict):
+        raise ValueError("candidate record must be an object")
+    manifest = record.get("containerManifest")
+    if (
+        not isinstance(manifest, list)
+        or len(manifest) != expected_layers
+    ):
+        raise ValueError(
+            f"containerManifest must contain exactly {expected_layers} layers"
+        )
+    if sha256_bytes(canonical_json_bytes(manifest)) != record.get(
+        "containerManifestSHA256"
+    ):
+        raise ValueError("containerManifestSHA256 is inconsistent")
+
+    total_payload_bytes = 0
+    total_container_bytes = 0
+    container_digests: set[str] = set()
+    for expected_layer_index, entry in enumerate(manifest):
+        if (
+            not isinstance(entry, dict)
+            or set(entry) != _V5_CONTAINER_MANIFEST_ENTRY_KEYS
+        ):
+            raise ValueError(
+                f"layer {expected_layer_index} manifest fields are not exact"
+            )
+        if entry.get("layerIndex") != expected_layer_index:
+            raise ValueError("containerManifest layer order is not canonical")
+        metadata = entry.get("metadata")
+        try:
+            VoidTokenV5Backend.validate_metadata_layout(metadata)
+        except ValueError as error:
+            raise ValueError(
+                f"layer {expected_layer_index} metadata is invalid: {error}"
+            ) from error
+        if metadata.get("layerIndex") != expected_layer_index:
+            raise ValueError(
+                f"layer {expected_layer_index} metadata index is inconsistent"
+            )
+        if metadata.get("shape") != list(expected_shape):
+            raise ValueError(
+                f"layer {expected_layer_index} cache shape is inconsistent"
+            )
+        expected_bits_by_kv = configuration.get("bitsByKVByLayer")
+        expected_bits_by_layer = configuration.get("bitsByLayer")
+        if expected_bits_by_kv is not None:
+            if (
+                metadata.get("bitsByColumnGroup")
+                != expected_bits_by_kv[expected_layer_index]
+                or "bits" in metadata
+            ):
+                raise ValueError(
+                    f"layer {expected_layer_index} bit layout is inconsistent"
+                )
+        else:
+            expected_bits = (
+                expected_bits_by_layer[expected_layer_index]
+                if expected_bits_by_layer is not None
+                else configuration.get("bits")
+            )
+            if metadata.get("bits") != expected_bits:
+                raise ValueError(
+                    f"layer {expected_layer_index} bit width is inconsistent"
+                )
+        expected_metadata_fields = {
+            "groupSize": configuration.get("groupSize"),
+            "transformBlockSize": configuration.get("transformBlockSize"),
+            "scaleCompression": configuration.get("scaleCompression"),
+            "codeCompression": configuration.get("codeCompression"),
+            "signMode": configuration.get("signMode", "shake256"),
+        }
+        for name, expected in expected_metadata_fields.items():
+            if metadata.get(name) != expected:
+                raise ValueError(
+                    f"layer {expected_layer_index} {name} is inconsistent"
+                )
+
+        payload_bytes = entry.get("payloadBytes")
+        container_bytes = entry.get("containerBytes")
+        container_sha256 = entry.get("containerSHA256")
+        if (
+            type(payload_bytes) is not int
+            or payload_bytes <= 0
+            or payload_bytes != metadata.get("payloadBytes")
+        ):
+            raise ValueError(
+                f"layer {expected_layer_index} payload bytes are inconsistent"
+            )
+        expected_container_bytes = (
+            8 + len(canonical_json_bytes(metadata)) + payload_bytes
+        )
+        if (
+            type(container_bytes) is not int
+            or container_bytes != expected_container_bytes
+        ):
+            raise ValueError(
+                f"layer {expected_layer_index} container bytes are inconsistent"
+            )
+        if (
+            not isinstance(container_sha256, str)
+            or len(container_sha256) != 64
+            or any(
+                character not in "0123456789abcdef"
+                for character in container_sha256
+            )
+        ):
+            raise ValueError(
+                f"layer {expected_layer_index} container SHA-256 is invalid"
+            )
+        if container_sha256 in container_digests:
+            raise ValueError("container SHA-256 commitments are not unique")
+        container_digests.add(container_sha256)
+
+        if metadata["scaleCompression"] == "zlib-9" and (
+            metadata["storedScaleBytes"]
+            > _zlib_compress_bound(metadata["scaleBytes"])
+        ):
+            raise ValueError(
+                f"layer {expected_layer_index} scale stream is impossible"
+            )
+        if metadata["codeCompression"] == "zlib-9" and (
+            metadata["storedCodeBytes"]
+            > _zlib_compress_bound(metadata["packedBytes"])
+        ):
+            raise ValueError(
+                f"layer {expected_layer_index} code stream is impossible"
+            )
+        total_payload_bytes += payload_bytes
+        total_container_bytes += container_bytes
+
+    if total_payload_bytes != record.get("payloadBytes"):
+        raise ValueError("record payloadBytes does not equal its 24-layer sum")
+    if total_container_bytes != record.get("encodedFileBytes"):
+        raise ValueError(
+            "record encodedFileBytes does not equal its 24-layer sum"
+        )
 
 
 def _evaluate_candidate(
@@ -926,6 +1202,15 @@ def _evaluate_block(
         cache_hasher.update(len(raw).to_bytes(8, "little"))
         cache_hasher.update(raw)
     cache_digest = cache_hasher.hexdigest()
+    native_bf16_agreement_count = int(
+        (
+            direct_logits.argmax(dim=-1)
+            == baseline_logits.argmax(dim=-1)
+        )
+        .sum()
+        .item()
+    )
+    prediction_tokens = int(targets_cpu.numel())
     native_bf16_baseline = {
         "blockIndex": block_index,
         "tokenIdsSHA256": token_digest,
@@ -934,7 +1219,7 @@ def _evaluate_block(
         "kvHeads": heads,
         "headDimension": head_dimension,
         "trajectoryShapePerLayer": list(canonical_layers[0].shape),
-        "predictionTokens": int(targets_cpu.numel()),
+        "predictionTokens": prediction_tokens,
         "denseBF16Bytes": sum(layer.size * 2 for layer in canonical_layers),
         "originalFP32NLLNatPerToken": _nll(direct_logits, targets_cpu),
         "canonicalBF16NLLNatPerToken": _nll(baseline_logits, targets_cpu),
@@ -942,14 +1227,8 @@ def _evaluate_block(
             _nll(baseline_logits, targets_cpu)
             - _nll(direct_logits, targets_cpu)
         ),
-        "nativeBF16Top1Agreement": float(
-            (
-                direct_logits.argmax(dim=-1)
-                == baseline_logits.argmax(dim=-1)
-            )
-            .float()
-            .mean()
-            .item()
+        "nativeBF16Top1Agreement": (
+            native_bf16_agreement_count / prediction_tokens
         ),
         "exactRebuildMaxAbsLogitDifference": exact_difference,
         "exactRebuildTop1Identical": bool(
@@ -1020,14 +1299,14 @@ def run_registered_pilot(
     input_paths = _download_and_verify_inputs(options.local_files_only)
 
     tokenizer = AutoTokenizer.from_pretrained(
-        MODEL_REPOSITORY,
-        revision=MODEL_REVISION,
-        local_files_only=options.local_files_only,
+        input_paths["modelSnapshot"],
+        local_files_only=True,
+        trust_remote_code=False,
     )
     model = AutoModelForCausalLM.from_pretrained(
-        MODEL_REPOSITORY,
-        revision=MODEL_REVISION,
-        local_files_only=options.local_files_only,
+        input_paths["modelSnapshot"],
+        local_files_only=True,
+        trust_remote_code=False,
         dtype=torch.float32,
         attn_implementation="eager",
     ).to(device)
@@ -1173,7 +1452,9 @@ def run_registered_pilot(
             "attentionImplementation": model.config._attn_implementation,
             "modelDtype": str(next(model.parameters()).dtype),
             "seed": options.seed,
-            "hfHome": os.environ.get("HF_HOME"),
+            "hfHome": (
+                "configured" if os.environ.get("HF_HOME") else None
+            ),
         },
         "validation": {
             "selectedTokenIdsSHA256": validation_tokens_digest,
@@ -1194,8 +1475,8 @@ def run_registered_pilot(
         },
     }
     result["resultSHA256"] = sha256_bytes(canonical_json_bytes(result))
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(
+    _exclusive_write_bytes(
+        output_path,
         json.dumps(
             result,
             sort_keys=True,
@@ -1265,7 +1546,7 @@ def main() -> int:
         print(f"REAL-LLM BENCHMARK FAILED: {error}", file=sys.stderr)
         return 1
     print(_summary(result))
-    return 0
+    return 0 if result["test"]["allPassed"] else 2
 
 
 if __name__ == "__main__":

@@ -3,10 +3,13 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var store: BenchmarkStore
-    @State private var section = "Live Run"
+    @State private var section = (
+        CommandLine.arguments.contains("--real-llm-smoke-run")
+            || CommandLine.arguments.contains("--show-real-llm")
+    ) ? "Real LLM" : "Live Run"
     private let sections = [
-        "Live Run", "Compression Comparison", "Stability and Invariants",
-        "Saved Runs", "Evidence Report"
+        "Live Run", "Real LLM", "Compression Comparison",
+        "Stability and Invariants", "Saved Runs", "Evidence Report"
     ]
 
     var body: some View {
@@ -16,15 +19,12 @@ struct ContentView: View {
                     ForEach(sections, id: \.self) { Text($0).tag($0) }
                 }
                 Section("Architecture") {
-                    ForEach([
-                        "Input Generator", "Core LM", "Dense", "PCA",
-                        "VoidToken", "Metrics", "Invariants", "Reporter"
-                    ], id: \.self) { module in
+                    ForEach(architectureModules, id: \.self) { module in
                         HStack {
                             Circle().fill(statusColor).frame(width: 8, height: 8)
                             Text(module)
                             Spacer()
-                            Text(store.moduleState().rawValue)
+                            Text(currentModuleState.rawValue)
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
@@ -33,10 +33,15 @@ struct ContentView: View {
             .navigationTitle("Core LM")
         } detail: {
             VStack(spacing: 0) {
-                ControlsView()
+                if section == "Real LLM" {
+                    RealLLMControlsView()
+                } else {
+                    ControlsView()
+                }
                 Divider()
                 Group {
                     switch section {
+                    case "Real LLM": RealLLMView()
                     case "Compression Comparison": ComparisonView()
                     case "Stability and Invariants": StabilityView()
                     case "Saved Runs": SavedRunsView()
@@ -48,7 +53,10 @@ struct ContentView: View {
                 LogView()
             }
         }
-        .onAppear { store.reloadSavedRuns() }
+        .onAppear {
+            store.reloadSavedRuns()
+            store.reloadLatestRealLLMResult()
+        }
         .task { await store.smokeRunIfRequested() }
         .alert("Benchmark Error", isPresented: Binding(
             get: { store.errorMessage != nil },
@@ -58,8 +66,27 @@ struct ContentView: View {
         } message: { Text(store.errorMessage ?? "") }
     }
 
+    private var architectureModules: [String] {
+        if section == "Real LLM" {
+            return [
+                "Qwen2.5-0.5B", "Prefill", "KV Cache", "VoidToken v5",
+                "Cache Rebuild", "Continuation", "Metrics", "Verifier"
+            ]
+        }
+        return [
+            "Input Generator", "Core LM", "Dense", "PCA",
+            "VoidToken", "Metrics", "Invariants", "Reporter"
+        ]
+    }
+
+    private var currentModuleState: ModuleState {
+        section == "Real LLM"
+            ? store.realLLMModuleState()
+            : store.moduleState()
+    }
+
     private var statusColor: Color {
-        switch store.moduleState() {
+        switch currentModuleState {
         case .ready: .secondary
         case .running: .orange
         case .complete: .green
@@ -73,8 +100,18 @@ struct ControlsView: View {
 
     var body: some View {
         HStack {
-            Stepper("Steps \(store.settings.steps)", value: $store.settings.steps, in: 20...10000, step: 20)
+            Stepper(
+                "Steps \(store.settings.steps)",
+                value: $store.settings.steps,
+                in: 20...store.maximumSyntheticSteps(
+                    for: store.settings.dimension
+                ),
+                step: 20
+            )
             Stepper("n \(store.settings.dimension)", value: $store.settings.dimension, in: 8...1024, step: 8)
+                .onChange(of: store.settings.dimension) {
+                    store.clampSyntheticStepsToResourceLimit()
+                }
             Stepper("Seed \(store.settings.seed)", value: $store.settings.seed, in: 0...9999)
             Picker("Input", selection: $store.settings.scenario) {
                 ForEach(store.scenarios, id: \.self) { Text($0).tag($0) }
@@ -132,6 +169,235 @@ struct ControlsView: View {
         }
         .controlSize(.small)
         .padding()
+    }
+}
+
+struct RealLLMControlsView: View {
+    @EnvironmentObject private var store: BenchmarkStore
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Label("Qwen2.5-0.5B", systemImage: "brain")
+                .font(.headline)
+            Text("VoidToken v5 · candidate 32 · MPS")
+                .foregroundStyle(.secondary)
+            Stepper(
+                "Start \(store.realLLMSettings.validationStartBlock)",
+                value: $store.realLLMSettings.validationStartBlock,
+                in: 64...512,
+                step: 8
+            )
+            Stepper(
+                "Blocks \(store.realLLMSettings.validationBlocks)",
+                value: $store.realLLMSettings.validationBlocks,
+                in: 1...32
+            )
+            Spacer()
+            Button("Show Result") { store.revealRealLLMResult() }
+                .disabled(store.realLLMResultURL == nil)
+            if store.isRunning {
+                Button("Stop", role: .destructive) { store.stop() }
+            } else {
+                Button("Run Real Qwen") { store.runRealLLM() }
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .controlSize(.small)
+        .padding()
+    }
+}
+
+struct RealLLMView: View {
+    @EnvironmentObject private var store: BenchmarkStore
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Header(
+                    title: "Real Qwen Test",
+                    verdict: store.realLLMResult?.verdict
+                )
+                Text(
+                    "Pinned Qwen2.5-0.5B · real KV-cache replay · "
+                        + "validation-only exploratory slice"
+                )
+                .foregroundStyle(.secondary)
+                ProgressView(value: store.progress)
+
+                if let result = store.realLLMResult,
+                   let aggregate = result.aggregate {
+                    let blockDomain = result.protocolInfo.validationStartBlock...(
+                        result.protocolInfo.validationStartBlock
+                            + result.protocolInfo.validationBlocks - 1
+                    )
+                    HStack(spacing: 12) {
+                        MetricCard(
+                            title: "Compression",
+                            value: String(
+                                format: "%.6f×",
+                                aggregate.compressionRatioVsBF16
+                            )
+                        )
+                        MetricCard(
+                            title: "ΔNLL",
+                            value: String(
+                                format: "%+.9f",
+                                aggregate.deltaNLLNatPerToken
+                            )
+                        )
+                        MetricCard(
+                            title: "Top-1 agreement",
+                            value: String(
+                                format: "%.4f%%",
+                                aggregate.top1Agreement * 100
+                            )
+                        )
+                        MetricCard(
+                            title: "Mean KL",
+                            value: String(
+                                format: "%.7f",
+                                aggregate.meanKLDivergenceNat
+                            )
+                        )
+                    }
+                    HStack(spacing: 12) {
+                        MetricCard(
+                            title: "Model / device",
+                            value: "Qwen2.5 · \(result.environment.device.uppercased())"
+                        )
+                        MetricCard(
+                            title: "Blocks / predictions",
+                            value: "\(aggregate.blocks) / \(aggregate.predictionTokens)"
+                        )
+                        MetricCard(
+                            title: "Stored bytes",
+                            value: ByteCountFormatter.string(
+                                fromByteCount: Int64(aggregate.encodedFileBytes),
+                                countStyle: .memory
+                            )
+                        )
+                        MetricCard(
+                            title: "Verifier",
+                            value: store.realLLMVerified ? "PASS" : "FAIL"
+                        )
+                    }
+
+                    HStack(alignment: .top, spacing: 22) {
+                        VStack(alignment: .leading, spacing: 9) {
+                            Text("Scientific gates").font(.headline)
+                            RealLLMGateRow(
+                                title: "Compression ≥ 2×",
+                                passed: aggregate.gates.compression
+                            )
+                            RealLLMGateRow(
+                                title: "ΔNLL ≤ 0.01",
+                                passed: aggregate.gates.deltaNLL
+                            )
+                            RealLLMGateRow(
+                                title: "Top-1 ≥ 99%",
+                                passed: aggregate.gates.top1Agreement
+                            )
+                            RealLLMGateRow(
+                                title: "Exact structural replay",
+                                passed: result.baselines.allSatisfy {
+                                    $0.exactRebuildMaxAbsLogitDifference == 0
+                                        && $0.layoutRebuildMaxAbsLogitDifference == 0
+                                        && $0.exactRebuildTop1Identical
+                                        && $0.layoutRebuildTop1Identical
+                                }
+                            )
+                            RealLLMGateRow(
+                                title: "Swift structural verification",
+                                passed: store.realLLMVerified
+                            )
+                        }
+                        .frame(width: 285, alignment: .leading)
+
+                        Chart(result.records, id: \.blockIndex) { record in
+                            LineMark(
+                                x: .value("Block", record.blockIndex),
+                                y: .value(
+                                    "Top-1",
+                                    record.top1Agreement * 100
+                                )
+                            )
+                            .symbol(.circle)
+                            RuleMark(y: .value("Gate", 99.0))
+                                .foregroundStyle(.orange)
+                                .lineStyle(StrokeStyle(dash: [5]))
+                        }
+                        .chartYAxisLabel("Top-1 agreement (%)")
+                        .chartXScale(domain: blockDomain)
+                        .chartYScale(domain: 98.0...100.05)
+                        .frame(minHeight: 190)
+
+                        Chart(result.records, id: \.blockIndex) { record in
+                            BarMark(
+                                x: .value("Block", record.blockIndex),
+                                y: .value(
+                                    "ΔNLL",
+                                    record.deltaNLLNatPerToken
+                                )
+                            )
+                            .foregroundStyle(
+                                record.deltaNLLNatPerToken <= 0.01
+                                    ? .green : .red
+                            )
+                        }
+                        .chartYAxisLabel("ΔNLL")
+                        .chartXScale(domain: blockDomain)
+                        .frame(minHeight: 190)
+                    }
+
+                    Text(store.realLLMVerificationMessage)
+                        .font(.headline)
+                        .foregroundStyle(
+                            store.realLLMVerified ? .green : .red
+                        )
+                    Text("Result SHA-256: \(result.resultSHA256)")
+                        .font(.caption.monospaced())
+                        .textSelection(.enabled)
+                    if let url = store.realLLMResultURL {
+                        Text(url.path)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                } else if store.isRunning {
+                    ContentUnavailableView(
+                        "Real model is running",
+                        systemImage: "cpu",
+                        description: Text(
+                            "The app is loading Qwen, rebuilding KV caches, "
+                                + "and measuring each validation block."
+                        )
+                    )
+                } else {
+                    ContentUnavailableView(
+                        "No real-LLM run yet",
+                        systemImage: "brain",
+                        description: Text(
+                            "Run the pinned Qwen2.5-0.5B test on Apple MPS."
+                        )
+                    )
+                }
+            }
+            .padding(24)
+        }
+    }
+}
+
+struct RealLLMGateRow: View {
+    let title: String
+    let passed: Bool
+
+    var body: some View {
+        Label(
+            title,
+            systemImage: passed
+                ? "checkmark.circle.fill" : "xmark.circle.fill"
+        )
+        .foregroundStyle(passed ? .green : .red)
     }
 }
 
