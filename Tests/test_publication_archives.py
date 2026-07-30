@@ -234,6 +234,52 @@ class PublicationArchiveTests(unittest.TestCase):
                     f"{prefix}/publication/arxiv-v5/generate_figures.py",
                     names,
                 )
+                for relative in archives.V5_ARXIV_SOURCE_FILES:
+                    self.assertIn(
+                        f"{prefix}/publication/arxiv-v5/{relative}",
+                        names,
+                    )
+
+    def test_reproducibility_archive_can_run_publication_archive_test(self):
+        context = {
+            "buildMode": "preview-working-tree",
+            "builtFromCleanHead": False,
+            "gitHeadCommit": "a" * 40,
+            "releaseTag": None,
+            "remoteTagVerified": False,
+            "trackedFiles": set(),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive = archives.build_reproducibility(root, context)
+            extract_root = root / "extracted"
+            extract_root.mkdir()
+            with tarfile.open(archive, "r:gz") as bundle:
+                bundle.extractall(extract_root, filter="data")
+            extracted = extract_root / "corelm_reproducibility"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "unittest",
+                    (
+                        "Tests.test_publication_archives."
+                        "PublicationArchiveTests."
+                        "test_v5_arxiv_archive_contains_only_current_"
+                        "submission_sources"
+                    ),
+                    "-v",
+                ],
+                cwd=extracted,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                completed.returncode,
+                0,
+                msg=completed.stdout + completed.stderr,
+            )
 
     def test_v5_arxiv_archive_contains_only_current_submission_sources(self):
         context = {
