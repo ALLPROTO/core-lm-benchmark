@@ -10,7 +10,12 @@ GATE = PROJECT_DIR / "security" / "run_swift_security_tests.sh"
 
 
 class SwiftSecurityGateTests(unittest.TestCase):
-    def _run_gate(self, standalone_framework: bool) -> list[str]:
+    def _run_gate(
+        self,
+        standalone_framework: bool,
+        summary: str,
+        should_pass: bool = True,
+    ) -> list[str]:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             developer = root / "Developer"
@@ -27,8 +32,7 @@ class SwiftSecurityGateTests(unittest.TestCase):
             fake_swift.write_text(
                 "#!/bin/sh\n"
                 "printf '%s\\n' \"$@\" > \"$CORELM_SWIFT_ARGUMENTS_LOG\"\n"
-                "printf '%s\\n' "
-                "'Test run with 1 test in 1 suite passed after 0.001 seconds.'\n",
+                "printf '%s\\n' \"$CORELM_SWIFT_TEST_SUMMARY\"\n",
                 encoding="utf-8",
             )
             fake_swift.chmod(0o700)
@@ -37,6 +41,7 @@ class SwiftSecurityGateTests(unittest.TestCase):
             environment.update(
                 {
                     "CORELM_SWIFT_ARGUMENTS_LOG": str(arguments_log),
+                    "CORELM_SWIFT_TEST_SUMMARY": summary,
                     "DEVELOPER_DIR": str(developer),
                     "PATH": f"{fake_bin}{os.pathsep}{environment['PATH']}",
                 }
@@ -49,16 +54,29 @@ class SwiftSecurityGateTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
-            self.assertEqual(
-                completed.returncode,
-                0,
-                completed.stdout + completed.stderr,
-            )
-            self.assertIn("SWIFT SECURITY TESTS PASS", completed.stdout)
+            if should_pass:
+                self.assertEqual(
+                    completed.returncode,
+                    0,
+                    completed.stdout + completed.stderr,
+                )
+                self.assertIn("SWIFT SECURITY TESTS PASS", completed.stdout)
+            else:
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertIn(
+                    "no non-empty passing test run",
+                    completed.stderr,
+                )
             return arguments_log.read_text(encoding="utf-8").splitlines()
 
     def test_standalone_framework_adds_explicit_framework_search_path(self):
-        arguments = self._run_gate(standalone_framework=True)
+        arguments = self._run_gate(
+            standalone_framework=True,
+            summary=(
+                "Test run with 11 tests in 1 suite passed "
+                "after 0.001 seconds."
+            ),
+        )
         self.assertEqual(
             arguments[:3],
             ["test", "--enable-swift-testing", "--disable-xctest"],
@@ -68,10 +86,20 @@ class SwiftSecurityGateTests(unittest.TestCase):
         self.assertTrue(arguments[-1].endswith("/Library/Developer/Frameworks"))
 
     def test_xcode_toolchain_layout_uses_native_swiftpm_integration(self):
-        arguments = self._run_gate(standalone_framework=False)
+        arguments = self._run_gate(
+            standalone_framework=False,
+            summary="Test run with 11 tests passed after 0.001 seconds.",
+        )
         self.assertEqual(
             arguments,
             ["test", "--enable-swift-testing", "--disable-xctest"],
+        )
+
+    def test_zero_test_summary_is_rejected(self):
+        self._run_gate(
+            standalone_framework=False,
+            summary="Test run with 0 tests passed after 0.001 seconds.",
+            should_pass=False,
         )
 
 

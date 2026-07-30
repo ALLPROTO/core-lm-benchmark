@@ -31,7 +31,7 @@ DEVELOPER_DIR="$SELECTED_DEVELOPER_DIR" swift test \
     2>&1 | tee "$OUTPUT_FILE"
 
 if ! grep -Eq \
-    'Test run with [1-9][0-9]* tests? in [1-9][0-9]* suites? passed' \
+    'Test run with [1-9][0-9]* tests?( in [1-9][0-9]* suites?)? passed' \
     "$OUTPUT_FILE"
 then
     printf '%s\n' \
