@@ -20,7 +20,8 @@ from typing import Iterator
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLICATION = ROOT / "publication"
-ARXIV = PUBLICATION / "arxiv"
+ARXIV_V3 = PUBLICATION / "arxiv"
+ARXIV_V5 = PUBLICATION / "arxiv-v5"
 OUTPUT = ROOT / "output"
 ARCHIVE_MTIME = 0
 PUBLIC_ORIGIN = "https://github.com/ALLPROTO/core-lm-benchmark"
@@ -276,31 +277,70 @@ def deterministic_tar_gz(target: Path) -> Iterator[tarfile.TarFile]:
                 yield archive
 
 
-def build_arxiv(
+def build_arxiv_v5(
     output_directory: Path = OUTPUT,
     build_context: dict[str, object] | None = None,
 ) -> Path:
     context = build_context or _build_context(None)
-    target = output_directory / "corelm_arxiv_source.tar.gz"
+    target = (
+        output_directory / "corelm_voidtoken_v5_arxiv_source.tar.gz"
+    )
     include = [
         "main.tex",
         "author.tex",
         "references.bib",
         "main.bbl",
         "results_table.tex",
-        "figures/architecture.pdf",
-        "figures/tradeoff.pdf",
+        "figures/block_metrics.pdf",
+        "figures/codec_pipeline.pdf",
+        "figures/protocol_timeline.pdf",
+    ]
+    main_source = (ARXIV_V5 / "main.tex").read_text(encoding="ascii")
+    required_main_fragments = [
+        "VoidToken v5: Prospectively Frozen Evidence",
+        "voidtoken-v5-evidence-v1",
+        "d1c16e88655c1fbc9884324742dee3f",
+        "0b9b4bc86d973c2bf38df3a02cc090eaa",
+    ]
+    for fragment in required_main_fragments:
+        if fragment not in main_source:
+            raise ValueError(
+                f"VoidToken v5 manuscript is missing: {fragment}"
+            )
+    forbidden_main_fragments = [
+        "Closed-Loop Residual Tokenization for Stable Compression",
         "figures/metrics_by_dimension.pdf",
         "figures/error_feedback.pdf",
     ]
+    for fragment in forbidden_main_fragments:
+        if fragment in main_source:
+            raise ValueError(
+                f"VoidToken v5 manuscript contains stale v3 content: {fragment}"
+            )
+    results_source = (ARXIV_V5 / "results_table.tex").read_text(
+        encoding="ascii"
+    )
+    for fragment in ["Holdout", "2.053291", "99.3896", "PASS"]:
+        if fragment not in results_source:
+            raise ValueError(
+                f"VoidToken v5 result table is missing: {fragment}"
+            )
     with deterministic_tar_gz(target) as archive:
         for relative in sorted(include):
-            source = ARXIV / relative
+            source = ARXIV_V5 / relative
             if not source.is_file():
                 raise FileNotFoundError(source)
             _assert_release_source(source, context)
             add_path(archive, source, relative)
     return target
+
+
+def build_arxiv(
+    output_directory: Path = OUTPUT,
+    build_context: dict[str, object] | None = None,
+) -> Path:
+    """Backward-compatible entry point for the current v5 paper."""
+    return build_arxiv_v5(output_directory, build_context)
 
 
 def _v5_provenance_document(
@@ -477,10 +517,10 @@ def build_reproducibility(
                 _assert_release_source(source, context)
                 shutil.copy2(source, results)
 
-        publication_arxiv = stage / "publication/arxiv"
+        publication_arxiv = stage / "publication/arxiv-v5"
         publication_arxiv.mkdir(parents=True)
         reproducibility_readme = PUBLICATION / "reproducibility/README.md"
-        figure_generator = ARXIV / "generate_figures.py"
+        figure_generator = ARXIV_V5 / "generate_figures.py"
         _assert_release_source(reproducibility_readme, context)
         _assert_release_source(figure_generator, context)
         shutil.copy2(
@@ -528,7 +568,7 @@ def build_all(
     context = build_context or _build_context(None)
     output_directory.mkdir(parents=True, exist_ok=True)
     return [
-        build_arxiv(output_directory, context),
+        build_arxiv_v5(output_directory, context),
         build_reproducibility(output_directory, context),
     ]
 

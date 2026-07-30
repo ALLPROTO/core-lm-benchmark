@@ -6,13 +6,13 @@ attempt markers for
 
 Current status: the public selection freeze is
 `voidtoken-v5-selection-protocol-v1` at commit
-`467538875402265b2ca915768376e2a5548f3069`. The one-shot selection completed
-with a scientific PASS and both immutable artifacts are present:
+`467538875402265b2ca915768376e2a5548f3069`. The recorded one-shot selection
+completed with a scientific PASS and both frozen artifacts are present:
 `selection.attempt.json` and `selection.json`. The passing selection was then
 published as `voidtoken-v5-pretest-v1` at commit
-`34fbd0556bd4e8fb889e628ae35175ff596818af`. The prospective holdout completed
-once from that exact public tag with a scientific PASS, and its immutable
-`holdout.attempt.json` and `holdout.json` artifacts are present. The independent
+`34fbd0556bd4e8fb889e628ae35175ff596818af`. The recorded prospective holdout
+execution from that exact public tag has a scientific PASS, and its frozen
+`holdout.attempt.json` and `holdout.json` artifacts are present. The
 Git-provenance verifier accepts both frozen phases.
 
 | Metric | Frozen selection result |

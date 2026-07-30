@@ -111,8 +111,8 @@ Runner использует фиксированные пороги: сжати�
 
 ## Проспективный VoidToken v5 — финальный PASS
 
-Отрицательный pilot выше не перезаписан. Отдельная реализация VoidToken v5
-была разработана только на validation-блоках 0–31. Инженерное наблюдение:
+Отрицательный pilot выше не перезаписан. Записанный development-процесс
+VoidToken v5 использовал validation-блоки 0–31. Инженерное наблюдение:
 2.055836× полного container compression, ΔNLL +0.000804, top-1 99.5605%,
 односторонняя 95% верхняя граница ΔNLL +0.001378 и block-aware нижняя граница
 top-1 99.3638%.
@@ -130,13 +130,17 @@ attempt marker были опубликованы под `voidtoken-v5-pretest-v1
 `34fbd0556bd4e8fb889e628ae35175ff596818af` до первого доступа v5 runner к
 test split.
 
-Prospective holdout на test-блоках 384–415 был выполнен один раз из точного
-публичного pretest tag и завершился PASS: 2.053291×, ΔNLL −0.000061,
+Зафиксированная one-shot попытка prospective holdout на test-блоках 384–415
+из точного публичного pretest tag завершилась PASS: 2.053291×, ΔNLL −0.000061,
 односторонняя 95% верхняя граница ΔNLL +0.000549, top-1 4071/4096 =
 99.3896%, blockwise lower95 99.2472%, Wilson lower95 99.1543% и mean KL
 0.00013431 nat. Все семь зарегистрированных gates истинны. Канонический
 result SHA-256:
 `d1c16e88655c1fbc9884324742dee3f0b9b4bc86d973c2bf38df3a02cc090eaa`.
+Финальный evidence tag `voidtoken-v5-evidence-v1` указывает на commit
+`531e4ab8d1de61ce93e83164d13caff7bb0759bc`. Отдельные исходники статьи и
+проверенный PDF находятся в `publication/arxiv-v5/` и
+`publication/corelm_voidtoken_v5.pdf`.
 
 Точные `holdout.attempt.json` и `holdout.json` опубликованы в
 `real-llm-v5-results/`; их file SHA-256 равны

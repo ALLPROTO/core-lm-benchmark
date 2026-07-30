@@ -48,31 +48,43 @@ synthetic PASS.
 See [`RealLLM/PROTOCOL.md`](RealLLM/PROTOCOL.md) and
 [`real-llm-results/README.md`](real-llm-results/README.md).
 
-## Prospective VoidToken v5 redesign
+## Prospective VoidToken v5 result
 
-The v4 failure was traced to large value-cache reconstruction error hidden by
-the key cache's much larger energy. VoidToken v5 replaces temporal sparse
-residuals with per-layer Walsh-Hadamard group quantization, canonical zigzag
-codes, complete binary containers, and fresh-parser replay.
+An engineering diagnosis attributed the v4 failure to value-cache
+reconstruction error being obscured by the key cache's larger energy; the
+published aggregate does not independently establish that causal split.
+VoidToken v5 replaces temporal sparse residuals with per-layer
+Walsh-Hadamard group quantization, canonical zigzag codes, complete binary
+containers, and fresh-parser replay.
 
-The frozen v5 configuration was engineered only on validation source blocks
-0–31. Its development observation is **2.055836×** complete-container
-compression, ΔNLL **+0.000804**, top-1 agreement **99.5605%**, one-sided
-95% ΔNLL upper bound **+0.001378**, and one-sided Wilson lower bound
-**99.3548%** over 4,096 predictions. The separate one-sided blockwise top-1
-lower bound is **99.3638%**.
+The frozen workflow is complete. Adaptive development used validation blocks
+0–31 and does not count as prospective evidence. The already fixed
+configuration then passed one-shot selection on validation blocks 32–63 and a
+later prospective holdout on test blocks 384–415.
 
-These are development metrics, not the prospective verdict. The code now
-freezes a one-shot acceptance phase on validation blocks 32–63 and a disjoint
-test holdout on blocks 384–415. The exact protocol must be public before
-selection; the holdout remains locked until the passing selection result and
-its durable pre-split attempt marker are committed under a second public tag.
-A crash after marker creation consumes the phase rather than permitting a
-retry. The four exact development shards and their digest/range manifest are
-published in
-[`real-llm-v5-development/`](real-llm-v5-development/). See
-[`RealLLM/V5_PROTOCOL.md`](RealLLM/V5_PROTOCOL.md) and
-[`real-llm-v5-results/README.md`](real-llm-v5-results/README.md).
+| Phase | Role | Ratio vs canonical BF16 | ΔNLL | Top-1 | Block lower 95% | Wilson lower 95% | Verdict |
+|---|---|---:|---:|---:|---:|---:|---|
+| Development | adaptive, disclosed | 2.055836× | +0.000804 | 99.5605% | 99.3638% | 99.3548% | not evidence |
+| Selection | one-shot acceptance | 2.054320× | +0.000573 | 99.4141% | 99.1762% | 99.1827% | **PASS** |
+| Holdout | prospective test | 2.053291× | −0.000061 | 99.3896% | 99.2472% | 99.1543% | **PASS** |
+
+The holdout compressed 150,601,728 canonical BF16 prefill-cache bytes to
+73,346,513 complete-container bytes (51.30% fewer bytes) over 4,096
+teacher-forced predictions. All seven registered gates passed, including the
+one-sided block ΔNLL upper bound and both top-1 lower bounds.
+
+The public chronology is bound by
+`voidtoken-v5-selection-protocol-v1`,
+`voidtoken-v5-pretest-v1`, and final evidence tag
+`voidtoken-v5-evidence-v1`. A crash after durable marker creation consumes a
+phase rather than permitting a retry. The claim covers only the pinned
+Qwen2.5-0.5B revision, registered WikiText-2 windows, canonical BF16 prefill
+KV cache, teacher-forced replay, and recorded MPS runtime. It is not a
+full-model, free-running generation, latency, serving, or SOTA claim.
+
+See [`RealLLM/V5_PROTOCOL.md`](RealLLM/V5_PROTOCOL.md),
+[`real-llm-v5-results/README.md`](real-llm-v5-results/README.md), and the
+[VoidToken v5 paper source](publication/arxiv-v5/).
 
 ## Reproduce the evidence
 
@@ -169,18 +181,22 @@ results, and does not synthesize dashboard values.
 - `RealLLM/` — pinned real-model protocol, codec baseline, runner, and verifier
 - `real-llm-results/` — separate exploratory Qwen KV-cache pilot artifact
 - `real-llm-v5-development/` — exact adaptive v5 development shards and manifest
-- `real-llm-v5-results/` — frozen v5 attempt/result artifacts when present
-- `publication/arxiv/` — self-contained paper source and vector figures
-- `publication/corelm_voidtoken_v3.pdf` — visually inspected paper
+- `real-llm-v5-results/` — frozen selection and holdout attempt/result artifacts
+- `publication/arxiv/` — historical VoidToken v3 paper source
+- `publication/arxiv-v5/` — prospective real-model VoidToken v5 paper source
+- `publication/corelm_voidtoken_v3.pdf` — visually inspected v3 paper
+- `publication/corelm_voidtoken_v5.pdf` — visually inspected v5 paper
 - `EVIDENCE.md` — result summary and acceptance gates
 - `KNOWN_LIMITATIONS.md` — explicit boundary of the demonstrated claim
 
 ## Citation
 
-Use the metadata in `CITATION.cff`. The paper is:
+Use the metadata in `CITATION.cff`. The current real-model paper is:
 
-> Ivan Tyshchenko. “Closed-Loop Residual Tokenization for Stable Compression
-> of Dynamical State Trajectories.” 2026.
+> Ivan Tyshchenko. “VoidToken v5: Prospectively Frozen Evidence for KV-Cache
+> Compression on a Real Language Model.” 2026.
+
+The historical v3 synthetic benchmark paper remains in `publication/arxiv/`.
 
 Author ORCID: [0009-0000-7935-6090](https://orcid.org/0009-0000-7935-6090).
 

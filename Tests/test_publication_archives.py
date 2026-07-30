@@ -230,13 +230,66 @@ class PublicationArchiveTests(unittest.TestCase):
                     f"{prefix}/RealLLM/verify_voidtoken_v5_development.py",
                     names,
                 )
+                self.assertIn(
+                    f"{prefix}/publication/arxiv-v5/generate_figures.py",
+                    names,
+                )
+
+    def test_v5_arxiv_archive_contains_only_current_submission_sources(self):
+        context = {
+            "buildMode": "preview-working-tree",
+            "builtFromCleanHead": False,
+            "gitHeadCommit": "a" * 40,
+            "releaseTag": None,
+            "remoteTagVerified": False,
+            "trackedFiles": set(),
+        }
+        expected = {
+            "main.tex",
+            "author.tex",
+            "references.bib",
+            "main.bbl",
+            "results_table.tex",
+            "figures/block_metrics.pdf",
+            "figures/codec_pipeline.pdf",
+            "figures/protocol_timeline.pdf",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            archive = archives.build_arxiv_v5(
+                Path(temporary), context
+            )
+            self.assertEqual(
+                archive.name,
+                "corelm_voidtoken_v5_arxiv_source.tar.gz",
+            )
+            with tarfile.open(archive, "r:gz") as bundle:
+                self.assertEqual(set(bundle.getnames()), expected)
+                main = bundle.extractfile("main.tex")
+                results = bundle.extractfile("results_table.tex")
+                self.assertIsNotNone(main)
+                self.assertIsNotNone(results)
+                main_text = main.read().decode("ascii")
+                results_text = results.read().decode("ascii")
+            self.assertIn(
+                "VoidToken v5: Prospectively Frozen Evidence",
+                main_text,
+            )
+            self.assertIn("voidtoken-v5-evidence-v1", main_text)
+            self.assertIn(
+                "d1c16e88655c1fbc9884324742dee3f",
+                main_text,
+            )
+            self.assertIn("Holdout", results_text)
+            self.assertIn("2.053291", results_text)
+            self.assertNotIn("metrics_by_dimension.pdf", main_text)
+            self.assertNotIn("error_feedback.pdf", main_text)
 
     def test_determinism_flag_also_writes_requested_output(self):
         context = {"buildMode": "preview-working-tree"}
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary)
             artifacts = [
-                output / "corelm_arxiv_source.tar.gz",
+                output / "corelm_voidtoken_v5_arxiv_source.tar.gz",
                 output / "corelm_reproducibility.tar.gz",
             ]
             arguments = types.SimpleNamespace(

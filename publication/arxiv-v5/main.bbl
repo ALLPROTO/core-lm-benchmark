@@ -1,0 +1,74 @@
+\begin{thebibliography}{10}
+
+\bibitem{ashkboos2024quarot}
+Saleh Ashkboos, Amirkeivan Mohtashami, Maximilian~L. Croci, Bo~Li, Pashmina
+  Cameron, Martin Jaggi, Dan Alistarh, Torsten Hoefler, and James Hensman.
+\newblock {QuaRot}: Outlier-free 4-bit inference in rotated {LLM}s.
+\newblock {\em arXiv preprint arXiv:2404.00456}, 2024.
+
+\bibitem{hooper2024kvquant}
+Coleman Hooper, Sehoon Kim, Hiva Mohammadzadeh, Michael~W. Mahoney,
+  Yakun~Sophia Shao, Kurt Keutzer, and Amir Gholami.
+\newblock {KVQuant}: Towards 10 million context length {LLM} inference with
+  {KV} cache quantization.
+\newblock {\em Advances in Neural Information Processing Systems}, 2024.
+\newblock arXiv:2401.18079.
+
+\bibitem{jia2026saw}
+Jinda Jia, Jisen Li, Zhongzhu Zhou, Jung~Hwan Heo, Jue Wang, Tri Dao,
+  Shuaiwen~Leon Song, Ben Athiwaratkun, Chenfeng Xu, Tianyi Zhang, and Xiaoxia
+  Wu.
+\newblock {SAW-INT4}: System-aware 4-bit {KV}-cache quantization for real-world
+  {LLM} serving.
+\newblock {\em arXiv preprint arXiv:2604.19157}, 2026.
+
+\bibitem{kang2024gear}
+Hao Kang, Qingru Zhang, Souvik Kundu, Geonhwa Jeong, Zaoxing Liu, Tushar
+  Krishna, and Tuo Zhao.
+\newblock {GEAR}: An efficient {KV} cache compression recipe for near-lossless
+  generative inference of {LLM}.
+\newblock {\em arXiv preprint arXiv:2403.05527}, 2024.
+
+\bibitem{liu2024kivi}
+Zirui Liu, Jiayi Yuan, Hongye Jin, Shaochen Zhong, Zhaozhuo Xu, Vladimir
+  Braverman, Beidi Chen, and Xia Hu.
+\newblock {KIVI}: A tuning-free asymmetric 2bit quantization for {KV} cache.
+\newblock {\em Proceedings of the 41st International Conference on Machine
+  Learning}, 2024.
+\newblock arXiv:2402.02750.
+
+\bibitem{merity2016wikitext}
+Stephen Merity, Caiming Xiong, James Bradbury, and Richard Socher.
+\newblock Pointer sentinel mixture models.
+\newblock {\em arXiv preprint arXiv:1609.07843}, 2016.
+
+\bibitem{muller2026kvarn}
+Lorenz~K. Muller, Philippe Bich, Chiara Boretti, Hyun-Min Chang, Jiawei Zhuang,
+  and Lukas Cavigelli.
+\newblock {KVarN}: Variance-normalized {KV}-cache quantization mitigates error
+  accumulation in reasoning tasks.
+\newblock {\em arXiv preprint arXiv:2606.03458}, 2026.
+
+\bibitem{qwen25}
+{Qwen Team}.
+\newblock {Qwen2.5} technical report.
+\newblock {\em arXiv preprint arXiv:2412.15115}, 2024.
+
+\bibitem{saxena2025kvlinc}
+Utkarsh Saxena and Kaushik Roy.
+\newblock {KVLinC}: {KV} cache quantization with hadamard rotation and linear
+  correction.
+\newblock {\em arXiv preprint arXiv:2510.05373}, 2025.
+
+\bibitem{student1908}
+{Student}.
+\newblock The probable error of a mean.
+\newblock {\em Biometrika}, 6(1):1--25, 1908.
+
+\bibitem{wilson1927}
+Edwin~B. Wilson.
+\newblock Probable inference, the law of succession, and statistical inference.
+\newblock {\em Journal of the American Statistical Association},
+  22(158):209--212, 1927.
+
+\end{thebibliography}
