@@ -8,8 +8,12 @@ Current status: the public selection freeze is
 `voidtoken-v5-selection-protocol-v1` at commit
 `467538875402265b2ca915768376e2a5548f3069`. The one-shot selection completed
 with a scientific PASS and both immutable artifacts are present:
-`selection.attempt.json` and `selection.json`. The independent Git-provenance
-verifier accepts them. The prospective holdout has not been run.
+`selection.attempt.json` and `selection.json`. The passing selection was then
+published as `voidtoken-v5-pretest-v1` at commit
+`34fbd0556bd4e8fb889e628ae35175ff596818af`. The prospective holdout completed
+once from that exact public tag with a scientific PASS, and its immutable
+`holdout.attempt.json` and `holdout.json` artifacts are present. The independent
+Git-provenance verifier accepts both frozen phases.
 
 | Metric | Frozen selection result |
 |---|---:|
@@ -23,6 +27,26 @@ verifier accepts them. The prospective holdout has not been run.
 
 Selection result SHA-256:
 `11329a941051073bae9e2aec3f483f5fc6acf7449ed18457d020f4693c1b1876`.
+
+| Metric | Prospective holdout result |
+|---|---:|
+| Complete-container ratio vs BF16 | 2.053291× |
+| ΔNLL | −0.000061 nat/token |
+| One-sided 95% upper ΔNLL | +0.000549 |
+| Top-1 agreement | 4071 / 4096 = 99.3896% |
+| One-sided 95% blockwise top-1 lower bound | 99.2472% |
+| One-sided 95% Wilson lower | 99.1543% |
+| Mean KL | 0.00013431 nat |
+
+Holdout result SHA-256:
+`d1c16e88655c1fbc9884324742dee3f0b9b4bc86d973c2bf38df3a02cc090eaa`.
+
+Exact holdout artifact SHA-256 values:
+
+- `holdout.attempt.json`:
+  `7f6bc0867db1e3d633c3ecb68aa968be94c73c818b2a5163793495cfb63c17a0`
+- `holdout.json`:
+  `499c067d6ccff4bf1ac4a9f98436a52fa6c414ccced495719532347b89b46167`
 
 ## Development result — not prospective evidence
 

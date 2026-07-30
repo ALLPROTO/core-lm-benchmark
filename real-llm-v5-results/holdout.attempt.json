@@ -1,0 +1,26 @@
+{
+  "attemptSHA256": "5f8e4ea82d6d0419390d66534fb6334e7b14fcecd3003e1203f0dbd972cfde74",
+  "configurationSHA256": "4c7be8c836aa725722b51f66dce78af7a5094e887432e622b5322f7ca2cf0af8",
+  "executionFreeze": {
+    "pretestGitCommit": "34fbd0556bd4e8fb889e628ae35175ff596818af",
+    "pretestGitTag": "voidtoken-v5-pretest-v1",
+    "publicRepository": "https://github.com/ALLPROTO/core-lm-benchmark",
+    "selectionArtifactSHA256": "72bd149903ac84edb4d56ac7e066fa5640278845bbb5961264ae1b34854dd247",
+    "selectionAttemptArtifactSHA256": "9be1fed8fe091ca5a12c8435e48a416a76b57f40213232d35b0ce4010ee97ced",
+    "selectionResultSHA256": "11329a941051073bae9e2aec3f483f5fc6acf7449ed18457d020f4693c1b1876"
+  },
+  "gitCommitAtExecution": "34fbd0556bd4e8fb889e628ae35175ff596818af",
+  "implementationSHA256": "55b2f589aae027e4353cf8011547d821a7d885d1fde8b9c3d9dd7af3cd90d783",
+  "phase": "holdout",
+  "phaseSpec": {
+    "blocks": 32,
+    "split": "test",
+    "startBlock": 384
+  },
+  "registrationSHA256": "ad5b75791f5385740bcdd472bf81ec546fa17fa59a0715a343ed91a193c1af32",
+  "schemaVersion": "corelm-voidtoken-v5-attempt-v1",
+  "startedAt": "2026-07-30T13:08:08+00:00",
+  "status": "attempt-started-split-not-yet-resolved",
+  "suiteId": "qwen2.5-0.5b-kv-voidtoken-v5-prospective-v1",
+  "testSplitWillBeResolved": true
+}
