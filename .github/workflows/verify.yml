@@ -106,12 +106,58 @@ jobs:
         run: ./security/run_swift_security_tests.sh
       - name: Build hash-locked external app runtime
         run: |
-          python -m venv "$RUNNER_TEMP/corelm-app-runtime"
-          "$RUNNER_TEMP/corelm-app-runtime/bin/python" -m pip install \
+          app_runtime="$RUNNER_TEMP/corelm-app-runtime"
+          app_python="$app_runtime/bin/python"
+          python -m venv "$app_runtime"
+          "$app_python" -m pip install \
             --require-hashes -r .github/locks/pip-bootstrap.txt
-          "$RUNNER_TEMP/corelm-app-runtime/bin/python" -m pip install \
+          "$app_python" -m pip install \
             --require-hashes -r RealLLM/requirements.lock
-          "$RUNNER_TEMP/corelm-app-runtime/bin/python" -m pip check
+          "$app_python" -m pip check
+
+          base_prefix=$(
+            "$app_python" -I -B -c 'import sys; print(sys.base_prefix)'
+          )
+          virtual_prefix=$(
+            "$app_python" -I -B -c 'import sys; print(sys.prefix)'
+          )
+          expected_base_prefix="/Library/Frameworks/Python.framework/Versions/3.12"
+          if [ "$base_prefix" != "$expected_base_prefix" ]; then
+            printf 'unexpected base Python prefix: %s\n' "$base_prefix" >&2
+            exit 1
+          fi
+          if [ "$virtual_prefix" != "$app_runtime" ]; then
+            printf 'unexpected virtual-environment prefix: %s\n' \
+              "$virtual_prefix" >&2
+            exit 1
+          fi
+          if [ ! -d "$base_prefix" ] || [ -L "$base_prefix" ]; then
+            printf 'unsafe base Python prefix: %s\n' "$base_prefix" >&2
+            exit 1
+          fi
+          if [ ! -d "$virtual_prefix" ] || [ -L "$virtual_prefix" ]; then
+            printf 'unsafe virtual-environment prefix: %s\n' \
+              "$virtual_prefix" >&2
+            exit 1
+          fi
+          if [ "$(/usr/bin/stat -f '%u' "$base_prefix")" -ne 0 ]; then
+            printf 'base Python prefix is not root-owned: %s\n' \
+              "$base_prefix" >&2
+            exit 1
+          fi
+          runner_uid=$(/usr/bin/id -u)
+          if [ "$(/usr/bin/stat -f '%u' "$virtual_prefix")" \
+              -ne "$runner_uid" ]; then
+            printf 'virtual-environment prefix has an unexpected owner: %s\n' \
+              "$virtual_prefix" >&2
+            exit 1
+          fi
+
+          # setup-python installs its non-relocatable macOS framework in
+          # /Library with writable group bits. Remove only those write bits
+          # after installation so the strict runtime manifest remains valid.
+          sudo /bin/chmod -RP go-w "$base_prefix"
+          /bin/chmod -RP go-w "$virtual_prefix"
       - name: Build and package the macOS application
         run: >-
           CORELM_REAL_LLM_PYTHON="$RUNNER_TEMP/corelm-app-runtime/bin/python"
