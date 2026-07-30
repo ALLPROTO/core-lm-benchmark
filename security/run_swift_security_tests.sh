@@ -5,24 +5,29 @@ PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SELECTED_DEVELOPER_DIR=${DEVELOPER_DIR:-$(xcode-select -p)}
 TESTING_FRAMEWORKS="$SELECTED_DEVELOPER_DIR/Library/Developer/Frameworks"
 OUTPUT_FILE=$(mktemp "${TMPDIR:-/tmp}/corelm-swift-tests.XXXXXX")
+SWIFT_TEST_FLAGS=(
+    --enable-swift-testing
+    --disable-xctest
+)
 
 cleanup() {
     rm -f -- "$OUTPUT_FILE"
 }
 trap cleanup EXIT HUP INT TERM
 
-if [ ! -d "$TESTING_FRAMEWORKS" ]; then
-    printf 'Swift Testing framework directory is missing: %s\n' \
-        "$TESTING_FRAMEWORKS" >&2
-    exit 1
+if [ -d "$TESTING_FRAMEWORKS/Testing.framework" ]; then
+    SWIFT_TEST_FLAGS+=(
+        -Xswiftc -F
+        -Xswiftc "$TESTING_FRAMEWORKS"
+    )
+else
+    printf 'Using toolchain-provided Swift Testing integration from: %s\n' \
+        "$SELECTED_DEVELOPER_DIR"
 fi
 
 cd "$PROJECT_DIR"
 DEVELOPER_DIR="$SELECTED_DEVELOPER_DIR" swift test \
-    --enable-swift-testing \
-    --disable-xctest \
-    -Xswiftc -F \
-    -Xswiftc "$TESTING_FRAMEWORKS" \
+    "${SWIFT_TEST_FLAGS[@]}" \
     2>&1 | tee "$OUTPUT_FILE"
 
 if ! grep -Eq \

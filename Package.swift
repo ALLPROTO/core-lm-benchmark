@@ -8,6 +8,28 @@ let developerFrameworks =
     "\(developerDirectory)/Library/Developer/Frameworks"
 let developerLibraries =
     "\(developerDirectory)/Library/Developer/usr/lib"
+let standaloneTestingFramework =
+    "\(developerFrameworks)/Testing.framework"
+let usesStandaloneTestingFramework = FileManager.default.fileExists(
+    atPath: standaloneTestingFramework
+)
+let testingSwiftSettings: [SwiftSetting] =
+    usesStandaloneTestingFramework
+    ? [.unsafeFlags(["-F", developerFrameworks])]
+    : []
+let testingLinkerSettings: [LinkerSetting] =
+    usesStandaloneTestingFramework
+    ? [
+        .unsafeFlags([
+            "-F", developerFrameworks,
+            "-Xlinker", "-rpath",
+            "-Xlinker", developerFrameworks,
+            "-Xlinker", "-rpath",
+            "-Xlinker", developerLibraries
+        ]),
+        .linkedFramework("Testing")
+    ]
+    : []
 
 let package = Package(
     name: "CoreLMBenchmark",
@@ -24,19 +46,8 @@ let package = Package(
             dependencies: ["CoreLMBenchmarkApp"],
             path: "TestsSwift",
             resources: [.copy("Fixtures")],
-            swiftSettings: [
-                .unsafeFlags(["-F", developerFrameworks])
-            ],
-            linkerSettings: [
-                .unsafeFlags([
-                    "-F", developerFrameworks,
-                    "-Xlinker", "-rpath",
-                    "-Xlinker", developerFrameworks,
-                    "-Xlinker", "-rpath",
-                    "-Xlinker", developerLibraries
-                ]),
-                .linkedFramework("Testing")
-            ]
+            swiftSettings: testingSwiftSettings,
+            linkerSettings: testingLinkerSettings
         )
     ]
 )
