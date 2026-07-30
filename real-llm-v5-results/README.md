@@ -4,10 +4,25 @@ This directory is reserved for the two frozen phase results and their durable
 attempt markers for
 `qwen2.5-0.5b-kv-voidtoken-v5-prospective-v1`.
 
-Current status: the implementation and protocol are ready to be publicly
-frozen. No one-shot selection or v5 holdout verdict is claimed by this README
-until the corresponding JSON artifact exists and passes the independent
-verifier.
+Current status: the public selection freeze is
+`voidtoken-v5-selection-protocol-v1` at commit
+`467538875402265b2ca915768376e2a5548f3069`. The one-shot selection completed
+with a scientific PASS and both immutable artifacts are present:
+`selection.attempt.json` and `selection.json`. The independent Git-provenance
+verifier accepts them. The prospective holdout has not been run.
+
+| Metric | Frozen selection result |
+|---|---:|
+| Complete-container ratio vs BF16 | 2.054320× |
+| ΔNLL | +0.000573 nat/token |
+| One-sided 95% upper ΔNLL | +0.001222 |
+| Top-1 agreement | 4072 / 4096 = 99.4141% |
+| One-sided 95% blockwise top-1 lower bound | 99.1762% |
+| One-sided 95% Wilson lower | 99.1827% |
+| Mean KL | 0.00013673 nat |
+
+Selection result SHA-256:
+`11329a941051073bae9e2aec3f483f5fc6acf7449ed18457d020f4693c1b1876`.
 
 ## Development result — not prospective evidence
 
