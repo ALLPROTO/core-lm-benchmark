@@ -119,6 +119,29 @@ app without an Apple Developer account. `../run_local_app_proof.sh` then runs
 candidate 32 on public validation blocks 64–71 through the visible app and
 passes the fresh result to `../security/verify_local_app_run.py`.
 
+Every new application proof retains a `primary-evidence/` tree beside its
+result: 192 deterministic `.vtl5` containers, all 512 source token IDs per
+block, and the 128 per-prediction baseline/candidate losses and top-1 IDs. The
+stdlib-only `../security/verify_primary_evidence.py` deliberately imports no
+writer or codec module; it parses the raw headers, canonical metadata and zlib
+streams, recomputes token commitments and quality metrics, and rejects missing,
+extra, symlinked, or digest-mismatched artifacts.
+
+The token-metric schema defines NLL reduction as ordered IEEE-754 binary64
+addition in increasing prediction offset, divided by 128. Aggregate NLL applies
+the same ordered addition to the eight block means. This cross-language rule
+can differ in the last few decimal places from a framework's parallel
+`reduction="mean"`; it does not change the logits, token decisions, or gate.
+
+`../security/verify_primary_replay.py` is the heavyweight causal check. It also
+imports no benchmark or codec code: it verifies and tokenizes the pinned
+WikiText parquet, loads the hash-verified pinned Qwen snapshot, independently
+decodes zlib, bit packing, zigzag values, float16 scales and inverse Hadamard,
+rebuilds both BF16 baseline and decoded candidate caches, and reruns all 1,024
+MPS predictions sequentially. Every top-1 ID must match exactly. Every retained
+loss must match with absolute tolerance `2e-5` and relative tolerance `2e-6`;
+the verified same-machine run matched with zero observed difference.
+
 This integration run is deliberately separate from the immutable prospective
 holdout. It provides a path for another user to execute the real model and
 test the container accounting and quality gates without trusting the author's

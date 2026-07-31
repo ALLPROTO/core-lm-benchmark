@@ -7,8 +7,10 @@ import argparse
 import gzip
 import hashlib
 import json
+import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -27,6 +29,12 @@ ARCHIVE_MTIME = 0
 PUBLIC_ORIGIN = "https://github.com/ALLPROTO/core-lm-benchmark"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+from security.generate_build_provenance import (  # noqa: E402
+    DEFAULT_ARCHIVE_MANIFEST,
+    build_source_archive_manifest,
+    canonical_json_bytes,
+    clean_subprocess_environment,
+)
 V5_PHASE_PATHS = {
     "selectionAttempt": ROOT
     / "real-llm-v5-results"
@@ -49,11 +57,13 @@ V5_ARXIV_SOURCE_FILES = (
 
 def _git(*arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     completed = subprocess.run(
-        ["git", *arguments],
+        ["/usr/bin/git", *arguments],
         cwd=ROOT,
         check=False,
         capture_output=True,
         text=True,
+        timeout=60,
+        env=clean_subprocess_environment(),
     )
     if check and completed.returncode:
         message = completed.stderr.strip() or completed.stdout.strip()
@@ -74,6 +84,7 @@ def _build_context(release_tag: str | None) -> dict[str, object]:
             "buildMode": "preview-artifact-tree",
             "builtFromCleanHead": False,
             "gitHeadCommit": None,
+            "gitHeadTree": None,
             "releaseTag": None,
             "remoteTagVerified": False,
             "trackedFiles": None,
@@ -81,6 +92,7 @@ def _build_context(release_tag: str | None) -> dict[str, object]:
     if Path(top.stdout.strip()).resolve() != ROOT.resolve():
         raise ValueError("archive builder must run from its exact Git worktree")
     head = _git("rev-parse", "HEAD").stdout.strip()
+    head_tree = _git("rev-parse", "HEAD^{tree}").stdout.strip()
     status = _git(
         "status",
         "--porcelain=v1",
@@ -94,6 +106,7 @@ def _build_context(release_tag: str | None) -> dict[str, object]:
         "buildMode": "preview-working-tree",
         "builtFromCleanHead": clean,
         "gitHeadCommit": head,
+        "gitHeadTree": head_tree,
         "releaseTag": None,
         "remoteTagVerified": False,
         "trackedFiles": tracked_files,
@@ -150,10 +163,12 @@ def _assert_release_source(
     if not isinstance(tracked, set) or relative not in tracked:
         raise ValueError(f"release input is not tracked by Git: {relative}")
     committed = subprocess.run(
-        ["git", "show", f"HEAD:{relative}"],
+        ["/usr/bin/git", "show", f"HEAD:{relative}"],
         cwd=ROOT,
         check=False,
         capture_output=True,
+        timeout=30,
+        env=clean_subprocess_environment(),
     )
     if committed.returncode or committed.stdout != source.read_bytes():
         raise ValueError(f"release input differs from HEAD: {relative}")
@@ -275,29 +290,88 @@ def add_path(archive: tarfile.TarFile, source: Path, arcname: str) -> None:
             add_path(archive, child, f"{arcname}/{child.name}")
 
 
+def _safe_output_directory(path: Path) -> Path:
+    candidate = Path(os.path.abspath(os.fspath(path)))
+    if candidate.exists() or candidate.is_symlink():
+        status = candidate.lstat()
+        if (
+            not stat.S_ISDIR(status.st_mode)
+            or stat.S_ISLNK(status.st_mode)
+            or status.st_uid != os.getuid()
+            or status.st_mode & 0o022
+        ):
+            raise ValueError(
+                "archive output directory is symlinked, writable, or unowned"
+            )
+    else:
+        parent = candidate.parent.resolve(strict=True)
+        if not parent.is_dir():
+            raise ValueError(
+                "archive output parent must be an existing canonical directory"
+            )
+        candidate = parent / candidate.name
+        candidate.mkdir(mode=0o700)
+    return candidate.resolve(strict=True)
+
+
+@contextmanager
+def _atomic_output_path(target: Path) -> Iterator[Path]:
+    directory = _safe_output_directory(target.parent)
+    canonical_target = directory / target.name
+    if canonical_target.exists() or canonical_target.is_symlink():
+        status = canonical_target.lstat()
+        if (
+            not stat.S_ISREG(status.st_mode)
+            or stat.S_ISLNK(status.st_mode)
+            or status.st_uid != os.getuid()
+        ):
+            raise ValueError(
+                f"archive output target is unsafe: {canonical_target.name}"
+            )
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{canonical_target.name}.",
+        dir=directory,
+    )
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        yield temporary
+        status = temporary.lstat()
+        if not stat.S_ISREG(status.st_mode) or stat.S_ISLNK(status.st_mode):
+            raise ValueError("staged archive output is not a regular file")
+        temporary.chmod(0o644)
+        os.replace(temporary, canonical_target)
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
 @contextmanager
 def deterministic_tar_gz(target: Path) -> Iterator[tarfile.TarFile]:
     """Create a gzip-compressed tar archive without wall-clock metadata."""
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with target.open("wb") as raw:
-        with gzip.GzipFile(
-            filename="",
-            mode="wb",
-            fileobj=raw,
-            mtime=ARCHIVE_MTIME,
-        ) as compressed:
-            with tarfile.open(
-                fileobj=compressed,
-                mode="w",
-                format=tarfile.PAX_FORMAT,
-            ) as archive:
-                yield archive
+    with _atomic_output_path(target) as staged:
+        with staged.open("wb") as raw:
+            with gzip.GzipFile(
+                filename="",
+                mode="wb",
+                fileobj=raw,
+                mtime=ARCHIVE_MTIME,
+            ) as compressed:
+                with tarfile.open(
+                    fileobj=compressed,
+                    mode="w",
+                    format=tarfile.PAX_FORMAT,
+                ) as archive:
+                    yield archive
 
 
 def build_arxiv_v5(
     output_directory: Path = OUTPUT,
     build_context: dict[str, object] | None = None,
 ) -> Path:
+    output_directory = _safe_output_directory(output_directory)
     context = build_context or _build_context(None)
     target = (
         output_directory / "corelm_voidtoken_v5_arxiv_source.tar.gz"
@@ -421,6 +495,7 @@ def build_reproducibility(
     output_directory: Path = OUTPUT,
     build_context: dict[str, object] | None = None,
 ) -> Path:
+    output_directory = _safe_output_directory(output_directory)
     context = build_context or _build_context(None)
     evidence_state, prospective_artifacts = _validate_v5_evidence(
         git_provenance=bool(context.get("builtFromCleanHead"))
@@ -443,7 +518,10 @@ def build_reproducibility(
             "SECURITY.md",
             "requirements.lock",
             "requirements.txt",
+            "bootstrap_python312_macos.sh",
             "build_local_app.sh",
+            "doctor.sh",
+            "prepare_offline_inputs.sh",
             "run_local_app_proof.sh",
             "run_tests.sh",
             "run_benchmark.sh",
@@ -466,6 +544,7 @@ def build_reproducibility(
             "App/Sources/ContentView.swift",
             "App/Sources/CoreLMBenchmarkApp.swift",
             "App/Sources/Models.swift",
+            "App/Sources/PrimaryEvidenceValidation.swift",
             "App/Sources/PythonRuntimeManifest.swift",
             "App/Sources/RealLLMModels.swift",
             "App/Sources/SecurityValidation.swift",
@@ -481,6 +560,7 @@ def build_reproducibility(
             "TestsSwift/SecurityValidationTests.swift",
             "TestsSwift/Fixtures/real-llm-validation-064-071.json",
             "Tests/test_app_real_llm_evidence.py",
+            "Tests/test_build_provenance.py",
             "Tests/test_benchmark.py",
             "Tests/test_local_app_build.py",
             "Tests/test_publication_archives.py",
@@ -501,6 +581,7 @@ def build_reproducibility(
             "RealLLM/benchmark_real_llm.py",
             "RealLLM/codecs.py",
             "RealLLM/develop_voidtoken_v5.py",
+            "RealLLM/legacy_voidtoken_adapter.py",
             "RealLLM/prepare_app_assets.py",
             "RealLLM/registration.json",
             "RealLLM/requirements.lock",
@@ -513,13 +594,19 @@ def build_reproducibility(
             "RealLLM/voidtoken_v5.py",
             "publication/build_archives.py",
             "security/direct-dependencies.cdx.json",
+            "security/find_python312.sh",
+            "security/generate_build_provenance.py",
             "security/generate_python_runtime_manifest.py",
             "security/generate_direct_sbom.py",
             "security/manage_local_runtime.py",
             "security/notarize_app.sh",
             "security/osv_direct_audit.py",
             "security/run_swift_security_tests.sh",
+            "security/validate_proof_challenge.sh",
+            "security/validate_python_bootstrap_archive.py",
             "security/verify_app_run_evidence.py",
+            "security/verify_primary_evidence.py",
+            "security/verify_primary_replay.py",
             "security/verify_app_bundle.sh",
             "security/verify_local_app_run.py",
             "security/verify_locked_environment.py",
@@ -616,6 +703,34 @@ def build_reproducibility(
             encoding="utf-8",
         )
 
+        commit = context.get("gitHeadCommit")
+        tree = context.get("gitHeadTree")
+        if (
+            not isinstance(commit, str)
+            or re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", commit) is None
+            or not isinstance(tree, str)
+            or re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", tree) is None
+        ):
+            raise ValueError(
+                "reproducibility source archive requires exact Git commit/tree identity"
+            )
+        source_archive_manifest = stage / DEFAULT_ARCHIVE_MANIFEST
+        source_archive_manifest.write_bytes(
+            canonical_json_bytes(
+                build_source_archive_manifest(
+                    stage,
+                    commit=commit,
+                    tree=tree,
+                    remote=PUBLIC_ORIGIN,
+                    exact_tag=context.get("releaseTag")
+                    if isinstance(context.get("releaseTag"), str)
+                    else None,
+                    dirty=not bool(context.get("builtFromCleanHead")),
+                    output=source_archive_manifest,
+                )
+            )
+        )
+
         with deterministic_tar_gz(target) as archive:
             add_path(archive, stage, stage.name)
     return target
@@ -625,12 +740,13 @@ def build_all(
     output_directory: Path = OUTPUT,
     build_context: dict[str, object] | None = None,
 ) -> list[Path]:
+    output_directory = _safe_output_directory(output_directory)
     context = build_context or _build_context(None)
-    output_directory.mkdir(parents=True, exist_ok=True)
     paper_pdf = PUBLICATION / "corelm_voidtoken_v5.pdf"
     _assert_release_source(paper_pdf, context)
     copied_pdf = output_directory / paper_pdf.name
-    shutil.copy2(paper_pdf, copied_pdf)
+    with _atomic_output_path(copied_pdf) as staged_pdf:
+        shutil.copyfile(paper_pdf, staged_pdf)
     return [
         build_arxiv_v5(output_directory, context),
         build_reproducibility(output_directory, context),
@@ -647,11 +763,13 @@ def sha256(path: Path) -> str:
 
 
 def write_checksums(artifacts: list[Path], output_directory: Path) -> Path:
+    output_directory = _safe_output_directory(output_directory)
     target = output_directory / "SHA256SUMS"
-    target.write_text(
-        "".join(f"{sha256(path)}  {path.name}\n" for path in artifacts),
-        encoding="utf-8",
-    )
+    with _atomic_output_path(target) as staged:
+        staged.write_text(
+            "".join(f"{sha256(path)}  {path.name}\n" for path in artifacts),
+            encoding="utf-8",
+        )
     return target
 
 

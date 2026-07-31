@@ -13,9 +13,13 @@ result to machine-readable evidence.
 ## Requirements
 
 - Apple Silicon and macOS 14 or newer for the real-Qwen application run
-- Swift 5.9 or newer for the app build; Swift 6 for the full Swift test gate
-- Python 3.12 (the registered evidence uses 3.12.13)
-- NumPy 2.3.5
+- Swift 6 or newer from Apple's free Command Line Tools or Xcode
+- an active desktop login for the visible native-application run
+- at least 8 GB unified memory and 6 GiB free disk for the full proof
+- Python 3.12 (the registered and owner-local bootstrap version is 3.12.13)
+- network access, or the prepared wheelhouse and registered model/data cache
+- NumPy 2.3.5 for the core archive suite; the separately locked application
+  runtime installs NumPy 2.5.1 and its complete real-model dependency closure
 - ReportLab 4.4.9 for regenerating the vector paper figures
 
 ## Verify the implementation
@@ -77,25 +81,58 @@ full repository clone under `publication/arxiv/`.
 ## Build the native application
 
 This is a source-build verification workflow. It needs no Apple Developer
-Program account, paid certificate, Developer ID identity, or notarization.
-Apple's free Command Line Tools (or Xcode), Python 3.12, an initial network
-connection, and at least 6 GB free are sufficient:
+Program account, paid certificate, Developer ID identity, or notarization. A
+local ad-hoc signature seals the user's own build without claiming a binary
+publisher identity.
+
+Run the read-only readiness check before downloading packages or model files:
+
+```sh
+./doctor.sh
+```
+
+It checks Apple Silicon/macOS compatibility, Swift 6, signing utilities,
+Python trust-chain permissions, at least 8 GB physical memory, at least 6 GiB
+free under the user profile, an active GUI session, and the required online or
+offline sources.
+
+If Python 3.12 is absent, an optional owner-local bootstrap is available:
+
+```sh
+./bootstrap_python312_macos.sh
+```
+
+It downloads the immutable
+`astral-sh/python-build-standalone` CPython 3.12.13+20260718 Apple Silicon
+archive and requires SHA-256
+`62aeee6161d57303a71a138b75fd5cc6fb8c89c4b1d9c7f0a052d89fa0b6652b`
+before safe extraction below `~/.local/share/corelm/`. It rejects unsafe paths,
+escaping links, and special files and uses neither `sudo` nor the system Python
+installation. This third-party binary archive is an explicit trust boundary,
+not a build-from-source claim. The final signed application manifest covers
+every loadable file in that base interpreter and the fresh virtual environment.
+Users who do not accept this bootstrap may supply another trusted Python 3.12:
+
+```sh
+CORELM_BOOTSTRAP_PYTHON="$(command -v python3.12)" ./doctor.sh
+```
+
+To build without automatically running model inference:
 
 ```sh
 ./build_local_app.sh
 open dist/CoreLMBenchmark.app
 ```
 
-Set `CORELM_BOOTSTRAP_PYTHON=/absolute/path/to/python3.12` if that interpreter
-is not on `PATH`. The script installs hash-locked dependencies, verifies them,
-downloads and hashes the exact pinned model plus validation inputs, confirms
+The script installs hash-locked dependencies, verifies the exact installed
+closure, downloads and hashes the pinned model plus validation inputs, confirms
 offline resolution, creates a local ad-hoc signed bundle, runs the complete
-bundle verifier, and performs an application-launch smoke test without running
-model inference. The bundle is
+bundle verifier, and performs an application-launch smoke test. The bundle is
 produced at `dist/CoreLMBenchmark.app`.
 
-For automated Python and Swift gates, a visible real-Qwen run, and independent
-verification:
+The connected one-command proof runs the Python and Swift gates, the visible
+real-Qwen application, the fast independent verifier, and the heavyweight
+independent replay:
 
 ```sh
 ./run_local_app_proof.sh
@@ -104,8 +141,41 @@ verification:
 The automated proof creates and retains a fresh runtime with hash-locked
 packages and an exact signed runtime manifest (roughly 1 GB plus caches), then
 prints its path. It supplies a random challenge to the app and requires that
-exact nonce in the receipt; this is the workflow that supports a freshness
-claim.
+exact nonce in the receipt. This is a trusted-local guard against accidentally
+selecting an older run, not cryptographic remote freshness: the owner-local
+ad-hoc receipt has no independently trusted signature and a malicious local
+user could edit it. Another observer may instead provide exactly 64 lowercase
+hexadecimal characters in `CORELM_PROOF_CHALLENGE`; the value is propagated
+unchanged under the same trust boundary.
+
+The receipt embeds canonical build provenance. A Git build requires a clean
+tree and binds the public remote, commit, tree, and exact tag when present; an
+archive build verifies its canonical source-file manifest and inherited
+commit/tree identity. The record also identifies the Apple SDK, developer
+tools, Swift compiler, and compiler executable digest. Packaging compares this
+identity before and after compilation and again after staging, and the full
+proof rejects dirty-source overrides.
+
+For a later network-free proof, prepare all inputs once while connected:
+
+```sh
+./prepare_offline_inputs.sh
+```
+
+Then disconnect if desired and run:
+
+```sh
+CORELM_OFFLINE=1 \
+CORELM_WHEELHOUSE="$HOME/.cache/corelm-wheelhouse" \
+  ./run_local_app_proof.sh
+```
+
+The offline package stage uses `--no-index`, `--only-binary=:all:`, and
+`--require-hashes`. Model/data resolution is local-only and repeats registered
+revision, byte-size, and SHA-256 checks. Offline mode never means skipping an
+integrity gate. Connected users may configure HTTPS mirrors through
+`CORELM_PYPI_INDEX_URL` and `CORELM_HF_ENDPOINT`; the same hashes remain
+mandatory.
 
 For a manual run, keep validation blocks 64–71, click
 **Run Compression Proof**, then:
@@ -117,15 +187,30 @@ For a manual run, keep validation blocks 64–71, click
 ```
 
 Without the automated proof's challenge, the manual command checks consistency,
-not freshness. During execution the live runner serializes and fresh-parses
-each raw container. The offline verifier reconstructs per-layer lengths and
-complete-container totals from the retained manifests, recomputes metrics,
-gates, and the canonical result digest, then binds the receipt to the locally
-compiled app, signed runtime manifest, Python executable, and bundled source.
-Raw container bytes are not retained, so the offline verifier cannot parse
-them again. A locally compiled executable is not expected to match the
+not freshness. New fresh runs from the current source retain a
+`primary-evidence/` directory with 192 raw `.vtl5` containers, all eight source
+token slices of 512 IDs, and 1,024 per-token baseline/candidate loss and top-1
+rows. The fast standard-library verifier parses the raw format independently,
+reconstructs byte accounting, recomputes NLL/top-1 and canonical digests, and
+binds the result to source/build provenance, receipt, locally compiled app,
+signed runtime manifest, Python executable, and bundled source.
+
+The full proof then invokes a separate heavyweight clean-room decoder. It
+retokenizes the pinned WikiText input, decodes all 192 containers without
+calling the production codec, rebuilds baseline and candidate KV state, and
+reruns all 1,024 Qwen decisions sequentially on MPS. Top-1 IDs must match
+exactly; each retained loss must match within absolute tolerance `2e-5` or
+relative tolerance `2e-6`. The historical checked-in sanitized application
+receipt predates primary-evidence retention and does not retroactively provide
+those raw bytes. A locally compiled executable is not expected to match the
 author's historical executable SHA-256 because source paths, toolchains,
 runtime paths, and signing bytes differ.
+
+Neither fresh verifier independently recomputes full-distribution KL or the
+aggregate cache-error metrics from new model tensors. Those fields remain
+subject to schema, identity, and aggregate-arithmetic checks. The retained
+primary evidence and heavyweight replay independently establish the byte,
+compression, NLL, and top-1 paths described above.
 
 ## Evidence chain
 

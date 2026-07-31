@@ -52,8 +52,14 @@ For the native proof, PASS requires all of the following:
 - at least 99% top-1 agreement;
 - exact structural cache replay;
 - a canonical result digest;
-- Swift verification of the parsed document;
-- independent Python recomputation and receipt/app/runtime binding.
+- Swift verification of the parsed document, all retained container hashes,
+  source-token commitments, and per-token NLL/top-1 metrics;
+- independent standard-library Python parsing of all 192 retained container
+  byte streams and recomputation of compression, NLL, and top-1; and
+- heavyweight independent decoding and pinned-Qwen replay of all 1,024 token
+  decisions, with exact top-1 comparison and bounded per-token loss tolerance;
+  and
+- receipt/app/runtime/primary-evidence binding.
 
 ## Evidence status
 

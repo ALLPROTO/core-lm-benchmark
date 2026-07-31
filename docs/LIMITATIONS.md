@@ -19,10 +19,16 @@ does not turn that claim into a general model-compression result.
 6. The app is not sandboxed and its verified Python worker runs with the current
    user's privileges. Use only trusted source, model assets, and a trusted local
    machine.
-7. Fresh proof results retain exact per-layer container manifests and digests,
-   but not the raw transient container bytes. Offline verification reconstructs
-   manifest-derived totals and checks digest commitments; it cannot parse bytes
-   that were deliberately not retained.
+7. Fresh application proofs retain all 192 raw per-layer containers, all 512
+   source token IDs per block, and per-prediction baseline/candidate losses and
+   top-1 IDs. This makes container parsing, byte accounting, token-slice
+   commitments, NLL, and top-1 independently recomputable. It still does not
+   retain the much larger full-vocabulary logits or canonical BF16 cache, so an
+   offline verifier cannot independently recompute KL or cache-error metrics
+   without rerunning the pinned model. The heavyweight verifier reruns the
+   pinned model to establish the causal link between decoded containers and all
+   retained NLL/top-1 rows, but it still does not independently recompute the
+   reported full-distribution KL or cache-error aggregates.
 8. The registered prospective result predates the richer per-layer manifest.
    Its complete byte total is protected by immutable artifacts and Git history
    but is not independently reconstructible from that historical JSON.

@@ -29,6 +29,7 @@ from RealLLM.benchmark_real_llm import (  # noqa: E402
     MODEL_REVISION,
     MODEL_WEIGHTS_BYTES,
     MODEL_WEIGHTS_SHA256,
+    PrimaryEvidenceWriter,
     THRESHOLDS,
     _aggregate_phase,
     _evaluate_block,
@@ -289,6 +290,7 @@ def _download_validation_only(local_files_only: bool) -> dict[str, Path]:
             revision=MODEL_REVISION,
             filename="model.safetensors",
             local_files_only=local_files_only,
+            token=False,
         )
     )
     if model_path.stat().st_size != MODEL_WEIGHTS_BYTES:
@@ -302,6 +304,7 @@ def _download_validation_only(local_files_only: bool) -> dict[str, Path]:
                 revision=MODEL_REVISION,
                 filename=filename,
                 local_files_only=local_files_only,
+                token=False,
             )
         )
         if asset_path.stat().st_size != asset["bytes"]:
@@ -319,6 +322,7 @@ def _download_validation_only(local_files_only: bool) -> dict[str, Path]:
             revision=DATASET_REVISION,
             filename=specification["path"],
             local_files_only=local_files_only,
+            token=False,
         )
     )
     if validation_path.stat().st_size != specification["bytes"]:
@@ -350,6 +354,7 @@ def run_validation_development(
     candidate_indices: tuple[int, ...] | None,
     local_files_only: bool,
     seed: int = 20260729,
+    primary_evidence_directory: Path | None = None,
 ) -> dict[str, Any]:
     if device_requested not in {"auto", "cpu", "mps", "cuda"}:
         raise ValueError("device must be auto, cpu, mps, or cuda")
@@ -372,6 +377,24 @@ def run_validation_development(
             raise ValueError("candidate index is outside the development grid")
         candidate_grid = tuple(
             DEVELOPMENT_GRID[index] for index in candidate_indices
+        )
+    primary_evidence_writer: PrimaryEvidenceWriter | None = None
+    if primary_evidence_directory is not None:
+        if len(candidate_grid) != 1:
+            raise ValueError(
+                "primary evidence requires exactly one candidate configuration"
+            )
+        if (
+            primary_evidence_directory.parent.resolve()
+            != output_path.parent.resolve()
+            or primary_evidence_directory.name != "primary-evidence"
+        ):
+            raise ValueError(
+                "primary evidence must be output beside the result file"
+            )
+        primary_evidence_writer = PrimaryEvidenceWriter(
+            primary_evidence_directory,
+            result_filename=output_path.name,
         )
 
     import pyarrow
@@ -422,6 +445,7 @@ def run_validation_development(
             model=model,
             device=device,
             torch_module=torch,
+            primary_evidence_writer=primary_evidence_writer,
         )
         baselines.append(baseline)
         records.extend(candidates)
@@ -436,7 +460,11 @@ def run_validation_development(
         selected = None
         selection_error = str(error)
     result: dict[str, Any] = {
-        "schemaVersion": "corelm-voidtoken-v5-validation-development-v2",
+        "schemaVersion": (
+            "corelm-voidtoken-v5-validation-development-v3"
+            if primary_evidence_writer is not None
+            else "corelm-voidtoken-v5-validation-development-v2"
+        ),
         "status": "validation-only-development",
         "createdAt": datetime.now(timezone.utc)
         .replace(microsecond=0)
@@ -481,6 +509,8 @@ def run_validation_development(
         "selected": selected,
         "selectionError": selection_error,
     }
+    if primary_evidence_writer is not None:
+        result["primaryEvidence"] = primary_evidence_writer.finalize()
     result["resultSHA256"] = sha256_bytes(canonical_json_bytes(result))
     _exclusive_write_bytes(
         output_path,
@@ -555,6 +585,14 @@ def parse_arguments() -> argparse.Namespace:
         help="print the indexed development grid and exit",
     )
     parser.add_argument("--local-files-only", action="store_true")
+    parser.add_argument(
+        "--primary-evidence-directory",
+        type=Path,
+        help=(
+            "retain raw containers and per-token metrics in this new "
+            "primary-evidence directory beside --output"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -583,6 +621,7 @@ def main() -> int:
                 else None
             ),
             local_files_only=arguments.local_files_only,
+            primary_evidence_directory=arguments.primary_evidence_directory,
         )
     except Exception as error:
         print(f"VOIDTOKEN V5 DEVELOPMENT FAILED: {error}", file=sys.stderr)

@@ -999,11 +999,17 @@ def _verify_shard(
 ) -> tuple[list[str], list[dict[str, Any]], list[dict[str, Any]]]:
     label = Path(artifact["path"]).name
     errors: list[str] = []
-    if set(shard) != TOP_LEVEL_KEYS:
+    expected_top_level_keys = set(TOP_LEVEL_KEYS)
+    if shard.get("schemaVersion") == (
+        "corelm-voidtoken-v5-validation-development-v3"
+    ):
+        expected_top_level_keys.add("primaryEvidence")
+    if set(shard) != expected_top_level_keys:
         errors.append(f"{label} top-level fields are not exact")
     if shard.get("schemaVersion") not in {
         "corelm-voidtoken-v5-validation-development-v1",
         "corelm-voidtoken-v5-validation-development-v2",
+        "corelm-voidtoken-v5-validation-development-v3",
     }:
         errors.append(f"{label} schema version is inconsistent")
     if shard.get("status") != "validation-only-development":
@@ -1084,10 +1090,10 @@ def _verify_shard(
                 )
         else:
             expected_environment = dict(EXPECTED_ENVIRONMENT)
-            if (
-                shard.get("schemaVersion")
-                == "corelm-voidtoken-v5-validation-development-v2"
-            ):
+            if shard.get("schemaVersion") in {
+                "corelm-voidtoken-v5-validation-development-v2",
+                "corelm-voidtoken-v5-validation-development-v3",
+            }:
                 expected_environment["hfHome"] = "configured"
             if environment != expected_environment:
                 errors.append(
@@ -1116,7 +1122,10 @@ def _verify_shard(
                 block_index,
                 require_container_manifest=(
                     shard.get("schemaVersion")
-                    == "corelm-voidtoken-v5-validation-development-v2"
+                    in {
+                        "corelm-voidtoken-v5-validation-development-v2",
+                        "corelm-voidtoken-v5-validation-development-v3",
+                    }
                 ),
             )
         )

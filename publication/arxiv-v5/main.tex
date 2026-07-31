@@ -87,7 +87,7 @@ new state of the art:
 \begin{enumerate}[leftmargin=1.25em,itemsep=2pt,topsep=2pt]
   \item We specify a complete-container KV codec whose denominator, wire
         overhead, reconstruction path, and replay semantics are explicit, with
-        executable checks enforcing them in current v2 evidence.
+        executable checks enforcing them in fresh retained-evidence runs.
   \item We separate adaptive development from a one-shot selection phase and a
         later prospective holdout, with public Git tags and durable attempt
         markers binding code, configuration, and evidence.
@@ -403,6 +403,27 @@ Thus the quality arithmetic and provenance links are recomputed, while the
 compression gate remains a runner-recorded measurement. Re-executing or
 rewriting the one-shot artifacts would violate the protocol.
 
+Current-source application runs provide a separate, development-only
+reproducibility path; they do not replace or extend the registered v1 result.
+A fresh eight-block validation run retains all 192 raw layer containers, eight
+512-token source slices, and per-token baseline/candidate losses and top-1 IDs
+for 1,024 decisions. A standard-library verifier that imports neither the
+writer nor the codec parses the retained bytes and independently recomputes
+complete-container accounting, compression, NLL, top-1 agreement, and
+canonical digests. A heavier clean-room replay independently retokenizes the
+pinned WikiText input, decodes VTL5 without importing the RealLLM codec,
+rebuilds baseline and candidate KV state, and reruns all 1,024 Qwen decisions.
+Top-1 IDs must match exactly; retained losses use absolute tolerance
+$2\times10^{-5}$ or relative tolerance $2\times10^{-6}$.
+
+The fresh-run receipt also embeds canonical build provenance. It binds a clean
+Git checkout, or a verified source-archive manifest, to its commit and tree and
+records the Apple toolchain identity. Source and toolchain identity are checked
+before and after compilation and staging. A 256-bit local challenge binds the
+invocation to the resulting receipt and helps reject an accidentally selected
+stale local run; it is not cryptographic evidence of remote execution or
+freshness.
+
 The canonical holdout result starts with \texttt{d1c16e88}; the physical
 \texttt{holdout.json} SHA-256 starts with \texttt{499c067d}. Both full values
 appear in Appendix~\ref{app:digests}. The distinction matters because the
@@ -446,19 +467,25 @@ gates summarize this experiment; they do not prove a universal quality bound.
 Durable markers, clean commits, source digests, and public tags constrain the
 recorded workflow but cannot prove the absence of an unreported private run or
 human deletion. The earlier v1 test access and full-parquet tokenization are
-disclosed. External reproduction remains necessary.
+disclosed. Current build provenance adds commit, tree, source-archive, and
+toolchain binding, but a trusted local machine still controls the process.
+External reproduction remains necessary.
 
 \paragraph{Implementation coupling.}
-The fresh strict container parser shares the canonical payload decoder with the
-encoder self-check. Hash and round-trip coverage catches many faults, but a
-second independent decoder would provide stronger evidence.
+The fresh standard-library parser and heavyweight decoder do not import the
+RealLLM codec implementation. The heavy replay independently checks
+tokenization, canonical prefill caches, decoded containers, per-token losses,
+and top-1 IDs, but it still uses the same pinned model libraries and local MPS
+stack. It does not independently recompute the retained full-distribution KL or
+cache-error aggregates. Those fields remain structurally and arithmetically
+checked, not independently regenerated from model outputs.
 
 \paragraph{Historical byte-accounting evidence.}
 The consumed v1 phase artifacts predate per-layer container manifests.
 Their complete-container totals and compression gates are protected by pinned
 result/file digests and Git provenance, but are not independently
-reconstructible from the JSON records. A separately registered v2 suite is
-required for an independent per-layer compression claim.
+reconstructible from the JSON records. A separately registered future suite is
+required for an independent prospective per-layer compression claim.
 
 \section{Conclusion}
 
@@ -553,6 +580,13 @@ under \texttt{real-llm-v5-results/}. The implementation and frozen runner are
 evidence verifier with offline and Git-provenance modes, a deterministic
 archive builder, and an exact SHA-256 manifest are distributed in the same
 repository.
+
+For new local application runs, \path{security/verify_primary_evidence.py} is
+the standard-library raw-evidence verifier and
+\path{security/verify_primary_replay.py} is the heavyweight independent model
+replay. The application bundle carries \path{build-provenance.json},
+which is bound into the run receipt. These current-source artifacts are
+reproducibility aids, not retroactive evidence for the historical v1 phases.
 
 The evidence archive intentionally omits the 988 MB model weights and corpus
 parquet files. Their repository revisions, byte lengths, and hashes are

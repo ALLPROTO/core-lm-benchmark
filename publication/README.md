@@ -26,6 +26,17 @@ result/file/Git digests but is not independently reconstructible. The evidence
 is bounded to the registered model revision, WikiText-2 windows,
 teacher-forced replay, and MPS runtime.
 
+The current-source native-app proof is deliberately separate from those
+historical claims. Each fresh eight-block validation run retains 192 raw VTL5
+containers, the eight 512-token source slices, and 1,024 token-level metric
+rows. A fast standard-library verifier recomputes container bytes,
+compression, NLL, top-1 agreement, and digests; a heavyweight clean-room
+replay retokenizes the pinned WikiText input, decodes VTL5 without importing
+the RealLLM codec, rebuilds both KV paths, and reruns all 1,024 Qwen decisions.
+This improves reproducibility for new runs but does not reconstruct the
+immutable v1 containers or independently regenerate full-distribution KL and
+cache-error aggregates.
+
 ## Generate and preview
 
 Regenerate the v5 tables and vector figures from checked-in JSON:

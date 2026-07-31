@@ -8,9 +8,11 @@ documentation.
 |---|---|---|
 | Algorithm revision | `VoidToken v3`, `VoidToken v5` | Research chronology |
 | Wire/codec format | `voidtoken-residual-keyframe-v4` | Parser compatibility |
-| Result schema | `corelm-voidtoken-v5-validation-development-v2` | Strict JSON validation |
+| Historical result schema | `corelm-voidtoken-v5-validation-development-v2` | Published manifest-only evidence |
+| Current app result schema | `corelm-voidtoken-v5-validation-development-v3` | Raw-container and token-metric evidence |
 | Backend/configuration | `voidtoken-v5`, candidate `32` | Frozen measurement identity |
-| Receipt schema | `corelm-macos-app-real-llm-run-v3` | App/result binding |
+| Historical challenge receipt | `corelm-macos-app-real-llm-run-v3` | Pre-primary-evidence app/result binding |
+| Current app receipt | `corelm-macos-app-real-llm-run-v4` | App/result/primary-evidence binding |
 | Evidence tags | `voidtoken-v5-evidence-v1` | Public scientific chronology |
 | Publication tag | `voidtoken-v5-paper-v5` | Immutable archive provenance |
 | Bundle metadata | `CFBundleShortVersionString`, `CFBundleVersion` | macOS identity and receipt field |

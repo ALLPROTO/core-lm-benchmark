@@ -131,6 +131,7 @@ struct SecurityValidationTests {
         #expect(environment["HF_HOME"] == cache.path)
         #expect(environment["HF_HUB_OFFLINE"] == "1")
         #expect(environment["TRANSFORMERS_OFFLINE"] == "1")
+        #expect(environment["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "1")
         #expect(environment["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] == "0.85")
         #expect(environment["PYTORCH_MPS_LOW_WATERMARK_RATIO"] == "0.75")
         for key in [
@@ -142,6 +143,8 @@ struct SecurityValidationTests {
         #expect(BenchmarkStore.realLLMHardTimeoutSeconds == 300)
         #expect(environment["PYTHONPATH"] == nil)
         #expect(environment["DYLD_INSERT_LIBRARIES"] == nil)
+        #expect(environment["HF_TOKEN"] == nil)
+        #expect(environment["HUGGING_FACE_HUB_TOKEN"] == nil)
     }
 
     @Test
