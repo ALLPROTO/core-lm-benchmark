@@ -207,6 +207,12 @@ extension SecurityValidation {
                         "Python runtime symlink mismatch: \(entry.path)."
                     )
                 }
+                if runtimeSymlinkCanBeLoaded(entry.path) {
+                    try validateRuntimeSymlinkResolution(
+                        at: candidate,
+                        roots: roots
+                    )
+                }
                 countedSymlinks += 1
             default:
                 throw SecurityValidationError.invalid(
@@ -420,5 +426,34 @@ extension SecurityValidation {
             decoding: buffer.prefix(count).map { UInt8(bitPattern: $0) },
             as: UTF8.self
         )
+    }
+
+    private static func runtimeSymlinkCanBeLoaded(_ path: String) -> Bool {
+        path.hasPrefix("bin/")
+            || (
+                path.hasPrefix("lib/")
+                    && !path.hasPrefix("lib/pkgconfig/")
+            )
+    }
+
+    private static func validateRuntimeSymlinkResolution(
+        at url: URL,
+        roots: [URL]
+    ) throws {
+        let resolved = url.resolvingSymlinksInPath().standardizedFileURL
+        let contained = roots.contains { root in
+            resolved.path == root.path
+                || resolved.path.hasPrefix(root.path + "/")
+        }
+        var status = stat()
+        guard contained,
+              !resolved.pathComponents.contains("__pycache__"),
+              resolved.path.withCString({ lstat($0, &status) }) == 0,
+              (status.st_mode & S_IFMT) == S_IFREG
+                || (status.st_mode & S_IFMT) == S_IFDIR else {
+            throw SecurityValidationError.invalid(
+                "Loadable Python runtime symlink escapes the manifested roots."
+            )
+        }
     }
 }

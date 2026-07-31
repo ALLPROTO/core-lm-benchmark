@@ -110,6 +110,21 @@ A selection FAIL is also a valid terminal scientific artifact: it is published
 unchanged and permanently forbids the pretest tag and holdout. Runner exit code
 `2` means recorded scientific FAIL, not an execution crash.
 
+## Local macOS application proof
+
+On an Apple-Silicon Mac, `../build_local_app.sh` prepares the hash-locked
+Python environment, uses `prepare_app_assets.py` to download and digest-check
+only the pinned model plus validation data, and creates a locally ad-hoc signed
+app without an Apple Developer account. `../run_local_app_proof.sh` then runs
+candidate 32 on public validation blocks 64–71 through the visible app and
+passes the fresh result to `../security/verify_local_app_run.py`.
+
+This integration run is deliberately separate from the immutable prospective
+holdout. It provides a path for another user to execute the real model and
+test the container accounting and quality gates without trusting the author's
+historical app executable. External reproduction is established only when
+another user actually completes and publishes that run.
+
 ## Claim boundary
 
 This P0 experiment tests compression of Qwen2.5-0.5B prefill KV cache on pinned

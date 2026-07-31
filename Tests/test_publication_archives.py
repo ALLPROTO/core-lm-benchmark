@@ -288,16 +288,23 @@ class PublicationArchiveTests(unittest.TestCase):
                     names,
                 )
                 for relative in (
+                    "build_local_app.sh",
+                    "run_local_app_proof.sh",
                     "requirements.lock",
                     "RealLLM/requirements.lock",
+                    "RealLLM/prepare_app_assets.py",
                     "SECURITY.md",
                     "App/Sources/PythonRuntimeManifest.swift",
                     "App/Sources/SecurityValidation.swift",
                     "TestsSwift/SecurityValidationTests.swift",
                     "security/generate_python_runtime_manifest.py",
+                    "security/manage_local_runtime.py",
                     "security/verify_app_run_evidence.py",
+                    "security/verify_local_app_run.py",
+                    "security/verify_locked_environment.py",
                     "security/verify_supply_chain.py",
                     "security/verify_app_bundle.sh",
+                    "Tests/test_swift_security_gate.py",
                     "app-real-llm-evidence/README.md",
                     "app-real-llm-evidence/SHA256SUMS",
                     "app-real-llm-evidence/app-run-receipt.json",
@@ -328,9 +335,14 @@ class PublicationArchiveTests(unittest.TestCase):
             with tarfile.open(archive, "r:gz") as bundle:
                 bundle.extractall(extract_root, filter="data")
             extracted = extract_root / "corelm_reproducibility"
+            child_cache = root / "child-pycache"
+            child_cache.mkdir()
             completed = subprocess.run(
                 [
                     sys.executable,
+                    "-B",
+                    "-X",
+                    f"pycache_prefix={child_cache}",
                     "-m",
                     "unittest",
                     (

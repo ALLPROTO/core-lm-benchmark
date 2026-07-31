@@ -994,6 +994,8 @@ def _verify_record_pair(
 def _verify_shard(
     shard: dict[str, Any],
     artifact: dict[str, Any],
+    *,
+    portable_macos_environment: bool = False,
 ) -> tuple[list[str], list[dict[str, Any]], list[dict[str, Any]]]:
     label = Path(artifact["path"]).name
     errors: list[str] = []
@@ -1058,14 +1060,39 @@ def _verify_shard(
     if not isinstance(environment, dict) or set(environment) != ENVIRONMENT_KEYS:
         errors.append(f"{label} environment fields are not exact")
     else:
-        expected_environment = dict(EXPECTED_ENVIRONMENT)
-        if (
-            shard.get("schemaVersion")
-            == "corelm-voidtoken-v5-validation-development-v2"
-        ):
-            expected_environment["hfHome"] = "configured"
-        if environment != expected_environment:
-            errors.append(f"{label} development environment is inconsistent")
+        if portable_macos_environment:
+            python_components = str(environment.get("python", "")).split(".")
+            portable_environment = (
+                environment.get("device") == "mps"
+                and environment.get("hfHome") == "configured"
+                and environment.get("machine") == "arm64"
+                and environment.get("numpy") == EXPECTED_ENVIRONMENT["numpy"]
+                and environment.get("pyarrow") == EXPECTED_ENVIRONMENT["pyarrow"]
+                and environment.get("torch") == EXPECTED_ENVIRONMENT["torch"]
+                and environment.get("transformers")
+                == EXPECTED_ENVIRONMENT["transformers"]
+                and environment.get("seed") == EXPECTED_ENVIRONMENT["seed"]
+                and len(python_components) == 3
+                and python_components[:2] == ["3", "12"]
+                and python_components[2].isdigit()
+                and str(environment.get("platform", "")).startswith("macOS-")
+                and "arm64" in str(environment.get("platform", ""))
+            )
+            if not portable_environment:
+                errors.append(
+                    f"{label} portable macOS environment is inconsistent"
+                )
+        else:
+            expected_environment = dict(EXPECTED_ENVIRONMENT)
+            if (
+                shard.get("schemaVersion")
+                == "corelm-voidtoken-v5-validation-development-v2"
+            ):
+                expected_environment["hfHome"] = "configured"
+            if environment != expected_environment:
+                errors.append(
+                    f"{label} development environment is inconsistent"
+                )
 
     records = shard.get("records")
     baselines = shard.get("baselines")

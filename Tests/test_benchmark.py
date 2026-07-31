@@ -436,18 +436,21 @@ class BackendTests(unittest.TestCase):
 
 class IntegrationTests(unittest.TestCase):
     def test_evidence_verifier_bootstraps_in_isolated_python(self):
-        completed = subprocess.run(
-            [
-                sys.executable,
-                "-I",
-                "-B",
-                str(ROOT / "BenchmarkCore" / "verify_evidence.py"),
-                "--help",
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        with TemporaryDirectory(prefix="corelm-child-pycache-") as cache:
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-B",
+                    "-X",
+                    f"pycache_prefix={cache}",
+                    str(ROOT / "BenchmarkCore" / "verify_evidence.py"),
+                    "--help",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("Replay and verify", completed.stdout)
 

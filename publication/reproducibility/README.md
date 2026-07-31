@@ -7,8 +7,8 @@ result to machine-readable evidence.
 
 ## Requirements
 
-- macOS 14 or newer for the SwiftUI application
-- Swift 5.9 or newer
+- Apple Silicon and macOS 14 or newer for the real-Qwen application run
+- Swift 5.9 or newer for the app build; Swift 6 for the full Swift test gate
 - Python 3.12 (the registered evidence uses 3.12.13)
 - NumPy 2.3.5
 - ReportLab 4.4.9 for regenerating the vector paper figures
@@ -70,20 +70,53 @@ full repository clone under `publication/arxiv/`.
 
 ## Build the native application
 
+This is a source-build verification workflow. It needs no Apple Developer
+Program account, paid certificate, Developer ID identity, or notarization.
+Apple's free Command Line Tools (or Xcode), Python 3.12, an initial network
+connection, and at least 6 GB free are sufficient:
+
 ```sh
-python3.12 -m venv "$HOME/.cache/corelm-real-llm-venv-v5"
-"$HOME/.cache/corelm-real-llm-venv-v5/bin/python" -m pip install \
-  --require-hashes -r RealLLM/requirements.lock
-ALLOW_ADHOC_SIGNING=1 ./package_app.sh
+./build_local_app.sh
+open dist/CoreLMBenchmark.app
 ```
 
-The application bundle is produced at `dist/CoreLMBenchmark.app`. This is an
-explicit local/CI ad-hoc build with hardened runtime. Its signed resource
-manifest authenticates the loadable external Python base prefix and venv
-before each worker launch; volatile `__pycache__` is bypassed with a private
-empty `-X pycache_prefix`. This also makes the build path-specific. Public
-distribution requires Developer ID signing and notarization as documented in
-`SECURITY.md`.
+Set `CORELM_BOOTSTRAP_PYTHON=/absolute/path/to/python3.12` if that interpreter
+is not on `PATH`. The script installs hash-locked dependencies, verifies them,
+downloads and hashes the exact pinned model plus validation inputs, confirms
+offline resolution, creates a local ad-hoc signed bundle, runs the complete
+bundle verifier, and performs a synthetic app smoke test. The bundle is
+produced at `dist/CoreLMBenchmark.app`.
+
+For automated Python and Swift gates, a visible real-Qwen run, and independent
+verification:
+
+```sh
+./run_local_app_proof.sh
+```
+
+The automated proof creates and retains a new hash-locked runtime (roughly
+1 GB plus caches) and prints its path. It supplies a random challenge to the
+app and requires that exact nonce in the receipt; this is the workflow that
+supports a freshness claim.
+
+For a manual run, keep validation blocks 64–71, click **Run Real Qwen**, then:
+
+```sh
+"$HOME/.cache/corelm-real-llm-app-runtime-v1/bin/python" \
+  security/verify_local_app_run.py \
+  --app dist/CoreLMBenchmark.app
+```
+
+Without the automated proof's challenge, the manual command checks consistency,
+not freshness. During execution the live runner serializes and fresh-parses
+each raw container. The offline verifier reconstructs per-layer lengths and
+complete-container totals from the retained manifests, recomputes metrics,
+gates, and the canonical result digest, then binds the receipt to the locally
+compiled app, signed runtime manifest, Python executable, and bundled source.
+Raw container bytes are not retained, so the offline verifier cannot parse
+them again. A locally compiled executable is not expected to match the
+author's historical executable SHA-256 because source paths, toolchains,
+runtime paths, and signing bytes differ.
 
 ## Evidence chain
 
@@ -193,14 +226,14 @@ Selection FAIL permanently forbids a pretest tag and holdout.
 available, v5 configuration/registration/implementation digests, evidence
 state, and hashes of included evidence files. It is descriptive metadata, not
 a replacement for Git history. The distribution-side `SHA256SUMS` verifies the
-v5 arXiv source archive and the reproducibility archive.
+v5 arXiv source archive, reproducibility archive, and rendered paper PDF.
 
 Maintainers generate final release archives from a full repository clone—not
 from this extracted tar—only after the lightweight release tag is public and
 the worktree is clean:
 
 ```sh
-RELEASE_TAG=voidtoken-v5-paper-v4
+RELEASE_TAG=voidtoken-v5-paper-v5
 python3 publication/build_archives.py \
   --release-tag "$RELEASE_TAG" \
   --verify-determinism

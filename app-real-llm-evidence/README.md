@@ -35,12 +35,13 @@ From the repository root, with the locked Python environment active:
 
 ```bash
 python -I -B security/verify_app_run_evidence.py
-python -I -B security/verify_app_run_evidence.py \
-  --app dist/CoreLMBenchmark.app
 (cd app-real-llm-evidence && shasum -a 256 -c SHA256SUMS)
 ```
 
 `app-run-receipt.json` intentionally contains no absolute user, cache, result,
 or repository paths. It binds the run to the application executable, signed
 runtime manifest, Python executable, runner resource, result file, and
-canonical result through SHA-256 digests.
+canonical result through SHA-256 digests. The original application binary is
+not distributed, so a new local build is expected to have a different
+executable digest. Use `security/verify_local_app_run.py` to bind a newly
+compiled app to its own fresh result and receipt.

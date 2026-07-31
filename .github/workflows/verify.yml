@@ -106,14 +106,28 @@ jobs:
         run: ./security/run_swift_security_tests.sh
       - name: Build hash-locked external app runtime
         run: |
-          app_runtime="$RUNNER_TEMP/corelm-app-runtime"
+          /bin/mkdir -p "$HOME/.cache"
+          /bin/chmod 700 "$HOME/.cache"
+          app_runtime="$HOME/.cache/corelm-ci-app-runtime"
           app_python="$app_runtime/bin/python"
           python -m venv "$app_runtime"
-          "$app_python" -m pip install \
-            --require-hashes -r .github/locks/pip-bootstrap.txt
-          "$app_python" -m pip install \
-            --require-hashes -r RealLLM/requirements.lock
-          "$app_python" -m pip check
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r .github/locks/pip-bootstrap.txt
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r RealLLM/requirements.lock
+          "$app_python" -I -B -m pip check
 
           base_prefix=$(
             "$app_python" -I -B -c 'import sys; print(sys.base_prefix)'
@@ -158,11 +172,20 @@ jobs:
           # after installation so the strict runtime manifest remains valid.
           sudo /bin/chmod -RP go-w "$base_prefix"
           /bin/chmod -RP go-w "$virtual_prefix"
+          python -I -B security/manage_local_runtime.py \
+            --path "$app_runtime" \
+            --project "$GITHUB_WORKSPACE" \
+            --mode initialize
       - name: Build and package the macOS application
-        run: >-
-          CORELM_REAL_LLM_PYTHON="$RUNNER_TEMP/corelm-app-runtime/bin/python"
-          BUILD_CONFIG=release ALLOW_ADHOC_SIGNING=1
-          ./package_app.sh
+        run: |
+          CORELM_BOOTSTRAP_PYTHON=python \
+          CORELM_REAL_LLM_VENV="$HOME/.cache/corelm-ci-app-runtime" \
+          CORELM_SKIP_RUNTIME_INSTALL=1 \
+          CORELM_SKIP_ASSET_PREPARATION=1 \
+          CORELM_SKIP_MPS_CHECK=1 \
+          CORELM_SKIP_SMOKE_TEST=1 \
+          BUILD_CONFIG=release \
+            ./build_local_app.sh
       - name: Verify application bundle integrity and signature
         run: ./security/verify_app_bundle.sh dist/CoreLMBenchmark.app
       - name: Verify recorded real-LLM application evidence

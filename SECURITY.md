@@ -55,14 +55,13 @@ A release candidate is not ready until all applicable gates pass:
    the packaged app all agree under
    `security/verify_app_run_evidence.py`.
 
-For public macOS binary distribution, Developer ID signing, hardened runtime,
-notarization, and verification of the notarization ticket are additional
-release gates. `package_app.sh` refuses to choose a signing mode implicitly:
-set `DEVELOPER_ID_APPLICATION` for a public build or explicitly set
-`ALLOW_ADHOC_SIGNING=1` for local/CI use. An ad-hoc signature proves only local
-bundle integrity; it does not authenticate Ivan Tyshchenko as the publisher.
-After Developer ID packaging, `security/notarize_app.sh` submits, staples, and
-assesses the application when an Apple notary keychain profile is available.
+The reproducibility release distributes source, not a prebuilt macOS binary.
+`build_local_app.sh` therefore uses an explicit local ad-hoc signature and
+requires no Apple Developer Program account, paid certificate, Developer ID
+identity, or notarization. The signature seals the user's own build but does
+not authenticate Ivan Tyshchenko as its binary publisher. Developer ID and
+notarization remain an optional, out-of-scope path only if a future maintainer
+chooses to distribute a prebuilt application.
 
 ## Explicit limitations
 

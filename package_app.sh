@@ -7,15 +7,11 @@ DEVELOPER_ID_APPLICATION=${DEVELOPER_ID_APPLICATION:-}
 ALLOW_ADHOC_SIGNING=${ALLOW_ADHOC_SIGNING:-0}
 APP_NAME="CoreLMBenchmark.app"
 STAGING_DIR=$(mktemp -d "${TMPDIR:-/tmp}/corelm-app.XXXXXX")
+PYTHON_CACHE_DIR="$STAGING_DIR/python-pycache"
 APP_DIR="$STAGING_DIR/$APP_NAME"
 FINAL_DIR="$PROJECT_DIR/dist/$APP_NAME"
-DEFAULT_REAL_LLM_PYTHON="$HOME/.cache/corelm-real-llm-venv-v5/bin/python"
-REAL_LLM_PYTHON=${CORELM_REAL_LLM_PYTHON:-"$DEFAULT_REAL_LLM_PYTHON"}
+REAL_LLM_PYTHON=${CORELM_REAL_LLM_PYTHON:-"$HOME/.cache/corelm-real-llm-app-runtime-v1/bin/python"}
 EXPECTED_PYTHON_SHA256=${CORELM_REAL_LLM_PYTHON_SHA256:-}
-if [ "$REAL_LLM_PYTHON" = "$DEFAULT_REAL_LLM_PYTHON" ] \
-    && [ -z "$EXPECTED_PYTHON_SHA256" ]; then
-    EXPECTED_PYTHON_SHA256="eb9d74b9c7cfdfb2c9b91614edb2c3607360ba46c5aa7fc4557b3a4a23e97cff"
-fi
 
 cleanup() {
     rm -rf "$STAGING_DIR"
@@ -25,6 +21,7 @@ trap cleanup EXIT
 cd "$PROJECT_DIR"
 swift build -c "$BUILD_CONFIG"
 
+mkdir -m 700 "$PYTHON_CACHE_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS"
 mkdir -p "$APP_DIR/Contents/Resources/BenchmarkCore"
 mkdir -p "$APP_DIR/Contents/Resources/RealLLM"
@@ -44,13 +41,13 @@ do
        "$APP_DIR/Contents/Resources/RealLLM/$real_llm_file"
 done
 if [ -n "$EXPECTED_PYTHON_SHA256" ]; then
-    "$REAL_LLM_PYTHON" -I -B \
+    "$REAL_LLM_PYTHON" -I -B -X "pycache_prefix=$PYTHON_CACHE_DIR" \
         "$PROJECT_DIR/security/generate_python_runtime_manifest.py" \
         --python "$REAL_LLM_PYTHON" \
         --output "$APP_DIR/Contents/Resources/python-runtime-manifest.json" \
         --expected-python-sha256 "$EXPECTED_PYTHON_SHA256"
 else
-    "$REAL_LLM_PYTHON" -I -B \
+    "$REAL_LLM_PYTHON" -I -B -X "pycache_prefix=$PYTHON_CACHE_DIR" \
         "$PROJECT_DIR/security/generate_python_runtime_manifest.py" \
         --python "$REAL_LLM_PYTHON" \
         --output "$APP_DIR/Contents/Resources/python-runtime-manifest.json"
@@ -83,6 +80,7 @@ else
 fi
 
 codesign --verify --deep --strict "$APP_DIR"
+"$PROJECT_DIR/security/verify_app_bundle.sh" "$APP_DIR"
 
 mkdir -p "$PROJECT_DIR/dist"
 if [ -e "$FINAL_DIR" ]; then

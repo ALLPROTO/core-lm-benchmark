@@ -31,8 +31,24 @@ final class BenchmarkStore: ObservableObject {
     private var activeRealLLMPythonSHA256: String?
     private var activeRealLLMScriptURL: URL?
     private(set) var lastRealLLMWorkerPID: Int32?
-    private let pinnedPythonSHA256 =
-        "eb9d74b9c7cfdfb2c9b91614edb2c3607360ba46c5aa7fc4557b3a4a23e97cff"
+    private let proofChallengeRequested = CommandLine.arguments.contains(
+        "--proof-challenge"
+    )
+    private let proofChallengeNonce: String? = {
+        guard let index = CommandLine.arguments.firstIndex(
+            of: "--proof-challenge"
+        ), index + 1 < CommandLine.arguments.count else {
+            return nil
+        }
+        let value = CommandLine.arguments[index + 1]
+        guard value.range(
+            of: "^[0-9a-f]{64}$",
+            options: .regularExpression
+        ) != nil else {
+            return nil
+        }
+        return value
+    }()
     private static let maximumSyntheticMatrixElements = 8 * 1024 * 1024
     let scenarios = ["zero", "gaussian_bounded", "uniform_bounded", "impulse", "repeating_structured"]
 
@@ -140,13 +156,13 @@ final class BenchmarkStore: ObservableObject {
                 home.appendingPathComponent(
                     ".cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3"
                 ),
-                pinnedPythonSHA256
+                nil
             ),
             (
                 home.appendingPathComponent(
-                    ".cache/corelm-real-llm-venv-v5/bin/python"
+                    ".cache/corelm-real-llm-app-runtime-v1/bin/python"
                 ),
-                pinnedPythonSHA256
+                nil
             ),
             (home.appendingPathComponent(".pyenv/shims/python3"), nil),
             (URL(fileURLWithPath: "/opt/homebrew/bin/python3"), nil),
@@ -166,8 +182,10 @@ final class BenchmarkStore: ObservableObject {
         )
         #else
         let validated = try SecurityValidation.validateExecutable(
-            home.appendingPathComponent(".cache/corelm-real-llm-venv-v5/bin/python"),
-            expectedSHA256: pinnedPythonSHA256
+            home.appendingPathComponent(
+                ".cache/corelm-real-llm-app-runtime-v1/bin/python"
+            ),
+            expectedSHA256: nil
         )
         return validated
         #endif
@@ -224,15 +242,15 @@ final class BenchmarkStore: ObservableObject {
         #endif
         let candidate = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(
-                ".cache/corelm-real-llm-venv-v5/bin/python"
+                ".cache/corelm-real-llm-app-runtime-v1/bin/python"
             )
         let validated = try SecurityValidation.validateExecutable(
             candidate,
-            expectedSHA256: pinnedPythonSHA256
+            expectedSHA256: nil
         )
         return ValidatedPythonRuntime(
             executableURL: validated,
-            sha256: pinnedPythonSHA256
+            sha256: try executableDigest(validated)
         )
     }
 
@@ -444,6 +462,10 @@ final class BenchmarkStore: ObservableObject {
 
     func runRealLLM() {
         guard !isRunning else { return }
+        guard !proofChallengeRequested || proofChallengeNonce != nil else {
+            errorMessage = "The external proof challenge is malformed."
+            return
+        }
         let requested = realLLMSettings
         guard (64...512).contains(requested.validationStartBlock) else {
             errorMessage = "Exploratory real-LLM runs must start at validation block 64 or later."
@@ -885,8 +907,15 @@ final class BenchmarkStore: ObservableObject {
                 && result.environment.machine == "arm64",
             "The run did not report Apple MPS on arm64."
         )
+        let pythonVersion = result.environment.python.split(
+            separator: ".", omittingEmptySubsequences: false
+        )
         try require(
-            result.environment.python == "3.12.13"
+            pythonVersion.count == 3
+                && pythonVersion[0] == "3"
+                && pythonVersion[1] == "12"
+                && !pythonVersion[2].isEmpty
+                && pythonVersion[2].allSatisfy(\.isNumber)
                 && result.environment.torch == "2.13.0"
                 && result.environment.transformers == "5.14.1"
                 && result.environment.numpy == "2.5.1"
@@ -1385,8 +1414,12 @@ final class BenchmarkStore: ObservableObject {
                 requireCurrentOwner: false
             )
         }.map(SecurityValidation.sha256Hex) ?? ""
-        let receipt: [String: Any] = [
-            "schemaVersion": "corelm-macos-app-real-llm-run-v2",
+        var receipt: [String: Any] = [
+            "schemaVersion": (
+                proofChallengeNonce == nil
+                    ? "corelm-macos-app-real-llm-run-v2"
+                    : "corelm-macos-app-real-llm-run-v3"
+            ),
             "createdAt": ISO8601DateFormatter().string(from: Date()),
             "startedAt": realLLMStartedAt.map {
                 ISO8601DateFormatter().string(from: $0)
@@ -1435,6 +1468,9 @@ final class BenchmarkStore: ObservableObject {
             ],
             "error": error ?? NSNull()
         ]
+        if let proofChallengeNonce {
+            receipt["challengeNonce"] = proofChallengeNonce
+        }
         do {
             let data = try JSONSerialization.data(
                 withJSONObject: receipt,

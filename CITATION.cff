@@ -6,7 +6,7 @@ authors:
   - family-names: "Tyshchenko"
     given-names: "Ivan"
     orcid: "https://orcid.org/0009-0000-7935-6090"
-version: "voidtoken-v5-paper-v4"
+version: "voidtoken-v5-paper-v5"
 date-released: 2026-07-31
 license: MIT
 repository-code: "https://github.com/ALLPROTO/core-lm-benchmark"

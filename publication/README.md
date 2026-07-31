@@ -46,6 +46,8 @@ The current archive names are:
 
 - `corelm_voidtoken_v5_arxiv_source.tar.gz`
 - `corelm_reproducibility.tar.gz`
+- `corelm_voidtoken_v5.pdf`
+- `SHA256SUMS` covering all three artifacts above
 
 A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
@@ -57,12 +59,14 @@ Do not move or reuse `voidtoken-v5-evidence-v1`; that tag identifies the
 earlier frozen scientific evidence state.
 
 ```sh
-RELEASE_TAG=voidtoken-v5-paper-v4
+RELEASE_TAG=voidtoken-v5-paper-v5
 git status --short
-git tag "$RELEASE_TAG"
 git push origin HEAD
+# Wait until both branch and pull-request CI runs are green.
+git tag "$RELEASE_TAG"
 git push origin "refs/tags/$RELEASE_TAG"
 git ls-remote --exit-code origin "refs/tags/$RELEASE_TAG"
+# Wait until the tag CI run is green.
 python3 publication/build_archives.py \
   --release-tag "$RELEASE_TAG" \
   --verify-determinism
@@ -72,7 +76,8 @@ python3 publication/build_archives.py --release-tag "$RELEASE_TAG"
 
 The release preflight rejects a dirty worktree, annotated or non-HEAD tag,
 wrong origin, unpublished tag, untracked input, or bytes that differ from
-`HEAD`.
+`HEAD`. Do not create the immutable tag until the exact branch commit has
+passed CI.
 
 ## Before arXiv submission
 

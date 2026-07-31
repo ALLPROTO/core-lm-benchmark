@@ -443,6 +443,8 @@ def build_reproducibility(
             "SECURITY.md",
             "requirements.lock",
             "requirements.txt",
+            "build_local_app.sh",
+            "run_local_app_proof.sh",
             "run_tests.sh",
             "run_benchmark.sh",
             "run_real_llm_benchmark.sh",
@@ -474,9 +476,11 @@ def build_reproducibility(
             "TestsSwift/Fixtures/real-llm-validation-064-071.json",
             "Tests/test_app_real_llm_evidence.py",
             "Tests/test_benchmark.py",
+            "Tests/test_local_app_build.py",
             "Tests/test_publication_archives.py",
             "Tests/test_real_llm.py",
             "Tests/test_security_supply_chain.py",
+            "Tests/test_swift_security_gate.py",
             "Tests/test_voidtoken_v5.py",
             "Tests/test_voidtoken_v5_development.py",
             "Tests/test_voidtoken_v5_frozen.py",
@@ -491,6 +495,7 @@ def build_reproducibility(
             "RealLLM/benchmark_real_llm.py",
             "RealLLM/codecs.py",
             "RealLLM/develop_voidtoken_v5.py",
+            "RealLLM/prepare_app_assets.py",
             "RealLLM/registration.json",
             "RealLLM/requirements.lock",
             "RealLLM/requirements.txt",
@@ -504,11 +509,14 @@ def build_reproducibility(
             "security/direct-dependencies.cdx.json",
             "security/generate_python_runtime_manifest.py",
             "security/generate_direct_sbom.py",
+            "security/manage_local_runtime.py",
             "security/notarize_app.sh",
             "security/osv_direct_audit.py",
             "security/run_swift_security_tests.sh",
             "security/verify_app_run_evidence.py",
             "security/verify_app_bundle.sh",
+            "security/verify_local_app_run.py",
+            "security/verify_locked_environment.py",
             "security/verify_supply_chain.py",
             "app-real-llm-evidence/README.md",
             "app-real-llm-evidence/SHA256SUMS",
@@ -613,9 +621,14 @@ def build_all(
 ) -> list[Path]:
     context = build_context or _build_context(None)
     output_directory.mkdir(parents=True, exist_ok=True)
+    paper_pdf = PUBLICATION / "corelm_voidtoken_v5.pdf"
+    _assert_release_source(paper_pdf, context)
+    copied_pdf = output_directory / paper_pdf.name
+    shutil.copy2(paper_pdf, copied_pdf)
     return [
         build_arxiv_v5(output_directory, context),
         build_reproducibility(output_directory, context),
+        copied_pdf,
     ]
 
 

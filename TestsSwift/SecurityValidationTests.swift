@@ -268,6 +268,61 @@ struct SecurityValidationTests {
             expectedPythonURL: declaredPython
         )
 
+        let unsafeLink = venvBin.appendingPathComponent("python-cache")
+        try FileManager.default.createSymbolicLink(
+            atPath: unsafeLink.path,
+            withDestinationPath: volatileCache
+                .appendingPathComponent("module.pyc").path
+        )
+        var unsafeEntries = try #require(
+            manifest["entries"] as? [[String: Any]]
+        )
+        unsafeEntries.append([
+            "kind": "symlink",
+            "path": "bin/python-cache",
+            "root": 1,
+            "target": volatileCache
+                .appendingPathComponent("module.pyc").path
+        ])
+        var unsafeManifest = manifest
+        unsafeManifest["entries"] = unsafeEntries
+        unsafeManifest["symlinkCount"] = 2
+        try JSONSerialization.data(
+            withJSONObject: unsafeManifest,
+            options: [.sortedKeys]
+        ).write(to: manifestURL)
+        expectFailure {
+            try SecurityValidation.validatePythonRuntimeManifest(
+                at: manifestURL,
+                expectedPythonURL: declaredPython
+            )
+        }
+        try FileManager.default.removeItem(at: unsafeLink)
+
+        let outsideRuntime = temporary.appendingPathComponent("outside.py")
+        try Data("outside".utf8).write(to: outsideRuntime)
+        try FileManager.default.createSymbolicLink(
+            atPath: unsafeLink.path,
+            withDestinationPath: outsideRuntime.path
+        )
+        unsafeEntries[unsafeEntries.count - 1]["target"] = outsideRuntime.path
+        unsafeManifest["entries"] = unsafeEntries
+        try JSONSerialization.data(
+            withJSONObject: unsafeManifest,
+            options: [.sortedKeys]
+        ).write(to: manifestURL)
+        expectFailure {
+            try SecurityValidation.validatePythonRuntimeManifest(
+                at: manifestURL,
+                expectedPythonURL: declaredPython
+            )
+        }
+        try FileManager.default.removeItem(at: unsafeLink)
+        try JSONSerialization.data(
+            withJSONObject: manifest,
+            options: [.sortedKeys]
+        ).write(to: manifestURL)
+
         let injected = venvBin.appendingPathComponent("sitecustomize.py")
         try Data("raise RuntimeError()\n".utf8).write(to: injected)
         expectFailure {

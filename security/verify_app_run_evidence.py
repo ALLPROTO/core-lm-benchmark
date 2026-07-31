@@ -7,8 +7,11 @@ import argparse
 import hashlib
 import json
 import math
+import plistlib
 import re
+import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +21,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from RealLLM.verify_voidtoken_v5_development import _verify_shard  # noqa: E402
+from security.generate_python_runtime_manifest import (  # noqa: E402
+    validate_manifest_files,
+)
 
 
 DEFAULT_EVIDENCE = PROJECT_ROOT / "app-real-llm-evidence"
@@ -107,19 +113,46 @@ def _close(left: Any, right: Any) -> bool:
     )
 
 
-def verify(evidence_directory: Path, app_bundle: Path | None = None) -> None:
-    evidence = evidence_directory.resolve()
-    if evidence_directory.is_symlink() or not evidence.is_dir():
-        raise ValueError("evidence directory is missing or unsafe")
+def _timestamp(value: Any, label: str) -> datetime:
+    if not isinstance(value, str):
+        raise ValueError(f"{label} is not a timestamp")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError(f"{label} is not ISO-8601") from error
+    if parsed.tzinfo is None:
+        raise ValueError(f"{label} has no timezone")
+    return parsed
 
-    checksums = _load_checksums(evidence / "SHA256SUMS")
-    for name, expected in checksums.items():
-        candidate = evidence / name
-        if _sha256(candidate) != expected:
-            raise ValueError(f"{name} differs from SHA256SUMS")
 
-    result_path = evidence / "validation-064-071.json"
-    receipt_path = evidence / "app-run-receipt.json"
+def _verify_local_bundle(app: Path) -> None:
+    verifier = PROJECT_ROOT / "security" / "verify_app_bundle.sh"
+    completed = subprocess.run(
+        [str(verifier), str(app)],
+        cwd=PROJECT_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=300,
+        env={
+            "HOME": str(Path.home()),
+            "LANG": "C",
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        },
+    )
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip()
+        raise ValueError(f"local app bundle verification failed: {detail}")
+
+
+def _verify_result_and_receipt(
+    result_path: Path,
+    receipt_path: Path,
+    app_bundle: Path | None,
+    *,
+    portable_macos_environment: bool,
+    expected_challenge_nonce: str | None,
+) -> dict[str, Any]:
     result, _ = _load_object(result_path, MAX_RESULT_BYTES)
     receipt, receipt_raw = _load_object(receipt_path, MAX_RECEIPT_BYTES)
 
@@ -132,30 +165,59 @@ def verify(evidence_directory: Path, app_bundle: Path | None = None) -> None:
         "blocks": 8,
         "resultSHA256": result.get("resultSHA256"),
     }
-    shard_errors, records, baselines = _verify_shard(result, shard_artifact)
+    shard_errors, records, baselines = _verify_shard(
+        result,
+        shard_artifact,
+        portable_macos_environment=portable_macos_environment,
+    )
     if shard_errors:
         raise ValueError("result verification failed: " + "; ".join(shard_errors))
     if len(records) != 8 or len(baselines) != 8:
         raise ValueError("result does not contain exactly eight verified blocks")
 
+    receipt_schema = receipt.get("schemaVersion")
+    receipt_keys = {
+        "application",
+        "createdAt",
+        "error",
+        "protocol",
+        "result",
+        "schemaVersion",
+        "startedAt",
+        "worker",
+    }
+    if receipt_schema == "corelm-macos-app-real-llm-run-v3":
+        receipt_keys.add("challengeNonce")
     _require_exact_keys(
         receipt,
-        {
-            "application",
-            "createdAt",
-            "error",
-            "protocol",
-            "result",
-            "schemaVersion",
-            "startedAt",
-            "worker",
-        },
+        receipt_keys,
         "receipt",
     )
-    if receipt["schemaVersion"] != "corelm-macos-app-real-llm-run-v2":
+    if receipt_schema not in {
+        "corelm-macos-app-real-llm-run-v2",
+        "corelm-macos-app-real-llm-run-v3",
+    }:
         raise ValueError("receipt schema version is unsupported")
+    if not portable_macos_environment and receipt_schema != (
+        "corelm-macos-app-real-llm-run-v2"
+    ):
+        raise ValueError("historical evidence requires the v2 receipt")
+    if expected_challenge_nonce is not None:
+        _require_sha256(expected_challenge_nonce, "expected challenge nonce")
+        if (
+            receipt_schema != "corelm-macos-app-real-llm-run-v3"
+            or receipt.get("challengeNonce") != expected_challenge_nonce
+        ):
+            raise ValueError("receipt does not contain the proof challenge")
+    elif receipt_schema == "corelm-macos-app-real-llm-run-v3":
+        _require_sha256(receipt.get("challengeNonce"), "receipt challenge")
     if receipt["error"] is not None:
         raise ValueError("receipt records an application error")
+    started_at = _timestamp(receipt["startedAt"], "receipt startedAt")
+    result_created_at = _timestamp(result.get("createdAt"), "result createdAt")
+    receipt_created_at = _timestamp(receipt["createdAt"], "receipt createdAt")
+    if not started_at <= result_created_at <= receipt_created_at:
+        raise ValueError("result and receipt timestamps are out of order")
 
     application = _require_exact_keys(
         receipt["application"],
@@ -171,7 +233,11 @@ def verify(evidence_directory: Path, app_bundle: Path | None = None) -> None:
     if (
         application["bundleIdentifier"] != "com.corelm.benchmark"
         or application["bundleName"] != "CoreLMBenchmark.app"
-        or application["version"] != "0.4.0"
+        or (
+            not portable_macos_environment
+            and application["version"] != "0.4.0"
+        )
+        or not isinstance(application["version"], str)
         or type(application["processIdentifier"]) is not int
         or application["processIdentifier"] <= 0
     ):
@@ -270,11 +336,23 @@ def verify(evidence_directory: Path, app_bundle: Path | None = None) -> None:
         raise ValueError("receipt does not bind to the verified result")
 
     if app_bundle is not None:
+        if app_bundle.is_symlink() or not app_bundle.is_dir():
+            raise ValueError("provided app bundle is missing or unsafe")
         app = app_bundle.resolve()
+        _verify_local_bundle(app)
         executable = app / "Contents" / "MacOS" / "CoreLMBenchmarkApp"
         resources = app / "Contents" / "Resources"
         manifest = resources / "python-runtime-manifest.json"
         runner = resources / "RealLLM" / "develop_voidtoken_v5.py"
+        info_plist = app / "Contents" / "Info.plist"
+        for label, path in (
+            ("application executable", executable),
+            ("runtime manifest", manifest),
+            ("bundled runner", runner),
+            ("Info.plist", info_plist),
+        ):
+            if path.is_symlink() or not path.is_file():
+                raise ValueError(f"{label} is missing or unsafe")
         if (
             _sha256(executable) != application["executableSHA256"]
             or _sha256(manifest) != worker["runtimeManifestSHA256"]
@@ -287,6 +365,66 @@ def verify(evidence_directory: Path, app_bundle: Path | None = None) -> None:
             != worker["pythonExecutableSHA256"]
         ):
             raise ValueError("app runtime identity differs from the receipt")
+        validate_manifest_files(manifest_value)
+        environment = result.get("environment")
+        if (
+            not isinstance(environment, dict)
+            or manifest_value.get("pythonVersion") != environment.get("python")
+        ):
+            raise ValueError("result Python version differs from live runtime")
+        if info_plist.stat().st_size > 1024 * 1024:
+            raise ValueError("Info.plist exceeds its resource bound")
+        with info_plist.open("rb") as handle:
+            plist = plistlib.load(handle)
+        if (
+            not isinstance(plist, dict)
+            or plist.get("CFBundleIdentifier")
+            != application["bundleIdentifier"]
+            or plist.get("CFBundleShortVersionString")
+            != application["version"]
+        ):
+            raise ValueError("receipt application identity differs from plist")
+    return result
+
+
+def verify(evidence_directory: Path, app_bundle: Path | None = None) -> None:
+    evidence = evidence_directory.resolve()
+    if evidence_directory.is_symlink() or not evidence.is_dir():
+        raise ValueError("evidence directory is missing or unsafe")
+
+    checksums = _load_checksums(evidence / "SHA256SUMS")
+    for name, expected in checksums.items():
+        candidate = evidence / name
+        if _sha256(candidate) != expected:
+            raise ValueError(f"{name} differs from SHA256SUMS")
+
+    _verify_result_and_receipt(
+        evidence / "validation-064-071.json",
+        evidence / "app-run-receipt.json",
+        app_bundle,
+        portable_macos_environment=False,
+        expected_challenge_nonce=None,
+    )
+
+
+def verify_fresh_run(
+    run_directory: Path,
+    app_bundle: Path,
+    *,
+    challenge_nonce: str | None = None,
+) -> dict[str, Any]:
+    run = run_directory.resolve()
+    if run_directory.is_symlink() or not run.is_dir():
+        raise ValueError("fresh run directory is missing or unsafe")
+    if app_bundle.is_symlink() or not app_bundle.resolve().is_dir():
+        raise ValueError("local app bundle is missing or unsafe")
+    return _verify_result_and_receipt(
+        run / "validation-064-071.json",
+        run / "app-run-receipt.json",
+        app_bundle,
+        portable_macos_environment=True,
+        expected_challenge_nonce=challenge_nonce,
+    )
 
 
 def main() -> int:

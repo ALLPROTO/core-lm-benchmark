@@ -26,8 +26,13 @@
 `app-real-llm-evidence/`. Receipt связывает SHA-256 приложения, внешнего
 runtime-манифеста, Python executable, runner resource и результата; абсолютные
 пользовательские пути из него удалены. Команда
-`python security/verify_app_run_evidence.py --app dist/CoreLMBenchmark.app`
-проверяет всю связь. Это post-development integration evidence на
+`python security/verify_app_run_evidence.py` проверяет неизменный исторический
+result/receipt. Новый пользователь собирает другой бинарник; команда
+`python security/verify_local_app_run.py --app dist/CoreLMBenchmark.app`
+проверяет согласованность его ручного запуска, а `./run_local_app_proof.sh`
+добавляет случайный challenge в receipt и тем самым проверяет свежесть
+автоматизированного прогона. SHA-256 нового бинарника не должен совпадать со
+старым receipt. Это post-development integration evidence на
 validation-блоках 64–71, а не новый preregistered holdout и не расширение
 исторического prospective claim.
 

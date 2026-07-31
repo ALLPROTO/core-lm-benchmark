@@ -16,12 +16,22 @@ class AppRealLLMEvidenceTests(unittest.TestCase):
     def test_recorded_evidence_passes(self):
         verifier.verify(EVIDENCE)
 
-    @unittest.skipUnless(
-        (ROOT / "dist" / "CoreLMBenchmark.app").is_dir(),
-        "local packaged app is unavailable",
-    )
-    def test_recorded_evidence_matches_current_app(self):
-        verifier.verify(EVIDENCE, ROOT / "dist" / "CoreLMBenchmark.app")
+    def test_recorded_evidence_matches_original_app_when_available(self):
+        app = ROOT / "dist" / "CoreLMBenchmark.app"
+        executable = app / "Contents" / "MacOS" / "CoreLMBenchmarkApp"
+        if not executable.is_file():
+            self.skipTest("local packaged app is unavailable")
+        receipt = json.loads(
+            (EVIDENCE / "app-run-receipt.json").read_text(encoding="utf-8")
+        )
+        if (
+            verifier._sha256(executable)
+            != receipt["application"]["executableSHA256"]
+        ):
+            self.skipTest(
+                "local rebuild is not the historical receipt's original app"
+            )
+        verifier.verify(EVIDENCE, app)
 
     def test_result_tampering_fails(self):
         with tempfile.TemporaryDirectory() as temporary:
