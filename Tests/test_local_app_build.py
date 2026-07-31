@@ -326,13 +326,20 @@ class LocalAppBuildTests(unittest.TestCase):
 
     def test_runtime_marker_is_required_and_validated(self):
         with tempfile.TemporaryDirectory() as temporary:
-            runtime = Path(temporary)
+            root = Path(temporary)
+            runtime = root / "runtime"
+            base = root / "base"
+            runtime.mkdir(mode=0o700)
+            base.mkdir(mode=0o700)
             (runtime / "bin").mkdir()
+            base_python = base / "python3.12"
+            base_python.write_bytes(b"#!/bin/sh\nexit 0\n")
+            base_python.chmod(0o700)
             (runtime / "pyvenv.cfg").write_text(
                 "home = /usr/bin\n",
                 encoding="utf-8",
             )
-            (runtime / "bin" / "python").symlink_to(Path(sys.executable))
+            (runtime / "bin" / "python").symlink_to(base_python)
             with self.assertRaises(OSError):
                 manage_local_runtime.validate_existing_runtime(runtime)
             (runtime / manage_local_runtime.MARKER_NAME).write_bytes(
