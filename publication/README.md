@@ -17,11 +17,14 @@ The two papers must not be conflated. The v3 paper reports the registered
 115-run synthetic dynamical benchmark. The v5 paper reports the separately
 frozen Qwen2.5-0.5B prefill KV-cache selection and prospective holdout.
 
-The v5 holdout compressed 150,601,728 canonical BF16 bytes to 73,346,513
-complete-container bytes (`2.0532909x`) with delta NLL
-`-0.0000609346`, top-1 agreement `4071/4096`, and all seven registered
-gates passing. The evidence is bounded to the registered model revision,
-WikiText-2 windows, teacher-forced replay, and MPS runtime.
+The historical v1 runner recorded 150,601,728 canonical BF16 bytes and
+73,346,513 complete-container bytes (`2.0532909x`) for the v5 holdout, with
+delta NLL `-0.0000609346`, top-1 agreement `4071/4096`, and all seven
+registered gates passing. Those immutable v1 artifacts did not retain
+per-layer container manifests, so their compression total is protected by
+result/file/Git digests but is not independently reconstructible. The evidence
+is bounded to the registered model revision, WikiText-2 windows,
+teacher-forced replay, and MPS runtime.
 
 ## Generate and preview
 
@@ -43,6 +46,8 @@ The current archive names are:
 
 - `corelm_voidtoken_v5_arxiv_source.tar.gz`
 - `corelm_reproducibility.tar.gz`
+- `corelm_voidtoken_v5.pdf`
+- `SHA256SUMS` covering all three artifacts above
 
 A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
@@ -54,12 +59,14 @@ Do not move or reuse `voidtoken-v5-evidence-v1`; that tag identifies the
 earlier frozen scientific evidence state.
 
 ```sh
-RELEASE_TAG=voidtoken-v5-paper-v2
+RELEASE_TAG=voidtoken-v5-paper-v5
 git status --short
-git tag "$RELEASE_TAG"
 git push origin HEAD
+# Wait until both branch and pull-request CI runs are green.
+git tag "$RELEASE_TAG"
 git push origin "refs/tags/$RELEASE_TAG"
 git ls-remote --exit-code origin "refs/tags/$RELEASE_TAG"
+# Wait until the tag CI run is green.
 python3 publication/build_archives.py \
   --release-tag "$RELEASE_TAG" \
   --verify-determinism
@@ -69,7 +76,8 @@ python3 publication/build_archives.py --release-tag "$RELEASE_TAG"
 
 The release preflight rejects a dirty worktree, annotated or non-HEAD tag,
 wrong origin, unpublished tag, untracked input, or bytes that differ from
-`HEAD`.
+`HEAD`. Do not create the immutable tag until the exact branch commit has
+passed CI.
 
 ## Before arXiv submission
 

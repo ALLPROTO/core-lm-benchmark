@@ -1,0 +1,41 @@
+{
+  "application" : {
+    "bundleIdentifier" : "com.corelm.benchmark",
+    "bundleName" : "CoreLMBenchmark.app",
+    "executableSHA256" : "c5a70cebb8eb59fd098c3218af77f1807e2def9fca526256e9354bc0affdbdae",
+    "processIdentifier" : 92537,
+    "version" : "0.4.0"
+  },
+  "createdAt" : "2026-07-30T21:10:10Z",
+  "error" : null,
+  "protocol" : {
+    "candidateIndex" : 32,
+    "device" : "mps",
+    "hfHome" : "configured",
+    "offlineRequested" : true,
+    "sanitizedChildEnvironment" : true,
+    "validationBlocks" : 8,
+    "validationStartBlock" : 64
+  },
+  "result" : {
+    "compressionRatioVsBF16" : 2.0523837550538349,
+    "deltaNLLNatPerToken" : -8.4936618804931641e-06,
+    "path" : "validation-064-071.json",
+    "resultFileSHA256" : "2e32aaeaa537845bfcc563dd58f9dd3ccd21c1d4aeb24bbf88f8fc67e6fa6141",
+    "resultSHA256" : "5b464de8f094a33a90dfdbc2c69ac318bc62a4397b171b5db69ae93d5d39d3c2",
+    "scientificVerdict" : "PASS",
+    "swiftStructuralVerification" : "PASS",
+    "top1Agreement" : 0.9951171875
+  },
+  "schemaVersion" : "corelm-macos-app-real-llm-run-v2",
+  "startedAt" : "2026-07-30T21:09:31Z",
+  "worker" : {
+    "processIdentifier" : 92538,
+    "python" : "signed-runtime-manifest",
+    "pythonExecutableSHA256" : "eb9d74b9c7cfdfb2c9b91614edb2c3607360ba46c5aa7fc4557b3a4a23e97cff",
+    "runtimeManifestSHA256" : "0663285d633d4a2223cd59193cd2eb2a8ea09cc0bf50791894bfb9c44975d102",
+    "script" : "Resources/RealLLM/develop_voidtoken_v5.py",
+    "scriptSHA256" : "f223ae153d90a92988f96db633dc43359518da1a4e3f1378637220346d59d9f0",
+    "terminationStatus" : 0
+  }
+}

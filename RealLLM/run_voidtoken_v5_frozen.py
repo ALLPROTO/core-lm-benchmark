@@ -10,6 +10,7 @@ import json
 import math
 import os
 import platform
+import shutil
 import statistics
 import subprocess
 import sys
@@ -25,16 +26,71 @@ _BOOTSTRAP_TAGS = {
     "holdout": "voidtoken-v5-pretest-v1",
 }
 _BOOTSTRAP_ATTESTATION: dict[str, str] | None = None
+_GIT_TIMEOUT_SECONDS = 90
+
+
+def _git_executable() -> str:
+    candidates = (
+        Path("/usr/bin/git"),
+        Path("/usr/local/bin/git"),
+    )
+    for candidate in candidates:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate.resolve())
+    discovered = shutil.which("git")
+    if discovered is None:
+        raise ValueError("cannot locate a Git executable")
+    resolved = Path(discovered).resolve(strict=True)
+    if not resolved.is_file():
+        raise ValueError("resolved Git executable is not a regular file")
+    return str(resolved)
+
+
+def _sanitized_git_environment() -> dict[str, str]:
+    environment = dict(os.environ)
+    for name in tuple(environment):
+        if (
+            name.startswith("GIT_")
+            or name.startswith("DYLD_")
+            or name == "LD_PRELOAD"
+        ):
+            environment.pop(name, None)
+    environment.update(
+        {
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_SYSTEM": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+            "LC_ALL": "C",
+            "PATH": os.defpath,
+        }
+    )
+    return environment
+
+
+def _run_git_process(
+    arguments: list[str] | tuple[str, ...],
+    *,
+    text: bool = False,
+) -> subprocess.CompletedProcess[Any]:
+    try:
+        return subprocess.run(
+            [_git_executable(), *arguments],
+            cwd=PROJECT_ROOT,
+            check=False,
+            capture_output=True,
+            text=text,
+            env=_sanitized_git_environment(),
+            timeout=_GIT_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise ValueError(f"cannot execute bounded Git command: {error}") from error
 
 
 def _bootstrap_command(*arguments: str) -> str:
-    completed = subprocess.run(
-        list(arguments),
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    if not arguments or arguments[0] != "git":
+        raise RuntimeError("bootstrap permits only Git commands")
+    completed = _run_git_process(list(arguments[1:]), text=True)
     if completed.returncode:
         message = completed.stderr.strip() or completed.stdout.strip()
         raise RuntimeError(
@@ -155,6 +211,7 @@ from RealLLM.benchmark_real_llm import (  # noqa: E402
     DATASET_FILES,
     DATASET_REPOSITORY,
     DATASET_REVISION,
+    MODEL_ASSET_FILES,
     MODEL_REPOSITORY,
     MODEL_REVISION,
     MODEL_WEIGHTS_BYTES,
@@ -167,12 +224,46 @@ from RealLLM.benchmark_real_llm import (  # noqa: E402
     canonical_json_bytes,
     sha256_bytes,
     sha256_file,
+    validate_v5_container_manifest,
 )
 
 
-SCHEMA_VERSION = "corelm-voidtoken-v5-phase-result-v1"
+SCHEMA_VERSION = "corelm-voidtoken-v5-phase-result-v2"
+LEGACY_PHASE_SCHEMA_VERSION = "corelm-voidtoken-v5-phase-result-v1"
 ATTEMPT_SCHEMA_VERSION = "corelm-voidtoken-v5-attempt-v1"
 SUITE_ID = "qwen2.5-0.5b-kv-voidtoken-v5-prospective-v1"
+REGISTERED_LEGACY_PHASE_RESULTS = {
+    "selection": {
+        "artifactSHA256": (
+            "72bd149903ac84edb4d56ac7e066fa5640278845bbb5961264ae1b34854dd247"
+        ),
+        "resultSHA256": (
+            "11329a941051073bae9e2aec3f483f5fc6acf7449ed18457d020f4693c1b1876"
+        ),
+        "gitCommitAtExecution": "467538875402265b2ca915768376e2a5548f3069",
+        "implementationSHA256": (
+            "55b2f589aae027e4353cf8011547d821a7d885d1fde8b9c3d9dd7af3cd90d783"
+        ),
+        "registrationSHA256": (
+            "ad5b75791f5385740bcdd472bf81ec546fa17fa59a0715a343ed91a193c1af32"
+        ),
+    },
+    "holdout": {
+        "artifactSHA256": (
+            "499c067d6ccff4bf1ac4a9f98436a52fa6c414ccced495719532347b89b46167"
+        ),
+        "resultSHA256": (
+            "d1c16e88655c1fbc9884324742dee3f0b9b4bc86d973c2bf38df3a02cc090eaa"
+        ),
+        "gitCommitAtExecution": "34fbd0556bd4e8fb889e628ae35175ff596818af",
+        "implementationSHA256": (
+            "55b2f589aae027e4353cf8011547d821a7d885d1fde8b9c3d9dd7af3cd90d783"
+        ),
+        "registrationSHA256": (
+            "ad5b75791f5385740bcdd472bf81ec546fa17fa59a0715a343ed91a193c1af32"
+        ),
+    },
+}
 REGISTRATION_PATH = PROJECT_ROOT / "RealLLM" / "v5_registration.json"
 RESULT_SCHEMA_PATH = (
     PROJECT_ROOT / "schemas" / "voidtoken-v5-phase-result.schema.json"
@@ -191,44 +282,6 @@ HOLDOUT_ATTEMPT_PATH = (
 SELECTION_PROTOCOL_TAG = _BOOTSTRAP_TAGS["selection"]
 PRETEST_TAG = _BOOTSTRAP_TAGS["holdout"]
 PUBLIC_ORIGIN = _BOOTSTRAP_PUBLIC_ORIGIN
-MODEL_ASSET_FILES = {
-    "config.json": {
-        "bytes": 681,
-        "sha256": (
-            "479dcf0c5286339e41ad3992cd08ae88a467c4187587936248e2b7c96283484b"
-        ),
-    },
-    "generation_config.json": {
-        "bytes": 138,
-        "sha256": (
-            "8c970692323e3ea0e9b8b0a4dca79388d31226e41f83c9fd6014804280ebf6e8"
-        ),
-    },
-    "merges.txt": {
-        "bytes": 1_671_839,
-        "sha256": (
-            "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
-        ),
-    },
-    "tokenizer.json": {
-        "bytes": 7_031_645,
-        "sha256": (
-            "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"
-        ),
-    },
-    "tokenizer_config.json": {
-        "bytes": 7_228,
-        "sha256": (
-            "c91efca15ceff6e9ee9424db58a6f59cd41294e550a86cbd07e3c1fb500b34f9"
-        ),
-    },
-    "vocab.json": {
-        "bytes": 2_776_833,
-        "sha256": (
-            "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
-        ),
-    },
-}
 
 PHASES: dict[str, dict[str, Any]] = {
     "selection": {
@@ -760,11 +813,8 @@ def _registration_at_commit(commit: str) -> dict[str, Any]:
     relative_registration = REGISTRATION_PATH.relative_to(
         PROJECT_ROOT
     ).as_posix()
-    completed = subprocess.run(
-        ["git", "show", f"{commit}:{relative_registration}"],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
+    completed = _run_git_process(
+        ["show", f"{commit}:{relative_registration}"]
     )
     if completed.returncode:
         raise ValueError(
@@ -800,12 +850,7 @@ def implementation_sha256_at_commit(commit: str) -> str:
     for raw_path in paths:
         if not isinstance(raw_path, str):
             raise ValueError("protocol source paths must be strings")
-        completed = subprocess.run(
-            ["git", "show", f"{commit}:{raw_path}"],
-            cwd=PROJECT_ROOT,
-            check=False,
-            capture_output=True,
-        )
+        completed = _run_git_process(["show", f"{commit}:{raw_path}"])
         if completed.returncode:
             raise ValueError(
                 f"commit {commit} does not contain normative source {raw_path}"
@@ -819,13 +864,7 @@ def implementation_sha256_at_commit(commit: str) -> str:
 
 
 def _git(*arguments: str) -> str:
-    completed = subprocess.run(
-        ["git", *arguments],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    completed = _run_git_process(list(arguments), text=True)
     if completed.returncode:
         message = completed.stderr.strip() or completed.stdout.strip()
         raise ValueError(f"git {' '.join(arguments)} failed: {message}")
@@ -1088,6 +1127,14 @@ def _close(left: Any, right: Any) -> bool:
     return left == right
 
 
+def _less_than_or_close(left: float, right: float) -> bool:
+    tolerance = max(
+        1e-12,
+        1e-12 * max(abs(left), abs(right)),
+    )
+    return left <= right + tolerance
+
+
 def _phase_specification(phase_name: str) -> dict[str, Any]:
     phase = PHASES[phase_name]
     return {
@@ -1176,10 +1223,6 @@ def _verify_attempt_document_core(
         errors.append("attempt split-access disclosure is inconsistent")
     if attempt.get("configurationSHA256") != FROZEN_CONFIGURATION_SHA256:
         errors.append("attempt configuration digest is inconsistent")
-    if attempt.get("registrationSHA256") != registration_sha256():
-        errors.append("attempt registration digest is stale")
-    if attempt.get("implementationSHA256") != implementation_sha256():
-        errors.append("attempt implementation digest is stale")
     commit = attempt.get("gitCommitAtExecution")
     if (
         verify_git_provenance
@@ -1322,12 +1365,46 @@ def _verify_phase_result_core(
     errors: list[str] = []
     if expected_phase not in PHASES:
         return [f"unknown frozen phase {expected_phase!r}"]
-    errors.extend(phase_schema_errors(result))
+    legacy_result = result.get("schemaVersion") == LEGACY_PHASE_SCHEMA_VERSION
+    if legacy_result:
+        registered = REGISTERED_LEGACY_PHASE_RESULTS[expected_phase]
+        for field in (
+            "resultSHA256",
+            "gitCommitAtExecution",
+            "implementationSHA256",
+            "registrationSHA256",
+        ):
+            if result.get(field) != registered[field]:
+                errors.append(
+                    f"legacy {expected_phase} {field} differs from the "
+                    "immutable registered historical result"
+                )
+        digest_input = dict(result)
+        digest_input.pop("resultSHA256", None)
+        try:
+            computed_legacy_digest = sha256_bytes(
+                canonical_json_bytes(digest_input)
+            )
+        except (TypeError, ValueError) as error:
+            errors.append(
+                f"legacy {expected_phase} result cannot be canonicalized: "
+                f"{error}"
+            )
+        else:
+            if computed_legacy_digest != registered["resultSHA256"]:
+                errors.append(
+                    f"legacy {expected_phase} canonical result digest differs "
+                    "from the immutable registered historical result"
+                )
+        if errors:
+            return errors
+    else:
+        errors.extend(phase_schema_errors(result))
     try:
         validate_frozen_registration()
     except ValueError as error:
         errors.append(str(error))
-    if result.get("schemaVersion") != SCHEMA_VERSION:
+    if not legacy_result and result.get("schemaVersion") != SCHEMA_VERSION:
         errors.append("unexpected phase-result schema")
     if result.get("suiteId") != SUITE_ID:
         errors.append("unexpected v5 suite ID")
@@ -1335,8 +1412,6 @@ def _verify_phase_result_core(
         errors.append("result phase differs from the expected phase")
     if result.get("registrationSHA256") != registration_sha256():
         errors.append("result registration digest is stale")
-    if result.get("implementationSHA256") != implementation_sha256():
-        errors.append("result implementation digest is stale")
     if result.get("configuration") != FROZEN_CONFIGURATION:
         errors.append("result configuration is not frozen")
     if result.get("configurationSHA256") != FROZEN_CONFIGURATION_SHA256:
@@ -1432,6 +1507,17 @@ def _verify_phase_result_core(
         errors.append("candidate record indices differ from registration")
     if [baseline.get("blockIndex") for baseline in baselines] != expected_indices:
         errors.append("baseline record indices differ from registration")
+    for field in (
+        "tokenIdsSHA256",
+        "canonicalCacheBF16SHA256",
+        "payloadSHA256",
+    ):
+        values = [record.get(field) for record in records]
+        if (
+            any(not isinstance(value, str) for value in values)
+            or len(values) != len(set(values))
+        ):
+            errors.append(f"candidate {field} values are not unique")
     expected_configuration_id = sha256_bytes(
         canonical_json_bytes(FROZEN_CONFIGURATION)
     )[:16]
@@ -1460,6 +1546,32 @@ def _verify_phase_result_core(
             or baseline.get("denseBF16Bytes") != 4_706_304
         ):
             errors.append(f"block {block_index} has an invalid fixed size")
+        try:
+            layers = baseline["layers"]
+            trajectory_shape = baseline["trajectoryShapePerLayer"]
+            if (
+                type(layers) is not int
+                or layers <= 0
+                or not isinstance(trajectory_shape, list)
+                or len(trajectory_shape) != 2
+                or any(
+                    type(value) is not int or value <= 0
+                    for value in trajectory_shape
+                )
+            ):
+                raise ValueError("invalid cache shape")
+            scalar_count = layers * trajectory_shape[0] * trajectory_shape[1]
+            expected_dense_bytes = scalar_count * 2
+            if (
+                baseline.get("denseBF16Bytes") != expected_dense_bytes
+                or record.get("denseBF16Bytes") != expected_dense_bytes
+            ):
+                errors.append(
+                    f"block {block_index} cache scalar count is inconsistent"
+                )
+        except (KeyError, TypeError, ValueError, OverflowError):
+            scalar_count = 0
+            errors.append(f"block {block_index} cache scalar count is invalid")
         if (
             type(agreement_count) is not int
             or agreement_count < 0
@@ -1493,15 +1605,36 @@ def _verify_phase_result_core(
             errors.append(
                 f"block {block_index} has invalid baseline NLL fields"
             )
+        native_agreement = baseline.get("nativeBF16Top1Agreement")
+        if (
+            type(native_agreement) not in {int, float}
+            or not math.isfinite(float(native_agreement))
+            or not 0.0 <= float(native_agreement) <= 1.0
+            or not _close(
+                float(native_agreement) * 128.0,
+                round(float(native_agreement) * 128.0),
+            )
+        ):
+            errors.append(
+                f"block {block_index} native BF16 top-1 agreement is not k/128"
+            )
         if (
             type(record.get("payloadBytes")) is not int
             or type(record.get("encodedFileBytes")) is not int
             or record["payloadBytes"] <= 0
-            or record["payloadBytes"] > record["encodedFileBytes"]
+            or record["encodedFileBytes"] < record["payloadBytes"] + (24 * 8)
         ):
             errors.append(
                 f"block {block_index} container byte accounting is invalid"
             )
+        if not legacy_result:
+            try:
+                validate_v5_container_manifest(record, FROZEN_CONFIGURATION)
+            except (IndexError, KeyError, TypeError, ValueError) as error:
+                errors.append(
+                    f"block {block_index} container byte accounting is "
+                    f"invalid: {error}"
+                )
         try:
             expected_delta = (
                 float(record["candidateNLLNatPerToken"])
@@ -1521,10 +1654,97 @@ def _verify_phase_result_core(
                 )
         except (KeyError, TypeError, ValueError, OverflowError):
             errors.append(f"block {block_index} has invalid NLL fields")
+        try:
+            reference_sum_squares = float(
+                record["cacheReferenceSumSquares"]
+            )
+            candidate_sum_squares = float(
+                record["cacheCandidateSumSquares"]
+            )
+            dot_product = float(record["cacheDotProduct"])
+            difference_sum_squares = float(
+                record["cacheDifferenceSumSquares"]
+            )
+            maximum_absolute_error = float(
+                record["cacheMaximumAbsoluteError"]
+            )
+            if (
+                not all(
+                    math.isfinite(value)
+                    for value in (
+                        reference_sum_squares,
+                        candidate_sum_squares,
+                        dot_product,
+                        difference_sum_squares,
+                        maximum_absolute_error,
+                    )
+                )
+                or min(
+                    reference_sum_squares,
+                    candidate_sum_squares,
+                    difference_sum_squares,
+                    maximum_absolute_error,
+                )
+                < 0.0
+            ):
+                raise ValueError("invalid cache accumulator")
+            cache_identity = (
+                reference_sum_squares
+                + candidate_sum_squares
+                - (2.0 * dot_product)
+            )
+            if (
+                not math.isfinite(cache_identity)
+                or not math.isclose(
+                    difference_sum_squares,
+                    cache_identity,
+                    rel_tol=1e-9,
+                    abs_tol=1e-6,
+                )
+            ):
+                errors.append(
+                    f"block {block_index} cache accumulators are inconsistent"
+                )
+            norm_product = math.sqrt(reference_sum_squares) * math.sqrt(
+                candidate_sum_squares
+            )
+            if not _less_than_or_close(abs(dot_product), norm_product):
+                errors.append(
+                    f"block {block_index} cache Cauchy-Schwarz bound is violated"
+                )
+            maximum_error_squared = maximum_absolute_error**2
+            maximum_error_sum_bound = scalar_count * maximum_error_squared
+            if (
+                scalar_count <= 0
+                or not math.isfinite(maximum_error_squared)
+                or not math.isfinite(maximum_error_sum_bound)
+                or not _less_than_or_close(
+                    maximum_error_squared,
+                    difference_sum_squares,
+                )
+                or not _less_than_or_close(
+                    difference_sum_squares,
+                    maximum_error_sum_bound,
+                )
+            ):
+                errors.append(
+                    f"block {block_index} cache maximum-error bounds are violated"
+                )
+        except (KeyError, TypeError, ValueError, OverflowError):
+            errors.append(
+                f"block {block_index} has invalid cache accumulators"
+            )
     try:
         recomputed_aggregate = aggregate_candidate_records(
             FROZEN_CONFIGURATION, records
         )
+        cache_cosine = recomputed_aggregate.get("cacheCosineSimilarity")
+        if (
+            type(cache_cosine) not in {int, float}
+            or not math.isfinite(float(cache_cosine))
+            or not -1.0 <= float(cache_cosine) <= 1.0
+        ):
+            errors.append("aggregate cache cosine is outside [-1, 1]")
         for key, value in recomputed_aggregate.items():
             if key not in aggregate or not _close(aggregate[key], value):
                 errors.append(f"aggregate field {key} is inconsistent")
@@ -1541,7 +1761,13 @@ def _verify_phase_result_core(
             errors.append("recorded gates are inconsistent")
         if result.get("pass") is not passed:
             errors.append("recorded phase verdict is inconsistent")
-    except (KeyError, TypeError, ValueError, statistics.StatisticsError) as error:
+    except (
+        KeyError,
+        OverflowError,
+        TypeError,
+        ValueError,
+        statistics.StatisticsError,
+    ) as error:
         errors.append(f"cannot recompute frozen metrics: {error}")
 
     digest_input = dict(result)
@@ -1696,11 +1922,8 @@ def _require_public_pretest_freeze(
             "selection execution commit has a different implementation"
         )
     relative_selection = SELECTION_PATH.relative_to(PROJECT_ROOT).as_posix()
-    committed_selection = subprocess.run(
-        ["git", "show", f"{PRETEST_TAG}:{relative_selection}"],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
+    committed_selection = _run_git_process(
+        ["show", f"{PRETEST_TAG}:{relative_selection}"]
     )
     if (
         committed_selection.returncode
@@ -1711,11 +1934,8 @@ def _require_public_pretest_freeze(
     relative_attempt = selection_attempt_path.relative_to(
         PROJECT_ROOT
     ).as_posix()
-    committed_attempt = subprocess.run(
-        ["git", "show", f"{PRETEST_TAG}:{relative_attempt}"],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
+    committed_attempt = _run_git_process(
+        ["show", f"{PRETEST_TAG}:{relative_attempt}"]
     )
     if (
         committed_attempt.returncode
@@ -2026,7 +2246,9 @@ def run_phase(phase_name: str, local_files_only: bool) -> dict[str, Any]:
         "gatesDefinition": GATES,
         "environment": {
             "device": device,
-            "hfHome": os.environ.get("HF_HOME"),
+            "hfHome": (
+                "configured" if os.environ.get("HF_HOME") else None
+            ),
             "huggingfaceHub": huggingface_hub.__version__,
             "attentionImplementation": model.config._attn_implementation,
             "localPythonBytecode": "absent",

@@ -24,6 +24,7 @@ from RealLLM.benchmark_real_llm import (  # noqa: E402
     DATASET_REPOSITORY,
     DATASET_REVISION,
     LAYER_SENSITIVITY_ORDER,
+    MODEL_ASSET_FILES,
     MODEL_REPOSITORY,
     MODEL_REVISION,
     MODEL_WEIGHTS_BYTES,
@@ -31,6 +32,7 @@ from RealLLM.benchmark_real_llm import (  # noqa: E402
     THRESHOLDS,
     _aggregate_phase,
     _evaluate_block,
+    _exclusive_write_bytes,
     _resolve_device,
     _token_blocks,
     canonical_json_bytes,
@@ -293,6 +295,21 @@ def _download_validation_only(local_files_only: bool) -> dict[str, Path]:
         raise RuntimeError("pinned model weight size mismatch")
     if sha256_file(model_path) != MODEL_WEIGHTS_SHA256:
         raise RuntimeError("pinned model weight digest mismatch")
+    for filename, asset in MODEL_ASSET_FILES.items():
+        asset_path = Path(
+            hf_hub_download(
+                MODEL_REPOSITORY,
+                revision=MODEL_REVISION,
+                filename=filename,
+                local_files_only=local_files_only,
+            )
+        )
+        if asset_path.stat().st_size != asset["bytes"]:
+            raise RuntimeError(f"pinned model asset size mismatch: {filename}")
+        if sha256_file(asset_path) != asset["sha256"]:
+            raise RuntimeError(
+                f"pinned model asset digest mismatch: {filename}"
+            )
 
     specification = DATASET_FILES["validation"]
     validation_path = Path(
@@ -308,7 +325,11 @@ def _download_validation_only(local_files_only: bool) -> dict[str, Path]:
         raise RuntimeError("pinned validation dataset size mismatch")
     if sha256_file(validation_path) != specification["sha256"]:
         raise RuntimeError("pinned validation dataset digest mismatch")
-    return {"modelWeights": model_path, "validation": validation_path}
+    return {
+        "modelSnapshot": model_path.parent,
+        "modelWeights": model_path,
+        "validation": validation_path,
+    }
 
 
 def _validate_grid() -> None:
@@ -366,14 +387,14 @@ def run_validation_development(
     inputs = _download_validation_only(local_files_only)
 
     tokenizer = AutoTokenizer.from_pretrained(
-        MODEL_REPOSITORY,
-        revision=MODEL_REVISION,
-        local_files_only=local_files_only,
+        inputs["modelSnapshot"],
+        local_files_only=True,
+        trust_remote_code=False,
     )
     model = AutoModelForCausalLM.from_pretrained(
-        MODEL_REPOSITORY,
-        revision=MODEL_REVISION,
-        local_files_only=local_files_only,
+        inputs["modelSnapshot"],
+        local_files_only=True,
+        trust_remote_code=False,
         dtype=torch.float32,
         attn_implementation="eager",
     ).to(device)
@@ -415,7 +436,7 @@ def run_validation_development(
         selected = None
         selection_error = str(error)
     result: dict[str, Any] = {
-        "schemaVersion": "corelm-voidtoken-v5-validation-development-v1",
+        "schemaVersion": "corelm-voidtoken-v5-validation-development-v2",
         "status": "validation-only-development",
         "createdAt": datetime.now(timezone.utc)
         .replace(microsecond=0)
@@ -448,7 +469,9 @@ def run_validation_development(
             "transformers": transformers.__version__,
             "numpy": np.__version__,
             "pyarrow": pyarrow.__version__,
-            "hfHome": os.environ.get("HF_HOME"),
+            "hfHome": (
+                "configured" if os.environ.get("HF_HOME") else None
+            ),
             "seed": seed,
         },
         "selectedTokenIdsSHA256": token_digest,
@@ -459,8 +482,8 @@ def run_validation_development(
         "selectionError": selection_error,
     }
     result["resultSHA256"] = sha256_bytes(canonical_json_bytes(result))
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(
+    _exclusive_write_bytes(
+        output_path,
         json.dumps(
             result,
             sort_keys=True,

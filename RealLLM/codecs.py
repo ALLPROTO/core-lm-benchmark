@@ -31,6 +31,9 @@ _CONTAINER_HEADER = struct.Struct("<4sI")
 _SCALE_DTYPE = np.dtype("<f2")
 _FLOAT32_LE_DTYPE = np.dtype("<f4")
 _SHA256_HEX_LENGTH = 64
+MAX_CONTAINER_BYTES = 256 * 1024 * 1024
+MAX_METADATA_BYTES = 1024 * 1024
+MAX_DECODED_MATRIX_ELEMENTS = 8 * 1024 * 1024
 
 
 def _bytes_like(value: bytes | bytearray | memoryview, name: str) -> bytes:
@@ -154,13 +157,16 @@ def _build_container(metadata: dict[str, Any], payload: bytes) -> bytes:
         raise ValueError("metadata must be an object")
     raw_payload = _bytes_like(payload, "payload")
     metadata_bytes = canonical_json_bytes(metadata)
-    if len(metadata_bytes) > 0xFFFFFFFF:
-        raise ValueError("metadata is too large for the container")
-    return (
+    if len(metadata_bytes) > MAX_METADATA_BYTES:
+        raise ValueError("metadata exceeds the container resource limit")
+    container = (
         _CONTAINER_HEADER.pack(PACKED_GROUP_QUANT_MAGIC, len(metadata_bytes))
         + metadata_bytes
         + raw_payload
     )
+    if len(container) > MAX_CONTAINER_BYTES:
+        raise ValueError("container exceeds the resource limit")
+    return container
 
 
 def _parse_container(
@@ -169,10 +175,14 @@ def _parse_container(
     raw = _bytes_like(container, "container")
     if len(raw) < _CONTAINER_HEADER.size:
         raise ValueError("truncated packed-group container header")
+    if len(raw) > MAX_CONTAINER_BYTES:
+        raise ValueError("packed-group container exceeds the resource limit")
 
     magic, metadata_length = _CONTAINER_HEADER.unpack_from(raw)
     if magic != PACKED_GROUP_QUANT_MAGIC:
         raise ValueError("invalid packed-group container magic")
+    if metadata_length > MAX_METADATA_BYTES:
+        raise ValueError("packed-group metadata exceeds the resource limit")
 
     metadata_start = _CONTAINER_HEADER.size
     metadata_end = metadata_start + metadata_length
@@ -267,6 +277,8 @@ class PackedGroupQuantBackend:
         rows, columns = array.shape
         if rows <= 0 or columns <= 0:
             raise ValueError("matrix dimensions must be positive")
+        if rows * columns > MAX_DECODED_MATRIX_ELEMENTS:
+            raise ValueError("matrix exceeds the codec resource limit")
         if not np.all(np.isfinite(array)):
             raise ValueError("matrix contains non-finite values")
         if type(bits) is not int or bits not in PACKED_GROUP_QUANT_BITS:
@@ -282,6 +294,8 @@ class PackedGroupQuantBackend:
     ) -> tuple[int, int, int, int, int, int, int, int]:
         if not isinstance(metadata, dict):
             raise ValueError("metadata must be an object")
+        if len(canonical_json_bytes(metadata)) > MAX_METADATA_BYTES:
+            raise ValueError("metadata exceeds the codec resource limit")
         if metadata.get("format") != PACKED_GROUP_QUANT_FORMAT:
             raise ValueError("unsupported packed-group quantization format")
         if metadata.get("dtype") != "float32":
@@ -308,6 +322,8 @@ class PackedGroupQuantBackend:
         ):
             raise ValueError("shape must contain two positive integers")
         rows, columns = shape
+        if rows * columns > MAX_DECODED_MATRIX_ELEMENTS:
+            raise ValueError("shape exceeds the decoded-matrix resource limit")
 
         bits = metadata.get("bits")
         if type(bits) is not int or bits not in PACKED_GROUP_QUANT_BITS:
@@ -327,6 +343,8 @@ class PackedGroupQuantBackend:
         if scale_compression == "none" and stored_scale_bytes != scale_bytes:
             raise ValueError("uncompressed scale length mismatch")
         payload_bytes = stored_scale_bytes + packed_bytes
+        if payload_bytes > MAX_CONTAINER_BYTES:
+            raise ValueError("payload exceeds the codec resource limit")
 
         expected_integers = {
             "groupsPerRow": groups_per_row,
@@ -471,6 +489,8 @@ class PackedGroupQuantBackend:
         require_reconstruction_digest: bool,
     ) -> np.ndarray:
         raw = _bytes_like(payload, "payload")
+        if len(raw) > MAX_CONTAINER_BYTES:
+            raise ValueError("payload exceeds the codec resource limit")
 
         if require_reconstruction_digest:
             (
@@ -512,12 +532,27 @@ class PackedGroupQuantBackend:
         else:
             decompressor = zlib.decompressobj()
             try:
-                scale_payload = decompressor.decompress(stored_scale_payload)
-                scale_payload += decompressor.flush()
+                scale_payload = decompressor.decompress(
+                    stored_scale_payload, scale_bytes + 1
+                )
+                if (
+                    len(scale_payload) > scale_bytes
+                    or decompressor.unconsumed_tail
+                ):
+                    raise ValueError(
+                        "decoded packed-group scales exceed their bound"
+                    )
+                scale_payload += decompressor.flush(
+                    scale_bytes + 1 - len(scale_payload)
+                )
             except zlib.error as error:
                 raise ValueError(
                     "invalid compressed packed-group scales"
                 ) from error
+            if len(scale_payload) > scale_bytes:
+                raise ValueError(
+                    "decoded packed-group scales exceed their bound"
+                )
             if (
                 not decompressor.eof
                 or decompressor.unused_data

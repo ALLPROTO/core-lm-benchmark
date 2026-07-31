@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import sys
 import tarfile
@@ -30,6 +31,35 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
+    def test_publication_release_identifier_is_synchronized(self):
+        citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
+        match = re.search(r'(?m)^version: "([^"]+)"$', citation)
+        self.assertIsNotNone(match)
+        release_tag = match.group(1)
+        self.assertRegex(release_tag, r"^voidtoken-v5-paper-v[1-9][0-9]*$")
+
+        for relative in (
+            "publication/README.md",
+            "publication/reproducibility/README.md",
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn(f"RELEASE_TAG={release_tag}", text)
+
+        manuscript = (
+            ROOT / "publication/arxiv-v5/main.tex"
+        ).read_text(encoding="utf-8")
+        self.assertIn(rf"\path{{{release_tag}}}", manuscript)
+
+        sbom = json.loads(
+            (
+                ROOT / "security/direct-dependencies.cdx.json"
+            ).read_text(encoding="utf-8")
+        )
+        component = sbom["metadata"]["component"]
+        self.assertEqual(component["version"], release_tag)
+        self.assertTrue(component["purl"].endswith(f"@{release_tag}"))
+        self.assertEqual(sbom["dependencies"][0]["ref"], component["bom-ref"])
+
     def _phase_paths(self, root: Path) -> dict[str, Path]:
         return {
             "selectionAttempt": root / "selection.attempt.json",
@@ -40,6 +70,14 @@ class PublicationArchiveTests(unittest.TestCase):
 
     def _write_json(self, path: Path, value: dict) -> None:
         path.write_text(json.dumps(value) + "\n", encoding="utf-8")
+
+    def test_submission_metadata_discloses_historical_accounting_limit(self):
+        metadata = (
+            ROOT / "publication/arxiv-v5/submission_metadata.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("73,346,513 runner-recorded bytes", metadata)
+        self.assertIn("not independently reconstructible", metadata)
+        self.assertNotIn("73,346,513 bytes (2.05329x", metadata)
 
     def test_v5_evidence_state_accepts_every_terminal_or_pending_state(self):
         cases = [
@@ -222,6 +260,21 @@ class PublicationArchiveTests(unittest.TestCase):
                 names = set(bundle.getnames())
                 prefix = "corelm_reproducibility"
                 self.assertIn(f"{prefix}/PROVENANCE.json", names)
+                provenance_member = bundle.extractfile(
+                    f"{prefix}/PROVENANCE.json"
+                )
+                self.assertIsNotNone(provenance_member)
+                provenance = json.load(provenance_member)
+                evidence_paths = {
+                    entry["path"] for entry in provenance["evidenceFiles"]
+                }
+                self.assertTrue(
+                    {
+                        "app-real-llm-evidence/validation-064-071.json",
+                        "app-real-llm-evidence/app-run-receipt.json",
+                        "app-real-llm-evidence/SHA256SUMS",
+                    }.issubset(evidence_paths)
+                )
                 self.assertIn(
                     f"{prefix}/real-llm-v5-development/manifest.json",
                     names,
@@ -234,6 +287,31 @@ class PublicationArchiveTests(unittest.TestCase):
                     f"{prefix}/publication/arxiv-v5/generate_figures.py",
                     names,
                 )
+                for relative in (
+                    "build_local_app.sh",
+                    "run_local_app_proof.sh",
+                    "requirements.lock",
+                    "RealLLM/requirements.lock",
+                    "RealLLM/prepare_app_assets.py",
+                    "SECURITY.md",
+                    "App/Sources/PythonRuntimeManifest.swift",
+                    "App/Sources/SecurityValidation.swift",
+                    "TestsSwift/SecurityValidationTests.swift",
+                    "security/generate_python_runtime_manifest.py",
+                    "security/manage_local_runtime.py",
+                    "security/verify_app_run_evidence.py",
+                    "security/verify_local_app_run.py",
+                    "security/verify_locked_environment.py",
+                    "security/verify_supply_chain.py",
+                    "security/verify_app_bundle.sh",
+                    "Tests/test_swift_security_gate.py",
+                    "app-real-llm-evidence/README.md",
+                    "app-real-llm-evidence/SHA256SUMS",
+                    "app-real-llm-evidence/app-run-receipt.json",
+                    "app-real-llm-evidence/validation-064-071.json",
+                    "publication/arxiv-v5/submission_metadata.md",
+                ):
+                    self.assertIn(f"{prefix}/{relative}", names)
                 for relative in archives.V5_ARXIV_SOURCE_FILES:
                     self.assertIn(
                         f"{prefix}/publication/arxiv-v5/{relative}",
@@ -257,9 +335,14 @@ class PublicationArchiveTests(unittest.TestCase):
             with tarfile.open(archive, "r:gz") as bundle:
                 bundle.extractall(extract_root, filter="data")
             extracted = extract_root / "corelm_reproducibility"
+            child_cache = root / "child-pycache"
+            child_cache.mkdir()
             completed = subprocess.run(
                 [
                     sys.executable,
+                    "-B",
+                    "-X",
+                    f"pycache_prefix={child_cache}",
                     "-m",
                     "unittest",
                     (

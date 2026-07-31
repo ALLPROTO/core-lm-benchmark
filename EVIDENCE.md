@@ -13,6 +13,29 @@
 - deterministic replay = true;
 - runtime error отсутствует.
 
+Отдельно выполнен реальный путь через этот же собранный `.app`, а не только
+синтетический smoke-run. Приложение запустило самостоятельный worker PID,
+загрузило pinned `Qwen/Qwen2.5-0.5B` revision offline на MPS и проверило
+возвращённый документ в Swift:
+
+| Blocks | Container entries | Compression | ΔNLL | Top-1 | Scientific | Swift | Independent Python |
+|---:|---:|---:|---:|---:|---|---|---|
+| 8 | 192 | 2.052384× | −0.00000849 | 99.5117% | PASS | PASS | PASS |
+
+Обезличенные result/receipt и byte-level checksums находятся в
+`app-real-llm-evidence/`. Receipt связывает SHA-256 приложения, внешнего
+runtime-манифеста, Python executable, runner resource и результата; абсолютные
+пользовательские пути из него удалены. Команда
+`python security/verify_app_run_evidence.py` проверяет неизменный исторический
+result/receipt. Новый пользователь собирает другой бинарник; команда
+`python security/verify_local_app_run.py --app dist/CoreLMBenchmark.app`
+проверяет согласованность его ручного запуска, а `./run_local_app_proof.sh`
+добавляет случайный challenge в receipt и тем самым проверяет свежесть
+автоматизированного прогона. SHA-256 нового бинарника не должен совпадать со
+старым receipt. Это post-development integration evidence на
+validation-блоках 64–71, а не новый preregistered holdout и не расширение
+исторического prospective claim.
+
 ## Полный suite
 
 Выполнено 115 реальных прогонов:
@@ -146,6 +169,15 @@ result SHA-256:
 `real-llm-v5-results/`; их file SHA-256 равны
 `7f6bc0867db1e3d633c3ecb68aa968be94c73c818b2a5163793495cfb63c17a0` и
 `499c067d6ccff4bf1ac4a9f98436a52fa6c414ccced495719532347b89b46167`.
+Обе уже исчерпанные фазы записаны в historical v1 format, где нет
+24-слойного `containerManifest`. Поэтому их container totals и compression
+gate защищены неизменяемыми result/file SHA-256, execution commits и Git tags,
+но являются **runner-recorded, а не независимо восстановленными по слоям**.
+Перезапуск или переписывание one-shot артефактов нарушило бы протокол.
+Verifier допускает v1 только по точному allowlist всех исторических digests и
+provenance; любая мутация отвергается. Метрики качества, агрегаты, confidence
+bounds и gate arithmetic всё ещё независимо пересчитываются. Полностью
+независимый per-layer compression claim требует отдельного будущего v2 suite.
 Команда
 `python RealLLM/verify_voidtoken_v5_evidence.py --require-git-provenance`
 проверяет обе фазы, marker/result links, Git tags, исходные digests, метрики,
@@ -158,6 +190,8 @@ confidence bounds, gates и финальный verdict.
 датасета. Это доказывает целостность и арифметическую воспроизводимость
 записанных артефактов, но не превращает адаптивную разработку в prospective
 evidence. Финальный PASS ограничен закреплёнными Qwen revision, WikiText-2
-окнами, MPS runtime, teacher-forced replay и полным container byte accounting;
-он не является универсальным утверждением о других моделях или production
-latency.
+окнами, MPS runtime и teacher-forced replay. Исторический compression ratio
+сохраняется как integrity-protected runner-recorded measurement с описанным
+выше ограничением, а не как независимо восстановленный container byte
+accounting; это также не универсальное утверждение о других моделях или
+production latency.

@@ -1,5 +1,6 @@
 import copy
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -79,6 +80,34 @@ class VoidTokenV5DevelopmentEvidenceTests(unittest.TestCase):
         )
         self.assertTrue(any("valid range" in error for error in errors))
 
+    def test_shard_verifier_rejects_impossible_cache_geometry(self):
+        artifact = development.DEVELOPMENT_ARTIFACTS[0]
+        shard = development._load_json_object(ROOT / artifact["path"])
+        malformed = copy.deepcopy(shard)
+        record = malformed["records"][0]
+        baseline = malformed["baselines"][0]
+        baseline["nativeBF16Top1Agreement"] = 0.5 + (1 / 256)
+        baseline["denseBF16Bytes"] -= 2
+        record["denseBF16Bytes"] -= 2
+        record["cacheReferenceSumSquares"] = 1.0
+        record["cacheCandidateSumSquares"] = 1.0
+        record["cacheDotProduct"] = -2.0
+        record["cacheDifferenceSumSquares"] = 6.0
+        record["cacheMaximumAbsoluteError"] = 0.0
+        errors, _, _ = development._verify_shard(malformed, artifact)
+        self.assertTrue(
+            any("native BF16 top-1 agreement is not k/128" in error for error in errors)
+        )
+        self.assertTrue(
+            any("cache scalar count is inconsistent" in error for error in errors)
+        )
+        self.assertTrue(
+            any("cache Cauchy-Schwarz bound is violated" in error for error in errors)
+        )
+        self.assertTrue(
+            any("cache maximum-error bounds are violated" in error for error in errors)
+        )
+
     def test_malformed_shard_returns_errors_instead_of_traceback(self):
         artifact = development.DEVELOPMENT_ARTIFACTS[0]
         shard = development._load_json_object(
@@ -91,6 +120,27 @@ class VoidTokenV5DevelopmentEvidenceTests(unittest.TestCase):
         )
         self.assertTrue(errors)
 
+    def test_v2_shard_redacts_hf_home_while_legacy_remains_pinned(self):
+        artifact = development.DEVELOPMENT_ARTIFACTS[0]
+        shard = development._load_json_object(ROOT / artifact["path"])
+        v2 = copy.deepcopy(shard)
+        v2["schemaVersion"] = (
+            "corelm-voidtoken-v5-validation-development-v2"
+        )
+        v2["environment"]["hfHome"] = "configured"
+        errors, _, _ = development._verify_shard(v2, artifact)
+        self.assertFalse(
+            any("development environment is inconsistent" in error for error in errors)
+        )
+
+        v2["environment"]["hfHome"] = development.EXPECTED_ENVIRONMENT[
+            "hfHome"
+        ]
+        errors, _, _ = development._verify_shard(v2, artifact)
+        self.assertTrue(
+            any("development environment is inconsistent" in error for error in errors)
+        )
+
     def test_archive_without_git_metadata_uses_artifact_mode_without_git(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "corelm_reproducibility"
@@ -98,7 +148,7 @@ class VoidTokenV5DevelopmentEvidenceTests(unittest.TestCase):
             with (
                 patch.object(evidence, "PROJECT_ROOT", root),
                 patch.dict(os.environ, {}, clear=True),
-                patch.object(evidence.subprocess, "run") as git,
+                patch.object(evidence, "_run_git_process") as git,
             ):
                 self.assertEqual(
                     evidence.detect_verification_mode(), "artifact"
@@ -117,14 +167,14 @@ class VoidTokenV5DevelopmentEvidenceTests(unittest.TestCase):
             (parent / ".git").mkdir()
             root = parent / "corelm_reproducibility"
             root.mkdir()
-            failed = evidence.subprocess.CompletedProcess(
+            failed = subprocess.CompletedProcess(
                 ["git"], 128, stdout="", stderr="broken metadata"
             )
             with (
                 patch.object(evidence, "PROJECT_ROOT", root),
                 patch.dict(os.environ, {}, clear=True),
                 patch.object(
-                    evidence.subprocess, "run", return_value=failed
+                    evidence, "_run_git_process", return_value=failed
                 ),
             ):
                 with self.assertRaisesRegex(
@@ -180,7 +230,7 @@ class VoidTokenV5DevelopmentEvidenceTests(unittest.TestCase):
             evidence,
             "_verify_current_head_integrity",
             return_value=["simulated HEAD mismatch"],
-        ):
+        ), patch.object(evidence, "_path_present", return_value=False):
             errors, status = evidence.verify_available_evidence(
                 git_provenance=True
             )
@@ -195,6 +245,7 @@ class VoidTokenV5DevelopmentEvidenceTests(unittest.TestCase):
             patch.object(
                 evidence, "implementation_sha256_at_commit"
             ) as implementation_at_commit,
+            patch.object(evidence, "_path_present", return_value=False),
         ):
             errors, status = evidence.verify_available_evidence(
                 git_provenance=False
@@ -203,6 +254,61 @@ class VoidTokenV5DevelopmentEvidenceTests(unittest.TestCase):
         self.assertIn("registration-only", status)
         registration_at_commit.assert_not_called()
         implementation_at_commit.assert_not_called()
+
+    def test_exact_historical_v1_artifacts_pass_with_accounting_limitation(self):
+        errors, status = evidence.verify_available_evidence(
+            git_provenance=False
+        )
+        self.assertEqual(errors, [])
+        self.assertIn("LEGACY_ACCOUNTING_LIMITATION", status)
+        self.assertIn("cannot be independently reconstructed", status)
+
+    def test_mutated_historical_v1_artifact_fails_registered_digests(self):
+        selection = evidence._load_object(evidence.SELECTION_PATH)
+        selection["records"][0]["encodedFileBytes"] = (
+            selection["records"][0]["payloadBytes"]
+        )
+        digest_input = dict(selection)
+        digest_input.pop("resultSHA256")
+        selection["resultSHA256"] = evidence.hashlib.sha256(
+            development.independent_canonical_json_bytes(digest_input)
+        ).hexdigest()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            forged_path = root / "selection.json"
+            forged_path.write_text(
+                development.json.dumps(
+                    selection,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            with (
+                patch.object(evidence, "SELECTION_PATH", forged_path),
+                patch.object(evidence, "HOLDOUT_PATH", root / "holdout.json"),
+                patch.object(
+                    evidence,
+                    "HOLDOUT_ATTEMPT_PATH",
+                    root / "holdout.attempt.json",
+                ),
+            ):
+                errors, _ = evidence.verify_available_evidence(
+                    git_provenance=False
+                )
+        self.assertTrue(
+            any(
+                "immutable registered historical result" in error
+                for error in errors
+            )
+        )
+        self.assertTrue(
+            any(
+                "immutable registered historical artifact" in error
+                for error in errors
+            )
+        )
 
     def test_missing_selection_marker_returns_errors_without_traceback(self):
         with tempfile.TemporaryDirectory() as temporary:

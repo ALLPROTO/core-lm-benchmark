@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -27,6 +28,8 @@ REGISTERED_RUN_COUNT = 115
 FLOAT_RELATIVE_TOLERANCE = 1e-4
 FLOAT_ABSOLUTE_TOLERANCE = 1e-5
 MAX_REPORTED_MISMATCHES = 100
+MAX_JSON_BYTES = 4 * 1024 * 1024
+RUN_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
 
 VOLATILE_RESULT_FIELDS = {"createdAt", "coreRuntimeNanoseconds"}
 VOLATILE_METHOD_FIELDS = {
@@ -38,6 +41,8 @@ VOLATILE_METHOD_FIELDS = {
 
 
 def load_json(path: Path) -> dict[str, Any]:
+    if path.stat().st_size > MAX_JSON_BYTES:
+        raise ValueError(f"{path} exceeds the evidence resource limit")
     with path.open(encoding="utf-8") as handle:
         value = json.load(handle)
     if not isinstance(value, dict):
@@ -157,6 +162,13 @@ def verify_evidence(
     relative_tolerance: float = FLOAT_RELATIVE_TOLERANCE,
     absolute_tolerance: float = FLOAT_ABSOLUTE_TOLERANCE,
 ) -> list[str]:
+    if (
+        not math.isfinite(relative_tolerance)
+        or not 0.0 <= relative_tolerance <= 1e-2
+        or not math.isfinite(absolute_tolerance)
+        or not 0.0 <= absolute_tolerance <= 1e-3
+    ):
+        raise ValueError("evidence tolerances are outside the safe verifier range")
     registered_aggregate_path = registered_directory / "aggregate.json"
     registered_aggregate = load_json(registered_aggregate_path)
     configurations = suite_configurations(full=True)
@@ -165,6 +177,15 @@ def verify_evidence(
     expected_run_ids = registered_aggregate.get("runIds")
     if not isinstance(expected_run_ids, list):
         return ["aggregate.runIds: expected a list"]
+    if any(
+        not isinstance(run_id, str)
+        or RUN_ID_PATTERN.fullmatch(run_id) is None
+        for run_id in expected_run_ids
+    ):
+        return [
+            "aggregate.runIds: every run ID must be exactly 16 lowercase "
+            "hexadecimal characters"
+        ]
 
     if len(configurations) != REGISTERED_RUN_COUNT:
         differences.append(
@@ -257,7 +278,15 @@ def main() -> int:
             relative_tolerance=arguments.relative_tolerance,
             absolute_tolerance=arguments.absolute_tolerance,
         )
-    except (OSError, ValueError, json.JSONDecodeError) as error:
+    except (
+        AttributeError,
+        KeyError,
+        OSError,
+        OverflowError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+    ) as error:
         print(f"EVIDENCE VERIFICATION FAILED: {error}")
         return 1
 

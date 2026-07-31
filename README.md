@@ -68,10 +68,16 @@ later prospective holdout on test blocks 384–415.
 | Selection | one-shot acceptance | 2.054320× | +0.000573 | 99.4141% | 99.1762% | 99.1827% | **PASS** |
 | Holdout | prospective test | 2.053291× | −0.000061 | 99.3896% | 99.2472% | 99.1543% | **PASS** |
 
-The holdout compressed 150,601,728 canonical BF16 prefill-cache bytes to
-73,346,513 complete-container bytes (51.30% fewer bytes) over 4,096
-teacher-forced predictions. All seven registered gates passed, including the
-one-sided block ΔNLL upper bound and both top-1 lower bounds.
+The historical v1 holdout runner recorded 150,601,728 canonical BF16
+prefill-cache bytes and 73,346,513 complete-container bytes (51.30% fewer)
+over 4,096 teacher-forced predictions. All seven registered gates passed,
+including the one-sided block ΔNLL upper bound and both top-1 lower bounds.
+Because the consumed v1 artifacts did not retain per-layer container
+manifests, the compression totals are integrity-protected by exact
+result/file/Git digests but are not independently reconstructible. The
+verifier admits only the byte-identical historical artifacts; current v2 runs
+require exact 24-layer manifests. See the protocol limitation before treating
+the recorded ratio as independently reproduced.
 
 The public chronology is bound by
 `voidtoken-v5-selection-protocol-v1`,
@@ -93,12 +99,14 @@ Requirements:
 - Python 3.12 (the registered evidence uses 3.12.13)
 - NumPy 2.3.5
 - ReportLab 4.4.9 for rebuilding the paper figures
-- macOS 14 and Swift 5.9 or newer for the native application
+- Apple Silicon and macOS 14 or newer for the real-Qwen application run
+- Swift 5.9 or newer to build the app; Swift 6 is used by the full Swift
+  security-test gate
 
 Run the lightweight implementation tests:
 
 ```sh
-python3 -m pip install -r requirements.txt
+python3 -m pip install --require-hashes -r requirements.lock
 PYTHON_BIN=python3 ./run_tests.sh
 ```
 
@@ -144,10 +152,10 @@ used by the paper. Only those JSON and Markdown records are committed.
 Verify the checked-in real-LLM result without downloading model weights:
 
 ```sh
-python -m pip install numpy==2.5.1 jsonschema==4.25.1
 python RealLLM/verify_real_llm_evidence.py
 python RealLLM/verify_voidtoken_v5_development.py
 python RealLLM/verify_voidtoken_v5_evidence.py --require-git-provenance
+python security/verify_app_run_evidence.py
 ```
 
 The last command requires a full clone with tags. In the extracted
@@ -155,22 +163,97 @@ reproducibility tar, omit `--require-git-provenance`; the verifier then reports
 artifact self-consistency without claiming Git-tag or public-timestamp
 provenance.
 
-To repeat the heavy model run, create a separate environment from
-`RealLLM/requirements.txt`, set `HF_HOME` if desired, and run:
+To repeat the heavy model run, create a separate environment from the
+hash-complete `RealLLM/requirements.lock`, set `HF_HOME` if desired, and run:
 
 ```sh
+python3.12 -m pip install --require-hashes -r RealLLM/requirements.lock
 PYTHON_BIN=python ./run_real_llm_benchmark.sh --device mps
 ```
 
 ## Native macOS application
 
+No Apple Developer Program account, paid certificate, Developer ID identity,
+or notarization is required for this verification path. The user compiles the
+source on their own Apple-Silicon Mac and the build receives a local ad-hoc
+signature. Install Apple's free Command Line Tools (or Xcode), provide any
+owner-controlled Python 3.12 installation, keep at least 6 GB free, then run:
+
 ```sh
-./package_app.sh
+./build_local_app.sh
 open dist/CoreLMBenchmark.app
 ```
 
+If Python is not named `python3.12`, pass its absolute executable:
+
+```sh
+CORELM_BOOTSTRAP_PYTHON=/absolute/path/to/python3.12 ./build_local_app.sh
+```
+
+The build command installs the hash-locked pip and real-LLM dependency
+closures into a dedicated venv, runs `pip check`, downloads about 1.0 GB of
+the exact pinned Qwen and WikiText validation assets, verifies every registered
+size and SHA-256, proves that those inputs can be resolved offline, packages
+the app, verifies its resources and ad-hoc signature, and performs a
+synthetic app smoke test. A changed or upgraded Python runtime requires
+rebuilding the path-specific app.
+
 The application invokes the same Python measurement core, reads real JSON
-results, and does not synthesize dashboard values.
+results, and does not synthesize dashboard values. In the **Real LLM** tab,
+leave the default validation blocks 64–71 and click **Run Real Qwen**.
+Packaging seals a deterministic manifest of the loadable external Python base
+prefix and venv into the signed bundle; the app hashes every listed file and
+rejects unlisted additions before launch. Volatile `__pycache__` trees are
+bypassed with a private empty `-X pycache_prefix`. This makes the local build
+runtime-authenticated and path-specific. The project intentionally publishes
+source and reproducibility archives rather than asking users to trust a
+prebuilt macOS binary.
+
+For a completely automated build, Python and Swift regression gates, visible
+app launch, real eight-block Qwen run, and independent verification, use:
+
+```sh
+./run_local_app_proof.sh
+```
+
+This proof command deliberately creates a new hash-locked runtime (roughly
+1 GB plus caches), prints its path, and retains it for audit. Its random
+challenge nonce is included in the app receipt, so this is the command that
+supports a freshness claim.
+
+After a manual app run, independently verify the newest complete result:
+
+```sh
+"$HOME/.cache/corelm-real-llm-app-runtime-v1/bin/python" \
+  security/verify_local_app_run.py \
+  --app dist/CoreLMBenchmark.app
+```
+
+Without the challenge supplied by `run_local_app_proof.sh`, this manual command
+is a consistency check, not proof that the run is new. The live runner
+serializes and fresh-parses each raw container before writing the result. The
+independent verifier then reconstructs all 192 per-layer lengths and totals
+from the retained manifests, recomputes block and aggregate metrics, gates,
+and the canonical result digest, and binds the receipt to the exact locally
+built executable, runtime manifest, Python executable, and bundled runner
+source. Raw container bytes are not retained in the result, so the offline
+verifier cannot parse those bytes again. It does not require a new executable
+or timing-dependent result file to be byte-identical to the historical
+author's build.
+
+The checked-in
+[`app-real-llm-evidence/`](app-real-llm-evidence/README.md) directory records
+an actual `CoreLMBenchmark.app` run on the pinned Qwen model: 8 validation
+blocks, 192 exact per-layer container entries, `2.052384×` compression,
+delta NLL `-0.00000849`, top-1 agreement `99.5117%`, scientific `PASS`, Swift
+verification `PASS`, and independent Python verification `PASS`. It is a
+post-development integration test on blocks 64–71, not prospective holdout
+evidence. Verify that immutable historical evidence without claiming that a
+newly compiled executable is byte-identical to the author's old app:
+
+```sh
+python security/verify_app_run_evidence.py
+```
 
 ## Repository map
 
@@ -182,6 +265,7 @@ results, and does not synthesize dashboard values.
 - `real-llm-results/` — separate exploratory Qwen KV-cache pilot artifact
 - `real-llm-v5-development/` — exact adaptive v5 development shards and manifest
 - `real-llm-v5-results/` — frozen selection and holdout attempt/result artifacts
+- `app-real-llm-evidence/` — sanitized real-Qwen macOS application run and receipt
 - `publication/arxiv/` — historical VoidToken v3 paper source
 - `publication/arxiv-v5/` — prospective real-model VoidToken v5 paper source
 - `publication/corelm_voidtoken_v3.pdf` — visually inspected v3 paper

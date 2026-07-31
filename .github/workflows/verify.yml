@@ -7,20 +7,66 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  python-core:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  supply-chain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
           fetch-tags: true
-      - uses: actions/setup-python@v6
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
-      - run: python -m pip install -r requirements.txt
+          cache-dependency-path: |
+            .github/locks/pip-bootstrap.txt
+            .github/locks/core-linux-py312.txt
+      - name: Install hash-locked policy dependencies
+        run: |
+          python -m pip install --require-hashes -r .github/locks/pip-bootstrap.txt
+          python -m pip install --require-hashes -r .github/locks/core-linux-py312.txt
+          python -m pip check
+      - name: Verify workflow, dependency, and secret policy
+        run: python security/verify_supply_chain.py
+      - name: Verify direct-dependency SBOM is current
+        run: >-
+          python security/generate_direct_sbom.py
+          --check security/direct-dependencies.cdx.json
+      - name: Audit pinned dependencies with OSV
+        run: >-
+          python security/osv_direct_audit.py
+          .github/locks/pip-bootstrap.txt
+          requirements.lock
+          RealLLM/requirements.lock
+
+  python-core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            .github/locks/pip-bootstrap.txt
+            .github/locks/core-linux-py312.txt
+      - name: Install hash-locked dependencies
+        run: |
+          python -m pip install --require-hashes -r .github/locks/pip-bootstrap.txt
+          python -m pip install --require-hashes -r .github/locks/core-linux-py312.txt
+          python -m pip check
       - run: PYTHON_BIN=python ./run_tests.sh
       - name: Verify exploratory real-LLM pilot artifact
         run: python RealLLM/verify_real_llm_evidence.py
@@ -34,16 +80,130 @@ jobs:
         run: python publication/build_archives.py --verify-determinism
 
   macos-app:
-    runs-on: macos-14
-    timeout-minutes: 30
+    runs-on: macos-15
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
-      - run: python -m pip install -r requirements.txt
+          cache-dependency-path: |
+            .github/locks/pip-bootstrap.txt
+            .github/locks/core-macos-arm64-py312.txt
+            RealLLM/requirements.lock
+      - name: Install hash-locked dependencies
+        run: |
+          python -m pip install --require-hashes -r .github/locks/pip-bootstrap.txt
+          python -m pip install --require-hashes -r .github/locks/core-macos-arm64-py312.txt
+          python -m pip check
       - run: PYTHON_BIN=python ./run_tests.sh
       - name: Replay and verify registered evidence on macOS
         run: python BenchmarkCore/verify_evidence.py
-      - run: swift build -c release
+      - name: Run non-empty Swift security test gate
+        run: ./security/run_swift_security_tests.sh
+      - name: Build hash-locked external app runtime
+        run: |
+          /bin/mkdir -p "$HOME/.cache"
+          /bin/chmod 700 "$HOME/.cache"
+          app_runtime="$HOME/.cache/corelm-ci-app-runtime"
+          app_python="$app_runtime/bin/python"
+          python -m venv "$app_runtime"
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r .github/locks/pip-bootstrap.txt
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r RealLLM/requirements.lock
+          "$app_python" -I -B -m pip check
+
+          base_prefix=$(
+            "$app_python" -I -B -c 'import sys; print(sys.base_prefix)'
+          )
+          virtual_prefix=$(
+            "$app_python" -I -B -c 'import sys; print(sys.prefix)'
+          )
+          expected_base_prefix="/Library/Frameworks/Python.framework/Versions/3.12"
+          if [ "$base_prefix" != "$expected_base_prefix" ]; then
+            printf 'unexpected base Python prefix: %s\n' "$base_prefix" >&2
+            exit 1
+          fi
+          if [ "$virtual_prefix" != "$app_runtime" ]; then
+            printf 'unexpected virtual-environment prefix: %s\n' \
+              "$virtual_prefix" >&2
+            exit 1
+          fi
+          if [ ! -d "$base_prefix" ] || [ -L "$base_prefix" ]; then
+            printf 'unsafe base Python prefix: %s\n' "$base_prefix" >&2
+            exit 1
+          fi
+          if [ ! -d "$virtual_prefix" ] || [ -L "$virtual_prefix" ]; then
+            printf 'unsafe virtual-environment prefix: %s\n' \
+              "$virtual_prefix" >&2
+            exit 1
+          fi
+          if [ "$(/usr/bin/stat -f '%u' "$base_prefix")" -ne 0 ]; then
+            printf 'base Python prefix is not root-owned: %s\n' \
+              "$base_prefix" >&2
+            exit 1
+          fi
+          runner_uid=$(/usr/bin/id -u)
+          if [ "$(/usr/bin/stat -f '%u' "$virtual_prefix")" \
+              -ne "$runner_uid" ]; then
+            printf 'virtual-environment prefix has an unexpected owner: %s\n' \
+              "$virtual_prefix" >&2
+            exit 1
+          fi
+
+          # setup-python installs its non-relocatable macOS framework in
+          # /Library with writable group bits on both the version directory
+          # and its ancestors. Harden that exact root-owned chain after the
+          # prefix checks above so runtime validation remains fail-closed.
+          for trusted_directory in \
+            /Library \
+            /Library/Frameworks \
+            /Library/Frameworks/Python.framework \
+            /Library/Frameworks/Python.framework/Versions
+          do
+            if [ ! -d "$trusted_directory" ] \
+                || [ -L "$trusted_directory" ] \
+                || [ "$(/usr/bin/stat -f '%u' "$trusted_directory")" -ne 0 ]
+            then
+              printf 'unsafe base Python ancestor: %s\n' \
+                "$trusted_directory" >&2
+              exit 1
+            fi
+            sudo /bin/chmod go-w "$trusted_directory"
+          done
+          sudo /bin/chmod -RP go-w "$base_prefix"
+          /bin/chmod -RP go-w "$virtual_prefix"
+          python -I -B security/manage_local_runtime.py \
+            --path "$app_runtime" \
+            --project "$GITHUB_WORKSPACE" \
+            --mode initialize
+      - name: Build and package the macOS application
+        run: |
+          CORELM_BOOTSTRAP_PYTHON=python \
+          CORELM_REAL_LLM_VENV="$HOME/.cache/corelm-ci-app-runtime" \
+          CORELM_SKIP_RUNTIME_INSTALL=1 \
+          CORELM_SKIP_ASSET_PREPARATION=1 \
+          CORELM_SKIP_MPS_CHECK=1 \
+          CORELM_SKIP_SMOKE_TEST=1 \
+          BUILD_CONFIG=release \
+            ./build_local_app.sh
+      - name: Verify application bundle integrity and signature
+        run: ./security/verify_app_bundle.sh dist/CoreLMBenchmark.app
+      - name: Verify recorded real-LLM application evidence
+        run: python security/verify_app_run_evidence.py

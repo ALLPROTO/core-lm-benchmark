@@ -215,6 +215,7 @@ def _v5_evidence_state() -> tuple[str, list[Path]]:
 def _validate_v5_evidence(
     *, git_provenance: bool
 ) -> tuple[str, list[Path]]:
+    from security.verify_app_run_evidence import verify as verify_app_evidence
     from RealLLM.verify_voidtoken_v5_development import (
         verify_development_evidence,
     )
@@ -234,6 +235,12 @@ def _validate_v5_evidence(
             "v5 prospective evidence is invalid: "
             + "; ".join(prospective_errors)
         )
+    try:
+        verify_app_evidence(ROOT / "app-real-llm-evidence")
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise ValueError(
+            f"macOS app integration evidence is invalid: {error}"
+        ) from error
     return _v5_evidence_state()
 
 
@@ -371,6 +378,9 @@ def _v5_provenance_document(
             )["artifacts"]
         ],
         *prospective_artifacts,
+        ROOT / "app-real-llm-evidence" / "validation-064-071.json",
+        ROOT / "app-real-llm-evidence" / "app-run-receipt.json",
+        ROOT / "app-real-llm-evidence" / "SHA256SUMS",
     ]
     files: list[dict[str, object]] = []
     for path in evidence_paths:
@@ -430,7 +440,11 @@ def build_reproducibility(
             "LICENSE",
             "Package.swift",
             "README.md",
+            "SECURITY.md",
+            "requirements.lock",
             "requirements.txt",
+            "build_local_app.sh",
+            "run_local_app_proof.sh",
             "run_tests.sh",
             "run_benchmark.sh",
             "run_real_llm_benchmark.sh",
@@ -442,18 +456,31 @@ def build_reproducibility(
             shutil.copy2(source, stage / relative)
 
         source_files = [
+            ".github/dependabot.yml",
+            ".github/locks/core-linux-py312.txt",
+            ".github/locks/core-macos-arm64-py312.txt",
+            ".github/locks/pip-bootstrap.txt",
             ".github/workflows/verify.yml",
             "App/Info.plist",
             "App/Sources/BenchmarkStore.swift",
             "App/Sources/ContentView.swift",
             "App/Sources/CoreLMBenchmarkApp.swift",
             "App/Sources/Models.swift",
+            "App/Sources/PythonRuntimeManifest.swift",
+            "App/Sources/RealLLMModels.swift",
+            "App/Sources/SecurityValidation.swift",
             "BenchmarkCore/corelm_benchmark.py",
             "BenchmarkCore/run_suite.py",
             "BenchmarkCore/verify_evidence.py",
+            "TestsSwift/SecurityValidationTests.swift",
+            "TestsSwift/Fixtures/real-llm-validation-064-071.json",
+            "Tests/test_app_real_llm_evidence.py",
             "Tests/test_benchmark.py",
+            "Tests/test_local_app_build.py",
             "Tests/test_publication_archives.py",
             "Tests/test_real_llm.py",
+            "Tests/test_security_supply_chain.py",
+            "Tests/test_swift_security_gate.py",
             "Tests/test_voidtoken_v5.py",
             "Tests/test_voidtoken_v5_development.py",
             "Tests/test_voidtoken_v5_frozen.py",
@@ -468,7 +495,9 @@ def build_reproducibility(
             "RealLLM/benchmark_real_llm.py",
             "RealLLM/codecs.py",
             "RealLLM/develop_voidtoken_v5.py",
+            "RealLLM/prepare_app_assets.py",
             "RealLLM/registration.json",
+            "RealLLM/requirements.lock",
             "RealLLM/requirements.txt",
             "RealLLM/run_voidtoken_v5_frozen.py",
             "RealLLM/v5_registration.json",
@@ -477,6 +506,22 @@ def build_reproducibility(
             "RealLLM/verify_voidtoken_v5_evidence.py",
             "RealLLM/voidtoken_v5.py",
             "publication/build_archives.py",
+            "security/direct-dependencies.cdx.json",
+            "security/generate_python_runtime_manifest.py",
+            "security/generate_direct_sbom.py",
+            "security/manage_local_runtime.py",
+            "security/notarize_app.sh",
+            "security/osv_direct_audit.py",
+            "security/run_swift_security_tests.sh",
+            "security/verify_app_run_evidence.py",
+            "security/verify_app_bundle.sh",
+            "security/verify_local_app_run.py",
+            "security/verify_locked_environment.py",
+            "security/verify_supply_chain.py",
+            "app-real-llm-evidence/README.md",
+            "app-real-llm-evidence/SHA256SUMS",
+            "app-real-llm-evidence/app-run-receipt.json",
+            "app-real-llm-evidence/validation-064-071.json",
             "real-llm-results/aggregate.json",
             "real-llm-results/README.md",
             "real-llm-v5-development/README.md",
@@ -535,7 +580,11 @@ def build_reproducibility(
             reproducibility_readme,
             original_reproducibility_path,
         )
-        for relative in ("generate_figures.py", *V5_ARXIV_SOURCE_FILES):
+        for relative in (
+            "generate_figures.py",
+            "submission_metadata.md",
+            *V5_ARXIV_SOURCE_FILES,
+        ):
             source = ARXIV_V5 / relative
             if not source.is_file():
                 raise FileNotFoundError(source)
@@ -572,9 +621,14 @@ def build_all(
 ) -> list[Path]:
     context = build_context or _build_context(None)
     output_directory.mkdir(parents=True, exist_ok=True)
+    paper_pdf = PUBLICATION / "corelm_voidtoken_v5.pdf"
+    _assert_release_source(paper_pdf, context)
+    copied_pdf = output_directory / paper_pdf.name
+    shutil.copy2(paper_pdf, copied_pdf)
     return [
         build_arxiv_v5(output_directory, context),
         build_reproducibility(output_directory, context),
+        copied_pdf,
     ]
 
 

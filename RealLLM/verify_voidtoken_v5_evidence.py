@@ -7,7 +7,6 @@ import argparse
 import hashlib
 import math
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -21,12 +20,15 @@ from RealLLM.run_voidtoken_v5_frozen import (  # noqa: E402
     HOLDOUT_ATTEMPT_PATH,
     HOLDOUT_PATH,
     FROZEN_CONFIGURATION,
+    LEGACY_PHASE_SCHEMA_VERSION,
     PRETEST_TAG,
+    REGISTERED_LEGACY_PHASE_RESULTS,
     SELECTION_ATTEMPT_PATH,
     SELECTION_PATH,
     SELECTION_PROTOCOL_TAG,
     _load_json_object,
     _path_present,
+    _run_git_process,
     implementation_sha256,
     implementation_sha256_at_commit,
     registration_sha256,
@@ -52,25 +54,29 @@ def _load_object(path: Path) -> dict[str, Any]:
 
 def _git_show(tag: str, path: Path) -> bytes:
     relative = path.relative_to(PROJECT_ROOT).as_posix()
-    completed = subprocess.run(
-        ["git", "show", f"{tag}:{relative}"],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-    )
+    completed = _run_git_process(["show", f"{tag}:{relative}"])
     if completed.returncode:
         message = completed.stderr.decode("utf-8", errors="replace").strip()
         raise ValueError(f"cannot read {relative} from {tag}: {message}")
     return completed.stdout
 
 
+def _verify_artifact_matches_head(path: Path, label: str) -> list[str]:
+    """Bind a published artifact to the checked-out Git commit."""
+
+    try:
+        committed = _git_show("HEAD", path)
+        observed = path.read_bytes()
+    except (OSError, ValueError) as error:
+        return [f"cannot bind {label} to Git HEAD: {error}"]
+    if committed != observed:
+        return [f"{label} bytes differ from Git HEAD"]
+    return []
+
+
 def _tag_commit(tag: str) -> str:
-    completed = subprocess.run(
-        ["git", "rev-parse", f"refs/tags/{tag}^{{commit}}"],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
+    completed = _run_git_process(
+        ["rev-parse", f"refs/tags/{tag}^{{commit}}"], text=True
     )
     if completed.returncode:
         raise ValueError(f"cannot resolve local provenance tag {tag}")
@@ -108,14 +114,10 @@ def detect_verification_mode(
             )
         return "artifact"
     try:
-        completed = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            cwd=PROJECT_ROOT,
-            check=False,
-            capture_output=True,
-            text=True,
+        completed = _run_git_process(
+            ["rev-parse", "--show-toplevel"], text=True
         )
-    except OSError as error:
+    except ValueError as error:
         raise ValueError(
             "Git metadata or Git environment was detected, but Git "
             f"provenance cannot be inspected: {error}"
@@ -141,13 +143,7 @@ def detect_verification_mode(
 
 
 def _head_commit() -> str:
-    completed = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=PROJECT_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    completed = _run_git_process(["rev-parse", "HEAD"], text=True)
     if completed.returncode:
         message = completed.stderr.strip() or completed.stdout.strip()
         raise ValueError(f"cannot resolve Git HEAD: {message}")
@@ -240,6 +236,10 @@ def _independent_phase_metric_errors(
                     record,
                     baseline,
                     expected_start + relative_index,
+                    require_container_manifest=(
+                        result.get("schemaVersion")
+                        != LEGACY_PHASE_SCHEMA_VERSION
+                    ),
                 )
             )
     try:
@@ -278,6 +278,44 @@ def _independent_phase_metric_errors(
         _independent_digest_errors(result, "resultSHA256", "result")
     )
     return errors
+
+
+def _registered_legacy_artifact_errors(
+    path: Path,
+    result: dict[str, Any],
+    phase: str,
+) -> list[str]:
+    """Permit only the byte-identical published v1 historical artifact."""
+    if result.get("schemaVersion") != LEGACY_PHASE_SCHEMA_VERSION:
+        return []
+    registered = REGISTERED_LEGACY_PHASE_RESULTS[phase]
+    try:
+        observed = sha256_file(path)
+    except OSError as error:
+        return [f"cannot hash legacy {phase} artifact: {error}"]
+    if observed != registered["artifactSHA256"]:
+        return [
+            f"legacy {phase} artifact SHA-256 differs from the immutable "
+            "registered historical artifact"
+        ]
+    return []
+
+
+def _legacy_accounting_limitation(
+    *results: dict[str, Any],
+) -> str:
+    if any(
+        result.get("schemaVersion") == LEGACY_PHASE_SCHEMA_VERSION
+        for result in results
+    ):
+        return (
+            " LEGACY_ACCOUNTING_LIMITATION: v1 complete-container byte "
+            "totals and compression gates are runner-recorded and protected "
+            "by immutable artifact/result/Git digests, but cannot be "
+            "independently reconstructed per layer because v1 did not record "
+            "container manifests"
+        )
+    return ""
 
 
 def _verify_standalone_attempt(
@@ -365,6 +403,11 @@ def verify_available_evidence(
         selection = _load_object(SELECTION_PATH)
     except ValueError as error:
         return errors + [str(error)], "invalid selection"
+    errors.extend(
+        _registered_legacy_artifact_errors(
+            SELECTION_PATH, selection, "selection"
+        )
+    )
     phase_verifier = (
         verify_phase_result
         if git_provenance
@@ -374,6 +417,17 @@ def verify_available_evidence(
     errors.extend(
         _independent_phase_metric_errors(selection, "selection")
     )
+    if git_provenance:
+        errors.extend(
+            _verify_artifact_matches_head(
+                SELECTION_PATH, "selection artifact"
+            )
+        )
+        errors.extend(
+            _verify_artifact_matches_head(
+                SELECTION_ATTEMPT_PATH, "selection attempt"
+            )
+        )
     if selection.get("pretestFreeze") is not None:
         errors.append("selection must precede the public pretest freeze")
     selection_passed = selection.get("pass") is True
@@ -414,6 +468,7 @@ def verify_available_evidence(
             return errors, (
                 "selection verified; holdout attempt is "
                 "CONSUMED_INCOMPLETE; rerun is forbidden"
+                + _legacy_accounting_limitation(selection)
             )
         return errors, (
             "selection verified; "
@@ -423,6 +478,7 @@ def verify_available_evidence(
                 if selection_passed
                 else "holdout is permanently forbidden"
             )
+            + _legacy_accounting_limitation(selection)
         )
 
     if not selection_passed:
@@ -431,8 +487,22 @@ def verify_available_evidence(
         holdout = _load_object(HOLDOUT_PATH)
     except ValueError as error:
         return errors + [str(error)], "invalid holdout"
+    errors.extend(
+        _registered_legacy_artifact_errors(
+            HOLDOUT_PATH, holdout, "holdout"
+        )
+    )
     errors.extend(phase_verifier(holdout, "holdout"))
     errors.extend(_independent_phase_metric_errors(holdout, "holdout"))
+    if git_provenance:
+        errors.extend(
+            _verify_artifact_matches_head(HOLDOUT_PATH, "holdout artifact")
+        )
+        errors.extend(
+            _verify_artifact_matches_head(
+                HOLDOUT_ATTEMPT_PATH, "holdout attempt"
+            )
+        )
     try:
         holdout_attempt = _load_object(HOLDOUT_ATTEMPT_PATH)
     except ValueError as error:
@@ -506,6 +576,7 @@ def verify_available_evidence(
     return errors, (
         "selection and prospective holdout verified; "
         f"holdout verdict={'PASS' if holdout.get('pass') else 'FAIL'}"
+        + _legacy_accounting_limitation(selection, holdout)
     )
 
 
@@ -554,8 +625,10 @@ def main(arguments: list[str] | None = None) -> int:
             )
         else:
             print(
-                "VOIDTOKEN V5 GIT PROVENANCE + ARTIFACT VERIFICATION PASSED: "
-                f"{status}."
+                "VOIDTOKEN V5 SOURCE + TRACKED-ARTIFACT CONSISTENCY PASSED: "
+                f"{status}. Recorded inference was not independently rerun; "
+                "Git and SHA-256 consistency do not authenticate the runtime "
+                "producer."
             )
     else:
         print(
