@@ -27,10 +27,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BENCHMARK_CORE = PROJECT_ROOT / "BenchmarkCore"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-if str(BENCHMARK_CORE) not in sys.path:
-    sys.path.insert(0, str(BENCHMARK_CORE))
-
-from corelm_benchmark import EncodedRepresentation, VoidTokenBackend  # noqa: E402
 
 from RealLLM.codecs import PackedGroupQuantBackend  # noqa: E402
 from RealLLM.voidtoken_v5 import VoidTokenV5Backend  # noqa: E402
@@ -112,6 +108,35 @@ THRESHOLDS = {
     "maximumDeltaNLLNatPerToken": 0.01,
     "minimumTop1Agreement": 0.99,
 }
+
+
+def _legacy_voidtoken_types() -> tuple[type[Any], type[Any]]:
+    """Resolve the source-only legacy codec only when it is selected.
+
+    The final macOS app packages only the real-LLM v5 path.  Keeping this
+    import lazy lets that package load and run without shipping the source-only
+    ``BenchmarkCore`` workbench, while source checkouts retain the historical
+    v3/v4 comparison backend byte-for-byte.
+    """
+    module_path = BENCHMARK_CORE / "corelm_benchmark.py"
+    if not module_path.is_file():
+        raise RuntimeError(
+            "legacy VoidToken backend is unavailable because the source-only "
+            "BenchmarkCore workbench is not packaged"
+        )
+    benchmark_core = str(BENCHMARK_CORE)
+    if benchmark_core not in sys.path:
+        sys.path.insert(0, benchmark_core)
+    try:
+        from corelm_benchmark import (  # type: ignore[import-not-found]
+            EncodedRepresentation,
+            VoidTokenBackend,
+        )
+    except ImportError as error:
+        raise RuntimeError(
+            "legacy VoidToken backend could not be loaded from BenchmarkCore"
+        ) from error
+    return EncodedRepresentation, VoidTokenBackend
 
 VOIDTOKEN_GRID = (
     {"backend": "voidtoken", "topK": 32, "qmax": 127, "keyframeInterval": 32},
@@ -786,7 +811,8 @@ def _encode_layers(
     decode_nanoseconds = 0
     for layer_index, layer in enumerate(layers):
         if configuration["backend"] == "voidtoken":
-            representation = VoidTokenBackend.encode(
+            _, voidtoken_backend = _legacy_voidtoken_types()
+            representation = voidtoken_backend.encode(
                 layer,
                 top_k=int(configuration["topK"]),
                 qmax=int(configuration["qmax"]),
@@ -842,7 +868,8 @@ def _encode_layers(
             raise ValueError(f"unknown backend {configuration['backend']!r}")
         container = representation.to_bytes()
         if configuration["backend"] == "voidtoken":
-            parsed = EncodedRepresentation.from_bytes(container)
+            encoded_representation, _ = _legacy_voidtoken_types()
+            parsed = encoded_representation.from_bytes(container)
         elif configuration["backend"] == "voidtoken-v5":
             parsed = VoidTokenV5Backend.from_bytes(container)
         else:

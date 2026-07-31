@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import sys
 import tempfile
@@ -213,6 +214,45 @@ def _record(
 
 
 class RealLLMProtocolTests(unittest.TestCase):
+    def test_legacy_backend_fails_closed_without_source_workbench(self):
+        configuration = {
+            "backend": "voidtoken",
+            "topK": 1,
+            "qmax": 127,
+            "keyframeInterval": 0,
+        }
+        missing = ROOT / "missing-benchmark-core-for-test"
+        with patch.object(benchmark_module, "BENCHMARK_CORE", missing):
+            with self.assertRaisesRegex(
+                RuntimeError, "legacy VoidToken backend is unavailable"
+            ):
+                benchmark_module._encode_layers(
+                    [np.zeros((2, 4), dtype=np.float32)], configuration
+                )
+
+    def test_source_legacy_codec_keeps_frozen_container_vector(self):
+        encoded_representation, voidtoken_backend = (
+            benchmark_module._legacy_voidtoken_types()
+        )
+        states = np.array(
+            [[0.0, 0.0, 0.0, 0.0], [1.0, -1.0, 1.0, -1.0]],
+            dtype=np.float32,
+        )
+        encoded = voidtoken_backend.encode(states, top_k=2, qmax=127)
+        self.assertEqual(
+            encoded.payload.hex(),
+            "000000000000000000000000000000000000004002000000010040c0",
+        )
+        self.assertEqual(
+            hashlib.sha256(encoded.to_bytes()).hexdigest(),
+            "df7f8c8b41ef2b36b45e2007de8c49bb5a24861bc373f35e09a5b9c2c3c96c45",
+        )
+        parsed = encoded_representation.from_bytes(encoded.to_bytes())
+        self.assertEqual(parsed.to_bytes(), encoded.to_bytes())
+        self.assertTrue(
+            np.array_equal(parsed.reconstructed, encoded.reconstructed)
+        )
+
     def test_registered_protocol_is_fixed_and_has_no_duplicate_candidates(self):
         validate_registered_protocol()
         self.assertEqual(PREDICTIONS_PER_BLOCK, 128)

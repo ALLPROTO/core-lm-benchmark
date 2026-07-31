@@ -145,6 +145,20 @@ struct SecurityValidationTests {
     }
 
     @Test
+    @MainActor
+    func testCompressionWorkerFailureKeepsCauseAndRedactsHome() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let message = BenchmarkStore.workerFailureMessage(
+            status: 1,
+            detail: "Traceback\nModuleNotFoundError at \(home)/private.py\n"
+        )
+        #expect(message.contains("status 1"))
+        #expect(message.contains("ModuleNotFoundError"))
+        #expect(message.contains("<home>/private.py"))
+        #expect(!message.contains(home))
+    }
+
+    @Test
     func testRegularFileReaderRejectsSymlink() throws {
         let temporary = FileManager.default.temporaryDirectory
             .appendingPathComponent(

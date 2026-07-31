@@ -3,6 +3,7 @@ import os
 import plistlib
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -92,6 +93,76 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertNotIn("Tests.test_publication_archives", tests)
         self.assertNotIn("unittest discover", tests)
         self.assertNotIn("BenchmarkCore/verify_evidence.py", workflow)
+
+    def test_packaged_real_llm_runner_lists_candidates_without_benchmark_core(
+        self,
+    ):
+        packaged_files = (
+            "__init__.py",
+            "benchmark_real_llm.py",
+            "codecs.py",
+            "develop_voidtoken_v5.py",
+            "voidtoken_v5.py",
+        )
+        package_source = (ROOT / "package_app.sh").read_text(encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_root = Path(temporary)
+            resources = (
+                temporary_root
+                / "CoreLMBenchmark.app"
+                / "Contents"
+                / "Resources"
+            )
+            bundled_real_llm = resources / "RealLLM"
+            isolated_working_directory = (
+                temporary_root / "empty-working-directory"
+            )
+            bundled_real_llm.mkdir(parents=True)
+            isolated_working_directory.mkdir()
+
+            for filename in packaged_files:
+                self.assertIn(filename, package_source)
+                shutil.copy2(
+                    ROOT / "RealLLM" / filename,
+                    bundled_real_llm / filename,
+                )
+
+            self.assertFalse((resources / "BenchmarkCore").exists())
+
+            environment = os.environ.copy()
+            for variable in ("PYTHONHOME", "PYTHONPATH"):
+                environment.pop(variable, None)
+            environment.update(
+                {
+                    "HF_DATASETS_OFFLINE": "1",
+                    "HF_HUB_OFFLINE": "1",
+                    "PYTHONNOUSERSITE": "1",
+                    "TRANSFORMERS_OFFLINE": "1",
+                }
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-B",
+                    str(bundled_real_llm / "develop_voidtoken_v5.py"),
+                    "--list-candidates",
+                ],
+                cwd=isolated_working_directory,
+                env=environment,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            candidate_lines = completed.stdout.splitlines()
+            self.assertGreater(len(candidate_lines), 1)
+            self.assertTrue(candidate_lines[0].startswith("0: {"))
+            self.assertNotIn("BenchmarkCore", completed.stderr)
+            self.assertNotIn("corelm_benchmark", completed.stderr)
 
     def test_final_user_docs_and_paths_are_separate_from_versions(self):
         for relative in (

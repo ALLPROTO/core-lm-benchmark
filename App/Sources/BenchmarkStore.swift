@@ -345,6 +345,7 @@ final class BenchmarkStore: ObservableObject {
         let stderrPipe = Pipe()
         task.standardOutput = stdoutPipe
         task.standardError = stderrPipe
+        let stderrBuffer = BoundedOutputBuffer()
         let stdoutHandle = stdoutPipe.fileHandleForReading
         let stderrHandle = stderrPipe.fileHandleForReading
 
@@ -367,6 +368,7 @@ final class BenchmarkStore: ObservableObject {
                 handle.readabilityHandler = nil
                 return
             }
+            stderrBuffer.append(data)
             guard let text = String(data: data, encoding: .utf8) else { return }
             Task { @MainActor [weak self] in
                 let lines = text
@@ -382,12 +384,14 @@ final class BenchmarkStore: ObservableObject {
         task.terminationHandler = { [weak self] completed in
             stdoutHandle.readabilityHandler = nil
             stderrHandle.readabilityHandler = nil
+            stderrBuffer.append(stderrHandle.readDataToEndOfFile())
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.finishRealLLMRun(
                     task: completed,
                     outputURL: outputURL,
-                    settings: requested
+                    settings: requested,
+                    workerErrorDetail: stderrBuffer.text(fallback: "")
                 )
             }
         }
@@ -452,7 +456,8 @@ final class BenchmarkStore: ObservableObject {
     private func finishRealLLMRun(
         task: Process,
         outputURL: URL,
-        settings: RealLLMRunSettings
+        settings: RealLLMRunSettings,
+        workerErrorDetail: String
     ) {
         guard process === task else { return }
         stopRealLLMSafetyWatchdog()
@@ -463,7 +468,10 @@ final class BenchmarkStore: ObservableObject {
         guard task.terminationStatus == 0 else {
             progress = 0
             let message = forcedRealLLMFailure
-                ?? "Compression worker exited with status \(task.terminationStatus)."
+                ?? Self.workerFailureMessage(
+                    status: task.terminationStatus,
+                    detail: workerErrorDetail
+                )
             forcedRealLLMFailure = nil
             setError(message)
             realLLMVerificationMessage = "Execution failed"
@@ -537,6 +545,25 @@ final class BenchmarkStore: ObservableObject {
                 error: error.localizedDescription
             )
         }
+    }
+
+    static func workerFailureMessage(status: Int32, detail: String) -> String {
+        let lastLine = detail
+            .replacingOccurrences(of: "\r", with: "\n")
+            .split(separator: "\n")
+            .map(String.init)
+            .last(where: { !$0.contains("Loading weights:") })
+        guard let lastLine, !lastLine.isEmpty else {
+            return "Compression worker exited with status \(status)."
+        }
+        let redacted = lastLine.replacingOccurrences(
+            of: FileManager.default.homeDirectoryForCurrentUser.path,
+            with: "<home>"
+        )
+        let bounded = String(
+            redacted.prefix(SecurityValidation.maximumLogEntryCharacters / 2)
+        )
+        return "Compression worker exited with status \(status): \(bounded)"
     }
 
     func verifyRealLLMResult(
