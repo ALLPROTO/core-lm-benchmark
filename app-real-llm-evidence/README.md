@@ -3,8 +3,8 @@
 This directory records a post-development integration run made through
 `CoreLMBenchmark.app` on 2026-07-30. The application launched its separately
 identified Python worker, loaded the pinned `Qwen/Qwen2.5-0.5B` revision
-offline, ran VoidToken v5 on Apple MPS, verified the returned document in
-Swift, and wrote the sanitized v2 application receipt.
+offline, ran the registered VoidToken codec on Apple MPS, verified the returned
+document in Swift, and wrote the sanitized application receipt.
 
 This is **not** a new preregistered or untouched holdout result. Validation
 blocks 64–71 are the public development/smoke-test reserve. The artifact is

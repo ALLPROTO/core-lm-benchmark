@@ -3,14 +3,19 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var store: BenchmarkStore
+    #if DEBUG
     @State private var section = (
         CommandLine.arguments.contains("--real-llm-smoke-run")
             || CommandLine.arguments.contains("--show-real-llm")
-    ) ? "Real LLM" : "Live Run"
+    ) ? "Compression Proof" : "Development Run"
     private let sections = [
-        "Live Run", "Real LLM", "Compression Comparison",
+        "Development Run", "Compression Proof", "Compression Comparison",
         "Stability and Invariants", "Saved Runs", "Evidence Report"
     ]
+    #else
+    @State private var section = "Compression Proof"
+    private let sections = ["Compression Proof"]
+    #endif
 
     var body: some View {
         NavigationSplitView {
@@ -33,7 +38,7 @@ struct ContentView: View {
             .navigationTitle("Core LM")
         } detail: {
             VStack(spacing: 0) {
-                if section == "Real LLM" {
+                if section == "Compression Proof" {
                     RealLLMControlsView()
                 } else {
                     ControlsView()
@@ -41,7 +46,7 @@ struct ContentView: View {
                 Divider()
                 Group {
                     switch section {
-                    case "Real LLM": RealLLMView()
+                    case "Compression Proof": RealLLMView()
                     case "Compression Comparison": ComparisonView()
                     case "Stability and Invariants": StabilityView()
                     case "Saved Runs": SavedRunsView()
@@ -54,7 +59,9 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            #if DEBUG
             store.reloadSavedRuns()
+            #endif
             store.reloadLatestRealLLMResult()
         }
         .task { await store.smokeRunIfRequested() }
@@ -67,9 +74,9 @@ struct ContentView: View {
     }
 
     private var architectureModules: [String] {
-        if section == "Real LLM" {
+        if section == "Compression Proof" {
             return [
-                "Qwen2.5-0.5B", "Prefill", "KV Cache", "VoidToken v5",
+                "Qwen2.5-0.5B", "Prefill", "KV Cache", "VoidToken Codec",
                 "Cache Rebuild", "Continuation", "Metrics", "Verifier"
             ]
         }
@@ -80,7 +87,7 @@ struct ContentView: View {
     }
 
     private var currentModuleState: ModuleState {
-        section == "Real LLM"
+        section == "Compression Proof"
             ? store.realLLMModuleState()
             : store.moduleState()
     }
@@ -179,8 +186,9 @@ struct RealLLMControlsView: View {
         HStack(spacing: 16) {
             Label("Qwen2.5-0.5B", systemImage: "brain")
                 .font(.headline)
-            Text("VoidToken v5 · candidate 32 · MPS")
+            Text("VoidToken · frozen profile · Apple MPS")
                 .foregroundStyle(.secondary)
+            #if DEBUG
             Stepper(
                 "Start \(store.realLLMSettings.validationStartBlock)",
                 value: $store.realLLMSettings.validationStartBlock,
@@ -192,13 +200,21 @@ struct RealLLMControlsView: View {
                 value: $store.realLLMSettings.validationBlocks,
                 in: 1...32
             )
+            #else
+            Text(
+                "Validation blocks "
+                    + "\(CompressionProofRunPolicy.registeredStartBlock)–"
+                    + "\(CompressionProofRunPolicy.registeredEndBlock)"
+            )
+                .foregroundStyle(.secondary)
+            #endif
             Spacer()
             Button("Show Result") { store.revealRealLLMResult() }
                 .disabled(store.realLLMResultURL == nil)
             if store.isRunning {
                 Button("Stop", role: .destructive) { store.stop() }
             } else {
-                Button("Run Real Qwen") { store.runRealLLM() }
+                Button("Run Compression Proof") { store.runRealLLM() }
                     .buttonStyle(.borderedProminent)
             }
         }
@@ -214,7 +230,7 @@ struct RealLLMView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Header(
-                    title: "Real Qwen Test",
+                    title: "Compression Proof",
                     verdict: store.realLLMResult?.verdict
                 )
                 Text(
@@ -365,7 +381,7 @@ struct RealLLMView: View {
                     }
                 } else if store.isRunning {
                     ContentUnavailableView(
-                        "Real model is running",
+                        "Compression proof is running",
                         systemImage: "cpu",
                         description: Text(
                             "The app is loading Qwen, rebuilding KV caches, "
@@ -374,10 +390,10 @@ struct RealLLMView: View {
                     )
                 } else {
                     ContentUnavailableView(
-                        "No real-LLM run yet",
+                        "No proof run yet",
                         systemImage: "brain",
                         description: Text(
-                            "Run the pinned Qwen2.5-0.5B test on Apple MPS."
+                            "Run the pinned Qwen2.5-0.5B compression proof on Apple MPS."
                         )
                     )
                 }
@@ -405,7 +421,7 @@ struct LiveRunView: View {
     @EnvironmentObject private var store: BenchmarkStore
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Header(title: "Live Run", verdict: store.result?.verdict)
+            Header(title: "Development Run", verdict: store.result?.verdict)
             ProgressView(value: store.progress)
             if let result = store.result {
                 HStack(spacing: 16) {

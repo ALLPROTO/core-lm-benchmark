@@ -4,6 +4,34 @@ import Testing
 
 @Suite
 struct SecurityValidationTests {
+    @Test
+    func testReleaseProofPolicyPinsRegisteredValidationSlice() {
+        let developmentSettings = RealLLMRunSettings(
+            validationStartBlock: 128,
+            validationBlocks: 16
+        )
+        let releaseSettings = CompressionProofRunPolicy.effectiveSettings(
+            requested: developmentSettings,
+            allowsDevelopmentOverrides: false
+        )
+        #expect(
+            releaseSettings.validationStartBlock
+                == CompressionProofRunPolicy.registeredStartBlock
+        )
+        #expect(
+            releaseSettings.validationBlocks
+                == CompressionProofRunPolicy.registeredBlockCount
+        )
+
+        let retainedDevelopmentSettings =
+            CompressionProofRunPolicy.effectiveSettings(
+                requested: developmentSettings,
+                allowsDevelopmentOverrides: true
+            )
+        #expect(retainedDevelopmentSettings.validationStartBlock == 128)
+        #expect(retainedDevelopmentSettings.validationBlocks == 16)
+    }
+
     private func expectFailure(
         _ operation: () throws -> Void
     ) {

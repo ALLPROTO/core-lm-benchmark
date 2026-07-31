@@ -6,6 +6,32 @@ struct RealLLMRunSettings {
     let candidateIndex = 32
 }
 
+enum CompressionProofRunPolicy {
+    static let registeredStartBlock = 64
+    static let registeredBlockCount = 8
+    static let registeredEndBlock =
+        registeredStartBlock + registeredBlockCount - 1
+
+    #if DEBUG
+    static let allowsDevelopmentOverrides = true
+    #else
+    static let allowsDevelopmentOverrides = false
+    #endif
+
+    static func effectiveSettings(
+        requested: RealLLMRunSettings,
+        allowsDevelopmentOverrides: Bool = allowsDevelopmentOverrides
+    ) -> RealLLMRunSettings {
+        guard allowsDevelopmentOverrides else {
+            return RealLLMRunSettings(
+                validationStartBlock: registeredStartBlock,
+                validationBlocks: registeredBlockCount
+            )
+        }
+        return requested
+    }
+}
+
 struct RealLLMProtocolSummary: Codable {
     let modelRepository: String
     let modelRevision: String

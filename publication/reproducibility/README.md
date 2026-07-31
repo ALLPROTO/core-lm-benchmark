@@ -1,5 +1,10 @@
 # Reproducing the Core LM evidence
 
+> This is a versioned scientific and provenance record. Revision numbers in
+> this document identify protocols and immutable evidence, not alternative app
+> editions. Ordinary users should begin with the repository `README.md` and
+> `docs/BUILD_AND_VERIFY.md`.
+
 The reproducibility archive contains the files needed to inspect the
 implementation, rerun the test suite and benchmark, rebuild the macOS app, and
 trace the historical VoidToken v3 result and the prospective VoidToken v5
@@ -94,15 +99,17 @@ verification:
 ./run_local_app_proof.sh
 ```
 
-The automated proof creates and retains a new hash-locked runtime (roughly
-1 GB plus caches) and prints its path. It supplies a random challenge to the
-app and requires that exact nonce in the receipt; this is the workflow that
-supports a freshness claim.
+The automated proof creates and retains a fresh runtime with hash-locked
+packages and an exact signed runtime manifest (roughly 1 GB plus caches), then
+prints its path. It supplies a random challenge to the app and requires that
+exact nonce in the receipt; this is the workflow that supports a freshness
+claim.
 
-For a manual run, keep validation blocks 64–71, click **Run Real Qwen**, then:
+For a manual run, keep validation blocks 64–71, click
+**Run Compression Proof**, then:
 
 ```sh
-"$HOME/.cache/corelm-real-llm-app-runtime-v1/bin/python" \
+"$HOME/.cache/corelm-app-runtime/bin/python" \
   security/verify_local_app_run.py \
   --app dist/CoreLMBenchmark.app
 ```

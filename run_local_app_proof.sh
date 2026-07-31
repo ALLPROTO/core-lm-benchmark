@@ -4,7 +4,7 @@ set -eu
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 APP_PATH="$PROJECT_DIR/dist/CoreLMBenchmark.app"
 RESULTS_ROOT="$HOME/Library/Application Support/CoreLMBenchmark/real-llm-results"
-RUNTIME_PARENT="$HOME/.cache/corelm-real-llm-proof-runtimes"
+RUNTIME_PARENT="$HOME/.cache/corelm-proof-runtimes"
 PROOF_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
 RUNTIME_DIR="$RUNTIME_PARENT/$PROOF_ID"
 MARKER=$(mktemp "${TMPDIR:-/tmp}/corelm-proof.XXXXXX")

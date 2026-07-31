@@ -15,12 +15,12 @@ final class BenchmarkStore: ObservableObject {
     @Published var savedRuns: [BenchmarkResult] = []
     @Published var isRunning = false
     @Published var progress = 0.0
-    @Published private(set) var log = ["Benchmark dashboard ready."]
+    @Published private(set) var log = ["Core LM Benchmark ready."]
     @Published var errorMessage: String?
     @Published var realLLMSettings = RealLLMRunSettings()
     @Published var realLLMResult: RealLLMResult?
     @Published var realLLMVerified = false
-    @Published var realLLMVerificationMessage = "Not run"
+    @Published var realLLMVerificationMessage = "No proof run"
     @Published var realLLMResultURL: URL?
 
     private var process: Process?
@@ -160,7 +160,7 @@ final class BenchmarkStore: ObservableObject {
             ),
             (
                 home.appendingPathComponent(
-                    ".cache/corelm-real-llm-app-runtime-v1/bin/python"
+                    ".cache/corelm-app-runtime/bin/python"
                 ),
                 nil
             ),
@@ -183,7 +183,7 @@ final class BenchmarkStore: ObservableObject {
         #else
         let validated = try SecurityValidation.validateExecutable(
             home.appendingPathComponent(
-                ".cache/corelm-real-llm-app-runtime-v1/bin/python"
+                ".cache/corelm-app-runtime/bin/python"
             ),
             expectedSHA256: nil
         )
@@ -242,7 +242,7 @@ final class BenchmarkStore: ObservableObject {
         #endif
         let candidate = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(
-                ".cache/corelm-real-llm-app-runtime-v1/bin/python"
+                ".cache/corelm-app-runtime/bin/python"
             )
         let validated = try SecurityValidation.validateExecutable(
             candidate,
@@ -267,7 +267,7 @@ final class BenchmarkStore: ObservableObject {
         }
         #endif
         let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".cache/corelm-huggingface", isDirectory: true)
+            .appendingPathComponent(".cache/corelm-model-assets", isDirectory: true)
             .standardizedFileURL
         try SecurityValidation.validateDirectory(
             url,
@@ -301,7 +301,7 @@ final class BenchmarkStore: ObservableObject {
         )
         #else
         throw SecurityValidationError.invalid(
-            "The signed bundled real-LLM runner is unavailable."
+            "The signed bundled compression runner is unavailable."
         )
         #endif
     }
@@ -466,13 +466,16 @@ final class BenchmarkStore: ObservableObject {
             errorMessage = "The external proof challenge is malformed."
             return
         }
-        let requested = realLLMSettings
+        let requested = CompressionProofRunPolicy.effectiveSettings(
+            requested: realLLMSettings
+        )
+        realLLMSettings = requested
         guard (64...512).contains(requested.validationStartBlock) else {
-            errorMessage = "Exploratory real-LLM runs must start at validation block 64 or later."
+            errorMessage = "Compression proof runs must start at validation block 64 or later."
             return
         }
         guard (1...32).contains(requested.validationBlocks) else {
-            errorMessage = "Real-LLM block count must be between 1 and 32."
+            errorMessage = "Compression proof block count must be between 1 and 32."
             return
         }
         let finalBlock: Int
@@ -632,7 +635,7 @@ final class BenchmarkStore: ObservableObject {
             lastRealLLMWorkerPID = task.processIdentifier
             progress = 0.08
             appendLog(
-                "App spawned real-LLM worker PID \(task.processIdentifier)."
+                "App spawned compression worker PID \(task.processIdentifier)."
             )
         } catch {
             stdoutHandle.readabilityHandler = nil
@@ -695,7 +698,7 @@ final class BenchmarkStore: ObservableObject {
         activeProcessGroupID = nil
         guard task.terminationStatus == 0 else {
             progress = 0
-            let message = "Real-LLM worker exited with status \(task.terminationStatus)."
+            let message = "Compression worker exited with status \(task.terminationStatus)."
             setError(message)
             realLLMVerificationMessage = "Execution failed"
             appendLog(message)
@@ -738,7 +741,7 @@ final class BenchmarkStore: ObservableObject {
             if let aggregate = decoded.aggregate {
                 appendLog(
                     String(
-                        format: "Qwen v5 %@ — %.3f×, ΔNLL %+.6f, top-1 %.4f.",
+                        format: "Compression proof %@ — %.3f×, ΔNLL %+.6f, top-1 %.4f.",
                         aggregate.pass ? "PASS" : "FAIL",
                         aggregate.compressionRatioVsBF16,
                         aggregate.deltaNLLNatPerToken,
@@ -758,7 +761,7 @@ final class BenchmarkStore: ObservableObject {
             realLLMVerificationMessage = "Verification failed"
             setError(error.localizedDescription)
             appendLog(
-                "Real-LLM verification failed: \(error.localizedDescription)"
+                "Compression verification failed: \(error.localizedDescription)"
             )
             writeRealLLMReceipt(
                 outputURL: outputURL,
@@ -859,11 +862,11 @@ final class BenchmarkStore: ObservableObject {
         try require(
             result.schemaVersion
                 == "corelm-voidtoken-v5-validation-development-v2",
-            "Unexpected real-LLM schema."
+            "Unexpected proof result schema."
         )
         try require(
             result.status == "validation-only-development",
-            "Unexpected real-LLM result status."
+            "Unexpected proof result status."
         )
         try require(!result.testDataOpened, "The exploratory app run opened test data.")
         try require(
@@ -900,7 +903,7 @@ final class BenchmarkStore: ObservableObject {
         try require(
             result.protocolInfo.evaluatedCandidateIndices
                 == [expected.candidateIndex],
-            "The app result does not use frozen candidate 32."
+            "The app result does not use the frozen compression profile."
         )
         try require(
             result.environment.device == "mps"
@@ -920,7 +923,7 @@ final class BenchmarkStore: ObservableObject {
                 && result.environment.transformers == "5.14.1"
                 && result.environment.numpy == "2.5.1"
                 && result.environment.pyarrow == "23.0.1",
-            "The real-LLM dependency versions are not pinned."
+            "The compression proof dependency versions are not pinned."
         )
         try require(
             result.environment.hfHome == "configured",
@@ -964,7 +967,7 @@ final class BenchmarkStore: ObservableObject {
                 && aggregate.configuration.signMode == "none"
                 && aggregate.configuration.schedule
                     == "group-kl-top-2-9bit-rest-8bit",
-            "The result configuration is not the frozen VoidToken v5 candidate."
+            "The result configuration does not match the frozen compression profile."
         )
 
         let expectedIndices = Array(
@@ -1516,7 +1519,7 @@ final class BenchmarkStore: ObservableObject {
                 .idleSystemSleepDisabled,
                 .idleDisplaySleepDisabled
             ],
-            reason: "Running the Core LM real-LLM benchmark on MPS"
+            reason: "Running the Core LM compression proof on MPS"
         )
     }
 
@@ -1956,7 +1959,7 @@ final class BenchmarkStore: ObservableObject {
             guard directories.count
                     <= SecurityValidation.maximumSavedResultFiles else {
                 throw SecurityValidationError.invalid(
-                    "Too many saved real-LLM run directories."
+                    "Too many saved compression-proof run directories."
                 )
             }
             var candidates: [(URL, Date)] = []
@@ -1982,7 +1985,7 @@ final class BenchmarkStore: ObservableObject {
                 if candidates.count
                     > SecurityValidation.maximumSavedResultFiles {
                     throw SecurityValidationError.invalid(
-                        "Too many saved real-LLM result files."
+                        "Too many saved compression-proof result files."
                     )
                 }
             }
@@ -2014,11 +2017,15 @@ final class BenchmarkStore: ObservableObject {
                         validationBlocks:
                             decoded.protocolInfo.validationBlocks
                     )
+                    let verificationSettings =
+                        CompressionProofRunPolicy.effectiveSettings(
+                            requested: loadedSettings
+                        )
                     try verifyRealLLMResult(
                         decoded,
-                        expected: loadedSettings
+                        expected: verificationSettings
                     )
-                    realLLMSettings = loadedSettings
+                    realLLMSettings = verificationSettings
                     realLLMResult = decoded
                     realLLMResultURL = candidate
                     realLLMVerified = true
@@ -2028,14 +2035,14 @@ final class BenchmarkStore: ObservableObject {
                     return
                 } catch {
                     appendLog(
-                        "Ignored invalid saved real-LLM result: "
+                        "Ignored invalid saved compression-proof result: "
                             + error.localizedDescription
                     )
                 }
             }
         } catch {
             appendLog(
-                "Could not reload saved real-LLM results: "
+                "Could not reload saved compression-proof results: "
                     + error.localizedDescription
             )
         }
@@ -2170,8 +2177,10 @@ final class BenchmarkStore: ObservableObject {
         let windowReady = visibleWindows.contains {
             $0.frame.width >= 1000 && $0.frame.height >= 650
         }
-        realLLMSettings.validationStartBlock = 64
-        realLLMSettings.validationBlocks = 8
+        realLLMSettings.validationStartBlock =
+            CompressionProofRunPolicy.registeredStartBlock
+        realLLMSettings.validationBlocks =
+            CompressionProofRunPolicy.registeredBlockCount
         runRealLLM()
 
         let deadline = Date().addingTimeInterval(600)
@@ -2181,7 +2190,7 @@ final class BenchmarkStore: ObservableObject {
         if isRunning {
             stop()
             endRealLLMPowerActivity()
-            errorMessage = "Real-LLM app smoke run timed out."
+            errorMessage = "Compression-proof app run timed out."
         }
         let aggregate = realLLMResult?.aggregate
         let passed = !isRunning

@@ -10,7 +10,7 @@ STAGING_DIR=$(mktemp -d "${TMPDIR:-/tmp}/corelm-app.XXXXXX")
 PYTHON_CACHE_DIR="$STAGING_DIR/python-pycache"
 APP_DIR="$STAGING_DIR/$APP_NAME"
 FINAL_DIR="$PROJECT_DIR/dist/$APP_NAME"
-REAL_LLM_PYTHON=${CORELM_REAL_LLM_PYTHON:-"$HOME/.cache/corelm-real-llm-app-runtime-v1/bin/python"}
+REAL_LLM_PYTHON=${CORELM_REAL_LLM_PYTHON:-"$HOME/.cache/corelm-app-runtime/bin/python"}
 EXPECTED_PYTHON_SHA256=${CORELM_REAL_LLM_PYTHON_SHA256:-}
 
 cleanup() {

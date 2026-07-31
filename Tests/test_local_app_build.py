@@ -22,6 +22,83 @@ EVIDENCE = ROOT / "app-real-llm-evidence"
 
 
 class LocalAppBuildTests(unittest.TestCase):
+    def test_release_surface_is_version_free_and_proof_only(self):
+        content = (ROOT / "App" / "Sources" / "ContentView.swift").read_text(
+            encoding="utf-8"
+        )
+        store = (
+            ROOT / "App" / "Sources" / "BenchmarkStore.swift"
+        ).read_text(encoding="utf-8")
+        application = (
+            ROOT / "App" / "Sources" / "CoreLMBenchmarkApp.swift"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('private let sections = ["Compression Proof"]', content)
+        self.assertIn("#if DEBUG", content)
+        self.assertIn('Button("Run Compression Proof")', content)
+        self.assertIn('"VoidToken Codec"', content)
+        for stale in (
+            '"VoidToken v5"',
+            '"VoidToken v5 · candidate 32 · MPS"',
+            '"Run Real Qwen"',
+            '"Real Qwen Test"',
+            '? "Real LLM" : "Live Run"',
+        ):
+            self.assertNotIn(stale, content)
+        for stale in (
+            'format: "Qwen v5 ',
+            "The app result does not use frozen candidate 32.",
+            "The result configuration is not the frozen VoidToken v5 candidate.",
+        ):
+            self.assertNotIn(stale, store)
+        self.assertIn("#if DEBUG", application)
+        self.assertIn('Button("Open Development Result…")', application)
+
+    def test_final_user_docs_and_paths_are_separate_from_versions(self):
+        for relative in (
+            "README.md",
+            "ARCHITECTURE.md",
+            "docs/BUILD_AND_VERIFY.md",
+            "docs/RESULTS.md",
+            "docs/LIMITATIONS.md",
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            for versioned_label in (
+                "VoidToken v3",
+                "VoidToken v4",
+                "VoidToken v5",
+                "Qwen v5",
+                "candidate 32",
+            ):
+                self.assertNotIn(versioned_label, text, relative)
+
+        history = (
+            ROOT / "docs" / "development" / "HISTORY.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("VoidToken v3", history)
+        self.assertIn("VoidToken v5", history)
+
+        build_script = (ROOT / "build_local_app.sh").read_text(
+            encoding="utf-8"
+        )
+        package_script = (ROOT / "package_app.sh").read_text(
+            encoding="utf-8"
+        )
+        proof_script = (ROOT / "run_local_app_proof.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(".cache/corelm-app-runtime", build_script)
+        self.assertIn(".cache/corelm-model-assets", build_script)
+        self.assertIn(".cache/corelm-app-runtime", package_script)
+        self.assertIn(".cache/corelm-proof-runtimes", proof_script)
+        for source in (build_script, package_script, proof_script):
+            self.assertNotIn("corelm-real-llm-app-runtime-v1", source)
+
+        plist = plistlib.loads((ROOT / "App" / "Info.plist").read_bytes())
+        self.assertEqual(plist["CFBundleName"], "Core LM Benchmark")
+        self.assertEqual(plist["CFBundleShortVersionString"], "1.0.0")
+        self.assertEqual(plist["CFBundleVersion"], "6")
+
     def test_packager_has_no_author_specific_default_python_digest(self):
         source = (ROOT / "package_app.sh").read_text(encoding="utf-8")
         self.assertNotIn(

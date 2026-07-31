@@ -26,10 +26,12 @@ struct CoreLMBenchmarkApp: App {
                 }
         }
         .commands {
+            #if DEBUG
             CommandGroup(after: .newItem) {
-                Button("Open Benchmark Result…") { store.openResult() }
+                Button("Open Development Result…") { store.openResult() }
                     .keyboardShortcut("o")
             }
+            #endif
         }
     }
 }
