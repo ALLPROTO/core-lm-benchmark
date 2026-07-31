@@ -44,6 +44,21 @@ if [ -e "$APP_PATH/Contents/Resources/BenchmarkCore" ]; then
     exit 1
 fi
 
+resource_file_count=$(find "$APP_PATH/Contents/Resources" -type f -print \
+    | wc -l | tr -d '[:space:]')
+if [ "$resource_file_count" -ne 6 ]; then
+    printf 'release bundle must contain exactly six declared resources\n' >&2
+    exit 1
+fi
+
+if LC_ALL=C grep -R -a -E -i \
+    'BenchmarkCore|corelm_benchmark|synthetic' \
+    "$APP_PATH/Contents/Resources/RealLLM" >/dev/null 2>&1
+then
+    printf 'release worker contains a forbidden development-only reference\n' >&2
+    exit 1
+fi
+
 for relative in \
     RealLLM/__init__.py \
     RealLLM/benchmark_real_llm.py \

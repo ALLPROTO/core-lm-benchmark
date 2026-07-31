@@ -86,6 +86,14 @@ class LocalAppBuildTests(unittest.TestCase):
             "release bundle must not contain the synthetic BenchmarkCore",
             verifier,
         )
+        self.assertIn(
+            "release bundle must contain exactly six declared resources",
+            verifier,
+        )
+        self.assertIn(
+            "'BenchmarkCore|corelm_benchmark|synthetic'",
+            verifier,
+        )
         self.assertNotIn("BenchmarkCore/corelm_benchmark.py", verifier)
         self.assertIn("--app-smoke-run", build)
         self.assertNotIn('CoreLMBenchmarkApp" --smoke-run', build)
