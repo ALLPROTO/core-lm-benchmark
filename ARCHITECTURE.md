@@ -1,47 +1,75 @@
 # Architecture
 
+The final application is a source-built compression proof. Its release UI shows
+one evidence path and exposes the current state of every major module.
+
 ```text
-RunConfiguration → DeterministicInputGenerator → materialized U_t
-                                               ↓
-                                          CoreLMAdapter
-                                               ↓
-                                         Dense trajectory
-                                  ┌────────────┼────────────┐
-                               Dense          PCA       VoidToken
-                                  └────────────┼────────────┘
-                                         MetricsCollector
-                                               ↓
-                                      Invariant + Verdict
-                                      ↙                 ↘
-                                 JSON/Markdown       SwiftUI
+Pinned source assets
+        |
+        v
+Qwen model -> Prefill -> BF16 KV cache -> VoidToken codec -> Fresh parser
+                                                        |          |
+                                                        +----> Cache rebuild
+                                                                   |
+                                                                   v
+Teacher-forced continuation -> Metrics -> Scientific gates -> Swift verifier
+                                                               |
+                                                               v
+                                           Challenge-bound result and receipt
+                                                               |
+                                                               v
+                                             Independent Python verification
 ```
 
-`BenchmarkCore` не зависит от UI. SwiftUI запускает CLI и отображает только
-фактический сохранённый результат. Все методы получают одну плотную траекторию,
-построенную из одного материализованного потока `U_t`.
+## Final application
 
-VoidToken v3 использует closed-loop prediction:
+`build_local_app.sh` creates a release build at
+`dist/CoreLMBenchmark.app`. The build:
 
-1. Энкодер вычисляет residual относительно состояния, реально известного
-   декодеру.
-2. Кодирует top-k компонент residual.
-3. Локально применяет точную семантику декодера к текущему токену и использует
-   восстановленное состояние для следующего шага.
-4. Автоматически выбирает интервал dense keyframes из байтового бюджета,
-   сохраняя запас над целевыми 4×.
+1. creates or validates a dedicated Python runtime;
+2. installs only hash-locked dependencies;
+3. verifies the exact installed distribution closure;
+4. downloads the pinned model and dataset assets and checks their sizes and
+   SHA-256 digests;
+5. proves that the assets resolve with network access disabled;
+6. packages the Swift executable, Python runner, and deterministic runtime
+   manifest;
+7. applies a local ad-hoc signature; and
+8. verifies the bundle before launch.
 
-Поэтому отброшенная компонента возвращается в следующий residual, а ошибка не
-накапливается бесконтрольно. Размер payload считается по реально сформированному
-бинарному буферу, включая keyframes. Контейнер `CLMB` хранит magic, длину
-канонического JSON metadata, сами metadata и payload; самостоятельный decoder
-проверяет формат, границы и отсутствие лишних байтов.
+Before each worker launch, the app checks the signed manifest of the external
+Python base installation and virtual environment. Unlisted loadable files,
+changed native libraries, unsafe symlinks, writable path components, or an
+unexpected Python executable cause a fail-closed rejection.
 
-Для межплатформенной воспроизводимости Core LM выполняет dot, matvec, variance
-и нормы попарными float64-редукциями с фиксированным деревом, а `tanh` —
-фиксированной рациональной схемой с ошибкой менее `3e-14`. Единственная граница
-состояния — явное округление до float32. VoidToken до принятия дискретных
-решений канонизирует norm в wire-float32, разрешает равные top-k по индексу и
-использует скалярное ties-to-even квантование. Каждый результат хранит SHA-256
-плотной Core-траектории, VoidToken payload, полного `CLMB`-контейнера и
-восстановленной VoidToken-траектории. Алгоритм v3 записывается в канонический
-бинарный формат v4; формат v3 поддерживается только отдельной legacy-веткой.
+The real-model worker runs with bounded CPU-library concurrency and conservative
+MPS allocation watermarks. Independent in-app and shell watchdogs stop the full
+worker process group on critical memory pressure or after five minutes.
+
+## Module visibility
+
+The release sidebar reports one state for each proof module:
+
+```text
+Qwen model -> Prefill -> KV cache -> VoidToken codec -> Cache rebuild
+           -> Continuation -> Metrics -> Verifier
+```
+
+The states are `Ready`, `Running`, and `Complete`. Dashboard values come only
+from the parsed result produced by the Python worker; the Swift UI does not
+synthesize benchmark values.
+
+## Final application surface
+
+The application target exposes only **Compression Proof**. Historical experiment
+sources and records are retained for provenance, but they are not compiled into
+the application, bundled as executable resources, or run by the ordinary-user
+proof workflow. Their chronology is documented in the
+[development record](docs/development/HISTORY.md).
+
+## Reproducibility boundary
+
+Internal schema, codec, receipt, and protocol identifiers are intentionally
+stable and may contain revision numbers. They are machine compatibility keys,
+not application branding. Their roles and historical chronology are documented
+under [Scientific identifiers](docs/development/SCIENTIFIC_IDENTIFIERS.md).

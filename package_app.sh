@@ -10,7 +10,7 @@ STAGING_DIR=$(mktemp -d "${TMPDIR:-/tmp}/corelm-app.XXXXXX")
 PYTHON_CACHE_DIR="$STAGING_DIR/python-pycache"
 APP_DIR="$STAGING_DIR/$APP_NAME"
 FINAL_DIR="$PROJECT_DIR/dist/$APP_NAME"
-REAL_LLM_PYTHON=${CORELM_REAL_LLM_PYTHON:-"$HOME/.cache/corelm-real-llm-app-runtime-v1/bin/python"}
+REAL_LLM_PYTHON=${CORELM_REAL_LLM_PYTHON:-"$HOME/.cache/corelm-app-runtime/bin/python"}
 EXPECTED_PYTHON_SHA256=${CORELM_REAL_LLM_PYTHON_SHA256:-}
 
 cleanup() {
@@ -23,13 +23,10 @@ swift build -c "$BUILD_CONFIG"
 
 mkdir -m 700 "$PYTHON_CACHE_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS"
-mkdir -p "$APP_DIR/Contents/Resources/BenchmarkCore"
 mkdir -p "$APP_DIR/Contents/Resources/RealLLM"
 cp "$PROJECT_DIR/.build/$BUILD_CONFIG/CoreLMBenchmarkApp" \
    "$APP_DIR/Contents/MacOS/CoreLMBenchmarkApp"
 cp "$PROJECT_DIR/App/Info.plist" "$APP_DIR/Contents/Info.plist"
-cp "$PROJECT_DIR/BenchmarkCore/corelm_benchmark.py" \
-   "$APP_DIR/Contents/Resources/BenchmarkCore/corelm_benchmark.py"
 for real_llm_file in \
     __init__.py \
     benchmark_real_llm.py \

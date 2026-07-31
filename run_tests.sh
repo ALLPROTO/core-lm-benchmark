@@ -10,5 +10,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
+cd "$SCRIPT_DIR"
 "$PYTHON_BIN" -B -X "pycache_prefix=$PYTHON_CACHE" \
-    -m unittest discover -s "$SCRIPT_DIR/Tests" -p 'test_*.py' -v
+    -m unittest -v \
+    Tests.test_app_real_llm_evidence \
+    Tests.test_local_app_build \
+    Tests.test_real_llm \
+    Tests.test_security_supply_chain \
+    Tests.test_swift_security_gate \
+    Tests.test_voidtoken_v5 \
+    Tests.test_voidtoken_v5_development \
+    Tests.test_voidtoken_v5_frozen

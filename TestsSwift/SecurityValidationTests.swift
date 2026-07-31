@@ -4,6 +4,34 @@ import Testing
 
 @Suite
 struct SecurityValidationTests {
+    @Test
+    func testReleaseProofPolicyPinsRegisteredValidationSlice() {
+        let developmentSettings = RealLLMRunSettings(
+            validationStartBlock: 128,
+            validationBlocks: 16
+        )
+        let releaseSettings = CompressionProofRunPolicy.effectiveSettings(
+            requested: developmentSettings,
+            allowsDevelopmentOverrides: false
+        )
+        #expect(
+            releaseSettings.validationStartBlock
+                == CompressionProofRunPolicy.registeredStartBlock
+        )
+        #expect(
+            releaseSettings.validationBlocks
+                == CompressionProofRunPolicy.registeredBlockCount
+        )
+
+        let retainedDevelopmentSettings =
+            CompressionProofRunPolicy.effectiveSettings(
+                requested: developmentSettings,
+                allowsDevelopmentOverrides: true
+            )
+        #expect(retainedDevelopmentSettings.validationStartBlock == 128)
+        #expect(retainedDevelopmentSettings.validationBlocks == 16)
+    }
+
     private func expectFailure(
         _ operation: () throws -> Void
     ) {
@@ -92,6 +120,42 @@ struct SecurityValidationTests {
         #expect(environment["PYTHONHOME"] == nil)
         #expect(environment["DYLD_INSERT_LIBRARIES"] == nil)
         #expect(environment["SSH_AUTH_SOCK"] == nil)
+    }
+
+    @Test
+    @MainActor
+    func testCompressionWorkerEnvironmentHasMacSafetyLimits() {
+        let cache = URL(fileURLWithPath: "/tmp/corelm-model-cache")
+        let environment = BenchmarkStore.realLLMWorkerEnvironment(cache: cache)
+
+        #expect(environment["HF_HOME"] == cache.path)
+        #expect(environment["HF_HUB_OFFLINE"] == "1")
+        #expect(environment["TRANSFORMERS_OFFLINE"] == "1")
+        #expect(environment["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] == "0.85")
+        #expect(environment["PYTORCH_MPS_LOW_WATERMARK_RATIO"] == "0.75")
+        for key in [
+            "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+            "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"
+        ] {
+            #expect(environment[key] == "2")
+        }
+        #expect(BenchmarkStore.realLLMHardTimeoutSeconds == 300)
+        #expect(environment["PYTHONPATH"] == nil)
+        #expect(environment["DYLD_INSERT_LIBRARIES"] == nil)
+    }
+
+    @Test
+    @MainActor
+    func testCompressionWorkerFailureKeepsCauseAndRedactsHome() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let message = BenchmarkStore.workerFailureMessage(
+            status: 1,
+            detail: "Traceback\nModuleNotFoundError at \(home)/private.py\n"
+        )
+        #expect(message.contains("status 1"))
+        #expect(message.contains("ModuleNotFoundError"))
+        #expect(message.contains("<home>/private.py"))
+        #expect(!message.contains(home))
     }
 
     @Test
@@ -627,14 +691,4 @@ struct SecurityValidationTests {
         }
     }
 
-    @Test
-    @MainActor
-    func testSyntheticMatrixResourceLimitMatchesUI() throws {
-        let store = BenchmarkStore()
-        #expect(store.maximumSyntheticSteps(for: 1_024) == 8_180)
-        store.settings.dimension = 1_024
-        store.settings.steps = 10_000
-        store.clampSyntheticStepsToResourceLimit()
-        #expect(store.settings.steps == 8_180)
-    }
 }

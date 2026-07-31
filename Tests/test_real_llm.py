@@ -1,5 +1,8 @@
 import copy
+import hashlib
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -213,6 +216,138 @@ def _record(
 
 
 class RealLLMProtocolTests(unittest.TestCase):
+    def test_packaged_candidate_32_is_real_only_and_isolated(self):
+        packaged_names = (
+            "__init__.py",
+            "benchmark_real_llm.py",
+            "codecs.py",
+            "develop_voidtoken_v5.py",
+            "voidtoken_v5.py",
+        )
+        package_script = (ROOT / "package_app.sh").read_text(encoding="utf-8")
+        self.assertNotIn("legacy_voidtoken_adapter.py", package_script)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            package_root = Path(temporary)
+            package = package_root / "RealLLM"
+            package.mkdir()
+            for name in packaged_names:
+                shutil.copy2(ROOT / "RealLLM" / name, package / name)
+
+            packaged_source = b"\n".join(
+                (package / name).read_bytes().lower()
+                for name in packaged_names
+            )
+            for forbidden in (
+                b"benchmarkcore",
+                b"corelm_benchmark",
+                b"synthetic",
+                b"gaussian_bounded",
+                b"uniform_bounded",
+                b"impulse_sweep",
+            ):
+                self.assertNotIn(forbidden, packaged_source)
+
+            listed = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-B",
+                    str(package / "develop_voidtoken_v5.py"),
+                    "--list-candidates",
+                ],
+                cwd=package_root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(listed.returncode, 0, listed.stderr)
+            self.assertIn('32: {"backend":"voidtoken-v5"', listed.stdout)
+
+            isolated_probe = """
+import sys
+import numpy as np
+sys.path.insert(0, sys.argv[1])
+from RealLLM.benchmark_real_llm import _encode_layers
+from RealLLM.develop_voidtoken_v5 import DEVELOPMENT_GRID
+
+configuration = DEVELOPMENT_GRID[32]
+assert configuration["backend"] == "voidtoken-v5"
+layers = [np.zeros((2, 256), dtype=np.float32) for _ in range(24)]
+reconstructed, encoding = _encode_layers(layers, configuration)
+assert len(reconstructed) == 24
+assert encoding["encodedFileBytes"] > 0
+
+try:
+    _encode_layers(
+        [np.zeros((2, 4), dtype=np.float32)],
+        {
+            "backend": "voidtoken",
+            "topK": 1,
+            "qmax": 127,
+            "keyframeInterval": 0,
+        },
+    )
+except RuntimeError as error:
+    assert "adapter is unavailable" in str(error)
+else:
+    raise AssertionError("historical backend did not fail closed")
+"""
+            probed = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-B",
+                    "-c",
+                    isolated_probe,
+                    str(package_root),
+                ],
+                cwd=package_root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(probed.returncode, 0, probed.stderr)
+
+    def test_source_legacy_codec_keeps_frozen_container_vector(self):
+        from RealLLM import legacy_voidtoken_adapter
+
+        states = np.array(
+            [[0.0, 0.0, 0.0, 0.0], [1.0, -1.0, 1.0, -1.0]],
+            dtype=np.float32,
+        )
+        encoded = legacy_voidtoken_adapter.encode(
+            states,
+            top_k=2,
+            qmax=127,
+            keyframe_interval=0,
+        )
+        self.assertEqual(
+            encoded.payload.hex(),
+            "000000000000000000000000000000000000004002000000010040c0",
+        )
+        self.assertEqual(
+            hashlib.sha256(encoded.to_bytes()).hexdigest(),
+            "df7f8c8b41ef2b36b45e2007de8c49bb5a24861bc373f35e09a5b9c2c3c96c45",
+        )
+        parsed = legacy_voidtoken_adapter.from_bytes(encoded.to_bytes())
+        self.assertEqual(parsed.to_bytes(), encoded.to_bytes())
+        self.assertTrue(
+            np.array_equal(parsed.reconstructed, encoded.reconstructed)
+        )
+        reconstructed, _ = benchmark_module._encode_layers(
+            [states],
+            {
+                "backend": "voidtoken",
+                "topK": 2,
+                "qmax": 127,
+                "keyframeInterval": 0,
+            },
+        )
+        self.assertTrue(
+            np.array_equal(reconstructed[0], encoded.reconstructed)
+        )
+
     def test_registered_protocol_is_fixed_and_has_no_duplicate_candidates(self):
         validate_registered_protocol()
         self.assertEqual(PREDICTIONS_PER_BLOCK, 128)
@@ -413,6 +548,7 @@ class RealLLMProtocolTests(unittest.TestCase):
                 benchmark_module, "run_registered_pilot", return_value=result
             ),
             patch.object(benchmark_module, "_summary", return_value="FAIL"),
+            patch("builtins.print"),
         ):
             self.assertEqual(benchmark_module.main(), 2)
 

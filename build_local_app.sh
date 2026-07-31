@@ -5,8 +5,8 @@ umask 077
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 BOOTSTRAP_PYTHON=${CORELM_BOOTSTRAP_PYTHON:-python3.12}
-RUNTIME_DIR=${CORELM_REAL_LLM_VENV:-"$HOME/.cache/corelm-real-llm-app-runtime-v1"}
-CACHE_DIR="$HOME/.cache/corelm-huggingface"
+RUNTIME_DIR=${CORELM_REAL_LLM_VENV:-"$HOME/.cache/corelm-app-runtime"}
+CACHE_DIR="$HOME/.cache/corelm-model-assets"
 BUILD_CONFIG=${BUILD_CONFIG:-release}
 SKIP_RUNTIME_INSTALL=${CORELM_SKIP_RUNTIME_INSTALL:-0}
 SKIP_ASSET_PREPARATION=${CORELM_SKIP_ASSET_PREPARATION:-0}
@@ -161,11 +161,11 @@ REQUIRE_DEVELOPER_ID=0 \
 "$PROJECT_DIR/security/verify_app_bundle.sh" "$APP_PATH"
 
 if [ "$SKIP_SMOKE_TEST" = "0" ]; then
-    "$APP_PATH/Contents/MacOS/CoreLMBenchmarkApp" --smoke-run
+    "$APP_PATH/Contents/MacOS/CoreLMBenchmarkApp" --app-smoke-run
 fi
 
 printf '%s\n' \
     "LOCAL APP BUILD PASS: $APP_PATH" \
     "No Apple Developer account, certificate, or notarization was used." \
     "Open it with: open \"$APP_PATH\"" \
-    "In the Real LLM tab, keep blocks 64–71 and click Run Real Qwen."
+    "Open Compression Proof and click Run Compression Proof."

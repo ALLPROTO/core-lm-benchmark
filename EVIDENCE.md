@@ -1,5 +1,9 @@
 # Core LM Compression Evidence
 
+> Development and scientific provenance record. Historical version identifiers
+> are intentional here. Ordinary users should start with
+> [`README.md`](README.md) and [`docs/RESULTS.md`](docs/RESULTS.md).
+
 Вердикт компрессии: **PASS**.
 
 Вердикт готовности macOS-прототипа: **PASS**.

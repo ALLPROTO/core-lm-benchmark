@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import Dispatch
 import Foundation
 import UniformTypeIdentifiers
 
@@ -10,23 +11,22 @@ private struct ValidatedPythonRuntime {
 
 @MainActor
 final class BenchmarkStore: ObservableObject {
-    @Published var settings = RunSettings()
-    @Published var result: BenchmarkResult?
-    @Published var savedRuns: [BenchmarkResult] = []
     @Published var isRunning = false
     @Published var progress = 0.0
-    @Published private(set) var log = ["Benchmark dashboard ready."]
+    @Published private(set) var log = ["Core LM Benchmark ready."]
     @Published var errorMessage: String?
     @Published var realLLMSettings = RealLLMRunSettings()
     @Published var realLLMResult: RealLLMResult?
     @Published var realLLMVerified = false
-    @Published var realLLMVerificationMessage = "Not run"
+    @Published var realLLMVerificationMessage = "No proof run"
     @Published var realLLMResultURL: URL?
 
     private var process: Process?
     private var activeProcessGroupID: pid_t?
-    private var activeRunIsRealLLM = false
     private var realLLMPowerActivity: NSObjectProtocol?
+    private var realLLMTimeoutTask: Task<Void, Never>?
+    private var memoryPressureSource: DispatchSourceMemoryPressure?
+    private var forcedRealLLMFailure: String?
     private var realLLMStartedAt: Date?
     private var activeRealLLMPythonSHA256: String?
     private var activeRealLLMScriptURL: URL?
@@ -49,28 +49,14 @@ final class BenchmarkStore: ObservableObject {
         }
         return value
     }()
-    private static let maximumSyntheticMatrixElements = 8 * 1024 * 1024
-    let scenarios = ["zero", "gaussian_bounded", "uniform_bounded", "impulse", "repeating_structured"]
-
+    static let realLLMHardTimeoutSeconds: UInt64 = 300
+    static let mpsHighWatermarkRatio = "0.85"
+    static let mpsLowWatermarkRatio = "0.75"
     var projectDirectory: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-    }
-
-    var resultsDirectory: URL {
-        if Bundle.main.bundleURL.pathExtension == "app" {
-            let support = FileManager.default.urls(
-                for: .applicationSupportDirectory, in: .userDomainMask
-            ).first!
-            return support
-                .appendingPathComponent("CoreLMBenchmark", isDirectory: true)
-                .appendingPathComponent("benchmark-results", isDirectory: true)
-        }
-        return projectDirectory.appendingPathComponent(
-            "benchmark-results", isDirectory: true
-        )
     }
 
     var realLLMResultsDirectory: URL {
@@ -80,6 +66,28 @@ final class BenchmarkStore: ObservableObject {
         return support
             .appendingPathComponent("CoreLMBenchmark", isDirectory: true)
             .appendingPathComponent("real-llm-results", isDirectory: true)
+    }
+
+    static func realLLMWorkerEnvironment(cache: URL) -> [String: String] {
+        SecurityValidation.sanitizedChildEnvironment(
+            additions: [
+                "HF_HOME": cache.path,
+                "HF_HUB_OFFLINE": "1",
+                "TRANSFORMERS_OFFLINE": "1",
+                "TOKENIZERS_PARALLELISM": "false",
+                "HF_HUB_DISABLE_TELEMETRY": "1",
+                "HF_HUB_DISABLE_PROGRESS_BARS": "1",
+                "PYTHONDONTWRITEBYTECODE": "1",
+                "PYTHONUNBUFFERED": "1",
+                "PYTORCH_MPS_HIGH_WATERMARK_RATIO": mpsHighWatermarkRatio,
+                "PYTORCH_MPS_LOW_WATERMARK_RATIO": mpsLowWatermarkRatio,
+                "OMP_NUM_THREADS": "2",
+                "OPENBLAS_NUM_THREADS": "2",
+                "MKL_NUM_THREADS": "2",
+                "VECLIB_MAXIMUM_THREADS": "2",
+                "NUMEXPR_NUM_THREADS": "2"
+            ]
+        )
     }
 
     private func resolvePackagedPythonRuntime()
@@ -136,91 +144,6 @@ final class BenchmarkStore: ObservableObject {
         )
     }
 
-    private func resolvePythonExecutable() throws -> URL {
-        if Bundle.main.bundleURL.pathExtension == "app" {
-            return try resolvePackagedPythonRuntime().executableURL
-        }
-        #if DEBUG
-        if let configured = ProcessInfo.processInfo.environment["PYTHON_BIN"],
-           !configured.isEmpty {
-            return try SecurityValidation.validateExecutable(
-                URL(fileURLWithPath: configured),
-                expectedSHA256: nil
-            )
-        }
-        #endif
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        #if DEBUG
-        let candidates: [(URL, String?)] = [
-            (
-                home.appendingPathComponent(
-                    ".cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3"
-                ),
-                nil
-            ),
-            (
-                home.appendingPathComponent(
-                    ".cache/corelm-real-llm-app-runtime-v1/bin/python"
-                ),
-                nil
-            ),
-            (home.appendingPathComponent(".pyenv/shims/python3"), nil),
-            (URL(fileURLWithPath: "/opt/homebrew/bin/python3"), nil),
-            (URL(fileURLWithPath: "/usr/local/bin/python3"), nil)
-        ]
-        for (candidate, digest) in candidates
-            where FileManager.default.fileExists(atPath: candidate.path) {
-            if let validated = try? SecurityValidation.validateExecutable(
-                candidate,
-                expectedSHA256: digest
-            ) {
-                return validated
-            }
-        }
-        throw SecurityValidationError.invalid(
-            "No validated Python interpreter is available."
-        )
-        #else
-        let validated = try SecurityValidation.validateExecutable(
-            home.appendingPathComponent(
-                ".cache/corelm-real-llm-app-runtime-v1/bin/python"
-            ),
-            expectedSHA256: nil
-        )
-        return validated
-        #endif
-    }
-
-    private func resolveBenchmarkScript() throws -> URL {
-        if let resources = Bundle.main.resourceURL {
-            let bundled = resources.appendingPathComponent(
-                "BenchmarkCore/corelm_benchmark.py"
-            )
-            if Bundle.main.bundleURL.pathExtension == "app" {
-                try SecurityValidation.validateBundleSignature(
-                    Bundle.main.bundleURL
-                )
-                return try SecurityValidation.validateRegularFileInside(
-                    bundled,
-                    root: resources
-                )
-            }
-        }
-        #if DEBUG
-        let source = projectDirectory.appendingPathComponent(
-            "BenchmarkCore/corelm_benchmark.py"
-        )
-        return try SecurityValidation.validateRegularFileInside(
-            source,
-            root: projectDirectory
-        )
-        #else
-        throw SecurityValidationError.invalid(
-            "The signed bundled benchmark runner is unavailable."
-        )
-        #endif
-    }
-
     private func resolveRealLLMPythonExecutable()
         throws -> ValidatedPythonRuntime
     {
@@ -242,7 +165,7 @@ final class BenchmarkStore: ObservableObject {
         #endif
         let candidate = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(
-                ".cache/corelm-real-llm-app-runtime-v1/bin/python"
+                ".cache/corelm-app-runtime/bin/python"
             )
         let validated = try SecurityValidation.validateExecutable(
             candidate,
@@ -267,7 +190,7 @@ final class BenchmarkStore: ObservableObject {
         }
         #endif
         let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".cache/corelm-huggingface", isDirectory: true)
+            .appendingPathComponent(".cache/corelm-model-assets", isDirectory: true)
             .standardizedFileURL
         try SecurityValidation.validateDirectory(
             url,
@@ -301,163 +224,13 @@ final class BenchmarkStore: ObservableObject {
         )
         #else
         throw SecurityValidationError.invalid(
-            "The signed bundled real-LLM runner is unavailable."
+            "The signed bundled compression runner is unavailable."
         )
         #endif
     }
 
-    func moduleState() -> ModuleState {
-        isRunning ? .running : (result == nil ? .ready : .complete)
-    }
-
     func realLLMModuleState() -> ModuleState {
         isRunning ? .running : (realLLMResult == nil ? .ready : .complete)
-    }
-
-    func run() {
-        guard !isRunning else { return }
-        let requested = settings
-        let python: URL
-        let script: URL
-        let runDirectory: URL
-        let pythonCacheDirectory: URL
-        do {
-            try validateSyntheticSettings(requested)
-            python = try resolvePythonExecutable()
-            script = try resolveBenchmarkScript()
-            try preparePrivateResultsDirectory(resultsDirectory)
-            runDirectory = resultsDirectory.appendingPathComponent(
-                UUID().uuidString.lowercased(),
-                isDirectory: true
-            )
-            try SecurityValidation.ensurePrivateDirectory(runDirectory)
-            pythonCacheDirectory = runDirectory.appendingPathComponent(
-                "python-cache", isDirectory: true
-            )
-            try SecurityValidation.ensurePrivateDirectory(
-                pythonCacheDirectory
-            )
-        } catch {
-            setError(error.localizedDescription)
-            return
-        }
-
-        activeRunIsRealLLM = false
-        isRunning = true
-        progress = 0.05
-        errorMessage = nil
-        appendLog("Starting deterministic \(requested.scenario) run.")
-
-        let task = Process()
-        process = task
-        task.executableURL = python
-        task.currentDirectoryURL = script.deletingLastPathComponent()
-        task.arguments = [
-            "-I", "-B", "-u", "-X",
-            "pycache_prefix=\(pythonCacheDirectory.path)",
-            script.path,
-            "--dimension", "\(requested.dimension)",
-            "--steps", "\(requested.steps)",
-            "--seed", "\(requested.seed)",
-            "--scenario", requested.scenario,
-            "--pca-components",
-            "\(min(requested.pcaComponents, requested.dimension))",
-            "--top-k", "\(min(requested.topK, requested.dimension))",
-            "--qmax", "\(requested.qmax)",
-            "--keyframe-interval", "\(requested.keyframeInterval)",
-            "--minimum-compression-ratio",
-            "\(requested.minimumCompressionRatio)",
-            "--maximum-normalized-rmse",
-            "\(requested.maximumNormalizedRMSE)",
-            "--minimum-cosine-similarity",
-            "\(requested.minimumCosineSimilarity)",
-            "--maximum-energy-drift", "\(requested.maximumEnergyDrift)",
-            "--output", runDirectory.path
-        ]
-        task.environment = SecurityValidation.sanitizedChildEnvironment(
-            additions: [
-                "PYTHONDONTWRITEBYTECODE": "1",
-                "PYTHONUNBUFFERED": "1"
-            ]
-        )
-        let stdout = Pipe()
-        let stderr = Pipe()
-        task.standardOutput = stdout
-        task.standardError = stderr
-        let outputBuffer = BoundedOutputBuffer()
-        let errorBuffer = BoundedOutputBuffer()
-        let stdoutHandle = stdout.fileHandleForReading
-        let stderrHandle = stderr.fileHandleForReading
-        stdoutHandle.readabilityHandler = { handle in
-            let data = handle.availableData
-            if data.isEmpty {
-                handle.readabilityHandler = nil
-            } else {
-                outputBuffer.append(data)
-            }
-        }
-        stderrHandle.readabilityHandler = { handle in
-            let data = handle.availableData
-            if data.isEmpty {
-                handle.readabilityHandler = nil
-            } else {
-                errorBuffer.append(data)
-            }
-        }
-        task.terminationHandler = { [weak self] completed in
-            stdoutHandle.readabilityHandler = nil
-            stderrHandle.readabilityHandler = nil
-            outputBuffer.append(stdoutHandle.readDataToEndOfFile())
-            errorBuffer.append(stderrHandle.readDataToEndOfFile())
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                guard self.process === completed else { return }
-                self.isRunning = false
-                self.process = nil
-                self.activeProcessGroupID = nil
-                if completed.terminationStatus == 0 {
-                    do {
-                        let completedResult =
-                            try self.loadCompletedSyntheticResult(
-                                from: runDirectory,
-                                expected: requested
-                            )
-                        self.progress = 1
-                        self.appendLog(
-                            outputBuffer.text(fallback: "Run complete.")
-                        )
-                        self.reloadSavedRuns()
-                        self.result = completedResult
-                    } catch {
-                        self.progress = 0
-                        self.setError(error.localizedDescription)
-                        self.appendLog(
-                            "Benchmark result verification failed: "
-                                + error.localizedDescription
-                        )
-                    }
-                } else {
-                    self.progress = 0
-                    let message = errorBuffer.text(
-                        fallback: "Benchmark failed."
-                    )
-                    self.setError(message)
-                    self.appendLog(message)
-                }
-            }
-        }
-        do {
-            try task.run()
-            configureProcessGroup(for: task)
-            progress = 0.25
-        } catch {
-            stdoutHandle.readabilityHandler = nil
-            stderrHandle.readabilityHandler = nil
-            isRunning = false
-            process = nil
-            activeProcessGroupID = nil
-            setError(error.localizedDescription)
-        }
     }
 
     func runRealLLM() {
@@ -466,13 +239,16 @@ final class BenchmarkStore: ObservableObject {
             errorMessage = "The external proof challenge is malformed."
             return
         }
-        let requested = realLLMSettings
+        let requested = CompressionProofRunPolicy.effectiveSettings(
+            requested: realLLMSettings
+        )
+        realLLMSettings = requested
         guard (64...512).contains(requested.validationStartBlock) else {
-            errorMessage = "Exploratory real-LLM runs must start at validation block 64 or later."
+            errorMessage = "Compression proof runs must start at validation block 64 or later."
             return
         }
         guard (1...32).contains(requested.validationBlocks) else {
-            errorMessage = "Real-LLM block count must be between 1 and 32."
+            errorMessage = "Compression proof block count must be between 1 and 32."
             return
         }
         let finalBlock: Int
@@ -526,7 +302,6 @@ final class BenchmarkStore: ObservableObject {
             return
         }
 
-        activeRunIsRealLLM = true
         isRunning = true
         progress = 0.02
         errorMessage = nil
@@ -538,6 +313,7 @@ final class BenchmarkStore: ObservableObject {
         lastRealLLMWorkerPID = nil
         activeRealLLMPythonSHA256 = pythonSHA256
         activeRealLLMScriptURL = script
+        forcedRealLLMFailure = nil
         appendLog(
             "Launching Qwen2.5-0.5B on MPS: validation blocks "
                 + "\(requested.validationStartBlock)–\(finalBlock)."
@@ -545,6 +321,7 @@ final class BenchmarkStore: ObservableObject {
 
         let task = Process()
         process = task
+        task.qualityOfService = .utility
         task.executableURL = python
         task.currentDirectoryURL = script
             .deletingLastPathComponent()
@@ -562,23 +339,13 @@ final class BenchmarkStore: ObservableObject {
             "--local-files-only"
         ]
 
-        task.environment = SecurityValidation.sanitizedChildEnvironment(
-            additions: [
-                "HF_HOME": cache.path,
-                "HF_HUB_OFFLINE": "1",
-                "TRANSFORMERS_OFFLINE": "1",
-                "TOKENIZERS_PARALLELISM": "false",
-                "HF_HUB_DISABLE_TELEMETRY": "1",
-                "HF_HUB_DISABLE_PROGRESS_BARS": "1",
-                "PYTHONDONTWRITEBYTECODE": "1",
-                "PYTHONUNBUFFERED": "1"
-            ]
-        )
+        task.environment = Self.realLLMWorkerEnvironment(cache: cache)
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
         task.standardOutput = stdoutPipe
         task.standardError = stderrPipe
+        let stderrBuffer = BoundedOutputBuffer()
         let stdoutHandle = stdoutPipe.fileHandleForReading
         let stderrHandle = stderrPipe.fileHandleForReading
 
@@ -601,6 +368,7 @@ final class BenchmarkStore: ObservableObject {
                 handle.readabilityHandler = nil
                 return
             }
+            stderrBuffer.append(data)
             guard let text = String(data: data, encoding: .utf8) else { return }
             Task { @MainActor [weak self] in
                 let lines = text
@@ -616,12 +384,14 @@ final class BenchmarkStore: ObservableObject {
         task.terminationHandler = { [weak self] completed in
             stdoutHandle.readabilityHandler = nil
             stderrHandle.readabilityHandler = nil
+            stderrBuffer.append(stderrHandle.readDataToEndOfFile())
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.finishRealLLMRun(
                     task: completed,
                     outputURL: outputURL,
-                    settings: requested
+                    settings: requested,
+                    workerErrorDetail: stderrBuffer.text(fallback: "")
                 )
             }
         }
@@ -629,19 +399,20 @@ final class BenchmarkStore: ObservableObject {
         do {
             try task.run()
             configureProcessGroup(for: task)
+            startRealLLMSafetyWatchdog(for: task)
             lastRealLLMWorkerPID = task.processIdentifier
             progress = 0.08
             appendLog(
-                "App spawned real-LLM worker PID \(task.processIdentifier)."
+                "App spawned compression worker PID \(task.processIdentifier)."
             )
         } catch {
             stdoutHandle.readabilityHandler = nil
             stderrHandle.readabilityHandler = nil
             endRealLLMPowerActivity()
             isRunning = false
-            activeRunIsRealLLM = false
             process = nil
             activeProcessGroupID = nil
+            stopRealLLMSafetyWatchdog()
             setError(error.localizedDescription)
             realLLMVerificationMessage = "Launch failed"
             writeRealLLMReceipt(
@@ -685,17 +456,23 @@ final class BenchmarkStore: ObservableObject {
     private func finishRealLLMRun(
         task: Process,
         outputURL: URL,
-        settings: RealLLMRunSettings
+        settings: RealLLMRunSettings,
+        workerErrorDetail: String
     ) {
         guard process === task else { return }
+        stopRealLLMSafetyWatchdog()
         defer { endRealLLMPowerActivity() }
         isRunning = false
-        activeRunIsRealLLM = false
         process = nil
         activeProcessGroupID = nil
         guard task.terminationStatus == 0 else {
             progress = 0
-            let message = "Real-LLM worker exited with status \(task.terminationStatus)."
+            let message = forcedRealLLMFailure
+                ?? Self.workerFailureMessage(
+                    status: task.terminationStatus,
+                    detail: workerErrorDetail
+                )
+            forcedRealLLMFailure = nil
             setError(message)
             realLLMVerificationMessage = "Execution failed"
             appendLog(message)
@@ -707,6 +484,7 @@ final class BenchmarkStore: ObservableObject {
             )
             return
         }
+        forcedRealLLMFailure = nil
 
         do {
             try FileManager.default.setAttributes(
@@ -738,7 +516,7 @@ final class BenchmarkStore: ObservableObject {
             if let aggregate = decoded.aggregate {
                 appendLog(
                     String(
-                        format: "Qwen v5 %@ — %.3f×, ΔNLL %+.6f, top-1 %.4f.",
+                        format: "Compression proof %@ — %.3f×, ΔNLL %+.6f, top-1 %.4f.",
                         aggregate.pass ? "PASS" : "FAIL",
                         aggregate.compressionRatioVsBF16,
                         aggregate.deltaNLLNatPerToken,
@@ -758,7 +536,7 @@ final class BenchmarkStore: ObservableObject {
             realLLMVerificationMessage = "Verification failed"
             setError(error.localizedDescription)
             appendLog(
-                "Real-LLM verification failed: \(error.localizedDescription)"
+                "Compression verification failed: \(error.localizedDescription)"
             )
             writeRealLLMReceipt(
                 outputURL: outputURL,
@@ -767,6 +545,25 @@ final class BenchmarkStore: ObservableObject {
                 error: error.localizedDescription
             )
         }
+    }
+
+    static func workerFailureMessage(status: Int32, detail: String) -> String {
+        let lastLine = detail
+            .replacingOccurrences(of: "\r", with: "\n")
+            .split(separator: "\n")
+            .map(String.init)
+            .last(where: { !$0.contains("Loading weights:") })
+        guard let lastLine, !lastLine.isEmpty else {
+            return "Compression worker exited with status \(status)."
+        }
+        let redacted = lastLine.replacingOccurrences(
+            of: FileManager.default.homeDirectoryForCurrentUser.path,
+            with: "<home>"
+        )
+        let bounded = String(
+            redacted.prefix(SecurityValidation.maximumLogEntryCharacters / 2)
+        )
+        return "Compression worker exited with status \(status): \(bounded)"
     }
 
     func verifyRealLLMResult(
@@ -859,11 +656,11 @@ final class BenchmarkStore: ObservableObject {
         try require(
             result.schemaVersion
                 == "corelm-voidtoken-v5-validation-development-v2",
-            "Unexpected real-LLM schema."
+            "Unexpected proof result schema."
         )
         try require(
             result.status == "validation-only-development",
-            "Unexpected real-LLM result status."
+            "Unexpected proof result status."
         )
         try require(!result.testDataOpened, "The exploratory app run opened test data.")
         try require(
@@ -900,7 +697,7 @@ final class BenchmarkStore: ObservableObject {
         try require(
             result.protocolInfo.evaluatedCandidateIndices
                 == [expected.candidateIndex],
-            "The app result does not use frozen candidate 32."
+            "The app result does not use the frozen compression profile."
         )
         try require(
             result.environment.device == "mps"
@@ -920,7 +717,7 @@ final class BenchmarkStore: ObservableObject {
                 && result.environment.transformers == "5.14.1"
                 && result.environment.numpy == "2.5.1"
                 && result.environment.pyarrow == "23.0.1",
-            "The real-LLM dependency versions are not pinned."
+            "The compression proof dependency versions are not pinned."
         )
         try require(
             result.environment.hfHome == "configured",
@@ -964,7 +761,7 @@ final class BenchmarkStore: ObservableObject {
                 && aggregate.configuration.signMode == "none"
                 && aggregate.configuration.schedule
                     == "group-kl-top-2-9bit-rest-8bit",
-            "The result configuration is not the frozen VoidToken v5 candidate."
+            "The result configuration does not match the frozen compression profile."
         )
 
         let expectedIndices = Array(
@@ -1498,11 +1295,13 @@ final class BenchmarkStore: ObservableObject {
 
     func stop() {
         guard let task = process else { return }
+        forcedRealLLMFailure = "Compression proof stopped by the user."
         terminate(task: task, force: false)
         appendLog("Stop requested.")
     }
 
     func terminateForApplicationExit() {
+        stopRealLLMSafetyWatchdog()
         endRealLLMPowerActivity()
         guard let task = process else { return }
         terminate(task: task, force: true)
@@ -1511,12 +1310,8 @@ final class BenchmarkStore: ObservableObject {
     private func beginRealLLMPowerActivity() {
         guard realLLMPowerActivity == nil else { return }
         realLLMPowerActivity = ProcessInfo.processInfo.beginActivity(
-            options: [
-                .userInitiated,
-                .idleSystemSleepDisabled,
-                .idleDisplaySleepDisabled
-            ],
-            reason: "Running the Core LM real-LLM benchmark on MPS"
+            options: [.idleSystemSleepDisabled],
+            reason: "Running the Core LM compression proof on MPS"
         )
     }
 
@@ -1533,6 +1328,58 @@ final class BenchmarkStore: ObservableObject {
         } else {
             activeProcessGroupID = nil
         }
+    }
+
+    private func startRealLLMSafetyWatchdog(for task: Process) {
+        stopRealLLMSafetyWatchdog()
+
+        let pressureSource = DispatchSource.makeMemoryPressureSource(
+            eventMask: .critical,
+            queue: DispatchQueue(
+                label: "com.corelm.benchmark.memory-pressure",
+                qos: .utility
+            )
+        )
+        pressureSource.setEventHandler { [weak self, weak task] in
+            Task { @MainActor [weak self, weak task] in
+                guard let self, let task else { return }
+                self.abortRealLLMRun(
+                    task: task,
+                    reason: "Compression proof stopped at critical system memory pressure."
+                )
+            }
+        }
+        pressureSource.resume()
+        memoryPressureSource = pressureSource
+
+        realLLMTimeoutTask = Task { @MainActor [weak self, weak task] in
+            do {
+                try await Task.sleep(
+                    for: .seconds(Self.realLLMHardTimeoutSeconds)
+                )
+            } catch {
+                return
+            }
+            guard let self, let task else { return }
+            self.abortRealLLMRun(
+                task: task,
+                reason: "Compression proof exceeded the 300-second safety limit."
+            )
+        }
+    }
+
+    private func stopRealLLMSafetyWatchdog() {
+        realLLMTimeoutTask?.cancel()
+        realLLMTimeoutTask = nil
+        memoryPressureSource?.cancel()
+        memoryPressureSource = nil
+    }
+
+    private func abortRealLLMRun(task: Process, reason: String) {
+        guard process === task, task.isRunning else { return }
+        forcedRealLLMFailure = reason
+        appendLog(reason)
+        terminate(task: task, force: false)
     }
 
     private func terminate(task: Process, force: Bool) {
@@ -1585,366 +1432,6 @@ final class BenchmarkStore: ObservableObject {
         try SecurityValidation.ensurePrivateDirectory(directory)
     }
 
-    func repeatRun() {
-        guard result != nil else { return }
-        run()
-    }
-
-    func maximumSyntheticSteps(for dimension: Int) -> Int {
-        guard dimension > 0 else { return 20 }
-        let elementLimitedMaximum =
-            (Self.maximumSyntheticMatrixElements / dimension) - 1
-        let boundedMaximum = min(10_000, elementLimitedMaximum)
-        return max(20, (boundedMaximum / 20) * 20)
-    }
-
-    func clampSyntheticStepsToResourceLimit() {
-        settings.steps = min(
-            settings.steps,
-            maximumSyntheticSteps(for: settings.dimension)
-        )
-    }
-
-    private func validateSyntheticSettings(_ value: RunSettings) throws {
-        func require(_ condition: Bool, _ message: String) throws {
-            guard condition else {
-                throw SecurityValidationError.invalid(message)
-            }
-        }
-        try require(
-            (20...10_000).contains(value.steps)
-                && value.steps.isMultiple(of: 20),
-            "Steps are outside the supported UI range."
-        )
-        try require(
-            (8...1_024).contains(value.dimension)
-                && value.dimension.isMultiple(of: 8),
-            "Dimension is outside the supported UI range."
-        )
-        let matrixRows = try SecurityValidation.checkedAdd(value.steps, 1)
-        let matrixSize = matrixRows.multipliedReportingOverflow(
-            by: value.dimension
-        )
-        try require(
-            !matrixSize.overflow
-                && matrixSize.partialValue
-                    <= Self.maximumSyntheticMatrixElements,
-            "Steps × dimension exceeds the codec matrix resource limit."
-        )
-        try require(
-            (0...9_999).contains(value.seed),
-            "Seed is outside the supported UI range."
-        )
-        try require(
-            scenarios.contains(value.scenario),
-            "Input scenario is not supported."
-        )
-        try require(
-            (1...value.dimension).contains(value.pcaComponents)
-                && (1...value.dimension).contains(value.topK),
-            "PCA or top-k is outside the supported range."
-        )
-        try require(
-            value.qmax == 127 || value.qmax == 32_767,
-            "Quantization range is unsupported."
-        )
-        try require(
-            (0...256).contains(value.keyframeInterval),
-            "Keyframe interval is outside the supported range."
-        )
-        try require(
-            value.minimumCompressionRatio.isFinite
-                && (1...20).contains(value.minimumCompressionRatio)
-                && value.maximumNormalizedRMSE.isFinite
-                && (0...2).contains(value.maximumNormalizedRMSE)
-                && value.minimumCosineSimilarity.isFinite
-                && (0...1).contains(value.minimumCosineSimilarity)
-                && value.maximumEnergyDrift.isFinite
-                && (0...2).contains(value.maximumEnergyDrift),
-            "A PASS threshold is outside the supported range."
-        )
-    }
-
-    private func loadCompletedSyntheticResult(
-        from directory: URL,
-        expected: RunSettings
-    ) throws -> BenchmarkResult {
-        try SecurityValidation.validateDirectory(
-            directory,
-            requireCurrentOwner: true
-        )
-        let files = try FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        )
-        let resultFiles = files.filter {
-            $0.pathExtension == "json"
-                && $0.lastPathComponent != "aggregate.json"
-        }
-        guard resultFiles.count == 1, let resultURL = resultFiles.first else {
-            throw SecurityValidationError.invalid(
-                "The worker did not create exactly one JSON result."
-            )
-        }
-        try FileManager.default.setAttributes(
-            [.posixPermissions: 0o600],
-            ofItemAtPath: resultURL.path
-        )
-        let data = try SecurityValidation.readRegularFile(
-            at: resultURL,
-            maximumBytes: SecurityValidation.maximumSyntheticResultBytes
-        )
-        let decoded = try JSONDecoder().decode(
-            BenchmarkResult.self,
-            from: data
-        )
-        try validateSyntheticResult(decoded, expected: expected)
-        guard resultURL.deletingPathExtension().lastPathComponent
-                == decoded.runId else {
-            throw SecurityValidationError.invalid(
-                "Synthetic result filename and run ID differ."
-            )
-        }
-        return decoded
-    }
-
-    private func validateSyntheticResult(
-        _ value: BenchmarkResult,
-        expected: RunSettings? = nil
-    ) throws {
-        func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
-            guard condition() else {
-                throw SecurityValidationError.invalid(message)
-            }
-        }
-        try require(value.schemaVersion == "0.3", "Unexpected benchmark schema.")
-        try require(
-            value.runId.utf8.count == 16
-                && value.runId.utf8.allSatisfy {
-                    (48...57).contains($0) || (97...102).contains($0)
-                },
-            "Benchmark run ID is malformed."
-        )
-        let fractionalFormatter = ISO8601DateFormatter()
-        fractionalFormatter.formatOptions = [
-            .withInternetDateTime, .withFractionalSeconds
-        ]
-        try require(
-            fractionalFormatter.date(from: value.createdAt) != nil
-                || ISO8601DateFormatter().date(from: value.createdAt) != nil,
-            "Benchmark timestamp is malformed."
-        )
-        let configuration = value.configuration
-        var settingsForValidation = RunSettings()
-        settingsForValidation.steps = configuration.steps
-        settingsForValidation.dimension = configuration.dimension
-        settingsForValidation.seed = configuration.seed
-        settingsForValidation.scenario = configuration.inputScenario
-        settingsForValidation.pcaComponents = configuration.pcaComponents ?? -1
-        settingsForValidation.topK = configuration.topK ?? -1
-        settingsForValidation.qmax = configuration.qmax ?? -1
-        settingsForValidation.keyframeInterval =
-            configuration.keyframeInterval ?? -1
-        guard let thresholds = configuration.thresholds else {
-            throw SecurityValidationError.invalid(
-                "Benchmark thresholds are missing."
-            )
-        }
-        settingsForValidation.minimumCompressionRatio =
-            thresholds.minimumCompressionRatio
-        settingsForValidation.maximumNormalizedRMSE =
-            thresholds.maximumNormalizedRMSE
-        settingsForValidation.minimumCosineSimilarity =
-            thresholds.minimumCosineSimilarity
-        settingsForValidation.maximumEnergyDrift =
-            thresholds.maximumMeanEnergyRelativeDrift
-        try validateSyntheticSettings(settingsForValidation)
-
-        if let expected {
-            try require(
-                configuration.steps == expected.steps
-                    && configuration.dimension == expected.dimension
-                    && configuration.seed == expected.seed
-                    && configuration.inputScenario == expected.scenario
-                    && configuration.pcaComponents == expected.pcaComponents
-                    && configuration.topK == expected.topK
-                    && configuration.qmax == expected.qmax
-                    && configuration.keyframeInterval
-                        == expected.keyframeInterval
-                    && thresholds.minimumCompressionRatio
-                        == expected.minimumCompressionRatio
-                    && thresholds.maximumNormalizedRMSE
-                        == expected.maximumNormalizedRMSE
-                    && thresholds.minimumCosineSimilarity
-                        == expected.minimumCosineSimilarity
-                    && thresholds.maximumMeanEnergyRelativeDrift
-                        == expected.maximumEnergyDrift,
-                "Worker result configuration differs from the app request."
-            )
-        }
-
-        try require(
-            value.inputDigest.map(SecurityValidation.isLowercaseSHA256) == true,
-            "Synthetic input digest is missing or malformed."
-        )
-        try require(
-            value.methods.count == 3
-                && Set(value.methods.map(\.name))
-                    == Set(["dense", "pca", "voidtoken"]),
-            "Synthetic result method set is invalid."
-        )
-        for method in value.methods {
-            let numericValues = [
-                method.compressionRatio,
-                method.rmse,
-                method.normalizedRMSE,
-                method.cosineSimilarity,
-                method.maximumAbsoluteError,
-                method.stepsPerSecond
-            ] + [
-                method.trajectoryRMSE,
-                method.meanEnergyRelativeDrift,
-                method.csiRelativeDrift,
-                method.energyDriftRelativeDifference
-            ].compactMap { $0 }
-            try require(
-                numericValues.allSatisfy(\.isFinite)
-                    && method.payloadBytes >= 0
-                    && method.payloadBytes <= 1_073_741_824
-                    && method.fileBytes >= method.payloadBytes
-                    && method.fileBytes <= 1_073_741_824
-                    && method.compressionRatio >= 0
-                    && method.rmse >= 0
-                    && method.normalizedRMSE >= 0
-                    && (-1.000_001...1.000_001)
-                        .contains(method.cosineSimilarity)
-                    && method.maximumAbsoluteError >= 0
-                    && method.encodeNanoseconds >= 0
-                    && method.decodeNanoseconds >= 0
-                    && method.stepsPerSecond >= 0,
-                "Synthetic result contains an invalid method metric."
-            )
-        }
-        try require(
-            value.invariants.violations == value.invariants.details.count
-                && value.invariants.details.count <= 100
-                && value.verdictReasons.count <= 32,
-            "Synthetic invariant counts are inconsistent."
-        )
-        if let samples = value.timeSeries {
-            try require(
-                samples.count <= 240
-                    && samples.allSatisfy {
-                        (0...configuration.steps).contains($0.step)
-                            && [
-                                $0.stateNorm, $0.energy, $0.csi,
-                                $0.energyDrift, $0.pcaRMSE,
-                                $0.voidTokenRMSE
-                            ].allSatisfy(\.isFinite)
-                    },
-                "Synthetic time series is outside the supported bounds."
-            )
-        }
-        guard let voidToken = value.methods.first(where: {
-            $0.name == "voidtoken"
-        }), let energyDrift = voidToken.meanEnergyRelativeDrift else {
-            throw SecurityValidationError.invalid(
-                "VoidToken metrics are incomplete."
-            )
-        }
-        let passed = voidToken.compressionRatio
-                >= thresholds.minimumCompressionRatio
-            && voidToken.normalizedRMSE <= thresholds.maximumNormalizedRMSE
-            && voidToken.cosineSimilarity >= thresholds.minimumCosineSimilarity
-            && energyDrift <= thresholds.maximumMeanEnergyRelativeDrift
-            && value.invariants.violations == 0
-            && value.invariants.deterministicReplay
-        try require(
-            value.verdict == (passed ? .pass : .fail)
-                && value.verdictReasons.isEmpty == passed,
-            "Synthetic verdict is inconsistent with recorded metrics."
-        )
-    }
-
-    func reloadSavedRuns() {
-        do {
-            try preparePrivateResultsDirectory(resultsDirectory)
-            let roots = try FileManager.default.contentsOfDirectory(
-                at: resultsDirectory,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
-            )
-            guard roots.count <= SecurityValidation.maximumSavedResultFiles else {
-                throw SecurityValidationError.invalid(
-                    "Too many saved benchmark entries."
-                )
-            }
-            var candidates: [URL] = []
-            for root in roots {
-                if root.pathExtension == "json",
-                   root.lastPathComponent != "aggregate.json" {
-                    candidates.append(root)
-                    continue
-                }
-                guard (try? SecurityValidation.validateDirectory(
-                    root,
-                    requireCurrentOwner: true
-                )) != nil else {
-                    continue
-                }
-                let nested = try FileManager.default.contentsOfDirectory(
-                    at: root,
-                    includingPropertiesForKeys: nil,
-                    options: [.skipsHiddenFiles]
-                )
-                candidates.append(contentsOf: nested.filter {
-                    $0.pathExtension == "json"
-                        && $0.lastPathComponent != "aggregate.json"
-                })
-                if candidates.count
-                    > SecurityValidation.maximumSavedResultFiles {
-                    throw SecurityValidationError.invalid(
-                        "Too many saved benchmark result files."
-                    )
-                }
-            }
-            savedRuns = candidates.compactMap { url in
-                do {
-                    let data = try SecurityValidation.readRegularFile(
-                        at: url,
-                        maximumBytes:
-                            SecurityValidation.maximumSyntheticResultBytes
-                    )
-                    let decoded = try JSONDecoder().decode(
-                        BenchmarkResult.self,
-                        from: data
-                    )
-                    try validateSyntheticResult(decoded)
-                    guard url.deletingPathExtension().lastPathComponent
-                            == decoded.runId else {
-                        throw SecurityValidationError.invalid(
-                            "Saved result filename and run ID differ."
-                        )
-                    }
-                    return decoded
-                } catch {
-                    appendLog(
-                        "Ignored invalid saved benchmark result: "
-                            + error.localizedDescription
-                    )
-                    return nil
-                }
-            }.sorted { $0.createdAt > $1.createdAt }
-        } catch {
-            savedRuns = []
-            appendLog(
-                "Could not reload saved benchmark results: "
-                    + error.localizedDescription
-            )
-        }
-    }
-
     func reloadLatestRealLLMResult() {
         do {
             try preparePrivateResultsDirectory(realLLMResultsDirectory)
@@ -1956,7 +1443,7 @@ final class BenchmarkStore: ObservableObject {
             guard directories.count
                     <= SecurityValidation.maximumSavedResultFiles else {
                 throw SecurityValidationError.invalid(
-                    "Too many saved real-LLM run directories."
+                    "Too many saved compression-proof run directories."
                 )
             }
             var candidates: [(URL, Date)] = []
@@ -1982,7 +1469,7 @@ final class BenchmarkStore: ObservableObject {
                 if candidates.count
                     > SecurityValidation.maximumSavedResultFiles {
                     throw SecurityValidationError.invalid(
-                        "Too many saved real-LLM result files."
+                        "Too many saved compression-proof result files."
                     )
                 }
             }
@@ -2014,11 +1501,15 @@ final class BenchmarkStore: ObservableObject {
                         validationBlocks:
                             decoded.protocolInfo.validationBlocks
                     )
+                    let verificationSettings =
+                        CompressionProofRunPolicy.effectiveSettings(
+                            requested: loadedSettings
+                        )
                     try verifyRealLLMResult(
                         decoded,
-                        expected: loadedSettings
+                        expected: verificationSettings
                     )
-                    realLLMSettings = loadedSettings
+                    realLLMSettings = verificationSettings
                     realLLMResult = decoded
                     realLLMResultURL = candidate
                     realLLMVerified = true
@@ -2028,129 +1519,41 @@ final class BenchmarkStore: ObservableObject {
                     return
                 } catch {
                     appendLog(
-                        "Ignored invalid saved real-LLM result: "
+                        "Ignored invalid saved compression-proof result: "
                             + error.localizedDescription
                     )
                 }
             }
         } catch {
             appendLog(
-                "Could not reload saved real-LLM results: "
+                "Could not reload saved compression-proof results: "
                     + error.localizedDescription
             )
         }
     }
 
-    func select(_ run: BenchmarkResult) {
-        result = run
-        settings.steps = run.configuration.steps
-        settings.dimension = run.configuration.dimension
-        settings.seed = run.configuration.seed
-        settings.scenario = run.configuration.inputScenario
-        settings.pcaComponents = run.configuration.pcaComponents ?? 8
-        settings.topK = run.configuration.topK ?? 16
-        settings.qmax = run.configuration.qmax ?? 127
-        settings.keyframeInterval = run.configuration.keyframeInterval ?? 0
-        if let thresholds = run.configuration.thresholds {
-            settings.minimumCompressionRatio = thresholds.minimumCompressionRatio
-            settings.maximumNormalizedRMSE = thresholds.maximumNormalizedRMSE
-            settings.minimumCosineSimilarity = thresholds.minimumCosineSimilarity
-            settings.maximumEnergyDrift = thresholds.maximumMeanEnergyRelativeDrift
-        }
-        appendLog("Opened run \(run.runId).")
-    }
-
-    func openResult() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.json]
-        panel.allowsMultipleSelection = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            let data = try SecurityValidation.readRegularFile(
-                at: url,
-                maximumBytes: SecurityValidation.maximumSyntheticResultBytes
-            )
-            let decoded = try JSONDecoder().decode(
-                BenchmarkResult.self,
-                from: data
-            )
-            try validateSyntheticResult(decoded)
-            select(decoded)
-        } catch {
-            setError(error.localizedDescription)
-        }
-    }
-
-    func saveMarkdownReport() {
-        guard let result else { return }
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.plainText]
-        panel.nameFieldStringValue = "\(result.runId).md"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let rows = result.methods.map {
-            "| \($0.name) | \($0.payloadBytes) | \(String(format: "%.3f", $0.compressionRatio))× | "
-            + "\(String(format: "%.6f", $0.normalizedRMSE)) | "
-            + "\(String(format: "%.6f", $0.cosineSimilarity)) |"
-        }.joined(separator: "\n")
-        let report = """
-        # Core LM Benchmark — \(result.runId)
-
-        Verdict: **\(result.verdict.rawValue)**
-
-        | Method | Payload bytes | Ratio | NRMSE | Cosine |
-        |---|---:|---:|---:|---:|
-        \(rows)
-
-        Invariant violations: \(result.invariants.violations)
-        Deterministic replay: \(result.invariants.deterministicReplay)
-        """
-        do {
-            try report.write(to: url, atomically: true, encoding: .utf8)
-            appendLog("Saved report to \(url.path).")
-        } catch {
-            setError(error.localizedDescription)
-        }
-    }
-
     func smokeRunIfRequested() async {
         if CommandLine.arguments.contains("--real-llm-smoke-run") {
+            await prepareAutomatedRunWindow()
             await realLLMSmokeRun()
             return
         }
-        guard CommandLine.arguments.contains("--smoke-run") else { return }
-        try? await Task.sleep(for: .milliseconds(300))
+        guard CommandLine.arguments.contains("--app-smoke-run") else {
+            return
+        }
+        await prepareAutomatedRunWindow()
         let visibleWindows = NSApplication.shared.windows.filter {
             $0.isVisible && $0.contentView != nil
         }
         let windowReady = visibleWindows.contains {
             $0.frame.width >= 1000 && $0.frame.height >= 650
         }
-        settings.dimension = 32
-        settings.steps = 200
-        settings.seed = 7
-        settings.scenario = "zero"
-        settings.pcaComponents = 8
-        settings.topK = 4
-        settings.keyframeInterval = 0
-        run()
-        let deadline = Date().addingTimeInterval(20)
-        while isRunning && Date() < deadline {
-            try? await Task.sleep(for: .milliseconds(100))
-        }
-        let passed = !isRunning
-            && errorMessage == nil
-            && windowReady
-            && result?.configuration.dimension == 32
-            && result?.verdict == .pass
-            && result?.invariants.deterministicReplay == true
-        appendLog(passed ? "SMOKE PASS" : "SMOKE FAIL")
+        let passed = errorMessage == nil && windowReady
+        appendLog(passed ? "APP LAUNCH PASS" : "APP LAUNCH FAIL")
         let summary: [String: Any] = [
             "status": passed ? "PASS" : "FAIL",
             "visibleWindows": visibleWindows.count,
             "windowReady": windowReady,
-            "benchmarkRunId": result?.runId ?? "",
-            "benchmarkVerdict": result?.verdict.rawValue ?? "",
-            "deterministicReplay": result?.invariants.deterministicReplay ?? false,
             "error": errorMessage ?? ""
         ]
         if let data = try? JSONSerialization.data(
@@ -2162,16 +1565,34 @@ final class BenchmarkStore: ObservableObject {
         exit(passed ? EXIT_SUCCESS : EXIT_FAILURE)
     }
 
+    private func prepareAutomatedRunWindow() async {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        for _ in 0..<10 {
+            for window in NSApplication.shared.windows
+                where window.contentView != nil {
+                window.makeKeyAndOrderFront(nil)
+            }
+            if NSApplication.shared.windows.contains(where: {
+                $0.isVisible && $0.contentView != nil
+                    && $0.frame.width >= 1000 && $0.frame.height >= 650
+            }) {
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+    }
+
     private func realLLMSmokeRun() async {
-        try? await Task.sleep(for: .milliseconds(500))
         let visibleWindows = NSApplication.shared.windows.filter {
             $0.isVisible && $0.contentView != nil
         }
         let windowReady = visibleWindows.contains {
             $0.frame.width >= 1000 && $0.frame.height >= 650
         }
-        realLLMSettings.validationStartBlock = 64
-        realLLMSettings.validationBlocks = 8
+        realLLMSettings.validationStartBlock =
+            CompressionProofRunPolicy.registeredStartBlock
+        realLLMSettings.validationBlocks =
+            CompressionProofRunPolicy.registeredBlockCount
         runRealLLM()
 
         let deadline = Date().addingTimeInterval(600)
@@ -2181,7 +1602,7 @@ final class BenchmarkStore: ObservableObject {
         if isRunning {
             stop()
             endRealLLMPowerActivity()
-            errorMessage = "Real-LLM app smoke run timed out."
+            errorMessage = "Compression-proof app run timed out."
         }
         let aggregate = realLLMResult?.aggregate
         let passed = !isRunning

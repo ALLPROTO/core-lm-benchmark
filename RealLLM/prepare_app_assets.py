@@ -122,7 +122,7 @@ def parse_arguments() -> argparse.Namespace:
         default=Path(
             os.environ.get(
                 "HF_HOME",
-                str(Path.home() / ".cache" / "corelm-huggingface"),
+                str(Path.home() / ".cache" / "corelm-model-assets"),
             )
         ),
         help="private Hugging Face cache directory",

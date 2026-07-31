@@ -3,6 +3,7 @@ import os
 import plistlib
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -22,6 +23,200 @@ EVIDENCE = ROOT / "app-real-llm-evidence"
 
 
 class LocalAppBuildTests(unittest.TestCase):
+    def test_release_surface_is_version_free_and_proof_only(self):
+        content = (ROOT / "App" / "Sources" / "ContentView.swift").read_text(
+            encoding="utf-8"
+        )
+        store = (
+            ROOT / "App" / "Sources" / "BenchmarkStore.swift"
+        ).read_text(encoding="utf-8")
+        application = (
+            ROOT / "App" / "Sources" / "CoreLMBenchmarkApp.swift"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('Label("Compression Proof"', content)
+        self.assertIn('Button("Run Compression Proof")', content)
+        self.assertIn('"VoidToken Codec"', content)
+        for stale in (
+            "Development Run",
+            "Compression Comparison",
+            "Stability and Invariants",
+            "Saved Runs",
+            "Evidence Report",
+            "Input Generator",
+            "struct ControlsView",
+            "struct LiveRunView",
+            "struct MethodTable",
+            '"VoidToken v5"',
+            '"VoidToken v5 · candidate 32 · MPS"',
+            '"Run Real Qwen"',
+            '"Real Qwen Test"',
+            '? "Real LLM" : "Live Run"',
+        ):
+            self.assertNotIn(stale, content)
+        for stale in (
+            'format: "Qwen v5 ',
+            "The app result does not use frozen candidate 32.",
+            "The result configuration is not the frozen VoidToken v5 candidate.",
+        ):
+            self.assertNotIn(stale, store)
+        self.assertNotIn('Button("Open Development Result…")', application)
+
+        models = (ROOT / "App" / "Sources" / "Models.swift").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("enum Verdict", models)
+        self.assertIn("enum ModuleState", models)
+        self.assertNotIn("BenchmarkResult", models)
+        self.assertNotIn("RunSettings", models)
+
+    def test_final_bundle_and_default_gates_exclude_synthetic_benchmark(self):
+        package = (ROOT / "package_app.sh").read_text(encoding="utf-8")
+        verifier = (
+            ROOT / "security" / "verify_app_bundle.sh"
+        ).read_text(encoding="utf-8")
+        build = (ROOT / "build_local_app.sh").read_text(encoding="utf-8")
+        tests = (ROOT / "run_tests.sh").read_text(encoding="utf-8")
+        workflow = (
+            ROOT / ".github" / "workflows" / "verify.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("BenchmarkCore", package)
+        self.assertIn(
+            "release bundle must not contain the synthetic BenchmarkCore",
+            verifier,
+        )
+        self.assertIn(
+            "release bundle must contain exactly six declared resources",
+            verifier,
+        )
+        self.assertIn(
+            "'BenchmarkCore|corelm_benchmark|synthetic'",
+            verifier,
+        )
+        self.assertNotIn("BenchmarkCore/corelm_benchmark.py", verifier)
+        self.assertIn("--app-smoke-run", build)
+        self.assertNotIn('CoreLMBenchmarkApp" --smoke-run', build)
+        self.assertNotIn("Tests.test_benchmark", tests)
+        self.assertNotIn("Tests.test_publication_archives", tests)
+        self.assertNotIn("unittest discover", tests)
+        self.assertNotIn("BenchmarkCore/verify_evidence.py", workflow)
+
+    def test_packaged_real_llm_runner_lists_candidates_without_benchmark_core(
+        self,
+    ):
+        packaged_files = (
+            "__init__.py",
+            "benchmark_real_llm.py",
+            "codecs.py",
+            "develop_voidtoken_v5.py",
+            "voidtoken_v5.py",
+        )
+        package_source = (ROOT / "package_app.sh").read_text(encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_root = Path(temporary)
+            resources = (
+                temporary_root
+                / "CoreLMBenchmark.app"
+                / "Contents"
+                / "Resources"
+            )
+            bundled_real_llm = resources / "RealLLM"
+            isolated_working_directory = (
+                temporary_root / "empty-working-directory"
+            )
+            bundled_real_llm.mkdir(parents=True)
+            isolated_working_directory.mkdir()
+
+            for filename in packaged_files:
+                self.assertIn(filename, package_source)
+                shutil.copy2(
+                    ROOT / "RealLLM" / filename,
+                    bundled_real_llm / filename,
+                )
+
+            self.assertFalse((resources / "BenchmarkCore").exists())
+
+            environment = os.environ.copy()
+            for variable in ("PYTHONHOME", "PYTHONPATH"):
+                environment.pop(variable, None)
+            environment.update(
+                {
+                    "HF_DATASETS_OFFLINE": "1",
+                    "HF_HUB_OFFLINE": "1",
+                    "PYTHONNOUSERSITE": "1",
+                    "TRANSFORMERS_OFFLINE": "1",
+                }
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-B",
+                    str(bundled_real_llm / "develop_voidtoken_v5.py"),
+                    "--list-candidates",
+                ],
+                cwd=isolated_working_directory,
+                env=environment,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            candidate_lines = completed.stdout.splitlines()
+            self.assertGreater(len(candidate_lines), 1)
+            self.assertTrue(candidate_lines[0].startswith("0: {"))
+            self.assertNotIn("BenchmarkCore", completed.stderr)
+            self.assertNotIn("corelm_benchmark", completed.stderr)
+
+    def test_final_user_docs_and_paths_are_separate_from_versions(self):
+        for relative in (
+            "README.md",
+            "ARCHITECTURE.md",
+            "docs/BUILD_AND_VERIFY.md",
+            "docs/RESULTS.md",
+            "docs/LIMITATIONS.md",
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            for versioned_label in (
+                "VoidToken v3",
+                "VoidToken v4",
+                "VoidToken v5",
+                "Qwen v5",
+                "candidate 32",
+            ):
+                self.assertNotIn(versioned_label, text, relative)
+
+        history = (
+            ROOT / "docs" / "development" / "HISTORY.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("VoidToken v3", history)
+        self.assertIn("VoidToken v5", history)
+
+        build_script = (ROOT / "build_local_app.sh").read_text(
+            encoding="utf-8"
+        )
+        package_script = (ROOT / "package_app.sh").read_text(
+            encoding="utf-8"
+        )
+        proof_script = (ROOT / "run_local_app_proof.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(".cache/corelm-app-runtime", build_script)
+        self.assertIn(".cache/corelm-model-assets", build_script)
+        self.assertIn(".cache/corelm-app-runtime", package_script)
+        self.assertIn(".cache/corelm-proof-runtimes", proof_script)
+        for source in (build_script, package_script, proof_script):
+            self.assertNotIn("corelm-real-llm-app-runtime-v1", source)
+
+        plist = plistlib.loads((ROOT / "App" / "Info.plist").read_bytes())
+        self.assertEqual(plist["CFBundleName"], "Core LM Benchmark")
+        self.assertEqual(plist["CFBundleShortVersionString"], "1.0.0")
+        self.assertEqual(plist["CFBundleVersion"], "6")
+
     def test_packager_has_no_author_specific_default_python_digest(self):
         source = (ROOT / "package_app.sh").read_text(encoding="utf-8")
         self.assertNotIn(
@@ -193,6 +388,9 @@ class LocalAppBuildTests(unittest.TestCase):
             receipt = json.loads(
                 (EVIDENCE / receipt_path.name).read_text(encoding="utf-8")
             )
+            receipt["worker"]["scriptSHA256"] = (
+                verify_app_run_evidence._sha256(runner)
+            )
             manifest.write_text(
                 json.dumps(
                     {
@@ -259,6 +457,9 @@ class LocalAppBuildTests(unittest.TestCase):
             executable.write_bytes(b"locally built executable")
             receipt = json.loads(
                 (EVIDENCE / receipt_path.name).read_text(encoding="utf-8")
+            )
+            receipt["worker"]["scriptSHA256"] = (
+                verify_app_run_evidence._sha256(runner)
             )
             manifest.write_text(
                 json.dumps(

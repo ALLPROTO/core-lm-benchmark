@@ -1,5 +1,9 @@
 # Known limitations
 
+> Detailed development/provenance record. Historical version identifiers are
+> retained for exact reproducibility. The concise end-user boundary is
+> [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md).
+
 1. Release-сборка записывает в подписанные resources абсолютный путь и
    детерминированный SHA-256-манифест полного base Python prefix, venv,
    `site-packages`, native-библиотек и symlink topology. Приложение

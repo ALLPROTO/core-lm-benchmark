@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this benchmark, codec, or evidence protocol, please cite the paper and this software artifact."
-title: "Core LM Benchmark: VoidToken v3 and VoidToken v5"
+title: "Core LM Benchmark"
 type: software
 authors:
   - family-names: "Tyshchenko"
@@ -12,11 +12,10 @@ license: MIT
 repository-code: "https://github.com/ALLPROTO/core-lm-benchmark"
 url: "https://github.com/ALLPROTO/core-lm-benchmark"
 abstract: >-
-  A native macOS benchmark and independent Python evidence core. The artifact
-  contains the registered VoidToken v3 synthetic trajectory benchmark and a
-  prospectively frozen VoidToken v5 quality evaluation with an
-  integrity-protected, runner-recorded complete-container measurement for
-  Qwen2.5-0.5B prefill KV caches.
+  An open-source native macOS compression proof with an independent Python
+  evidence core. The artifact builds locally, measures a pinned Qwen2.5-0.5B
+  prefill KV cache, verifies complete-container storage and quality, and
+  preserves the registered development and prospective evidence chronology.
 keywords:
   - state trajectory compression
   - KV-cache compression

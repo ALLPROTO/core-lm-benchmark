@@ -25,11 +25,5 @@ struct CoreLMBenchmarkApp: App {
                     appDelegate.store = store
                 }
         }
-        .commands {
-            CommandGroup(after: .newItem) {
-                Button("Open Benchmark Result…") { store.openResult() }
-                    .keyboardShortcut("o")
-            }
-        }
     }
 }

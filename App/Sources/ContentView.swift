@@ -3,20 +3,16 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var store: BenchmarkStore
-    @State private var section = (
-        CommandLine.arguments.contains("--real-llm-smoke-run")
-            || CommandLine.arguments.contains("--show-real-llm")
-    ) ? "Real LLM" : "Live Run"
-    private let sections = [
-        "Live Run", "Real LLM", "Compression Comparison",
-        "Stability and Invariants", "Saved Runs", "Evidence Report"
+    private let architectureModules = [
+        "Qwen2.5-0.5B", "Prefill", "KV Cache", "VoidToken Codec",
+        "Cache Rebuild", "Continuation", "Metrics", "Verifier"
     ]
 
     var body: some View {
         NavigationSplitView {
-            List(selection: $section) {
-                Section("Views") {
-                    ForEach(sections, id: \.self) { Text($0).tag($0) }
+            List {
+                Section("Proof") {
+                    Label("Compression Proof", systemImage: "checkmark.shield")
                 }
                 Section("Architecture") {
                     ForEach(architectureModules, id: \.self) { module in
@@ -33,30 +29,14 @@ struct ContentView: View {
             .navigationTitle("Core LM")
         } detail: {
             VStack(spacing: 0) {
-                if section == "Real LLM" {
-                    RealLLMControlsView()
-                } else {
-                    ControlsView()
-                }
+                RealLLMControlsView()
                 Divider()
-                Group {
-                    switch section {
-                    case "Real LLM": RealLLMView()
-                    case "Compression Comparison": ComparisonView()
-                    case "Stability and Invariants": StabilityView()
-                    case "Saved Runs": SavedRunsView()
-                    case "Evidence Report": EvidenceView()
-                    default: LiveRunView()
-                    }
-                }
+                RealLLMView()
                 Divider()
                 LogView()
             }
         }
-        .onAppear {
-            store.reloadSavedRuns()
-            store.reloadLatestRealLLMResult()
-        }
+        .onAppear { store.reloadLatestRealLLMResult() }
         .task { await store.smokeRunIfRequested() }
         .alert("Benchmark Error", isPresented: Binding(
             get: { store.errorMessage != nil },
@@ -66,23 +46,8 @@ struct ContentView: View {
         } message: { Text(store.errorMessage ?? "") }
     }
 
-    private var architectureModules: [String] {
-        if section == "Real LLM" {
-            return [
-                "Qwen2.5-0.5B", "Prefill", "KV Cache", "VoidToken v5",
-                "Cache Rebuild", "Continuation", "Metrics", "Verifier"
-            ]
-        }
-        return [
-            "Input Generator", "Core LM", "Dense", "PCA",
-            "VoidToken", "Metrics", "Invariants", "Reporter"
-        ]
-    }
-
     private var currentModuleState: ModuleState {
-        section == "Real LLM"
-            ? store.realLLMModuleState()
-            : store.moduleState()
+        store.realLLMModuleState()
     }
 
     private var statusColor: Color {
@@ -94,84 +59,6 @@ struct ContentView: View {
     }
 }
 
-struct ControlsView: View {
-    @EnvironmentObject private var store: BenchmarkStore
-    @State private var showThresholds = false
-
-    var body: some View {
-        HStack {
-            Stepper(
-                "Steps \(store.settings.steps)",
-                value: $store.settings.steps,
-                in: 20...store.maximumSyntheticSteps(
-                    for: store.settings.dimension
-                ),
-                step: 20
-            )
-            Stepper("n \(store.settings.dimension)", value: $store.settings.dimension, in: 8...1024, step: 8)
-                .onChange(of: store.settings.dimension) {
-                    store.clampSyntheticStepsToResourceLimit()
-                }
-            Stepper("Seed \(store.settings.seed)", value: $store.settings.seed, in: 0...9999)
-            Picker("Input", selection: $store.settings.scenario) {
-                ForEach(store.scenarios, id: \.self) { Text($0).tag($0) }
-            }
-            .frame(width: 205)
-            Stepper("PCA \(store.settings.pcaComponents)", value: $store.settings.pcaComponents, in: 1...store.settings.dimension)
-            Stepper("top-k \(store.settings.topK)", value: $store.settings.topK, in: 1...store.settings.dimension)
-            Picker("qmax", selection: $store.settings.qmax) {
-                Text("127").tag(127)
-                Text("32767").tag(32767)
-            }
-            .frame(width: 100)
-            Stepper(
-                "KF \(store.settings.keyframeInterval)",
-                value: $store.settings.keyframeInterval,
-                in: 0...256,
-                step: 8
-            )
-            Button("Thresholds") { showThresholds.toggle() }
-                .popover(isPresented: $showThresholds) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("PASS Thresholds").font(.headline)
-                        Stepper(
-                            "Minimum ratio \(store.settings.minimumCompressionRatio, specifier: "%.1f")×",
-                            value: $store.settings.minimumCompressionRatio,
-                            in: 1...20, step: 0.5
-                        )
-                        Stepper(
-                            "Maximum NRMSE \(store.settings.maximumNormalizedRMSE, specifier: "%.2f")",
-                            value: $store.settings.maximumNormalizedRMSE,
-                            in: 0...2, step: 0.01
-                        )
-                        Stepper(
-                            "Minimum cosine \(store.settings.minimumCosineSimilarity, specifier: "%.2f")",
-                            value: $store.settings.minimumCosineSimilarity,
-                            in: 0...1, step: 0.01
-                        )
-                        Stepper(
-                            "Maximum energy drift \(store.settings.maximumEnergyDrift, specifier: "%.2f")",
-                            value: $store.settings.maximumEnergyDrift,
-                            in: 0...2, step: 0.01
-                        )
-                    }
-                    .padding()
-                    .frame(width: 350)
-                }
-            Spacer()
-            if store.isRunning {
-                Button("Stop", role: .destructive) { store.stop() }
-            } else {
-                Button("Run") { store.run() }.buttonStyle(.borderedProminent)
-            }
-            Button("Repeat") { store.repeatRun() }
-                .disabled(store.result == nil || store.isRunning)
-        }
-        .controlSize(.small)
-        .padding()
-    }
-}
-
 struct RealLLMControlsView: View {
     @EnvironmentObject private var store: BenchmarkStore
 
@@ -179,8 +66,9 @@ struct RealLLMControlsView: View {
         HStack(spacing: 16) {
             Label("Qwen2.5-0.5B", systemImage: "brain")
                 .font(.headline)
-            Text("VoidToken v5 · candidate 32 · MPS")
+            Text("VoidToken · frozen profile · Apple MPS")
                 .foregroundStyle(.secondary)
+            #if DEBUG
             Stepper(
                 "Start \(store.realLLMSettings.validationStartBlock)",
                 value: $store.realLLMSettings.validationStartBlock,
@@ -192,13 +80,21 @@ struct RealLLMControlsView: View {
                 value: $store.realLLMSettings.validationBlocks,
                 in: 1...32
             )
+            #else
+            Text(
+                "Validation blocks "
+                    + "\(CompressionProofRunPolicy.registeredStartBlock)–"
+                    + "\(CompressionProofRunPolicy.registeredEndBlock)"
+            )
+                .foregroundStyle(.secondary)
+            #endif
             Spacer()
             Button("Show Result") { store.revealRealLLMResult() }
                 .disabled(store.realLLMResultURL == nil)
             if store.isRunning {
                 Button("Stop", role: .destructive) { store.stop() }
             } else {
-                Button("Run Real Qwen") { store.runRealLLM() }
+                Button("Run Compression Proof") { store.runRealLLM() }
                     .buttonStyle(.borderedProminent)
             }
         }
@@ -214,12 +110,12 @@ struct RealLLMView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 Header(
-                    title: "Real Qwen Test",
+                    title: "Compression Proof",
                     verdict: store.realLLMResult?.verdict
                 )
                 Text(
                     "Pinned Qwen2.5-0.5B · real KV-cache replay · "
-                        + "validation-only exploratory slice"
+                        + "registered validation slice"
                 )
                 .foregroundStyle(.secondary)
                 ProgressView(value: store.progress)
@@ -365,7 +261,7 @@ struct RealLLMView: View {
                     }
                 } else if store.isRunning {
                     ContentUnavailableView(
-                        "Real model is running",
+                        "Compression proof is running",
                         systemImage: "cpu",
                         description: Text(
                             "The app is loading Qwen, rebuilding KV caches, "
@@ -374,10 +270,10 @@ struct RealLLMView: View {
                     )
                 } else {
                     ContentUnavailableView(
-                        "No real-LLM run yet",
+                        "No proof run yet",
                         systemImage: "brain",
                         description: Text(
-                            "Run the pinned Qwen2.5-0.5B test on Apple MPS."
+                            "Run the pinned Qwen2.5-0.5B compression proof on Apple MPS."
                         )
                     )
                 }
@@ -398,169 +294,6 @@ struct RealLLMGateRow: View {
                 ? "checkmark.circle.fill" : "xmark.circle.fill"
         )
         .foregroundStyle(passed ? .green : .red)
-    }
-}
-
-struct LiveRunView: View {
-    @EnvironmentObject private var store: BenchmarkStore
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Header(title: "Live Run", verdict: store.result?.verdict)
-            ProgressView(value: store.progress)
-            if let result = store.result {
-                HStack(spacing: 16) {
-                    MetricCard(title: "Run", value: result.runId)
-                    MetricCard(title: "Input digest", value: String((result.inputDigest ?? "—").prefix(12)))
-                    MetricCard(title: "Violations", value: "\(result.invariants.violations)")
-                    MetricCard(title: "Replay", value: result.invariants.deterministicReplay ? "Exact" : "Failed")
-                }
-                if let samples = result.timeSeries {
-                    Chart {
-                        ForEach(samples) { sample in
-                            LineMark(
-                                x: .value("Step", sample.step),
-                                y: .value("State norm", sample.stateNorm)
-                            )
-                            .foregroundStyle(by: .value("Signal", "State norm"))
-                            LineMark(
-                                x: .value("Step", sample.step),
-                                y: .value("Energy", sample.energy)
-                            )
-                            .foregroundStyle(by: .value("Signal", "Energy"))
-                        }
-                    }
-                    .frame(minHeight: 210)
-                }
-                MethodTable(methods: result.methods)
-            } else {
-                ContentUnavailableView("No completed run", systemImage: "waveform.path.ecg",
-                                       description: Text("Run the benchmark or open a saved JSON result."))
-            }
-            Spacer()
-        }.padding(24)
-    }
-}
-
-struct ComparisonView: View {
-    @EnvironmentObject private var store: BenchmarkStore
-    var body: some View {
-        VStack(alignment: .leading) {
-            Header(title: "Compression Comparison", verdict: store.result?.verdict)
-            if let methods = store.result?.methods {
-                Chart(methods) { method in
-                    BarMark(x: .value("Method", method.name),
-                            y: .value("Compression ratio", method.compressionRatio))
-                    .foregroundStyle(by: .value("Method", method.name))
-                }
-                .chartYAxisLabel("Dense / payload bytes")
-                .frame(height: 210)
-                Chart(methods) { method in
-                    BarMark(x: .value("Method", method.name),
-                            y: .value("Payload bytes", method.payloadBytes))
-                    .foregroundStyle(by: .value("Method", method.name))
-                }
-                .chartYAxisLabel("Actual payload bytes")
-                .frame(height: 180)
-                MethodTable(methods: methods)
-            } else {
-                ContentUnavailableView("No data", systemImage: "chart.bar")
-            }
-            Spacer()
-        }.padding(24)
-    }
-}
-
-struct StabilityView: View {
-    @EnvironmentObject private var store: BenchmarkStore
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Header(title: "Stability and Invariants", verdict: store.result?.verdict)
-            if let result = store.result {
-                HStack {
-                    MetricCard(title: "Violations", value: "\(result.invariants.violations)")
-                    MetricCard(title: "Replay", value: result.invariants.deterministicReplay ? "PASS" : "FAIL")
-                }
-                Chart(result.methods) { method in
-                    BarMark(x: .value("Method", method.name),
-                            y: .value("Energy drift", method.meanEnergyRelativeDrift ?? 0))
-                }
-                .chartYAxisLabel("Mean relative energy drift")
-                .frame(height: 180)
-                if let samples = result.timeSeries {
-                    Chart {
-                        ForEach(samples) { sample in
-                            LineMark(x: .value("Step", sample.step),
-                                     y: .value("PCA RMSE", sample.pcaRMSE))
-                                .foregroundStyle(by: .value("Error", "PCA"))
-                            LineMark(x: .value("Step", sample.step),
-                                     y: .value("VoidToken RMSE", sample.voidTokenRMSE))
-                                .foregroundStyle(by: .value("Error", "VoidToken"))
-                        }
-                    }
-                    .chartYAxisLabel("Reconstruction RMSE")
-                    .frame(height: 180)
-                    Chart(samples) { sample in
-                        LineMark(x: .value("Step", sample.step),
-                                 y: .value("CSI", sample.csi))
-                            .foregroundStyle(.purple)
-                    }
-                    .chartYAxisLabel("CSI")
-                    .frame(height: 140)
-                }
-                ForEach(result.invariants.details, id: \.self) { Text("• \($0)") }
-            } else {
-                ContentUnavailableView("No data", systemImage: "checkmark.shield")
-            }
-            Spacer()
-        }.padding(24)
-    }
-}
-
-struct SavedRunsView: View {
-    @EnvironmentObject private var store: BenchmarkStore
-    var body: some View {
-        VStack(alignment: .leading) {
-            HStack {
-                Text("Saved Runs").font(.largeTitle.bold())
-                Spacer()
-                Button("Open JSON…") { store.openResult() }
-                Button("Reload") { store.reloadSavedRuns() }
-            }
-            Table(store.savedRuns) {
-                TableColumn("Run") { run in
-                    Button(run.runId) { store.select(run) }.buttonStyle(.plain)
-                }
-                TableColumn("Scenario") { Text($0.configuration.inputScenario) }
-                TableColumn("n") { Text("\($0.configuration.dimension)") }
-                TableColumn("Steps") { Text("\($0.configuration.steps)") }
-                TableColumn("Verdict") { VerdictBadge(verdict: $0.verdict) }
-            }
-        }.padding(24)
-    }
-}
-
-struct EvidenceView: View {
-    @EnvironmentObject private var store: BenchmarkStore
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Text("Evidence Report").font(.largeTitle.bold())
-                Spacer()
-                Button("Export Markdown…") { store.saveMarkdownReport() }
-                    .disabled(store.result == nil)
-            }
-            if let result = store.result {
-                VerdictBadge(verdict: result.verdict)
-                Text(result.verdictReasons.isEmpty
-                     ? "All configured thresholds were satisfied."
-                     : result.verdictReasons.joined(separator: "\n"))
-                    .textSelection(.enabled)
-                MethodTable(methods: result.methods)
-            } else {
-                ContentUnavailableView("No evidence loaded", systemImage: "doc.text.magnifyingglass")
-            }
-            Spacer()
-        }.padding(24)
     }
 }
 
@@ -586,27 +319,6 @@ struct Header: View {
             Spacer()
             VerdictBadge(verdict: verdict ?? .inconclusive)
         }
-    }
-}
-
-struct MethodTable: View {
-    let methods: [MethodResult]
-    var body: some View {
-        Table(methods) {
-            TableColumn("Method", value: \.name)
-            TableColumn("Payload") { Text(ByteCountFormatter.string(fromByteCount: Int64($0.payloadBytes), countStyle: .memory)) }
-            TableColumn("Ratio") { Text(String(format: "%.3f×", $0.compressionRatio)) }
-            TableColumn("NRMSE") { Text(String(format: "%.5f", $0.normalizedRMSE)) }
-            TableColumn("Cosine") { Text(String(format: "%.5f", $0.cosineSimilarity)) }
-            TableColumn("Encode") { Text(String(format: "%.3f ms", Double($0.encodeNanoseconds) / 1_000_000)) }
-            TableColumn("Decode") { Text(String(format: "%.3f ms", Double($0.decodeNanoseconds) / 1_000_000)) }
-            TableColumn("Steps/s") { Text(String(format: "%.1f", $0.stepsPerSecond)) }
-            TableColumn("Peak memory") {
-                Text($0.peakMemoryBytes.map {
-                    ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .memory)
-                } ?? "n/a")
-            }
-        }.frame(minHeight: 180)
     }
 }
 

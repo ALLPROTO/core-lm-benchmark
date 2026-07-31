@@ -1,5 +1,10 @@
 # Reproducing the Core LM evidence
 
+> This is a versioned scientific and provenance record. Revision numbers in
+> this document identify protocols and immutable evidence, not alternative app
+> editions. Ordinary users should begin with the repository `README.md` and
+> `docs/BUILD_AND_VERIFY.md`.
+
 The reproducibility archive contains the files needed to inspect the
 implementation, rerun the test suite and benchmark, rebuild the macOS app, and
 trace the historical VoidToken v3 result and the prospective VoidToken v5
@@ -22,10 +27,11 @@ python3 -m pip install --require-hashes -r requirements.lock
 ./run_tests.sh
 ```
 
-All tests discovered under `Tests/` must pass. The count is intentionally not
-hard-coded because new integrity tests are added with the protocol.
+This command runs the explicit real-model, application-evidence, and security
+suite used by the ordinary-user proof. Historical development benchmarks are
+kept separate from this gate.
 
-## Re-run the 115-run benchmark
+## Re-run the historical 115-run development benchmark
 
 ```sh
 python3 BenchmarkCore/run_suite.py --full --output replay-results
@@ -84,7 +90,8 @@ Set `CORELM_BOOTSTRAP_PYTHON=/absolute/path/to/python3.12` if that interpreter
 is not on `PATH`. The script installs hash-locked dependencies, verifies them,
 downloads and hashes the exact pinned model plus validation inputs, confirms
 offline resolution, creates a local ad-hoc signed bundle, runs the complete
-bundle verifier, and performs a synthetic app smoke test. The bundle is
+bundle verifier, and performs an application-launch smoke test without running
+model inference. The bundle is
 produced at `dist/CoreLMBenchmark.app`.
 
 For automated Python and Swift gates, a visible real-Qwen run, and independent
@@ -94,15 +101,17 @@ verification:
 ./run_local_app_proof.sh
 ```
 
-The automated proof creates and retains a new hash-locked runtime (roughly
-1 GB plus caches) and prints its path. It supplies a random challenge to the
-app and requires that exact nonce in the receipt; this is the workflow that
-supports a freshness claim.
+The automated proof creates and retains a fresh runtime with hash-locked
+packages and an exact signed runtime manifest (roughly 1 GB plus caches), then
+prints its path. It supplies a random challenge to the app and requires that
+exact nonce in the receipt; this is the workflow that supports a freshness
+claim.
 
-For a manual run, keep validation blocks 64–71, click **Run Real Qwen**, then:
+For a manual run, keep validation blocks 64–71, click
+**Run Compression Proof**, then:
 
 ```sh
-"$HOME/.cache/corelm-real-llm-app-runtime-v1/bin/python" \
+"$HOME/.cache/corelm-app-runtime/bin/python" \
   security/verify_local_app_run.py \
   --app dist/CoreLMBenchmark.app
 ```

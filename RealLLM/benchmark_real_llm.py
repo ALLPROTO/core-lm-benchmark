@@ -24,13 +24,8 @@ import numpy as np
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-BENCHMARK_CORE = PROJECT_ROOT / "BenchmarkCore"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-if str(BENCHMARK_CORE) not in sys.path:
-    sys.path.insert(0, str(BENCHMARK_CORE))
-
-from corelm_benchmark import EncodedRepresentation, VoidTokenBackend  # noqa: E402
 
 from RealLLM.codecs import PackedGroupQuantBackend  # noqa: E402
 from RealLLM.voidtoken_v5 import VoidTokenV5Backend  # noqa: E402
@@ -112,6 +107,22 @@ THRESHOLDS = {
     "maximumDeltaNLLNatPerToken": 0.01,
     "minimumTop1Agreement": 0.99,
 }
+
+
+def _legacy_voidtoken_adapter() -> tuple[Any, Any]:
+    """Resolve the source-only historical adapter only when selected."""
+    try:
+        from RealLLM.legacy_voidtoken_adapter import (
+            encode,
+            from_bytes,
+        )
+    except ImportError as error:
+        raise RuntimeError(
+            "historical VoidToken adapter is unavailable in this "
+            "real-only package"
+        ) from error
+    return encode, from_bytes
+
 
 VOIDTOKEN_GRID = (
     {"backend": "voidtoken", "topK": 32, "qmax": 127, "keyframeInterval": 32},
@@ -786,7 +797,8 @@ def _encode_layers(
     decode_nanoseconds = 0
     for layer_index, layer in enumerate(layers):
         if configuration["backend"] == "voidtoken":
-            representation = VoidTokenBackend.encode(
+            legacy_encode, _ = _legacy_voidtoken_adapter()
+            representation = legacy_encode(
                 layer,
                 top_k=int(configuration["topK"]),
                 qmax=int(configuration["qmax"]),
@@ -842,7 +854,8 @@ def _encode_layers(
             raise ValueError(f"unknown backend {configuration['backend']!r}")
         container = representation.to_bytes()
         if configuration["backend"] == "voidtoken":
-            parsed = EncodedRepresentation.from_bytes(container)
+            _, legacy_from_bytes = _legacy_voidtoken_adapter()
+            parsed = legacy_from_bytes(container)
         elif configuration["backend"] == "voidtoken-v5":
             parsed = VoidTokenV5Backend.from_bytes(container)
         else:
@@ -1394,7 +1407,7 @@ def run_registered_pilot(
         },
         "claimBoundary": (
             "Qwen2.5-0.5B KV-cache replay on pinned WikiText-2 blocks; "
-            "separate from the 115 synthetic Core LM runs"
+            "separate from the historical Core LM development runs"
         ),
         "protocol": {
             "model": {
