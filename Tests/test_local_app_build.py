@@ -3,7 +3,6 @@ import os
 import plistlib
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -332,19 +331,22 @@ class LocalAppBuildTests(unittest.TestCase):
             runtime.mkdir(mode=0o700)
             base.mkdir(mode=0o700)
             (runtime / "bin").mkdir()
+            (runtime / "bin").chmod(0o700)
             base_python = base / "python3.12"
             base_python.write_bytes(b"#!/bin/sh\nexit 0\n")
             base_python.chmod(0o700)
-            (runtime / "pyvenv.cfg").write_text(
+            configuration = runtime / "pyvenv.cfg"
+            configuration.write_text(
                 "home = /usr/bin\n",
                 encoding="utf-8",
             )
+            configuration.chmod(0o600)
             (runtime / "bin" / "python").symlink_to(base_python)
             with self.assertRaises(OSError):
                 manage_local_runtime.validate_existing_runtime(runtime)
-            (runtime / manage_local_runtime.MARKER_NAME).write_bytes(
-                manage_local_runtime.MARKER_BYTES
-            )
+            marker = runtime / manage_local_runtime.MARKER_NAME
+            marker.write_bytes(manage_local_runtime.MARKER_BYTES)
+            marker.chmod(0o600)
             with mock.patch.object(
                 manage_local_runtime,
                 "_safe_existing_chain",

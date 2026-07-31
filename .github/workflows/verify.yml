@@ -168,8 +168,25 @@ jobs:
           fi
 
           # setup-python installs its non-relocatable macOS framework in
-          # /Library with writable group bits. Remove only those write bits
-          # after installation so the strict runtime manifest remains valid.
+          # /Library with writable group bits on both the version directory
+          # and its ancestors. Harden that exact root-owned chain after the
+          # prefix checks above so runtime validation remains fail-closed.
+          for trusted_directory in \
+            /Library \
+            /Library/Frameworks \
+            /Library/Frameworks/Python.framework \
+            /Library/Frameworks/Python.framework/Versions
+          do
+            if [ ! -d "$trusted_directory" ] \
+                || [ -L "$trusted_directory" ] \
+                || [ "$(/usr/bin/stat -f '%u' "$trusted_directory")" -ne 0 ]
+            then
+              printf 'unsafe base Python ancestor: %s\n' \
+                "$trusted_directory" >&2
+              exit 1
+            fi
+            sudo /bin/chmod go-w "$trusted_directory"
+          done
           sudo /bin/chmod -RP go-w "$base_prefix"
           /bin/chmod -RP go-w "$virtual_prefix"
           python -I -B security/manage_local_runtime.py \
