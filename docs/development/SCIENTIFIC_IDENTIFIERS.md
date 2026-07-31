@@ -33,5 +33,6 @@ The release application and ordinary-user documentation use:
 - **VoidToken codec** for the measured codec module;
 - **frozen compression profile** for the registered configuration.
 
-Development builds may expose synthetic tools and versioned protocol details.
-Release builds must not present those stages as selectable product variants.
+Historical synthetic tools and versioned protocol details remain in this
+development record, but no application build exposes or bundles them. The
+application presents only the registered proof workflow.

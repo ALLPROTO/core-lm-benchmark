@@ -42,6 +42,10 @@ Python base installation and virtual environment. Unlisted loadable files,
 changed native libraries, unsafe symlinks, writable path components, or an
 unexpected Python executable cause a fail-closed rejection.
 
+The real-model worker runs with bounded CPU-library concurrency and conservative
+MPS allocation watermarks. Independent in-app and shell watchdogs stop the full
+worker process group on critical memory pressure or after five minutes.
+
 ## Module visibility
 
 The release sidebar reports one state for each proof module:
@@ -55,18 +59,13 @@ The states are `Ready`, `Running`, and `Complete`. Dashboard values come only
 from the parsed result produced by the Python worker; the Swift UI does not
 synthesize benchmark values.
 
-## Final and development surfaces
+## Final application surface
 
-Release builds expose only **Compression Proof**. Debug builds also expose the
-synthetic trajectory generator, Dense and PCA comparisons, saved development
-runs, stability plots, and evidence reports. This preserves the architecture
-workbench without presenting experimental stages as alternative product
-versions.
-
-The synthetic measurement core remains independent of SwiftUI. It materializes
-one deterministic input stream, sends the same dense trajectory to every
-method, computes metrics and invariants, and writes canonical JSON/Markdown
-records for the development suite.
+The application target exposes only **Compression Proof**. Historical experiment
+sources and records are retained for provenance, but they are not compiled into
+the application, bundled as executable resources, or run by the ordinary-user
+proof workflow. Their chronology is documented in the
+[development record](docs/development/HISTORY.md).
 
 ## Reproducibility boundary
 

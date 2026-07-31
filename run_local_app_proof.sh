@@ -3,16 +3,125 @@ set -eu
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 APP_PATH="$PROJECT_DIR/dist/CoreLMBenchmark.app"
+APP_EXECUTABLE="$APP_PATH/Contents/MacOS/CoreLMBenchmarkApp"
 RESULTS_ROOT="$HOME/Library/Application Support/CoreLMBenchmark/real-llm-results"
 RUNTIME_PARENT="$HOME/.cache/corelm-proof-runtimes"
+PROOF_TIMEOUT_SECONDS=300
+WATCHDOG_INTERVAL_SECONDS=2
+MINIMUM_FREE_MEMORY_PERCENT=15
 PROOF_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
 RUNTIME_DIR="$RUNTIME_PARENT/$PROOF_ID"
 MARKER=$(mktemp "${TMPDIR:-/tmp}/corelm-proof.XXXXXX")
 VERIFY_CACHE=$(mktemp -d "${TMPDIR:-/tmp}/corelm-verify-pycache.XXXXXX")
+TIMEOUT_REASON=$(mktemp "${TMPDIR:-/tmp}/corelm-timeout.XXXXXX")
+MEMORY_REASON=$(mktemp "${TMPDIR:-/tmp}/corelm-memory.XXXXXX")
+APP_PID=
+TIMEOUT_WATCHDOG_PID=
+MEMORY_WATCHDOG_PID=
+
+fail() {
+    printf 'END-TO-END PROOF FAIL: %s\n' "$*" >&2
+    exit 1
+}
+
+memory_free_percent() {
+    memory_report=$(/usr/bin/memory_pressure -Q 2>/dev/null || :)
+    memory_percent=$(printf '%s\n' "$memory_report" | /usr/bin/awk '
+        /System-wide memory free percentage:/ {
+            gsub(/%/, "", $NF)
+            print $NF
+            exit
+        }
+    ')
+    case "$memory_percent" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    printf '%s\n' "$memory_percent"
+}
+
+terminate_proof_tree() {
+    proof_target_pid=$1
+    case "$proof_target_pid" in
+        ''|*[!0-9]*) return ;;
+    esac
+
+    proof_child_pids=$(
+        /usr/bin/pgrep -P "$proof_target_pid" 2>/dev/null || :
+    )
+    for proof_child_pid in $proof_child_pids; do
+        case "$proof_child_pid" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        /bin/kill -TERM -- "-$proof_child_pid" 2>/dev/null || :
+        /bin/kill -TERM "$proof_child_pid" 2>/dev/null || :
+    done
+
+    if [ -n "$proof_child_pids" ]; then
+        /bin/sleep 2
+    fi
+    for proof_child_pid in $proof_child_pids; do
+        case "$proof_child_pid" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        /bin/kill -KILL -- "-$proof_child_pid" 2>/dev/null || :
+        /bin/kill -KILL "$proof_child_pid" 2>/dev/null || :
+    done
+    if /bin/kill -0 "$proof_target_pid" 2>/dev/null; then
+        /bin/kill -TERM "$proof_target_pid" 2>/dev/null || :
+        /bin/sleep 1
+        /bin/kill -KILL "$proof_target_pid" 2>/dev/null || :
+    fi
+}
+
+timeout_watchdog() {
+    trap - 0 1 2 15
+    watchdog_elapsed=0
+    while /bin/kill -0 "$APP_PID" 2>/dev/null; do
+        if [ "$watchdog_elapsed" -ge "$PROOF_TIMEOUT_SECONDS" ]; then
+            printf 'hard timeout after %s seconds\n' \
+                "$PROOF_TIMEOUT_SECONDS" >"$TIMEOUT_REASON"
+            terminate_proof_tree "$APP_PID"
+            return
+        fi
+        /bin/sleep "$WATCHDOG_INTERVAL_SECONDS"
+        watchdog_elapsed=$((watchdog_elapsed + WATCHDOG_INTERVAL_SECONDS))
+    done
+}
+
+memory_watchdog() {
+    trap - 0 1 2 15
+    while /bin/kill -0 "$APP_PID" 2>/dev/null; do
+        if ! watchdog_free_percent=$(memory_free_percent); then
+            printf '%s\n' 'memory-pressure monitor became unavailable' \
+                >"$MEMORY_REASON"
+            terminate_proof_tree "$APP_PID"
+            return
+        fi
+        if [ "$watchdog_free_percent" -lt "$MINIMUM_FREE_MEMORY_PERCENT" ]; then
+            printf 'system free memory fell to %s%% (minimum %s%%)\n' \
+                "$watchdog_free_percent" "$MINIMUM_FREE_MEMORY_PERCENT" \
+                >"$MEMORY_REASON"
+            terminate_proof_tree "$APP_PID"
+            return
+        fi
+        /bin/sleep "$WATCHDOG_INTERVAL_SECONDS"
+    done
+}
 
 cleanup() {
+    for watchdog_pid in "$TIMEOUT_WATCHDOG_PID" "$MEMORY_WATCHDOG_PID"; do
+        case "$watchdog_pid" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        /bin/kill -TERM "$watchdog_pid" 2>/dev/null || :
+        wait "$watchdog_pid" 2>/dev/null || :
+    done
+    if [ -n "$APP_PID" ] && /bin/kill -0 "$APP_PID" 2>/dev/null; then
+        terminate_proof_tree "$APP_PID"
+    fi
     rm -f "$MARKER"
     rm -rf "$VERIFY_CACHE"
+    rm -f "$TIMEOUT_REASON" "$MEMORY_REASON"
 }
 trap cleanup EXIT
 
@@ -42,14 +151,50 @@ BUILD_CONFIG=release \
 PYTHON_BIN="$RUNTIME_DIR/bin/python" "$PROJECT_DIR/run_tests.sh"
 "$PROJECT_DIR/security/run_swift_security_tests.sh"
 
+[ -x "$APP_EXECUTABLE" ] || fail "missing app executable: $APP_EXECUTABLE"
+[ -x /usr/bin/memory_pressure ] \
+    || fail 'macOS memory-pressure monitor is unavailable'
+if ! initial_free_percent=$(memory_free_percent); then
+    fail 'could not read macOS memory pressure before launch'
+fi
+[ "$initial_free_percent" -ge "$MINIMUM_FREE_MEMORY_PERCENT" ] \
+    || fail "only ${initial_free_percent}% system memory is free before launch"
+
 touch "$MARKER"
 challenge=$(/usr/bin/openssl rand -hex 32)
 printf '%s\n' \
     'Launching the visible 8-block Qwen proof run.' \
-    'The app exits automatically when the run finishes (up to 10 minutes).'
-open -W -n "$APP_PATH" --args \
+    'The app exits automatically when the run finishes (up to 5 minutes).'
+/usr/bin/nice -n 10 "$APP_EXECUTABLE" \
     --real-llm-smoke-run \
-    --proof-challenge "$challenge"
+    --proof-challenge "$challenge" &
+APP_PID=$!
+timeout_watchdog &
+TIMEOUT_WATCHDOG_PID=$!
+memory_watchdog &
+MEMORY_WATCHDOG_PID=$!
+
+if wait "$APP_PID"; then
+    app_status=0
+else
+    app_status=$?
+fi
+APP_PID=
+for watchdog_pid in "$TIMEOUT_WATCHDOG_PID" "$MEMORY_WATCHDOG_PID"; do
+    /bin/kill -TERM "$watchdog_pid" 2>/dev/null || :
+    wait "$watchdog_pid" 2>/dev/null || :
+done
+TIMEOUT_WATCHDOG_PID=
+MEMORY_WATCHDOG_PID=
+
+if [ -s "$TIMEOUT_REASON" ]; then
+    fail "$(/usr/bin/sed -n '1p' "$TIMEOUT_REASON")"
+fi
+if [ -s "$MEMORY_REASON" ]; then
+    fail "$(/usr/bin/sed -n '1p' "$MEMORY_REASON")"
+fi
+[ "$app_status" -eq 0 ] \
+    || fail "the app exited with status $app_status"
 
 run_directory=
 run_count=0

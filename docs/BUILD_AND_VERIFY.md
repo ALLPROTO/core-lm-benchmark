@@ -94,9 +94,19 @@ after the command began.
 
 The first build downloads roughly 1 GB of model/data assets and installs a
 separate machine-learning runtime. Network and CPU speed dominate setup time.
-The visible real-model run can take up to ten minutes. Later manual builds can
-reuse verified assets; the full proof still creates a new Python runtime by
-design.
+The visible real-model stage has a five-minute hard safety limit. Later manual
+builds can reuse verified assets; the full proof still creates a new Python
+runtime by design.
+
+## Mac safety limits
+
+The worker runs at utility quality of service with CPU library thread counts
+limited to two. PyTorch MPS allocation watermarks are capped below the default,
+the app stops the worker on critical macOS memory pressure, and the outer proof
+script independently stops it if system free memory falls below 15%. The app
+and outer script both enforce a 300-second inference limit and terminate the
+worker process group if a limit is reached. A safety stop is a failed proof; it
+never produces a PASS receipt.
 
 ## Cleanup
 

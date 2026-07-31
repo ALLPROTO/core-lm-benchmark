@@ -39,8 +39,12 @@ if /usr/libexec/PlistBuddy -c 'Print :LSEnvironment' "$PLIST" >/dev/null 2>&1; t
     exit 1
 fi
 
+if [ -e "$APP_PATH/Contents/Resources/BenchmarkCore" ]; then
+    printf 'release bundle must not contain the synthetic BenchmarkCore\n' >&2
+    exit 1
+fi
+
 for relative in \
-    BenchmarkCore/corelm_benchmark.py \
     RealLLM/__init__.py \
     RealLLM/benchmark_real_llm.py \
     RealLLM/codecs.py \

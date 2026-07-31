@@ -161,7 +161,7 @@ REQUIRE_DEVELOPER_ID=0 \
 "$PROJECT_DIR/security/verify_app_bundle.sh" "$APP_PATH"
 
 if [ "$SKIP_SMOKE_TEST" = "0" ]; then
-    "$APP_PATH/Contents/MacOS/CoreLMBenchmarkApp" --smoke-run
+    "$APP_PATH/Contents/MacOS/CoreLMBenchmarkApp" --app-smoke-run
 fi
 
 printf '%s\n' \

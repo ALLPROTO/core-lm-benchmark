@@ -33,11 +33,19 @@ class LocalAppBuildTests(unittest.TestCase):
             ROOT / "App" / "Sources" / "CoreLMBenchmarkApp.swift"
         ).read_text(encoding="utf-8")
 
-        self.assertIn('private let sections = ["Compression Proof"]', content)
-        self.assertIn("#if DEBUG", content)
+        self.assertIn('Label("Compression Proof"', content)
         self.assertIn('Button("Run Compression Proof")', content)
         self.assertIn('"VoidToken Codec"', content)
         for stale in (
+            "Development Run",
+            "Compression Comparison",
+            "Stability and Invariants",
+            "Saved Runs",
+            "Evidence Report",
+            "Input Generator",
+            "struct ControlsView",
+            "struct LiveRunView",
+            "struct MethodTable",
             '"VoidToken v5"',
             '"VoidToken v5 · candidate 32 · MPS"',
             '"Run Real Qwen"',
@@ -51,8 +59,39 @@ class LocalAppBuildTests(unittest.TestCase):
             "The result configuration is not the frozen VoidToken v5 candidate.",
         ):
             self.assertNotIn(stale, store)
-        self.assertIn("#if DEBUG", application)
-        self.assertIn('Button("Open Development Result…")', application)
+        self.assertNotIn('Button("Open Development Result…")', application)
+
+        models = (ROOT / "App" / "Sources" / "Models.swift").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("enum Verdict", models)
+        self.assertIn("enum ModuleState", models)
+        self.assertNotIn("BenchmarkResult", models)
+        self.assertNotIn("RunSettings", models)
+
+    def test_final_bundle_and_default_gates_exclude_synthetic_benchmark(self):
+        package = (ROOT / "package_app.sh").read_text(encoding="utf-8")
+        verifier = (
+            ROOT / "security" / "verify_app_bundle.sh"
+        ).read_text(encoding="utf-8")
+        build = (ROOT / "build_local_app.sh").read_text(encoding="utf-8")
+        tests = (ROOT / "run_tests.sh").read_text(encoding="utf-8")
+        workflow = (
+            ROOT / ".github" / "workflows" / "verify.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("BenchmarkCore", package)
+        self.assertIn(
+            "release bundle must not contain the synthetic BenchmarkCore",
+            verifier,
+        )
+        self.assertNotIn("BenchmarkCore/corelm_benchmark.py", verifier)
+        self.assertIn("--app-smoke-run", build)
+        self.assertNotIn('CoreLMBenchmarkApp" --smoke-run', build)
+        self.assertNotIn("Tests.test_benchmark", tests)
+        self.assertNotIn("Tests.test_publication_archives", tests)
+        self.assertNotIn("unittest discover", tests)
+        self.assertNotIn("BenchmarkCore/verify_evidence.py", workflow)
 
     def test_final_user_docs_and_paths_are_separate_from_versions(self):
         for relative in (
@@ -270,6 +309,9 @@ class LocalAppBuildTests(unittest.TestCase):
             receipt = json.loads(
                 (EVIDENCE / receipt_path.name).read_text(encoding="utf-8")
             )
+            receipt["worker"]["scriptSHA256"] = (
+                verify_app_run_evidence._sha256(runner)
+            )
             manifest.write_text(
                 json.dumps(
                     {
@@ -336,6 +378,9 @@ class LocalAppBuildTests(unittest.TestCase):
             executable.write_bytes(b"locally built executable")
             receipt = json.loads(
                 (EVIDENCE / receipt_path.name).read_text(encoding="utf-8")
+            )
+            receipt["worker"]["scriptSHA256"] = (
+                verify_app_run_evidence._sha256(runner)
             )
             manifest.write_text(
                 json.dumps(

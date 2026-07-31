@@ -74,8 +74,6 @@ jobs:
         run: python RealLLM/verify_voidtoken_v5_development.py
       - name: Verify prospective VoidToken v5 registration and artifacts
         run: python RealLLM/verify_voidtoken_v5_evidence.py --require-git-provenance
-      - name: Replay and verify registered evidence
-        run: python BenchmarkCore/verify_evidence.py
       - name: Verify deterministic publication archives
         run: python publication/build_archives.py --verify-determinism
 
@@ -100,8 +98,6 @@ jobs:
           python -m pip install --require-hashes -r .github/locks/core-macos-arm64-py312.txt
           python -m pip check
       - run: PYTHON_BIN=python ./run_tests.sh
-      - name: Replay and verify registered evidence on macOS
-        run: python BenchmarkCore/verify_evidence.py
       - name: Run non-empty Swift security test gate
         run: ./security/run_swift_security_tests.sh
       - name: Build hash-locked external app runtime

@@ -15,7 +15,6 @@ enum SecurityValidationError: LocalizedError {
 }
 
 enum SecurityValidation {
-    static let maximumSyntheticResultBytes = 2 * 1024 * 1024
     static let maximumRealLLMResultBytes = 4 * 1024 * 1024
     static let maximumSavedResultFiles = 256
     static let maximumLogEntries = 500

@@ -25,13 +25,5 @@ struct CoreLMBenchmarkApp: App {
                     appDelegate.store = store
                 }
         }
-        .commands {
-            #if DEBUG
-            CommandGroup(after: .newItem) {
-                Button("Open Development Result…") { store.openResult() }
-                    .keyboardShortcut("o")
-            }
-            #endif
-        }
     }
 }

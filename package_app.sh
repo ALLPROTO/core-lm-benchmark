@@ -23,13 +23,10 @@ swift build -c "$BUILD_CONFIG"
 
 mkdir -m 700 "$PYTHON_CACHE_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS"
-mkdir -p "$APP_DIR/Contents/Resources/BenchmarkCore"
 mkdir -p "$APP_DIR/Contents/Resources/RealLLM"
 cp "$PROJECT_DIR/.build/$BUILD_CONFIG/CoreLMBenchmarkApp" \
    "$APP_DIR/Contents/MacOS/CoreLMBenchmarkApp"
 cp "$PROJECT_DIR/App/Info.plist" "$APP_DIR/Contents/Info.plist"
-cp "$PROJECT_DIR/BenchmarkCore/corelm_benchmark.py" \
-   "$APP_DIR/Contents/Resources/BenchmarkCore/corelm_benchmark.py"
 for real_llm_file in \
     __init__.py \
     benchmark_real_llm.py \

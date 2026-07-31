@@ -9,8 +9,9 @@ model, displays every architecture module, and independently verifies the
 result and application receipt.
 
 The release application has one clear workflow: **Compression Proof**.
-Synthetic experiments, rejected approaches, protocol revisions, and release
-engineering are kept in the separate [development record](docs/development/HISTORY.md).
+Earlier experiments, rejected approaches, protocol revisions, and release
+engineering are retained in the separate
+[development record](docs/development/HISTORY.md).
 
 ## Build and verify
 
@@ -79,9 +80,6 @@ shows the state of model loading, prefill, cache extraction, compression,
 rebuild, continuation, metrics, and verification. Press **Run Compression
 Proof** to produce a new local result.
 
-Development builds expose the synthetic benchmark workbench separately; they
-are not part of the final-user flow.
-
 ## Documentation
 
 - [Build and verify](docs/BUILD_AND_VERIFY.md) — ordinary-user installation and proof flow.
@@ -96,10 +94,9 @@ are not part of the final-user flow.
 ## Repository map
 
 - `App/` — native SwiftUI application.
-- `BenchmarkCore/` — deterministic synthetic measurement core.
 - `RealLLM/` — pinned real-model runner, codec, and independent verifiers.
 - `security/` — bundle, runtime, result, dependency, and workflow checks.
-- `Tests/` and `TestsSwift/` — regression and security suites.
+- `Tests/` and `TestsSwift/` — real-model regression and security suites.
 - `app-real-llm-evidence/` — sanitized native-application reference receipt.
 - `docs/` — final-user documentation and separate development history.
 - `publication/` — paper, submission source, and deterministic archive tooling.

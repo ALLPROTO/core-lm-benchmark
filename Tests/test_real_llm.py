@@ -413,6 +413,7 @@ class RealLLMProtocolTests(unittest.TestCase):
                 benchmark_module, "run_registered_pilot", return_value=result
             ),
             patch.object(benchmark_module, "_summary", return_value="FAIL"),
+            patch("builtins.print"),
         ):
             self.assertEqual(benchmark_module.main(), 2)
 
