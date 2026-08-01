@@ -233,7 +233,8 @@ struct RealLLMView: View {
                                 y: .value(
                                     "ΔNLL",
                                     record.deltaNLLNatPerToken
-                                )
+                                ),
+                                width: .fixed(14)
                             )
                             .foregroundStyle(
                                 record.deltaNLLNatPerToken <= 0.01

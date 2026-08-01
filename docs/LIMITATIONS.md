@@ -43,14 +43,17 @@ does not turn that claim into a general model-compression result.
 11. The local challenge guards the trusted-local workflow against accidentally
     selecting a stale result. Because the same user controls the ad-hoc receipt,
     it is not cryptographic proof of freshness or remote execution.
-12. A future selected-window claim requires a separate protocol that publishes
-    commit, digests, parameters, gates, a pool for which the audited public
-    repository contains no metric result, an immutable server-timestamped
-    release, and a deterministic
-    future-randomness-beacon selection rule before resolving the input. It must
-    allow one prospective recorded run without post-result tuning and label all
-    later runs regression. A local marker cannot prove no private copy ran. No
-    such result is claimed here.
+12. The separate selected-window protocol has published its commit, digests,
+    parameters, gates, audited eligible pool, immutable server-timestamped
+    release, and deterministic future-randomness-beacon selection rule under
+    `corelm-beacon-heldout-v1`. That completed freeze is not a result. The exact
+    pulse is `2026-08-02T18:00:00.000Z`; no outcome is claimed here. The protocol
+    allows one prospective recorded run without post-result tuning and labels
+    every permitted later run regression-only. A local marker cannot prove that
+    no private copy ran. The public
+    [launch runbook](BEACON_LAUNCH_RUNBOOK.md) fixes the operator procedure, and
+    the [v1 audit](BEACON_V1_AUDIT_AND_V2.md) records the remaining trusted-local
+    limitations and requirements for a stronger v2.
 13. Live dependency-advisory results can change after a release. Hash locks,
     SBOM checks, and OSV scanning reduce supply-chain ambiguity but do not prove
     that the operating system, Python distribution, or model files are free of

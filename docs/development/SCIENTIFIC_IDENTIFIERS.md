@@ -38,6 +38,8 @@ The release application and ordinary-user documentation use:
 - **VoidToken codec** for the measured codec module;
 - **frozen compression profile** for the registered configuration.
 
-Historical synthetic tools and versioned protocol details remain in this
-development record, but no application build exposes or bundles them. The
-application presents only the registered proof workflow.
+Historical synthetic executables, exploratory pilot entry points, and the
+development runner remain source-only; the application does not expose or
+bundle them. Stable schema identifiers, the registered profile, and historical
+grid metadata remain in evidence for compatibility and audit. The executable
+application surface presents only the registered proof workflow.

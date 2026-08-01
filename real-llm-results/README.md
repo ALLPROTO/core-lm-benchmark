@@ -22,8 +22,10 @@ so it is also recorded as FAIL. Its small NLL change is promising, but it is not
 relabeled as a success after observing test.
 
 Direct `DynamicCache` continuation and flatten/rebuild continuation had exactly
-zero maximum logit difference on all validation and test blocks. Two independent
-rebuilds of the canonical BF16 cache also had zero maximum logit difference.
+zero maximum logit difference on all validation and test blocks. Two
+separately executed rebuilds of the canonical BF16 cache also had zero maximum
+logit difference; this is same-workflow repeatability, not independent
+experimental replication.
 
 - Result SHA-256:
   `8922108d749b0680fd1d8cd6b307b9e1cc1cb3294a6d9ac8723c0ed093a755a9`
@@ -39,9 +41,12 @@ rebuilds of the canonical BF16 cache also had zero maximum logit difference.
 Verify the checked-in evidence without downloading the model:
 
 ```sh
-python -m pip install numpy==2.5.1 jsonschema==4.25.1
-python RealLLM/verify_real_llm_evidence.py
+python3 -m pip install --require-hashes -r RealLLM/requirements.lock
+python3 RealLLM/verify_real_llm_evidence.py
 ```
+
+The lock installs the complete registered real-model dependency closure; the
+verification command must not replace it with unhashed direct requirements.
 
 The verifier checks the JSON schema, source pins, validation-only selection,
 aggregations, independent family verdicts, structural replay gates, and the

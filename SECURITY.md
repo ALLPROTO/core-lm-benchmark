@@ -3,13 +3,18 @@
 ## Supported state
 
 Security fixes are applied to the default branch and, when appropriate, to a
-new release. Historical evidence and protocol tags are immutable scientific
-records: they are not moved or rewritten after publication.
+new uniquely tagged release. Historical evidence and protocol tags are frozen
+scientific records: they are not moved or rewritten after publication.
+Publication snapshots are also preserved by project policy; GitHub's separate
+per-release `immutable` API flag must not be inferred from that policy.
 
-The latest GitHub release is the only released source artifact considered
-active. The macOS application in this repository is a research prototype, not
-a sandbox for untrusted models, datasets, Python environments, or result
-files.
+GitHub Releases serve distinct artifact channels. Publication/evidence
+packages and the separately frozen beacon-protocol package remain relevant by
+their named tags; GitHub's moving “Latest” pointer does not supersede either
+channel. The active supported source is the default branch, while a report
+about a released artifact must name its exact tag. The macOS application in
+this repository is a research prototype, not a sandbox for untrusted models,
+datasets, Python environments, or result files.
 
 ## Reporting a vulnerability
 

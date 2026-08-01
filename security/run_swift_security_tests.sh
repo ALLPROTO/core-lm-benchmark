@@ -88,3 +88,7 @@ then
 fi
 
 printf '%s\n' 'SWIFT SECURITY TESTS PASS: non-empty test execution confirmed.'
+
+if [ "$TEST_MODE" = 0 ]; then
+    "$PROJECT_DIR/security/run_process_group_tests.sh"
+fi

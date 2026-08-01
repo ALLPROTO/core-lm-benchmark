@@ -225,18 +225,20 @@ generalization result.
 The archive includes the preregistered beacon protocol, frozen registration,
 audited public-result ledger, strict schemas, NIST certificate fixture, one-shot
 runner, regression runner, and independent verifier.
-`RealLLM/BEACON_HELDOUT_PROTOCOL.md` is the normative operator guide. The target
-pulse is in the future, so this archive contains no result from the
-beacon-selected suite and makes no new generalization claim.
+`RealLLM/BEACON_HELDOUT_PROTOCOL.md` is the normative operator guide. The
+protocol source and hashes are publicly frozen under tag and GitHub Release
+`corelm-beacon-heldout-v1`; the authoritative freeze manifest enumerates 26
+normative paths. The registered target pulse has not produced a checked-in
+result, so this archive makes no new generalization claim.
 
-Before the target pulse, the protocol requires two public commits, a lightweight
-tag, and a non-draft, non-prerelease immutable GitHub Release. After the NIST
-pulse deterministically selects one preregistered window, exactly one recorded
-execution is permitted. A later regression is allowed only after terminal
-`PASS` or `FAIL_GATES`; `FAIL_EXECUTION` or an incomplete attempt cannot be
-retried. Parameters and gates may not be adjusted after observing the outcome.
-Blocks 64–71 remain a public application-regression fixture and cannot support
-this claim.
+The required public commits, lightweight tag, and non-draft, non-prerelease
+immutable protocol Release were published before the target pulse. That freeze
+is a prerequisite, not a result. After the NIST pulse deterministically selects
+one preregistered window, exactly one recorded execution is permitted. A later
+regression is allowed only after terminal `PASS` or `FAIL_GATES`;
+`FAIL_EXECUTION` or an incomplete attempt cannot be retried. Parameters and
+gates may not be adjusted after observing the outcome. Blocks 64–71 remain a
+public application-regression fixture and cannot support this claim.
 
 ## Evidence chain
 
@@ -348,12 +350,15 @@ state, and hashes of included evidence files. It is descriptive metadata, not
 a replacement for Git history. The distribution-side `SHA256SUMS` verifies the
 v5 arXiv source archive, reproducibility archive, and rendered paper PDF.
 
-Maintainers generate final release archives from a full repository clone—not
-from this extracted tar—only after the lightweight release tag is public and
-the worktree is clean:
+To reproduce the already published `voidtoken-v5-paper-v5` package, maintainers
+use a full clean repository clone at that existing public tag. They do not
+create or push it again:
 
 ```sh
 RELEASE_TAG=voidtoken-v5-paper-v5
+git fetch origin \
+  "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+git switch --detach "$RELEASE_TAG"
 python3 publication/build_archives.py \
   --release-tag "$RELEASE_TAG" \
   --verify-determinism
@@ -361,3 +366,7 @@ python3 publication/build_archives.py \
   --release-tag "$RELEASE_TAG"
 (cd output && shasum -a 256 -c SHA256SUMS)
 ```
+
+A corrected or updated publication package must use a new unique tag and a
+new GitHub Release. The guarded creation procedure is documented in
+`publication/README.md`; existing tags and uploaded assets are never replaced.

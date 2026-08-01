@@ -107,13 +107,27 @@ Apple MPS. They are not claims about full-model weight compression, free-running
 generation, latency, serving throughput, arbitrary models, or state of the art.
 
 The next evidence line is separately preregistered in the
-[beacon-selected held-out protocol](RealLLM/BEACON_HELDOUT_PROTOCOL.md). It has
-no result yet: the protocol and hashes must first be published under their
-required Git tag and an immutable GitHub Release whose server publication time
-precedes the pulse. Then an exact future NIST beacon selects one of fifteen
-previously unreported test windows for one irreversible recorded run. A repeat
-after terminal `PASS` or `FAIL_GATES` is regression-only; `FAIL_EXECUTION` or an
-incomplete attempt cannot be retried.
+[beacon-selected held-out protocol](RealLLM/BEACON_HELDOUT_PROTOCOL.md). Its
+protocol and hashes are already published under immutable release
+[`corelm-beacon-heldout-v1`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-beacon-heldout-v1):
+tag commit `0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44`, protocol commit
+`b34bc4d06c00c86b99076b117049e2d590d73bcd`, and GitHub server publication
+time `2026-08-01T01:18:09Z`. The release body names four key artifacts; the
+authoritative complete normative inventory is the 26 entries in
+`RealLLM/beacon_freeze.json`. A pre-pulse notes-only correction at
+`2026-08-01T10:08:12Z` clarified that label without changing the tag, assets,
+frozen files, or original `published_at`.
+
+That suite still has no result. At `2026-08-02T18:00:00.000Z`, the exact NIST
+beacon selects one of fifteen previously unreported test windows for one
+irreversible recorded run, which must complete by
+`2026-08-04T18:00:00.000Z`. A repeat after terminal `PASS` or `FAIL_GATES` is
+regression-only; `FAIL_EXECUTION` or an incomplete attempt cannot be retried.
+The public [launch and publication runbook](docs/BEACON_LAUNCH_RUNBOOK.md)
+fixes the clean-checkout, Mac power, no-retry, and unchanged-artifact procedure.
+The separate [v1 audit and v2 hardening record](docs/BEACON_V1_AUDIT_AND_V2.md)
+states the trusted-local limitations that remain frozen into v1 and the changes
+required before any stronger future protocol.
 
 Read [Results](docs/RESULTS.md) and [Limitations](docs/LIMITATIONS.md) before
 reusing the numbers.
@@ -138,6 +152,7 @@ Proof** to produce a new local result.
 - [Results](docs/RESULTS.md) — current measurements and what PASS means.
 - [Limitations](docs/LIMITATIONS.md) — honest boundary of the demonstrated claim.
 - [Architecture](ARCHITECTURE.md) — final application and verifier pipeline.
+- [Beacon launch runbook](docs/BEACON_LAUNCH_RUNBOOK.md) — one-shot operator and publication procedure.
 - [Security policy](SECURITY.md) — runtime, bundle, asset, and supply-chain controls.
 - [Development history](docs/development/HISTORY.md) — versioned experiments and chronology.
 - [Scientific identifiers](docs/development/SCIENTIFIC_IDENTIFIERS.md) — internal names retained for reproducibility.

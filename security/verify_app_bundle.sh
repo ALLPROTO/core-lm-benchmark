@@ -66,9 +66,9 @@ fi
 
 for relative in \
     RealLLM/__init__.py \
-    RealLLM/benchmark_real_llm.py \
+    RealLLM/app_proof_core.py \
+    RealLLM/app_proof_runner.py \
     RealLLM/codecs.py \
-    RealLLM/develop_voidtoken_v5.py \
     RealLLM/voidtoken_v5.py
 do
     source_path="$PROJECT_DIR/$relative"
@@ -78,6 +78,20 @@ do
         exit 1
     fi
     cmp "$source_path" "$bundled_path"
+done
+/usr/bin/python3 -I -B \
+    "$PROJECT_DIR/security/generate_app_proof_core.py" \
+    --verify "$APP_PATH/Contents/Resources/RealLLM/app_proof_core.py"
+
+for forbidden_runner in \
+    RealLLM/benchmark_real_llm.py \
+    RealLLM/develop_voidtoken_v5.py
+do
+    if [ -e "$APP_PATH/Contents/Resources/$forbidden_runner" ]; then
+        printf 'release bundle contains development engine: %s\n' \
+            "$forbidden_runner" >&2
+        exit 1
+    fi
 done
 
 if find "$APP_PATH" -type l -print | grep -q .; then

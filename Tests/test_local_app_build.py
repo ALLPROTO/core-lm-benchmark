@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 from RealLLM import prepare_app_assets
+from RealLLM import app_proof_runner
 from RealLLM import verify_voidtoken_v5_development as shard_verifier
 from security import generate_build_provenance
 from security import generate_python_runtime_manifest
@@ -426,14 +427,14 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertNotIn("unittest discover", tests)
         self.assertNotIn("BenchmarkCore/verify_evidence.py", workflow)
 
-    def test_packaged_real_llm_runner_lists_candidates_without_benchmark_core(
+    def test_packaged_real_llm_runner_exposes_only_registered_app_proof(
         self,
     ):
         packaged_files = (
             "__init__.py",
-            "benchmark_real_llm.py",
+            "app_proof_core.py",
+            "app_proof_runner.py",
             "codecs.py",
-            "develop_voidtoken_v5.py",
             "voidtoken_v5.py",
         )
         package_source = (ROOT / "package_app.sh").read_text(encoding="utf-8")
@@ -478,8 +479,8 @@ class LocalAppBuildTests(unittest.TestCase):
                     sys.executable,
                     "-I",
                     "-B",
-                    str(bundled_real_llm / "develop_voidtoken_v5.py"),
-                    "--list-candidates",
+                    str(bundled_real_llm / "app_proof_runner.py"),
+                    "--help",
                 ],
                 cwd=isolated_working_directory,
                 env=environment,
@@ -490,11 +491,72 @@ class LocalAppBuildTests(unittest.TestCase):
             )
 
             self.assertEqual(completed.returncode, 0, completed.stderr)
-            candidate_lines = completed.stdout.splitlines()
-            self.assertGreater(len(candidate_lines), 1)
-            self.assertTrue(candidate_lines[0].startswith("0: {"))
+            self.assertIn("--candidate-index {32}", completed.stdout)
+            self.assertNotIn("--list-candidates", completed.stdout)
             self.assertNotIn("BenchmarkCore", completed.stderr)
             self.assertNotIn("corelm_benchmark", completed.stderr)
+
+        self.assertNotIn("benchmark_real_llm.py", package_source)
+        self.assertNotIn("develop_voidtoken_v5.py", package_source)
+
+    def test_worker_group_is_child_created_and_proof_cleanup_is_recursive(self):
+        store = (ROOT / "App/Sources/BenchmarkStore.swift").read_text(
+            encoding="utf-8"
+        )
+        runner = (ROOT / "RealLLM/app_proof_runner.py").read_text(
+            encoding="utf-8"
+        )
+        proof = (ROOT / "run_local_app_proof.sh").read_text(
+            encoding="utf-8"
+        )
+        group_supervisor = (
+            ROOT / "security/proof_process_groups.sh"
+        ).read_text(encoding="utf-8")
+        group_test = (
+            ROOT / "security/run_process_group_tests.sh"
+        ).read_text(encoding="utf-8")
+        self.assertIn("os.setpgid(0, 0)", runner)
+        self.assertIn("confirmWorkerProcessGroup", store)
+        self.assertIn("getpgid(identifier)", store)
+        self.assertNotIn("setpgid(identifier, identifier)", store)
+        self.assertIn("forceKillIfPresent(group)", store)
+        self.assertNotIn("self.process === task", store)
+        self.assertIn("collect_proof_descendants", proof)
+        self.assertIn("record_proof_groups", proof)
+        self.assertIn("record_published_worker_groups", proof)
+        self.assertIn("terminate_recorded_groups", proof)
+        self.assertIn("force_kill_recorded_groups", proof)
+        self.assertNotIn(
+            'ps -o pgid= -p "$proof_descendant_pid"',
+            proof.split("force_kill_recorded_groups", 1)[1],
+        )
+        self.assertIn("proof_signal_recorded_groups TERM", group_supervisor)
+        self.assertIn("force_kill_recorded_groups", group_supervisor)
+        self.assertIn('proof_candidate_mode" = 700', group_supervisor)
+        self.assertIn('proof_group_file_mode" = 600', group_supervisor)
+        self.assertIn('proof_group_exists "$proof_published_group"', group_supervisor)
+        self.assertIn("private marker did not recover orphan PGID", group_test)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary) / "run"
+            run.mkdir(mode=0o700)
+            marker = run / ".worker-process-group"
+            identifier = os.getpid()
+            with mock.patch.dict(
+                os.environ,
+                {"CORELM_WORKER_GROUP_FILE": str(marker)},
+            ):
+                observed = app_proof_runner.register_worker_process_group(
+                    identifier
+                )
+            self.assertEqual(observed, marker)
+            self.assertEqual(
+                marker.read_text(encoding="ascii"), f"{identifier}\n"
+            )
+            app_proof_runner.remove_worker_process_group_registration(
+                marker, identifier
+            )
+            self.assertFalse(marker.exists())
 
     def test_final_user_docs_and_paths_are_separate_from_versions(self):
         for relative in (
@@ -559,6 +621,8 @@ class LocalAppBuildTests(unittest.TestCase):
             "run_local_app_proof.sh",
             "run_tests.sh",
             "security/find_python312.sh",
+            "security/proof_process_groups.sh",
+            "security/run_process_group_tests.sh",
             "security/validate_proof_challenge.sh",
         ):
             completed = subprocess.run(

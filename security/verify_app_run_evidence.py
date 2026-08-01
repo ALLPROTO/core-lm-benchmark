@@ -364,9 +364,20 @@ def _verify_result_and_receipt(
         },
         "worker receipt",
     )
+    runner_sources = {
+        "Resources/RealLLM/app_proof_runner.py": (
+            PROJECT_ROOT / "RealLLM" / "app_proof_runner.py"
+        ),
+        # Retain verification of the already-published historical app receipt.
+        "Resources/RealLLM/develop_voidtoken_v5.py": (
+            PROJECT_ROOT / "RealLLM" / "develop_voidtoken_v5.py"
+        ),
+    }
+    worker_script = worker.get("script")
     if (
         worker["python"] != "signed-runtime-manifest"
-        or worker["script"] != "Resources/RealLLM/develop_voidtoken_v5.py"
+        or not isinstance(worker_script, str)
+        or worker_script not in runner_sources
         or type(worker["processIdentifier"]) is not int
         or worker["processIdentifier"] <= 0
         or worker["terminationStatus"] != 0
@@ -375,7 +386,7 @@ def _verify_result_and_receipt(
     _require_sha256(worker["pythonExecutableSHA256"], "Python executable")
     _require_sha256(worker["runtimeManifestSHA256"], "runtime manifest")
     _require_sha256(worker["scriptSHA256"], "runner script")
-    source_script = PROJECT_ROOT / "RealLLM" / "develop_voidtoken_v5.py"
+    source_script = runner_sources[worker_script]
     if (
         portable_macos_environment
         and _sha256(source_script) != worker["scriptSHA256"]
@@ -453,7 +464,7 @@ def _verify_result_and_receipt(
         executable = app / "Contents" / "MacOS" / "CoreLMBenchmarkApp"
         resources = app / "Contents" / "Resources"
         manifest = resources / "python-runtime-manifest.json"
-        runner = resources / "RealLLM" / "develop_voidtoken_v5.py"
+        runner = resources.joinpath(*Path(worker_script).parts[1:])
         info_plist = app / "Contents" / "Info.plist"
         for label, path in (
             ("application executable", executable),

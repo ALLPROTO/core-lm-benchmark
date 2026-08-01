@@ -318,6 +318,14 @@ class PublicationArchiveTests(unittest.TestCase):
                     "security/validate_python_bootstrap_archive.py",
                     archived_source_paths,
                 )
+                self.assertIn(
+                    "security/proof_process_groups.sh",
+                    archived_source_paths,
+                )
+                self.assertIn(
+                    "security/run_process_group_tests.sh",
+                    archived_source_paths,
+                )
                 provenance_member = bundle.extractfile(
                     f"{prefix}/PROVENANCE.json"
                 )

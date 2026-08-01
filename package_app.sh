@@ -140,6 +140,9 @@ fi
 mkdir -m 700 "$PYTHON_CACHE_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS"
 mkdir -p "$APP_DIR/Contents/Resources/RealLLM"
+/usr/bin/python3 -I -B \
+    "$PROJECT_DIR/security/generate_app_proof_core.py" \
+    --verify "$PROJECT_DIR/RealLLM/app_proof_core.py"
 cp "$SWIFT_BUILD_DIR/$BUILD_CONFIG/CoreLMBenchmarkApp" \
    "$APP_DIR/Contents/MacOS/CoreLMBenchmarkApp"
 cp "$PROJECT_DIR/App/Info.plist" "$APP_DIR/Contents/Info.plist"
@@ -147,9 +150,9 @@ cp "$PROVENANCE_BEFORE" \
    "$APP_DIR/Contents/Resources/build-provenance.json"
 for real_llm_file in \
     __init__.py \
-    benchmark_real_llm.py \
+    app_proof_core.py \
+    app_proof_runner.py \
     codecs.py \
-    develop_voidtoken_v5.py \
     voidtoken_v5.py
 do
     cp "$PROJECT_DIR/RealLLM/$real_llm_file" \

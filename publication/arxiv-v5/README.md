@@ -34,8 +34,10 @@ independent implementation, independent experiments, a
 revision of the registered v1 selection/holdout, or new blind/generalization
 evidence.
 
-The manuscript states that any future selected-window claim requires a separate
+The manuscript states that any new selected-window claim requires a separate
 prepublished commit, hashes, parameters, gates, a pool with no metric result
 found in the audited public repository, and a deterministic future-public-
 randomness-beacon selection rule, followed by one run without post-result
-tuning. No result from such a protocol is reported.
+tuning. Those prerequisites are now frozen under
+`corelm-beacon-heldout-v1`; the freeze is not an outcome, and no result from
+that protocol is reported in this paper or source tree.
