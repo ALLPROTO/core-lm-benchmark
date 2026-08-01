@@ -207,17 +207,30 @@ production latency.
 ## Следующий beacon-selected held-out эксперимент
 
 Отдельные `RealLLM/BEACON_HELDOUT_PROTOCOL.md`,
-`beacon_registration.json` и `beacon_window_ledger.json` уже фиксируют точные
+`beacon_registration.json` и `beacon_window_ledger.json` фиксируют точные
 параметры, gates, 15 допустимых test-окон и правило выбора по будущему NIST
-Randomness Beacon. До появления выбранного окна коммит, хеши и обязательный
-Git-тег должны быть опубликованы как immutable GitHub Release; серверное
-`published_at` должно предшествовать beacon. После beacon разрешён один
-необратимый записанный запуск без последующей подстройки. Только после
-терминального `PASS` или `FAIL_GATES` повтор публикуется как regression;
-`FAIL_EXECUTION` и незавершённый attempt запрещают повторный запуск.
-Результата этого suite пока нет, а блоки 64–71 для него исключены. Поскольку
-WikiText-2 публичен, корректное название — post-freeze beacon-selected
-held-out-window evaluation, а не доказательство того, что данные никто ранее
-не мог просмотреть или запустить приватно. Локальный attempt marker —
-процедурный контроль, а не remote-attested доказательство отсутствия тайных
-копий запуска.
+Randomness Beacon. Freeze уже публичен: immutable release
+`corelm-beacon-heldout-v1` опубликован `2026-08-01T01:18:09Z`, tag commit —
+`0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44`, protocol commit —
+`b34bc4d06c00c86b99076b117049e2d590d73bcd`. Первоначальный заголовок
+`Normative files` над четырьмя пунктами был исправлен до pulse, в
+`2026-08-01T10:08:12Z`, на `Key normative artifacts`; release notes теперь явно
+ссылаются на полный авторитетный список из 26 записей в
+`RealLLM/beacon_freeze.json`. Tag, assets, frozen files и первоначальный
+`published_at` при notes-only исправлении не изменились.
+
+Точный pulse — `2026-08-02T18:00:00.000Z`, deadline завершения —
+`2026-08-04T18:00:00.000Z`. Разрешён один необратимый записанный запуск из
+чистого detached checkout frozen tag без последующей подстройки. Все
+сохранившиеся артефакты публикуются без изменений при `PASS`, `FAIL_GATES`,
+`FAIL_EXECUTION` или `CONSUMED_INCOMPLETE`. Только после терминального `PASS`
+или `FAIL_GATES` повтор публикуется как regression; `FAIL_EXECUTION` и
+незавершённый attempt запрещают повторный запуск. Результата этого suite пока
+нет, а блоки 64–71 для него исключены. Точный порядок действий закреплён в
+`docs/BEACON_LAUNCH_RUNBOOK.md`.
+
+Поскольку WikiText-2 публичен, корректное название — post-freeze
+beacon-selected held-out-window evaluation, а не доказательство того, что
+данные никто ранее не мог просмотреть или запустить приватно. Локальный attempt
+marker — процедурный контроль, а не remote-attested доказательство отсутствия
+тайных копий запуска.

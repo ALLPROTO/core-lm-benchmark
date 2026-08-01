@@ -9,6 +9,33 @@ private struct ValidatedPythonRuntime {
     let sha256: String
 }
 
+enum ProcessGroupSupervisor {
+    private static func isSafeGroupID(_ groupID: pid_t) -> Bool {
+        groupID > 1 && groupID != getpgrp()
+    }
+
+    static func groupExists(_ groupID: pid_t) -> Bool {
+        guard isSafeGroupID(groupID) else { return false }
+        errno = 0
+        if kill(-groupID, 0) == 0 {
+            return true
+        }
+        return errno == EPERM
+    }
+
+    @discardableResult
+    static func signal(_ signal: Int32, groupID: pid_t) -> Bool {
+        guard isSafeGroupID(groupID) else { return false }
+        return kill(-groupID, signal) == 0
+    }
+
+    @discardableResult
+    static func forceKillIfPresent(_ groupID: pid_t) -> Bool {
+        guard groupExists(groupID) else { return false }
+        return signal(SIGKILL, groupID: groupID)
+    }
+}
+
 @MainActor
 final class BenchmarkStore: ObservableObject {
     @Published var isRunning = false
@@ -68,9 +95,11 @@ final class BenchmarkStore: ObservableObject {
             .appendingPathComponent("real-llm-results", isDirectory: true)
     }
 
-    static func realLLMWorkerEnvironment(cache: URL) -> [String: String] {
-        SecurityValidation.sanitizedChildEnvironment(
-            additions: [
+    static func realLLMWorkerEnvironment(
+        cache: URL,
+        supervisionFile: URL? = nil
+    ) -> [String: String] {
+        var additions = [
                 "HF_HOME": cache.path,
                 "HF_HUB_OFFLINE": "1",
                 "TRANSFORMERS_OFFLINE": "1",
@@ -87,7 +116,12 @@ final class BenchmarkStore: ObservableObject {
                 "MKL_NUM_THREADS": "2",
                 "VECLIB_MAXIMUM_THREADS": "2",
                 "NUMEXPR_NUM_THREADS": "2"
-            ]
+        ]
+        if let supervisionFile {
+            additions["CORELM_WORKER_GROUP_FILE"] = supervisionFile.path
+        }
+        return SecurityValidation.sanitizedChildEnvironment(
+            additions: additions
         )
     }
 
@@ -203,7 +237,7 @@ final class BenchmarkStore: ObservableObject {
     private func resolveRealLLMScript() throws -> URL {
         if let resources = Bundle.main.resourceURL {
             let bundled = resources.appendingPathComponent(
-                "RealLLM/develop_voidtoken_v5.py"
+                "RealLLM/app_proof_runner.py"
             )
             if Bundle.main.bundleURL.pathExtension == "app" {
                 try SecurityValidation.validateBundleSignature(
@@ -217,7 +251,7 @@ final class BenchmarkStore: ObservableObject {
         }
         #if DEBUG
         let source = projectDirectory.appendingPathComponent(
-            "RealLLM/develop_voidtoken_v5.py"
+            "RealLLM/app_proof_runner.py"
         )
         return try SecurityValidation.validateRegularFileInside(
             source,
@@ -344,7 +378,12 @@ final class BenchmarkStore: ObservableObject {
             "--local-files-only"
         ]
 
-        task.environment = Self.realLLMWorkerEnvironment(cache: cache)
+        task.environment = Self.realLLMWorkerEnvironment(
+            cache: cache,
+            supervisionFile: runDirectory.appendingPathComponent(
+                ".worker-process-group"
+            )
+        )
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
@@ -403,7 +442,18 @@ final class BenchmarkStore: ObservableObject {
 
         do {
             try task.run()
-            configureProcessGroup(for: task)
+            do {
+                try confirmWorkerProcessGroup(for: task)
+            } catch {
+                task.terminationHandler = nil
+                stdoutHandle.readabilityHandler = nil
+                stderrHandle.readabilityHandler = nil
+                if task.isRunning {
+                    _ = kill(task.processIdentifier, SIGKILL)
+                    task.waitUntilExit()
+                }
+                throw error
+            }
             startRealLLMSafetyWatchdog(for: task)
             lastRealLLMWorkerPID = task.processIdentifier
             progress = 0.08
@@ -1266,7 +1316,7 @@ final class BenchmarkStore: ObservableObject {
                     activeRealLLMPythonSHA256 ?? "",
                 "runtimeManifestSHA256": runtimeManifestDigest,
                 "script":
-                    "Resources/RealLLM/develop_voidtoken_v5.py",
+                    "Resources/RealLLM/app_proof_runner.py",
                 "scriptSHA256": scriptDigest,
                 "terminationStatus": terminationStatus ?? -1
             ],
@@ -1367,13 +1417,28 @@ final class BenchmarkStore: ObservableObject {
         realLLMPowerActivity = nil
     }
 
-    private func configureProcessGroup(for task: Process) {
+    private func confirmWorkerProcessGroup(for task: Process) throws {
         let identifier = pid_t(task.processIdentifier)
-        if setpgid(identifier, identifier) == 0 {
-            activeProcessGroupID = identifier
-        } else {
-            activeProcessGroupID = nil
+        // The production Python runner calls setpgid(0, 0) itself before it
+        // imports numpy, Torch, or Transformers.  A parent-side setpgid after
+        // Process.run races the child's exec and can fail with EACCES, so only
+        // the child creates the group and this side confirms the invariant.
+        for _ in 0..<200 {
+            errno = 0
+            let observed = getpgid(identifier)
+            if observed == identifier {
+                activeProcessGroupID = identifier
+                return
+            }
+            if observed == -1 && errno == ESRCH {
+                break
+            }
+            usleep(5_000)
         }
+        activeProcessGroupID = nil
+        throw SecurityValidationError.invalid(
+            "Compression worker did not establish an independent process group."
+        )
     }
 
     private func startRealLLMSafetyWatchdog(for task: Process) {
@@ -1431,7 +1496,10 @@ final class BenchmarkStore: ObservableObject {
     private func terminate(task: Process, force: Bool) {
         let group = activeProcessGroupID
         if let group {
-            _ = kill(-group, force ? SIGKILL : SIGTERM)
+            _ = ProcessGroupSupervisor.signal(
+                force ? SIGKILL : SIGTERM,
+                groupID: group
+            )
         } else if task.isRunning {
             if force {
                 _ = kill(task.processIdentifier, SIGKILL)
@@ -1440,12 +1508,14 @@ final class BenchmarkStore: ObservableObject {
             }
         }
         guard !force else { return }
-        Task { @MainActor [weak self, weak task] in
+        Task { @MainActor [weak task] in
             try? await Task.sleep(for: .seconds(2))
-            guard let self, let task, self.process === task else { return }
             if let group {
-                _ = kill(-group, SIGKILL)
-            } else if task.isRunning {
+                // The leader can exit on SIGTERM before this grace period
+                // ends.  Escalate against the captured group, independent of
+                // mutable store state or the leader's continued existence.
+                _ = ProcessGroupSupervisor.forceKillIfPresent(group)
+            } else if let task, task.isRunning {
                 _ = kill(task.processIdentifier, SIGKILL)
             }
         }

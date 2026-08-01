@@ -77,17 +77,25 @@ same implementation, and because the input remains public validation blocks
 64–71, even an external repeat would not create a new blind or generalization
 result.
 
-## Registered next held-out-window experiment
+## Frozen next held-out-window experiment
 
 The separate [beacon-selected protocol](../RealLLM/BEACON_HELDOUT_PROTOCOL.md)
 fixes the commit/digest freeze, all parameters and gates, fifteen eligible
 previously unreported test windows, and a deterministic rule tied to an exact
-future NIST beacon pulse. The freeze requires an immutable GitHub Release with
-a server publication time before the pulse. It permits one recorded run with
-no post-result tuning. A later regression is allowed only after terminal `PASS`
-or `FAIL_GATES`; an execution failure or incomplete attempt cannot be retried.
-No result from that suite is reported on this page, and blocks 64–71 are
-ineligible for it.
+future NIST beacon pulse. The required immutable release is already public as
+[`corelm-beacon-heldout-v1`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-beacon-heldout-v1),
+with tag commit `0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44` and server
+publication time `2026-08-01T01:18:09Z`. Its release body lists four key
+artifacts; the complete normative inventory is the 26 entries in
+`RealLLM/beacon_freeze.json`.
+
+The exact pulse is `2026-08-02T18:00:00.000Z`, and a scientific outcome must
+complete by `2026-08-04T18:00:00.000Z`. The protocol permits one recorded run
+with no post-result tuning. A later regression is allowed only after terminal
+`PASS` or `FAIL_GATES`; an execution failure or incomplete attempt cannot be
+retried. No result from that suite is reported on this page, and blocks 64–71
+are ineligible for it. See the public
+[launch and publication runbook](BEACON_LAUNCH_RUNBOOK.md).
 
 Historical scientific chronology and exact internal identifiers are kept in
 the [development history](development/HISTORY.md).

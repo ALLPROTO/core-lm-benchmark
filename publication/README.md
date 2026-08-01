@@ -39,13 +39,16 @@ and cache-error aggregates. Blocks 64–71 have been exercised repeatedly, so
 these runs are repeatability checks, not independent experiments or new blind,
 holdout, or generalization evidence.
 
-A separate future selected-window protocol must publish its commit, hashes,
-parameters, gates, a pool with no metric result found in the audited public
-repository, and a deterministic future-public-beacon selection rule before
-resolving a window. It then permits one run without post-result tuning. A later
-regression is allowed only after `PASS` or `FAIL_GATES`; `FAIL_EXECUTION` and an
-incomplete attempt forbid retry. No such result is part of the current
-publication package.
+A separate selected-window protocol has now published its commit, hashes,
+parameters, gates, audited eligible pool, and deterministic future-public-
+beacon selection rule under tag and GitHub Release
+`corelm-beacon-heldout-v1`. Its release summary names four key normative
+artifacts; the authoritative `RealLLM/beacon_freeze.json` enumerates and hashes
+the complete 26-path normative source set. The freeze is complete, but the
+registered target pulse has not produced a checked-in result. The protocol
+permits one run without post-result tuning. A later regression is allowed only
+after `PASS` or `FAIL_GATES`; `FAIL_EXECUTION` and an incomplete attempt forbid
+retry. No beacon result is part of the current publication package.
 
 ## Generate and preview
 
@@ -73,21 +76,18 @@ The current archive names are:
 A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
 
-## Build the final tagged package
+## Reproduce the existing tagged package
 
-After the paper commit is public, create a new lightweight publication tag.
-Do not move or reuse `voidtoken-v5-evidence-v1`; that tag identifies the
-earlier frozen scientific evidence state.
+Use a separate clean clone or worktree at the already published
+`voidtoken-v5-paper-v5` tag. Reproduction fetches and checks out the existing
+tag; it must not create, move, or push that tag again.
 
 ```sh
 RELEASE_TAG=voidtoken-v5-paper-v5
+git fetch origin \
+  "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+git switch --detach "$RELEASE_TAG"
 git status --short
-git push origin HEAD
-# Wait until both branch and pull-request CI runs are green.
-git tag "$RELEASE_TAG"
-git push origin "refs/tags/$RELEASE_TAG"
-git ls-remote --exit-code origin "refs/tags/$RELEASE_TAG"
-# Wait until the tag CI run is green.
 python3 publication/build_archives.py \
   --release-tag "$RELEASE_TAG" \
   --verify-determinism
@@ -95,10 +95,40 @@ python3 publication/build_archives.py --release-tag "$RELEASE_TAG"
 (cd output && shasum -a 256 -c SHA256SUMS)
 ```
 
+## Create a new publication release
+
+Corrections or new publication assets require a new, never-used lightweight
+tag and a separate GitHub Release. Never reuse `voidtoken-v5-paper-v5` or
+`voidtoken-v5-evidence-v1`, and never replace assets attached to an existing
+release. Set `NEW_RELEASE_TAG` explicitly to the new identifier before running:
+
+```sh
+: "${NEW_RELEASE_TAG:?set a new, never-used publication tag}"
+git status --short
+if git show-ref --verify --quiet "refs/tags/$NEW_RELEASE_TAG"; then
+  echo "local tag already exists: $NEW_RELEASE_TAG" >&2
+  exit 1
+fi
+if [ -n "$(git ls-remote origin "refs/tags/$NEW_RELEASE_TAG")" ]; then
+  echo "public tag already exists: $NEW_RELEASE_TAG" >&2
+  exit 1
+fi
+git push origin HEAD
+# Wait until the branch and pull-request CI runs are green.
+git tag "$NEW_RELEASE_TAG"
+git push origin "refs/tags/$NEW_RELEASE_TAG"
+git ls-remote --exit-code origin "refs/tags/$NEW_RELEASE_TAG"
+# Wait until the tag-triggered CI run is green.
+python3 publication/build_archives.py \
+  --release-tag "$NEW_RELEASE_TAG" \
+  --verify-determinism
+python3 publication/build_archives.py --release-tag "$NEW_RELEASE_TAG"
+(cd output && shasum -a 256 -c SHA256SUMS)
+```
+
 The release preflight rejects a dirty worktree, annotated or non-HEAD tag,
 wrong origin, unpublished tag, untracked input, or bytes that differ from
-`HEAD`. Do not create the immutable tag until the exact branch commit has
-passed CI.
+`HEAD`. Do not create the new tag until the exact branch commit has passed CI.
 
 ## Before arXiv submission
 

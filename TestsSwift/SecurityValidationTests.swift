@@ -1,9 +1,101 @@
 import Foundation
+import Darwin
 import Testing
 @testable import CoreLMBenchmarkApp
 
 @Suite
 struct SecurityValidationTests {
+    private func waitUntil(_ condition: () -> Bool) -> Bool {
+        for _ in 0..<500 {
+            if condition() {
+                return true
+            }
+            usleep(10_000)
+        }
+        return condition()
+    }
+
+    @Test
+    func testCapturedProcessGroupKillsChildAfterLeaderExits() throws {
+        let temporary = FileManager.default.temporaryDirectory
+            .appendingPathComponent(
+                "corelm-process-group-\(UUID().uuidString)",
+                isDirectory: true
+            )
+        try FileManager.default.createDirectory(
+            at: temporary,
+            withIntermediateDirectories: false,
+            attributes: [.posixPermissions: 0o700]
+        )
+        defer { try? FileManager.default.removeItem(at: temporary) }
+
+        let ready = temporary.appendingPathComponent("ready")
+        let termObserved = temporary.appendingPathComponent("term-observed")
+        let fixture = """
+        import os
+        import signal
+        import sys
+        import time
+
+        os.setpgid(0, 0)
+        child = os.fork()
+        if child == 0:
+            def observe_term(_signum, _frame):
+                with open(sys.argv[2], "w", encoding="ascii") as marker:
+                    marker.write("SIGTERM ignored\\n")
+                    marker.flush()
+                    os.fsync(marker.fileno())
+
+            signal.signal(signal.SIGTERM, observe_term)
+            with open(sys.argv[1], "w", encoding="ascii") as marker:
+                marker.write(str(os.getpid()) + "\\n")
+                marker.flush()
+                os.fsync(marker.fileno())
+            while True:
+                time.sleep(1)
+
+        while True:
+            time.sleep(1)
+        """
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        task.arguments = ["-c", fixture, ready.path, termObserved.path]
+        try task.run()
+        let groupID = pid_t(task.processIdentifier)
+        var groupNeedsCleanup = true
+        defer {
+            if groupNeedsCleanup {
+                _ = ProcessGroupSupervisor.signal(SIGKILL, groupID: groupID)
+            }
+            if task.isRunning {
+                _ = kill(task.processIdentifier, SIGKILL)
+            }
+        }
+
+        try #require(waitUntil { getpgid(groupID) == groupID })
+        try #require(waitUntil {
+            FileManager.default.fileExists(atPath: ready.path)
+        })
+        try #require(
+            ProcessGroupSupervisor.signal(SIGTERM, groupID: groupID)
+        )
+        try #require(waitUntil { !task.isRunning })
+        task.waitUntilExit()
+        #expect(task.terminationReason == .uncaughtSignal)
+        #expect(task.terminationStatus == SIGTERM)
+        try #require(waitUntil {
+            FileManager.default.fileExists(atPath: termObserved.path)
+        })
+        #expect(ProcessGroupSupervisor.groupExists(groupID))
+
+        try #require(ProcessGroupSupervisor.forceKillIfPresent(groupID))
+        try #require(waitUntil {
+            !ProcessGroupSupervisor.groupExists(groupID)
+        })
+        groupNeedsCleanup = false
+    }
+
     @Test
     func testReleaseProofPolicyPinsRegisteredValidationSlice() {
         let developmentSettings = RealLLMRunSettings(
@@ -126,11 +218,18 @@ struct SecurityValidationTests {
     @MainActor
     func testCompressionWorkerEnvironmentHasMacSafetyLimits() {
         let cache = URL(fileURLWithPath: "/tmp/corelm-model-cache")
-        let environment = BenchmarkStore.realLLMWorkerEnvironment(cache: cache)
+        let groupFile = URL(
+            fileURLWithPath: "/tmp/corelm-run/.worker-process-group"
+        )
+        let environment = BenchmarkStore.realLLMWorkerEnvironment(
+            cache: cache,
+            supervisionFile: groupFile
+        )
 
         #expect(environment["HF_HOME"] == cache.path)
         #expect(environment["HF_HUB_OFFLINE"] == "1")
         #expect(environment["TRANSFORMERS_OFFLINE"] == "1")
+        #expect(environment["CORELM_WORKER_GROUP_FILE"] == groupFile.path)
         #expect(environment["HF_HUB_DISABLE_IMPLICIT_TOKEN"] == "1")
         #expect(environment["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] == "0.85")
         #expect(environment["PYTORCH_MPS_LOW_WATERMARK_RATIO"] == "0.75")

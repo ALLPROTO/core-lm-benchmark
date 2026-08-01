@@ -104,7 +104,9 @@ and validating the archive checksums; see the
    set is verified.
 4. The exact pinned model and dataset files are downloaded and verified.
 5. Offline resolution is tested before the app is packaged.
-6. The release application is built and locally ad-hoc signed.
+6. The release application is built with the fixed production runner, a
+   mechanically generated minimal proof core, and no exploratory pilot or
+   development CLI, then locally ad-hoc signed.
 7. Python and Swift regression/security gates run.
 8. The visible application executes the pinned Qwen compression workload on
    fixed public validation blocks 64–71 using Apple MPS.
@@ -119,6 +121,13 @@ and validating the archive checksums; see the
     rebuilds baseline and decoded candidate caches, and reruns all 1,024 Qwen
     decisions sequentially on MPS. Top-1 IDs must match exactly and every loss
     must match within absolute tolerance `2e-5` or relative tolerance `2e-6`.
+
+The Python worker establishes its own process group before importing numerical
+or model libraries. The Swift app verifies that the worker PID is the group
+leader before starting its watchdog, and the outer shell proof recursively
+records descendant process groups for timeout, memory-pressure, and exit
+cleanup. Failure to establish the group is a launch failure, not a degraded
+single-process fallback.
 
 A successful run ends with:
 
@@ -252,17 +261,19 @@ run and independent heavy replay each enforce a 300-second limit and terminate
 their process group if a limit is reached. A safety stop is a failed proof; it
 never produces a PASS receipt.
 
-## Boundary for a future prospective experiment
+## Boundary for the frozen beacon-selected experiment
 
 Do not use `run_local_app_proof.sh` or blocks 64–71 to claim a new blind result.
-A separate future protocol must first publish its exact commit, source and
-configuration digests, parameters, gates, a pool for which the audited public
-repository contains no metric result, and a deterministic selection rule tied
-to a future public randomness beacon.
-Only after that beacon is available may the selected window be resolved and run
-once, without post-result tuning. A later regression is allowed only after
-terminal `PASS` or `FAIL_GATES`; `FAIL_EXECUTION` or an incomplete attempt cannot
-be retried. This repository does not claim a result from that future protocol.
+The separate protocol has now published its exact commit, source and
+configuration digests, parameters, gates, eligible pool, and deterministic
+selection rule under immutable release `corelm-beacon-heldout-v1`. It has no
+result yet. Only at or after the exact NIST pulse
+`2026-08-02T18:00:00.000Z` may the selected window be resolved and run once,
+without post-result tuning, and a scientific outcome must complete by
+`2026-08-04T18:00:00.000Z`. A later regression is allowed only after terminal
+`PASS` or `FAIL_GATES`; `FAIL_EXECUTION` or an incomplete attempt cannot be
+retried. The exact clean detached-tag, AC-power, `caffeinate`, and publication
+procedure is the [beacon launch runbook](BEACON_LAUNCH_RUNBOOK.md).
 
 ## Cleanup
 

@@ -82,8 +82,13 @@ two-commit public freeze, exact implementation and artifact hashes, fifteen
 eligible previously unreported test windows, and deterministic selection from
 an exact future NIST beacon pulse. The selected input may be run once without
 post-result tuning; every subsequent run is regression-only. The suite is
-currently awaiting its public pre-beacon freeze and has no result. Validation
-blocks 64–71 are excluded by their prior repeated use.
+frozen at tag commit `0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44` and was
+published as the immutable `corelm-beacon-heldout-v1` release at
+`2026-08-01T01:18:09Z`, before the registered pulse. It still has no result.
+The target is `2026-08-02T18:00:00.000Z` and the completion deadline is
+`2026-08-04T18:00:00.000Z`. Validation blocks 64–71 are excluded by their
+prior repeated use. The non-normative operator procedure is recorded in the
+[beacon launch runbook](../BEACON_LAUNCH_RUNBOOK.md).
 
 ## Publication state
 

@@ -32,8 +32,9 @@ Teacher-forced continuation -> Metrics -> Scientific gates -> Swift verifier
 4. downloads the pinned model and dataset assets and checks their sizes and
    SHA-256 digests;
 5. proves that the assets resolve with network access disabled;
-6. packages the Swift executable, Python runner, and deterministic runtime
-   manifest;
+6. packages the Swift executable, fixed production runner, generated minimal
+   proof core, VoidToken backend and its codec helpers, and deterministic
+   runtime manifest;
 7. applies a local ad-hoc signature; and
 8. verifies the bundle before launch.
 
@@ -42,9 +43,24 @@ Python base installation and virtual environment. Unlisted loadable files,
 changed native libraries, unsafe symlinks, writable path components, or an
 unexpected Python executable cause a fail-closed rejection.
 
-The real-model worker runs with bounded CPU-library concurrency and conservative
-MPS allocation watermarks. Independent in-app and shell watchdogs stop the full
-worker process group on critical memory pressure or after five minutes.
+The packaged `app_proof_runner.py` accepts only the registered frozen
+compression profile, validation-only input, Apple MPS, offline assets, and
+bounded proof arguments; the release app supplies the registered validation
+block range. Its `app_proof_core.py` is generated mechanically from the frozen
+real-model engine. Packaging verifies its semantic AST independently of
+host-Python formatting; source comparison, build provenance, and the bundle
+signature then bind the exact checked-in bytes. The exploratory pilot CLI,
+development runner, alternative-backend execution, and candidate-grid
+execution surface remain source-only and are rejected if they appear in the
+release bundle.
+
+The real-model worker creates its own process group before importing NumPy,
+PyTorch, or Transformers; the Swift parent confirms that group before accepting
+the launch. It runs with bounded CPU-library concurrency and conservative MPS
+allocation watermarks. Independent in-app and shell watchdogs stop the full
+worker process group on critical memory pressure or after five minutes. The
+outer proof also records recursively discovered worker groups so cleanup still
+reaches the model process if the GUI exits first.
 
 ## Module visibility
 
@@ -81,10 +97,33 @@ accidentally select an older result; it is not remote freshness attestation.
 The separately registered beacon-selected held-out experiment is a different
 architecture path. `RealLLM/BEACON_HELDOUT_PROTOCOL.md` fixes its commit/digest
 freeze, parameters, gates, eligible unreported-window pool, and deterministic
-future-NIST-beacon selection before resolution. It allows one recorded
-execution. Only after terminal `PASS` or `FAIL_GATES` may a later execution be
-labelled regression-only; `FAIL_EXECUTION` and an incomplete attempt forbid a
-retry. No result from that path is claimed yet.
+future-NIST-beacon selection before resolution. That freeze is already public
+and immutable at tag commit
+`0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44`; no result from that path is
+claimed yet.
+
+```text
+Clean detached frozen tag -> Administrative preflights -> Durable attempt marker
+                                                               |
+                                                               v
+Exact signed NIST pulse -> Deterministic window resolution -> 32-block MPS run
+                                                               |
+                                                               v
+                PASS | FAIL_GATES | FAIL_EXECUTION | CONSUMED_INCOMPLETE
+                                                               |
+                                                               v
+                    Independent verification -> Unchanged public artifacts
+```
+
+The attempt marker is written before beacon retrieval or selected-data
+resolution. It allows one recorded execution. Only after terminal `PASS` or
+`FAIL_GATES` may a later execution be labelled regression-only;
+`FAIL_EXECUTION` and an incomplete attempt forbid a retry. The operator runs on
+AC power under an external macOS `caffeinate` assertion because the frozen
+one-shot does not acquire the application's idle-sleep assertion. The exact
+target `2026-08-02T18:00:00.000Z`, deadline
+`2026-08-04T18:00:00.000Z`, checkout, execution, and publication procedure is
+the [beacon launch runbook](docs/BEACON_LAUNCH_RUNBOOK.md).
 
 ## Identifier boundary
 

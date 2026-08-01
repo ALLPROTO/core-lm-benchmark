@@ -23,11 +23,14 @@ VERIFY_CACHE=$(mktemp -d "${TMPDIR:-/tmp}/corelm-verify-pycache.XXXXXX")
 PROOF_PROCESS_TMP=$(mktemp -d "${TMPDIR:-/tmp}/corelm-proof-process.XXXXXX")
 TIMEOUT_REASON=$(mktemp "${TMPDIR:-/tmp}/corelm-timeout.XXXXXX")
 MEMORY_REASON=$(mktemp "${TMPDIR:-/tmp}/corelm-memory.XXXXXX")
+SUPERVISED_GROUPS=$(mktemp "${TMPDIR:-/tmp}/corelm-groups.XXXXXX")
 APP_PID=
 TIMEOUT_WATCHDOG_PID=
 MEMORY_WATCHDOG_PID=
 LOCK_ACQUIRED=0
 challenge=
+
+. "$PROJECT_DIR/security/proof_process_groups.sh"
 
 run_clean() {
     /usr/bin/env -i \
@@ -59,32 +62,73 @@ memory_free_percent() {
     printf '%s\n' "$memory_percent"
 }
 
+collect_proof_descendants() {
+    for descendant_pid in $(
+        /usr/bin/pgrep -P "$1" 2>/dev/null || :
+    ); do
+        case "$descendant_pid" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        collect_proof_descendants "$descendant_pid"
+        printf '%s\n' "$descendant_pid"
+    done
+}
+
+record_proof_groups() {
+    record_root_pid=$1
+    case "$record_root_pid" in
+        ''|*[!0-9]*) return ;;
+    esac
+    for record_pid in $(collect_proof_descendants "$record_root_pid"); do
+        record_group=$(
+            /bin/ps -o pgid= -p "$record_pid" 2>/dev/null \
+                | /usr/bin/tr -d '[:space:]'
+        )
+        case "$record_group" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        if [ "$record_group" = "$record_pid" ] \
+            && proof_group_is_safe "$record_group"; then
+            printf '%s\n' "$record_group" >>"$SUPERVISED_GROUPS"
+        fi
+    done
+}
+
 terminate_proof_tree() {
     proof_target_pid=$1
     case "$proof_target_pid" in
         ''|*[!0-9]*) return ;;
     esac
+    record_proof_groups "$proof_target_pid"
 
-    proof_child_pids=$(
-        /usr/bin/pgrep -P "$proof_target_pid" 2>/dev/null || :
-    )
-    for proof_child_pid in $proof_child_pids; do
-        case "$proof_child_pid" in
+    proof_descendant_pids=$(collect_proof_descendants "$proof_target_pid")
+    for proof_descendant_pid in $proof_descendant_pids; do
+        case "$proof_descendant_pid" in
             ''|*[!0-9]*) continue ;;
         esac
-        /bin/kill -TERM -- "-$proof_child_pid" 2>/dev/null || :
-        /bin/kill -TERM "$proof_child_pid" 2>/dev/null || :
+        proof_group=$(
+            /bin/ps -o pgid= -p "$proof_descendant_pid" 2>/dev/null \
+                | /usr/bin/tr -d '[:space:]'
+        )
+        if [ "$proof_group" = "$proof_descendant_pid" ]; then
+            /bin/kill -TERM -- "-$proof_group" 2>/dev/null || :
+        else
+            /bin/kill -TERM "$proof_descendant_pid" 2>/dev/null || :
+        fi
     done
 
-    if [ -n "$proof_child_pids" ]; then
+    if [ -n "$proof_descendant_pids" ]; then
         /bin/sleep 2
     fi
-    for proof_child_pid in $proof_child_pids; do
-        case "$proof_child_pid" in
+    # Group IDs were validated and captured while their leaders were alive.
+    # A leader may now be gone, so escalation must not rediscover its PGID via
+    # ps.  Signal the captured group directly, then clean up surviving PIDs.
+    force_kill_recorded_groups
+    for proof_descendant_pid in $proof_descendant_pids; do
+        case "$proof_descendant_pid" in
             ''|*[!0-9]*) continue ;;
         esac
-        /bin/kill -KILL -- "-$proof_child_pid" 2>/dev/null || :
-        /bin/kill -KILL "$proof_child_pid" 2>/dev/null || :
+        /bin/kill -KILL "$proof_descendant_pid" 2>/dev/null || :
     done
     if /bin/kill -0 "$proof_target_pid" 2>/dev/null; then
         /bin/kill -TERM "$proof_target_pid" 2>/dev/null || :
@@ -97,6 +141,8 @@ timeout_watchdog() {
     trap - 0 1 2 15
     watchdog_elapsed=0
     while /bin/kill -0 "$APP_PID" 2>/dev/null; do
+        record_proof_groups "$APP_PID"
+        record_published_worker_groups
         if [ "$watchdog_elapsed" -ge "$PROOF_TIMEOUT_SECONDS" ]; then
             printf 'hard timeout after %s seconds\n' \
                 "$PROOF_TIMEOUT_SECONDS" >"$TIMEOUT_REASON"
@@ -111,6 +157,8 @@ timeout_watchdog() {
 memory_watchdog() {
     trap - 0 1 2 15
     while /bin/kill -0 "$APP_PID" 2>/dev/null; do
+        record_proof_groups "$APP_PID"
+        record_published_worker_groups
         if ! watchdog_free_percent=$(memory_free_percent); then
             printf '%s\n' 'memory-pressure monitor became unavailable' \
                 >"$MEMORY_REASON"
@@ -139,10 +187,11 @@ cleanup() {
     if [ -n "$APP_PID" ] && /bin/kill -0 "$APP_PID" 2>/dev/null; then
         terminate_proof_tree "$APP_PID"
     fi
+    terminate_recorded_groups
     rm -f "$MARKER"
     rm -rf "$VERIFY_CACHE"
     rm -rf "$PROOF_PROCESS_TMP"
-    rm -f "$TIMEOUT_REASON" "$MEMORY_REASON"
+    rm -f "$TIMEOUT_REASON" "$MEMORY_REASON" "$SUPERVISED_GROUPS"
     if [ "$LOCK_ACQUIRED" = 1 ]; then
         rm -f "$PROOF_LOCK_FILE"
     fi

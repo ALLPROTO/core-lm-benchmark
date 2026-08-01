@@ -216,16 +216,59 @@ def _record(
 
 
 class RealLLMProtocolTests(unittest.TestCase):
+    def test_generated_app_core_matches_frozen_voidtoken_path(self):
+        completed = subprocess.run(
+            [
+                "/usr/bin/python3",
+                "-I",
+                "-B",
+                str(ROOT / "security/generate_app_proof_core.py"),
+                "--verify",
+                str(ROOT / "RealLLM/app_proof_core.py"),
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+        from RealLLM import app_proof_core
+
+        rng = np.random.default_rng(20260801)
+        layers = [
+            rng.normal(size=(2, 256)).astype(np.float32)
+            for _ in range(24)
+        ]
+        expected_layers, expected_encoding = benchmark_module._encode_layers(
+            layers, app_proof_core.APP_CONFIGURATION
+        )
+        observed_layers, observed_encoding = app_proof_core._encode_layers(
+            layers, app_proof_core.APP_CONFIGURATION
+        )
+        for expected, observed in zip(expected_layers, observed_layers):
+            self.assertTrue(np.array_equal(expected, observed))
+        for key in (
+            "encodedFileBytes",
+            "payloadBytes",
+            "payloadSHA256",
+            "containerManifest",
+            "containerManifestSHA256",
+        ):
+            self.assertEqual(observed_encoding[key], expected_encoding[key])
+
     def test_packaged_candidate_32_is_real_only_and_isolated(self):
         packaged_names = (
             "__init__.py",
-            "benchmark_real_llm.py",
+            "app_proof_core.py",
+            "app_proof_runner.py",
             "codecs.py",
-            "develop_voidtoken_v5.py",
             "voidtoken_v5.py",
         )
         package_script = (ROOT / "package_app.sh").read_text(encoding="utf-8")
         self.assertNotIn("legacy_voidtoken_adapter.py", package_script)
+        self.assertNotIn("benchmark_real_llm.py", package_script)
+        self.assertNotIn("develop_voidtoken_v5.py", package_script)
 
         with tempfile.TemporaryDirectory() as temporary:
             package_root = Path(temporary)
@@ -248,30 +291,13 @@ class RealLLMProtocolTests(unittest.TestCase):
             ):
                 self.assertNotIn(forbidden, packaged_source)
 
-            listed = subprocess.run(
-                [
-                    sys.executable,
-                    "-I",
-                    "-B",
-                    str(package / "develop_voidtoken_v5.py"),
-                    "--list-candidates",
-                ],
-                cwd=package_root,
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(listed.returncode, 0, listed.stderr)
-            self.assertIn('32: {"backend":"voidtoken-v5"', listed.stdout)
-
             isolated_probe = """
 import sys
 import numpy as np
 sys.path.insert(0, sys.argv[1])
-from RealLLM.benchmark_real_llm import _encode_layers
-from RealLLM.develop_voidtoken_v5 import DEVELOPMENT_GRID
+from RealLLM.app_proof_core import APP_CONFIGURATION, _encode_layers
 
-configuration = DEVELOPMENT_GRID[32]
+configuration = APP_CONFIGURATION
 assert configuration["backend"] == "voidtoken-v5"
 layers = [np.zeros((2, 256), dtype=np.float32) for _ in range(24)]
 reconstructed, encoding = _encode_layers(layers, configuration)
@@ -288,10 +314,10 @@ try:
             "keyframeInterval": 0,
         },
     )
-except RuntimeError as error:
-    assert "adapter is unavailable" in str(error)
+except ValueError as error:
+    assert "registered configuration" in str(error)
 else:
-    raise AssertionError("historical backend did not fail closed")
+    raise AssertionError("unregistered backend did not fail closed")
 """
             probed = subprocess.run(
                 [

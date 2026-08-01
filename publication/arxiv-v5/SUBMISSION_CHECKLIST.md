@@ -31,8 +31,10 @@
       not three independent experiments.
 - [x] The local challenge is labelled trusted-local stale-run binding, not
       cryptographic remote freshness or attestation.
-- [x] The separately registered beacon-selected one-shot protocol is described
-      as awaiting public freeze/execution; no unperformed result is claimed.
+- [x] Accompanying repository documentation identifies the separately
+      registered beacon-selected one-shot protocol as publicly frozen under
+      `corelm-beacon-heldout-v1` and awaiting execution; the manuscript claims
+      no unperformed result.
 - [x] The paper makes no full-model, SOTA, latency, serving, or free-running
       claim.
 - [x] Canonical result hashes are distinguished from physical file hashes.
