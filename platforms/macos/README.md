@@ -25,3 +25,7 @@ open dist/CoreLMBenchmark.app
 `App/` and `Tests/` are macOS-only Swift sources. The scripts in `scripts/`
 are internal platform entrypoints; ordinary users should invoke them through
 `./corelm` from the repository root.
+
+The macOS runtime, wheelhouse, model assets, and proof runtimes live only under
+`~/.cache/corelm/macos/`. They do not share writable paths with Linux or the
+immutable beacon checkout.

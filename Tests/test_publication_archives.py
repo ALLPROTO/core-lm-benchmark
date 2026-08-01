@@ -358,6 +358,9 @@ class PublicationArchiveTests(unittest.TestCase):
                 )
                 for relative in (
                     "corelm",
+                    "platforms/README.md",
+                    "platforms/beacon/README.md",
+                    "platforms/beacon/scripts/verify-frozen-tag.py",
                     "platforms/macos/scripts/build-app.sh",
                     "platforms/macos/scripts/bootstrap-python.sh",
                     "platforms/macos/scripts/doctor.sh",
@@ -381,6 +384,7 @@ class PublicationArchiveTests(unittest.TestCase):
                     "platforms/macos/App/Sources/PythonRuntimeManifest.swift",
                     "platforms/macos/App/Sources/SecurityValidation.swift",
                     "platforms/macos/Tests/SecurityValidationTests.swift",
+                    "Tests/test_platform_boundaries.py",
                     "security/generate_python_runtime_manifest.py",
                     "security/generate_build_provenance.py",
                     "security/find_python312.sh",

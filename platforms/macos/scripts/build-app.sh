@@ -4,8 +4,8 @@ set -eu
 umask 077
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-RUNTIME_DIR=${CORELM_REAL_LLM_VENV:-"$HOME/.cache/corelm-app-runtime"}
-CACHE_DIR="$HOME/.cache/corelm-model-assets"
+RUNTIME_DIR=${CORELM_REAL_LLM_VENV:-"$HOME/.cache/corelm/macos/runtime"}
+CACHE_DIR="$HOME/.cache/corelm/macos/model-assets"
 BUILD_CONFIG=${BUILD_CONFIG:-release}
 OFFLINE=${CORELM_OFFLINE:-0}
 WHEELHOUSE=${CORELM_WHEELHOUSE:-}

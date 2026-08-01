@@ -7,6 +7,11 @@ ever differ, [`RealLLM/BEACON_HELDOUT_PROTOCOL.md`](../RealLLM/BEACON_HELDOUT_PR
 [`RealLLM/beacon_freeze.json`](../RealLLM/beacon_freeze.json) are authoritative.
 Do not edit the frozen tag or its immutable release to update this checklist.
 
+From an evolving checkout, `./corelm beacon verify-tag` may be used to verify
+the exact tag topology and all 26 frozen Git blobs. That read-only command does
+not import the runner or access the model, data, NIST service, or result paths;
+it cannot replace any tagged launch step below.
+
 ## Frozen public record
 
 | Item | Frozen value |

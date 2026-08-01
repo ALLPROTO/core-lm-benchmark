@@ -7,7 +7,7 @@ set -eu
 umask 077
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-WHEELHOUSE=${CORELM_WHEELHOUSE:-"$HOME/.cache/corelm-wheelhouse"}
+WHEELHOUSE=${CORELM_WHEELHOUSE:-"$HOME/.cache/corelm/macos/wheelhouse"}
 PYPI_INDEX_URL=${CORELM_PYPI_INDEX_URL:-https://pypi.org/simple}
 
 fail() {
@@ -70,6 +70,6 @@ CORELM_ASSETS_OFFLINE_ONLY=0 \
 printf '%s\n' \
     'OFFLINE INPUT PREPARATION PASS' \
     "Wheelhouse: $WHEELHOUSE" \
-    "Model/data cache: $HOME/.cache/corelm-model-assets" \
+    "Model/data cache: $HOME/.cache/corelm/macos/model-assets" \
     'Run a network-free fresh proof with:' \
     "CORELM_OFFLINE=1 CORELM_WHEELHOUSE=\"$WHEELHOUSE\" ./corelm macos proof"

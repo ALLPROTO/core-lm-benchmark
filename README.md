@@ -9,12 +9,14 @@ registered WikiText input, creates complete compressed cache containers,
 fresh-parses them, replays the cache through the model, and independently
 verifies the result.
 
-The repository has two explicit platform targets:
+The repository has two active platform targets and one read-only compatibility
+contour:
 
-| Platform | Deliverable | Compute path |
+| Contour | Deliverable | Compute path |
 |---|---|---|
 | macOS | Native SwiftUI application | Apple MPS |
 | Linux | Command-line regression and raw evidence | x86_64 CPU |
+| Beacon | Immutable-tag integrity verifier | No model or data execution |
 
 ## Choose your platform
 
@@ -62,7 +64,7 @@ Prepare a hash-checked wheelhouse and model cache for later offline proofs:
 ```sh
 ./corelm macos prepare-offline
 CORELM_OFFLINE=1 \
-CORELM_WHEELHOUSE="$HOME/.cache/corelm-wheelhouse" \
+CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
   ./corelm macos proof
 ```
 
@@ -89,21 +91,27 @@ claim. See [the Linux guide](platforms/linux/README.md) and the
 
 ## Real-data policy
 
-Every benchmark, application proof, model evaluation, and scientific-evidence
-run uses the pinned pretrained Qwen model on registered real WikiText input.
-Synthetic, generated, toy, or mocked input cannot produce benchmark metrics,
-evidence, PASS/FAIL claims, or publication results. Deterministic fixtures are
-permitted only in isolated parser, security, unit, and protocol-control tests;
-their outputs never enter an evidence or result directory.
+Every supported current `./corelm` benchmark, application proof, model
+evaluation, and scientific-evidence run uses the pinned pretrained Qwen model
+on registered real WikiText input. Synthetic, generated, toy, or mocked input
+is rejected from current metrics, evidence, PASS/FAIL claims, and publication
+results. Deterministic fixtures are permitted only in isolated parser,
+security, unit, and protocol-control tests; their outputs never enter a current
+evidence or result directory.
 
-The old synthetic runner, its 115 result pairs, verifier, schema, paper source,
-and PDF are absent from the default branch. Their immutable historical bytes
-remain available only in the published
+The old supported synthetic suite entrypoint `BenchmarkCore/run_suite.py`, its
+115 result pairs, verifier, schema, paper source, and PDF are absent from the
+default branch. Their immutable historical bytes remain available only in the
+published
 [`voidtoken-v5-paper-v5`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/voidtoken-v5-paper-v5)
 tag. One frozen compatibility source, `BenchmarkCore/corelm_benchmark.py`, must
 remain byte-identical at its registered path until the beacon attempt because
-it is part of the published implementation hash. It is not exposed by
-`./corelm`, CI, or either platform build.
+it is part of the published implementation hash. Current v5 macOS/Linux runs
+do not import or package it. Evidence verification does not execute it; it
+hashes its registered path and bytes. Documented workflows execute it only for
+historical-pilot reproduction and an isolated compatibility unit test. The
+frozen file still contains a dormant, directly invocable historical synthetic
+CLI; it is unsupported and its output cannot be accepted as current evidence.
 
 ## Verified reference results
 
@@ -137,10 +145,17 @@ immutable tag, never from the evolving default branch. Follow the
 `PASS` or `FAIL_GATES` is regression-only; execution failure or an incomplete
 attempt cannot be retried.
 
+The evolving branch exposes only a read-only Git-object integrity check:
+
+```sh
+./corelm beacon verify-tag
+```
+
 ## Repository map
 
 - `platforms/macos/` — native application, Swift tests, and macOS scripts.
 - `platforms/linux/` — CPU runtime and real-Qwen regression scripts.
+- `platforms/beacon/` — read-only boundary for the immutable tagged protocol.
 - `RealLLM/` — shared pinned model, codec, protocols, and verifiers.
 - `Tests/` — Python unit, protocol, evidence, and security gates.
 - `security/` and `schemas/` — independent validation and contracts.

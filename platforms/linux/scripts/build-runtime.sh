@@ -4,8 +4,8 @@ set -eu
 umask 077
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
 PYTHON_REQUEST=${CORELM_LINUX_PYTHON:-python3.12}
-RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm-linux-runtime"}
-HF_CACHE=${CORELM_LINUX_HF_HOME:-"$HOME/.cache/corelm-linux-model-assets"}
+RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime"}
+HF_CACHE=${CORELM_LINUX_HF_HOME:-"$HOME/.cache/corelm/linux/model-assets"}
 OFFLINE=${CORELM_OFFLINE:-0}
 
 fail() {

@@ -7,7 +7,7 @@ PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
 APP_PATH="$PROJECT_DIR/dist/CoreLMBenchmark.app"
 APP_EXECUTABLE="$APP_PATH/Contents/MacOS/CoreLMBenchmarkApp"
 RESULTS_ROOT="$HOME/Library/Application Support/CoreLMBenchmark/real-llm-results"
-RUNTIME_PARENT="$HOME/.cache/corelm-proof-runtimes"
+RUNTIME_PARENT="$HOME/.cache/corelm/macos/proof-runtimes"
 PROOF_LOCK_FILE="$RUNTIME_PARENT/.proof-run.lock"
 OFFLINE=${CORELM_OFFLINE:-0}
 WHEELHOUSE=${CORELM_WHEELHOUSE:-}
@@ -363,7 +363,7 @@ printf '%s\n' \
     "pycache_prefix=$VERIFY_CACHE" \
     "$PROJECT_DIR/security/verify_primary_replay.py" \
     "$run_directory" \
-    --hf-home "$HOME/.cache/corelm-model-assets" &
+    --hf-home "$HOME/.cache/corelm/macos/model-assets" &
 APP_PID=$!
 timeout_watchdog &
 TIMEOUT_WATCHDOG_PID=$!

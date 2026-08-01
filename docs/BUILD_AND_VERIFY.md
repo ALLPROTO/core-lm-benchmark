@@ -86,8 +86,8 @@ remove group/world write permissions from that exact existing local copy:
 ```
 
 The proof deliberately creates a new runtime under
-`~/.cache/corelm-proof-runtimes/` and retains it for audit. Model and dataset
-assets are stored under `~/.cache/corelm-model-assets/` after their registered
+`~/.cache/corelm/macos/proof-runtimes/` and retains it for audit. Model and dataset
+assets are stored under `~/.cache/corelm/macos/model-assets/` after their registered
 sizes and SHA-256 digests have been checked.
 
 This command verifies the current public checkout. Exact reproduction of a
@@ -155,7 +155,7 @@ open dist/CoreLMBenchmark.app
 ```
 
 The reusable manual-build runtime is stored at
-`~/.cache/corelm-app-runtime/`. In the application, press **Run Compression
+`~/.cache/corelm/macos/runtime/`. In the application, press **Run Compression
 Proof** with fixed public validation blocks 64–71 shown in the toolbar. This
 range has been exercised repeatedly and is an application-regression fixture,
 not blind or held-out input.
@@ -169,7 +169,7 @@ A malicious local user can edit both a receipt and its nonce. Remote freshness
 would require an independently trusted signature or attestation channel.
 
 Only one full proof may run for a user at a time. The script holds a stale-aware
-lock below `~/.cache/corelm-proof-runtimes/` before creating a runtime. This
+lock below `~/.cache/corelm/macos/proof-runtimes/` before creating a runtime. This
 prevents two applications from racing over the shared result and build paths.
 
 Another observer may supply the challenge instead of using the local random
@@ -201,8 +201,8 @@ their registered hashes, immediately installs from that wheelhouse with
 data. The default locations are:
 
 ```text
-~/.cache/corelm-wheelhouse/
-~/.cache/corelm-model-assets/
+~/.cache/corelm/macos/wheelhouse/
+~/.cache/corelm/macos/model-assets/
 ```
 
 Disconnect the network if desired, then create a fresh runtime and run the real
@@ -210,7 +210,7 @@ application proof entirely from those inputs:
 
 ```sh
 CORELM_OFFLINE=1 \
-CORELM_WHEELHOUSE="$HOME/.cache/corelm-wheelhouse" \
+CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
   ./corelm macos proof
 ```
 
@@ -278,13 +278,13 @@ procedure is the [beacon launch runbook](BEACON_LAUNCH_RUNBOOK.md).
 ## Cleanup
 
 Each full proof prints the exact UUID-named runtime directory it created below
-`~/.cache/corelm-proof-runtimes/`. When you no longer need to rerun or audit
+`~/.cache/corelm/macos/proof-runtimes/`. When you no longer need to rerun or audit
 that particular app build, move that specific directory to the Trash in
 Finder. Do not remove the parent directory blindly: every retained app bundle
 is bound to the exact runtime recorded when it was packaged and will stop
 working if that runtime is removed.
 
-The shared verified model assets under `~/.cache/corelm-model-assets/` may be
+The shared verified model assets under `~/.cache/corelm/macos/model-assets/` may be
 kept for later builds. Removing them is safe only if you accept downloading and
 verifying them again.
 

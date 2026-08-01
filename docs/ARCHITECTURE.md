@@ -1,14 +1,18 @@
 # Architecture
 
-The benchmark has a shared real-Qwen and codec core with two platform
-frontends. macOS builds the native source-verified application; Linux builds a
-CPU-only command-line runtime and evidence bundle.
+The benchmark has a shared real-Qwen and codec core with two active platform
+frontends plus one read-only compatibility contour. macOS builds the native
+source-verified application; Linux builds a CPU-only command-line runtime and
+evidence bundle; beacon verifies immutable Git objects but cannot launch from
+the evolving branch.
 
 ```text
-                       RealLLM shared core
-                     /                    \
-        macOS SwiftUI + MPS          Linux CLI + CPU
-        signed local receipt         raw verified evidence
+                         RealLLM shared core
+                       /                    \
+          macOS SwiftUI + MPS          Linux CLI + CPU
+          signed local receipt         raw verified evidence
+
+       immutable tag blobs -> beacon compatibility boundary (read-only)
 ```
 
 The native release UI shows one evidence path and exposes the current state of
@@ -61,9 +65,9 @@ block range. Its `app_proof_core.py` is generated mechanically from the frozen
 real-model engine. Packaging verifies its semantic AST independently of
 host-Python formatting; source comparison, build provenance, and the bundle
 signature then bind the exact checked-in bytes. The exploratory pilot CLI,
-development runner, alternative-backend execution, and candidate-grid
-execution surface remain source-only and are rejected if they appear in the
-release bundle.
+development runner, alternative-backend execution, candidate-grid execution,
+and beacon compatibility source remain source-only and are rejected if they
+appear in the release bundle.
 
 The real-model worker creates its own process group before importing NumPy,
 PyTorch, or Transformers; the Swift parent confirms that group before accepting
@@ -91,8 +95,13 @@ invent benchmark values.
 The application target exposes only **Compression Proof**. Registered real-data
 development and result records are retained for provenance, but they are not
 compiled into the application or run by the ordinary-user proof workflow. The
-retired synthetic suite exists only in an immutable historical tag. The
-chronology is documented in the [development record](development/HISTORY.md).
+retired complete synthetic suite and results exist only in an immutable
+historical tag. One byte-identical compatibility source, including its dormant
+unsupported historical CLI, remains at its registered legacy path because
+published digests include that path; it is not part of either platform build
+or the `./corelm` surface. The chronology is documented in the
+[development record](development/HISTORY.md), and platform ownership is
+defined in [`platforms/README.md`](../platforms/README.md).
 
 ## Reproducibility boundary
 

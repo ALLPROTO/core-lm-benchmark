@@ -599,10 +599,10 @@ class LocalAppBuildTests(unittest.TestCase):
         proof_script = (MACOS_SCRIPTS / "run-proof.sh").read_text(
             encoding="utf-8"
         )
-        self.assertIn(".cache/corelm-app-runtime", build_script)
-        self.assertIn(".cache/corelm-model-assets", build_script)
-        self.assertIn(".cache/corelm-app-runtime", package_script)
-        self.assertIn(".cache/corelm-proof-runtimes", proof_script)
+        self.assertIn(".cache/corelm/macos/runtime", build_script)
+        self.assertIn(".cache/corelm/macos/model-assets", build_script)
+        self.assertIn(".cache/corelm/macos/runtime", package_script)
+        self.assertIn(".cache/corelm/macos/proof-runtimes", proof_script)
         for source in (build_script, package_script, proof_script):
             self.assertNotIn("corelm-real-llm-app-runtime-v1", source)
 

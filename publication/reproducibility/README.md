@@ -36,16 +36,24 @@ kept separate from this gate.
 
 ## Real-data-only scope
 
-The retired synthetic runner, verifier, schema, and result directory are not
-included in the current archive. Their exact historical bytes remain in the
-immutable `voidtoken-v5-paper-v5` Git tag. The archive retains only the frozen
-compatibility source `BenchmarkCore/corelm_benchmark.py`, byte-identical at its
-registered path because it contributes to the published implementation hash;
-current commands and CI do not execute it. Current benchmark,
-application-proof, model-evaluation, and scientific-evidence runs use only the
-pinned pretrained Qwen model and registered real WikiText inputs. Mocked values
-are restricted to isolated unit, parser, security, and protocol-control tests
-whose outputs never enter an evidence or result directory.
+The retired supported synthetic suite runner, verifier, schema, and result
+directory are not included in the current archive. Their exact historical
+bytes remain in the immutable `voidtoken-v5-paper-v5` Git tag. The archive
+retains only the frozen compatibility source
+`BenchmarkCore/corelm_benchmark.py`, byte-identical at its registered path
+because it contributes to the published implementation hash; current v5
+macOS/Linux runs do not import or package it, and evidence verification does
+not execute it—it hashes the registered path and bytes. The historical-pilot
+reproduction command and one isolated compatibility unit test execute it;
+neither produces current evidence. The frozen source also retains a dormant,
+directly invocable historical synthetic CLI; it is unsupported, excluded from
+`./corelm` and both platform builds, and cannot create evidence accepted by
+current verifiers.
+Supported current benchmark, application-proof, model-evaluation, and
+scientific-evidence runs use only the pinned pretrained Qwen model and
+registered real WikiText inputs. Mocked values are restricted to isolated
+unit, parser, security, and protocol-control tests whose outputs never enter a
+current evidence or result directory.
 
 ## Regenerate the paper figures
 
@@ -145,7 +153,7 @@ Then disconnect if desired and run:
 
 ```sh
 CORELM_OFFLINE=1 \
-CORELM_WHEELHOUSE="$HOME/.cache/corelm-wheelhouse" \
+CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
   ./corelm macos proof
 ```
 
@@ -160,7 +168,7 @@ For a manual run, keep fixed public validation blocks 64–71, click
 **Run Compression Proof**, then:
 
 ```sh
-"$HOME/.cache/corelm-app-runtime/bin/python" \
+"$HOME/.cache/corelm/macos/runtime/bin/python" \
   security/verify_local_app_run.py \
   --app dist/CoreLMBenchmark.app
 ```

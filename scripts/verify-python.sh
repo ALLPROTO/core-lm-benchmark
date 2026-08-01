@@ -28,6 +28,7 @@ if [ "$#" -eq 0 ]; then
         Tests.test_beacon_protocol \
         Tests.test_build_provenance \
         Tests.test_local_app_build \
+        Tests.test_platform_boundaries \
         Tests.test_real_llm \
         Tests.test_security_supply_chain \
         Tests.test_swift_security_gate \

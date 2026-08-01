@@ -37,20 +37,26 @@ struct SecurityValidationTests {
         import sys
         import time
 
+        def write_marker(path, payload):
+            descriptor = os.open(
+                path,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+            try:
+                os.write(descriptor, payload)
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+
         os.setpgid(0, 0)
         child = os.fork()
         if child == 0:
             def observe_term(_signum, _frame):
-                with open(sys.argv[2], "w", encoding="ascii") as marker:
-                    marker.write("SIGTERM ignored\\n")
-                    marker.flush()
-                    os.fsync(marker.fileno())
+                write_marker(sys.argv[2], b"SIGTERM ignored\\n")
 
             signal.signal(signal.SIGTERM, observe_term)
-            with open(sys.argv[1], "w", encoding="ascii") as marker:
-                marker.write(str(os.getpid()) + "\\n")
-                marker.flush()
-                os.fsync(marker.fileno())
+            write_marker(sys.argv[1], b"ready\\n")
             while True:
                 time.sleep(1)
 

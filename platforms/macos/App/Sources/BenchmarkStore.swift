@@ -200,7 +200,7 @@ final class BenchmarkStore: ObservableObject {
         #endif
         let candidate = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(
-                ".cache/corelm-app-runtime/bin/python"
+                ".cache/corelm/macos/runtime/bin/python"
             )
         let validated = try SecurityValidation.validateExecutable(
             candidate,
@@ -225,7 +225,7 @@ final class BenchmarkStore: ObservableObject {
         }
         #endif
         let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".cache/corelm-model-assets", isDirectory: true)
+            .appendingPathComponent(".cache/corelm/macos/model-assets", isDirectory: true)
             .standardizedFileURL
         try SecurityValidation.validateDirectory(
             url,

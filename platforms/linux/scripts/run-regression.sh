@@ -3,9 +3,9 @@ set -eu
 
 umask 077
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm-linux-runtime"}
-HF_CACHE=${CORELM_LINUX_HF_HOME:-"$HOME/.cache/corelm-linux-model-assets"}
-RUN_ROOT=${CORELM_LINUX_RUN_ROOT:-"$HOME/.cache/corelm-linux-runs"}
+RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime"}
+HF_CACHE=${CORELM_LINUX_HF_HOME:-"$HOME/.cache/corelm/linux/model-assets"}
+RUN_ROOT=${CORELM_LINUX_RUN_ROOT:-"$HOME/.cache/corelm/linux/runs"}
 RUN_DIR=${CORELM_RUN_DIR:-"$RUN_ROOT/$(date -u +%Y%m%dT%H%M%SZ)-$$"}
 
 fail() {

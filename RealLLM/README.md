@@ -170,30 +170,19 @@ reported yet, and blocks 64–71 are excluded.
 The freeze is accepted only if GitHub reports an immutable release for the
 registered tag with a server-side publication time earlier than the beacon.
 
-The normative one-shot command is intentionally locked until the required tag
-is public and the registered pulse time has arrived:
+The current evolving branch must not prepare or launch that experiment through
+either active platform contour. Its only beacon command is the read-only tag
+integrity check:
 
 ```sh
-./corelm macos build
-
-HF_HOME="$HOME/.cache/corelm-model-assets" \
-"$HOME/.cache/corelm-app-runtime/bin/python" -I -B \
-    RealLLM/prepare_beacon_assets.py \
-    --cache "$HOME/.cache/corelm-model-assets"
-
-HF_HOME="$HOME/.cache/corelm-model-assets" \
-"$HOME/.cache/corelm-app-runtime/bin/python" -I -B \
-    RealLLM/prepare_beacon_assets.py \
-    --cache "$HOME/.cache/corelm-model-assets" --offline-only
+./corelm beacon verify-tag
 ```
 
-The preparation step downloads and verifies only the frozen model files and
-test parquet. It deliberately performs no tokenization, model inference, codec
-execution, source-window selection, or metric calculation, so it may be run
-before the beacon. It is worth doing in advance: the one-shot runner forbids
-network access to model/data assets after the irreversible marker exists.
-The second command proves that the same cache resolves and verifies with the
-network disabled before the one-shot marker can be created.
+That command reads immutable Git objects only. It does not resolve the NIST
+pulse, prepare assets, run a model, create an attempt marker, or produce a
+scientific result. The exact preparation and one-shot commands live only in
+the frozen launch procedure referenced below and are executed from a clean
+detached checkout of the published tag.
 
 The frozen protocol's earliest start remains `2026-08-02T18:00:00.000Z` and
 its deadline remains `2026-08-04T18:00:00.000Z`. A separate non-normative
@@ -204,15 +193,11 @@ and artifact checks in
 [`docs/BEACON_LAUNCH_RUNBOOK.md`](../docs/BEACON_LAUNCH_RUNBOOK.md). Do not use
 an abbreviated direct command from another document.
 
-The first command has no source, configuration, or gate overrides. Existing
-`attempt.json` consumes the suite even if execution was interrupted. Only after
-a terminal scientific outcome may a later check run as:
-
-```sh
-HF_HOME="$HOME/.cache/corelm-model-assets" \
-"$HOME/.cache/corelm-app-runtime/bin/python" -I -B \
-    RealLLM/run_beacon_regression.py --local-files-only
-```
+The frozen one-shot command has no source, configuration, or gate overrides.
+Existing `attempt.json` consumes the suite even if execution was interrupted.
+Only after a terminal scientific outcome may the frozen runbook's separate
+regression command be used; it must never be launched through the active
+macOS or Linux build paths.
 
 All 32 selected blocks are evaluated sequentially, and the runner releases the
 MPS cache after each block. It does not batch the full window into Mac memory.
