@@ -253,7 +253,7 @@ run_clean \
     CORELM_HF_ENDPOINT="$HF_ENDPOINT" \
     CORELM_SKIP_MEMORY_CHECK=0 \
     CORELM_SKIP_MPS_CHECK=0 \
-    CORELM_SKIP_SMOKE_TEST=0 \
+    CORELM_SKIP_APP_LAUNCH_CHECK=0 \
     CORELM_REAL_LLM_PYTHON_SHA256= \
     CORELM_ALLOW_DIRTY_SOURCE=0 \
     CORELM_SOURCE_ARCHIVE_MANIFEST="${CORELM_SOURCE_ARCHIVE_MANIFEST:-}" \
@@ -291,7 +291,7 @@ printf '%s\n' \
     LANG=C \
     LC_ALL=C \
     "$APP_EXECUTABLE" \
-    --real-llm-smoke-run \
+    --automated-compression-proof \
     --proof-challenge "$challenge" &
 APP_PID=$!
 timeout_watchdog &

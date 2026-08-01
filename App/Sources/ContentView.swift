@@ -37,7 +37,7 @@ struct ContentView: View {
             }
         }
         .onAppear { store.reloadLatestRealLLMResult() }
-        .task { await store.smokeRunIfRequested() }
+        .task { await store.automatedRunIfRequested() }
         .alert("Benchmark Error", isPresented: Binding(
             get: { store.errorMessage != nil },
             set: { if !$0 { store.errorMessage = nil } }

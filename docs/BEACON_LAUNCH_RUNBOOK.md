@@ -66,18 +66,6 @@ or rewritten after the attempt.
 
 ## Preparation before the pulse
 
-Before `2026-08-02T17:00:00Z`, run the separate two-contour synthetic rehearsal
-from the current default branch as documented in
-[`BEACON_REHEARSAL.md`](BEACON_REHEARSAL.md):
-
-```sh
-./security/run_beacon_rehearsal.sh
-```
-
-Do not copy its scripts or any temporary output into the dedicated one-shot
-clone. A rehearsal PASS is operational evidence only and does not consume or
-predict the scientific result.
-
 Use a new clone dedicated to the one-shot. Do not execute these commands inside
 a working copy containing documentation or development changes.
 
@@ -96,11 +84,14 @@ test -z "$(git ls-remote --tags origin \
     refs/tags/corelm-beacon-heldout-v1-evidence)"
 ```
 
-Prepare the exact runtime without launching the application smoke run, then
+Prepare the exact runtime without launching the application, then
 download and verify the registered bytes. The second asset command is the
 required offline resolution check. These preparation commands do not tokenize
 the test corpus, select a window, load the model for inference, run the codec,
 or calculate a metric.
+
+The immutable tag retains the environment-variable name published with that
+tag. In this command it disables only the application launch check.
 
 ```sh
 CORELM_SKIP_SMOKE_TEST=1 ./build_local_app.sh
@@ -218,7 +209,7 @@ Classify the first invocation as follows:
 
 When `outcome.json` exists, run the read-only independent verifier. It verifies
 `PASS`, `FAIL_GATES`, and well-formed `FAIL_EXECUTION` outcomes. A missing outcome
-is intentionally not converted into a synthetic outcome.
+is intentionally not converted into a fabricated outcome.
 
 ```sh
 "$HOME/.cache/corelm-app-runtime/bin/python" -I -B \

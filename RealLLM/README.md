@@ -1,12 +1,14 @@
 # Real-LLM KV-cache evidence
 
-This directory defines a separately recorded exploratory experiment on a real
-pretrained causal language model. It does not replace, rewrite, or re-index the
-115-run synthetic Core LM evidence suite.
+This directory contains the recorded experiments and current proof path for a
+real pretrained causal language model. Historical studies remain isolated from
+the native application's registered Qwen/VoidToken workflow.
 
-The protocol was not independently preregistered or externally timestamped
-before first test execution. Validation and test were separated and the chosen
-configuration was held fixed during test, but the result is exploratory.
+The original exploratory pilot in this directory was not independently
+preregistered or externally timestamped before first test execution. Its
+validation and test cases were separated and the chosen configuration was held
+fixed during test, but that pilot result remains exploratory. The later v5 and
+beacon protocols below have their own prospective freeze records.
 
 ## Pinned target
 

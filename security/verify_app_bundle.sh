@@ -45,7 +45,7 @@ if /usr/libexec/PlistBuddy -c 'Print :LSEnvironment' "$PLIST" >/dev/null 2>&1; t
 fi
 
 if [ -e "$APP_PATH/Contents/Resources/BenchmarkCore" ]; then
-    printf 'release bundle must not contain the synthetic BenchmarkCore\n' >&2
+    printf 'release bundle must not contain the legacy BenchmarkCore\n' >&2
     exit 1
 fi
 

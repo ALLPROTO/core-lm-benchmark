@@ -1659,13 +1659,13 @@ final class BenchmarkStore: ObservableObject {
         }
     }
 
-    func smokeRunIfRequested() async {
-        if CommandLine.arguments.contains("--real-llm-smoke-run") {
+    func automatedRunIfRequested() async {
+        if CommandLine.arguments.contains("--automated-compression-proof") {
             await prepareAutomatedRunWindow()
-            await realLLMSmokeRun()
+            await runAutomatedCompressionProof()
             return
         }
-        guard CommandLine.arguments.contains("--app-smoke-run") else {
+        guard CommandLine.arguments.contains("--app-launch-check") else {
             return
         }
         await prepareAutomatedRunWindow()
@@ -1709,7 +1709,7 @@ final class BenchmarkStore: ObservableObject {
         }
     }
 
-    private func realLLMSmokeRun() async {
+    private func runAutomatedCompressionProof() async {
         let visibleWindows = NSApplication.shared.windows.filter {
             $0.isVisible && $0.contentView != nil
         }
