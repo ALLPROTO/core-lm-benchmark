@@ -8,10 +8,15 @@ documentation.
 |---|---|---|
 | Algorithm revision | `VoidToken v3`, `VoidToken v5` | Research chronology |
 | Wire/codec format | `voidtoken-residual-keyframe-v4` | Parser compatibility |
-| Result schema | `corelm-voidtoken-v5-validation-development-v2` | Strict JSON validation |
+| Historical result schema | `corelm-voidtoken-v5-validation-development-v2` | Published manifest-only evidence |
+| Current app result schema | `corelm-voidtoken-v5-validation-development-v3` | Raw-container and token-metric evidence |
 | Backend/configuration | `voidtoken-v5`, candidate `32` | Frozen measurement identity |
-| Receipt schema | `corelm-macos-app-real-llm-run-v3` | App/result binding |
+| Historical challenge receipt | `corelm-macos-app-real-llm-run-v3` | Pre-primary-evidence app/result binding |
+| Current app receipt | `corelm-macos-app-real-llm-run-v4` | App/result/primary-evidence binding |
 | Evidence tags | `voidtoken-v5-evidence-v1` | Public scientific chronology |
+| Beacon held-out suite | `qwen2.5-0.5b-kv-voidtoken-v5-beacon-heldout-v1` | Separate one-shot evidence identity |
+| Beacon freeze tag | `corelm-beacon-heldout-v1` | Public pre-reveal protocol anchor |
+| Beacon artifacts | `corelm-beacon-attempt-v1`, `corelm-beacon-resolution-v1`, `corelm-beacon-outcome-v1` | Irreversible state and result compatibility |
 | Publication tag | `voidtoken-v5-paper-v5` | Immutable archive provenance |
 | Bundle metadata | `CFBundleShortVersionString`, `CFBundleVersion` | macOS identity and receipt field |
 | Dependency versions | Python, Swift, Torch, Transformers, NumPy | Runtime reproducibility |

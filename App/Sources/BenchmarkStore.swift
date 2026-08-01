@@ -77,6 +77,7 @@ final class BenchmarkStore: ObservableObject {
                 "TOKENIZERS_PARALLELISM": "false",
                 "HF_HUB_DISABLE_TELEMETRY": "1",
                 "HF_HUB_DISABLE_PROGRESS_BARS": "1",
+                "HF_HUB_DISABLE_IMPLICIT_TOKEN": "1",
                 "PYTHONDONTWRITEBYTECODE": "1",
                 "PYTHONUNBUFFERED": "1",
                 "PYTORCH_MPS_HIGH_WATERMARK_RATIO": mpsHighWatermarkRatio,
@@ -336,6 +337,10 @@ final class BenchmarkStore: ObservableObject {
             "\(requested.validationStartBlock)",
             "--validation-blocks", "\(requested.validationBlocks)",
             "--candidate-index", "\(requested.candidateIndex)",
+            "--primary-evidence-directory",
+            runDirectory.appendingPathComponent(
+                "primary-evidence", isDirectory: true
+            ).path,
             "--local-files-only"
         ]
 
@@ -509,6 +514,7 @@ final class BenchmarkStore: ObservableObject {
                 )
             }
             try verifyRealLLMResult(decoded, expected: settings)
+            try verifyPrimaryEvidence(decoded, outputURL: outputURL)
             realLLMResult = decoded
             realLLMVerified = true
             realLLMVerificationMessage = "Swift structural verification PASS"
@@ -654,8 +660,10 @@ final class BenchmarkStore: ObservableObject {
             expected.validationBlocks
         )
         try require(
-            result.schemaVersion
-                == "corelm-voidtoken-v5-validation-development-v2",
+            [
+                "corelm-voidtoken-v5-validation-development-v2",
+                "corelm-voidtoken-v5-validation-development-v3"
+            ].contains(result.schemaVersion),
             "Unexpected proof result schema."
         )
         try require(
@@ -1204,6 +1212,23 @@ final class BenchmarkStore: ObservableObject {
                 requireCurrentOwner: false
             )
         }.map(SecurityValidation.sha256Hex) ?? ""
+        let buildProvenanceData = Bundle.main.resourceURL.flatMap {
+            try? SecurityValidation.readRegularFile(
+                at: $0.appendingPathComponent("build-provenance.json"),
+                maximumBytes: 1 * 1024 * 1024,
+                requireCurrentOwner: false
+            )
+        }
+        let buildProvenanceDigest = buildProvenanceData.map(
+            SecurityValidation.sha256Hex
+        ) ?? ""
+        let buildProvenanceDocument: [String: Any] = buildProvenanceData
+            .flatMap {
+                try? JSONSerialization.jsonObject(
+                    with: $0,
+                    options: [.fragmentsAllowed]
+                ) as? [String: Any]
+            } ?? [:]
         let applicationExecutableDigest = Bundle.main.executableURL.flatMap {
             try? SecurityValidation.readRegularFile(
                 at: $0,
@@ -1213,9 +1238,13 @@ final class BenchmarkStore: ObservableObject {
         }.map(SecurityValidation.sha256Hex) ?? ""
         var receipt: [String: Any] = [
             "schemaVersion": (
-                proofChallengeNonce == nil
-                    ? "corelm-macos-app-real-llm-run-v2"
-                    : "corelm-macos-app-real-llm-run-v3"
+                realLLMResult?.primaryEvidence == nil
+                    ? (
+                        proofChallengeNonce == nil
+                            ? "corelm-macos-app-real-llm-run-v2"
+                            : "corelm-macos-app-real-llm-run-v3"
+                    )
+                    : "corelm-macos-app-real-llm-run-v4"
             ),
             "createdAt": ISO8601DateFormatter().string(from: Date()),
             "startedAt": realLLMStartedAt.map {
@@ -1265,6 +1294,23 @@ final class BenchmarkStore: ObservableObject {
             ],
             "error": error ?? NSNull()
         ]
+        if let primary = realLLMResult?.primaryEvidence {
+            receipt["primaryEvidence"] = [
+                "schemaVersion": primary.schemaVersion,
+                "path": primary.path,
+                "manifestSHA256": primary.manifestSHA256,
+                "manifestBytes": primary.manifestBytes,
+                "containerCount": primary.containerCount,
+                "containerBytes": primary.containerBytes,
+                "blocks": primary.blocks,
+                "predictionTokens": primary.predictionTokens
+            ]
+            receipt["buildProvenance"] = [
+                "path": "Resources/build-provenance.json",
+                "sha256": buildProvenanceDigest,
+                "document": buildProvenanceDocument
+            ]
+        }
         if let proofChallengeNonce {
             receipt["challengeNonce"] = proofChallengeNonce
         }
@@ -1508,6 +1554,17 @@ final class BenchmarkStore: ObservableObject {
                     try verifyRealLLMResult(
                         decoded,
                         expected: verificationSettings
+                    )
+                    guard decoded.schemaVersion
+                            == "corelm-voidtoken-v5-validation-development-v3"
+                    else {
+                        throw SecurityValidationError.invalid(
+                            "Saved proof lacks retained primary evidence."
+                        )
+                    }
+                    try verifyPrimaryEvidence(
+                        decoded,
+                        outputURL: candidate
                     )
                     realLLMSettings = verificationSettings
                     realLLMResult = decoded

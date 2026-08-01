@@ -135,6 +135,62 @@ struct RealLLMContainerManifestEntry: Codable {
     let containerSHA256: String
 }
 
+struct RealLLMPrimaryEvidenceReference: Codable {
+    let schemaVersion: String
+    let path: String
+    let manifestSHA256: String
+    let manifestBytes: Int
+    let containerCount: Int
+    let containerBytes: Int
+    let blocks: Int
+    let predictionTokens: Int
+}
+
+struct RealLLMPrimaryContainerArtifact: Codable {
+    let blockIndex: Int
+    let layerIndex: Int
+    let path: String
+    let bytes: Int
+    let sha256: String
+}
+
+struct RealLLMTokenMetricsReference: Codable {
+    let path: String
+    let bytes: Int
+    let sha256: String
+    let blocks: Int
+    let predictionTokens: Int
+}
+
+struct RealLLMPrimaryEvidenceManifest: Codable {
+    let schemaVersion: String
+    let resultFile: String
+    let containers: [RealLLMPrimaryContainerArtifact]
+    let tokenMetrics: RealLLMTokenMetricsReference
+}
+
+struct RealLLMTokenMetric: Codable {
+    let offset: Int
+    let targetTokenId: Int
+    let baselineLossNat: Double
+    let candidateLossNat: Double
+    let baselineTop1TokenId: Int
+    let candidateTop1TokenId: Int
+    let top1Agrees: Bool
+}
+
+struct RealLLMTokenMetricBlock: Codable {
+    let blockIndex: Int
+    let tokenIds: [Int]
+    let predictionTokens: Int
+    let tokens: [RealLLMTokenMetric]
+}
+
+struct RealLLMTokenMetricsDocument: Codable {
+    let schemaVersion: String
+    let blocks: [RealLLMTokenMetricBlock]
+}
+
 struct RealLLMRecord: Codable {
     let blockIndex: Int
     let configurationId: String
@@ -190,6 +246,7 @@ struct RealLLMResult: Codable {
     let baselines: [RealLLMBaseline]
     let records: [RealLLMRecord]
     let aggregates: [RealLLMAggregate]
+    let primaryEvidence: RealLLMPrimaryEvidenceReference?
     let resultSHA256: String
 
     enum CodingKeys: String, CodingKey {
@@ -203,6 +260,7 @@ struct RealLLMResult: Codable {
         case baselines
         case records
         case aggregates
+        case primaryEvidence
         case resultSHA256
     }
 

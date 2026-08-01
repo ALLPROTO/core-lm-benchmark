@@ -8,6 +8,7 @@ import os
 import stat
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -57,10 +58,34 @@ def _private_cache_directory(path: Path) -> Path:
     return expanded.resolve(strict=True)
 
 
+def _validated_endpoint(value: str) -> str:
+    parsed = urlsplit(value)
+    try:
+        parsed.port
+    except ValueError as error:
+        raise ValueError("Hugging Face endpoint has an invalid port") from error
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or "\\" in value
+        or any(ord(character) <= 32 or ord(character) == 127 for character in value)
+    ):
+        raise ValueError(
+            "Hugging Face endpoint must be an HTTPS base URL without "
+            "credentials, query, or fragment"
+        )
+    return value.rstrip("/")
+
+
 def prepare_assets(
     cache_directory: Path,
     *,
     offline_only: bool = False,
+    endpoint: str | None = None,
 ) -> dict[str, Path]:
     """Resolve pinned validation inputs, then prove that offline reuse works."""
 
@@ -69,8 +94,11 @@ def prepare_assets(
         "HF_ASSETS_CACHE",
         "HF_ENDPOINT",
         "HF_HUB_CACHE",
+        "HF_TOKEN",
+        "HF_TOKEN_PATH",
         "HF_HUB_OFFLINE",
         "HF_XET_CACHE",
+        "HUGGING_FACE_HUB_TOKEN",
         "HUGGINGFACE_HUB_CACHE",
         "TRANSFORMERS_CACHE",
         "TRANSFORMERS_OFFLINE",
@@ -80,8 +108,11 @@ def prepare_assets(
     os.environ["HF_HUB_CACHE"] = str(cache / "hub")
     os.environ["HF_XET_CACHE"] = str(cache / "xet")
     os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+    os.environ["HF_HUB_DISABLE_IMPLICIT_TOKEN"] = "1"
     if offline_only:
         os.environ["HF_HUB_OFFLINE"] = "1"
+    elif endpoint is not None:
+        os.environ["HF_ENDPOINT"] = _validated_endpoint(endpoint)
     resolved = _download_validation_only(local_files_only=offline_only)
     offline_resolved = _download_validation_only(local_files_only=True)
     if {
@@ -132,6 +163,14 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="verify an existing cache without network access",
     )
+    parser.add_argument(
+        "--endpoint",
+        default=os.environ.get("CORELM_HF_ENDPOINT"),
+        help=(
+            "HTTPS Hugging Face-compatible base URL; downloaded files still "
+            "must match the registered sizes and SHA-256 digests"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -146,6 +185,7 @@ def main() -> int:
         prepare_assets(
             arguments.cache,
             offline_only=arguments.offline_only,
+            endpoint=arguments.endpoint,
         )
     except (OSError, RuntimeError, ValueError) as error:
         print(f"APP ASSET PREPARATION FAIL: {error}", file=sys.stderr)

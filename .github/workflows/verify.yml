@@ -195,6 +195,7 @@ jobs:
           CORELM_REAL_LLM_VENV="$HOME/.cache/corelm-ci-app-runtime" \
           CORELM_SKIP_RUNTIME_INSTALL=1 \
           CORELM_SKIP_ASSET_PREPARATION=1 \
+          CORELM_SKIP_MEMORY_CHECK=1 \
           CORELM_SKIP_MPS_CHECK=1 \
           CORELM_SKIP_SMOKE_TEST=1 \
           BUILD_CONFIG=release \

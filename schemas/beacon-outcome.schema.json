@@ -1,0 +1,652 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/beacon-outcome.schema.json",
+  "title": "Core LM beacon one-shot terminal outcome",
+  "description": "Terminal scientific PASS/FAIL_GATES or consumed FAIL_EXECUTION outcome for the one-shot suite.",
+  "oneOf": [
+    {"$ref": "#/$defs/scientificOutcome"},
+    {"$ref": "#/$defs/executionFailureOutcome"}
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "configuration": {
+      "const": {
+        "backend": "voidtoken-v5",
+        "bitsByLayer": [9, 8, 8, 8, 8, 8, 8, 8, 9, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+        "codeCompression": "zlib-9",
+        "groupSize": 128,
+        "scaleCompression": "zlib-9",
+        "schedule": "group-kl-top-2-9bit-rest-8bit",
+        "signMode": "none",
+        "transformBlockSize": 128
+      }
+    },
+    "gatesDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximumBlockwiseDeltaNLLUpperOneSided95",
+        "maximumDeltaNLLNatPerToken",
+        "minimumBlockwiseTop1LowerOneSided95",
+        "minimumCompressionRatioVsBF16",
+        "minimumTop1Agreement",
+        "minimumWilsonLowerOneSided95",
+        "requireStructuralReplay",
+        "studentTCriticalOneSided95Df31",
+        "wilsonZOneSided95"
+      ],
+      "properties": {
+        "maximumBlockwiseDeltaNLLUpperOneSided95": {"const": 0.01},
+        "maximumDeltaNLLNatPerToken": {"const": 0.01},
+        "minimumBlockwiseTop1LowerOneSided95": {"const": 0.99},
+        "minimumCompressionRatioVsBF16": {"const": 2.0},
+        "minimumTop1Agreement": {"const": 0.99},
+        "minimumWilsonLowerOneSided95": {"const": 0.99},
+        "requireStructuralReplay": {"const": true},
+        "studentTCriticalOneSided95Df31": {"const": 1.6955187825458675},
+        "wilsonZOneSided95": {"const": 1.6448536269514715}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "split",
+        "startBlock",
+        "blocks",
+        "endBlockExclusive",
+        "selectedTokenIdsSHA256"
+      ],
+      "properties": {
+        "split": {"const": "test"},
+        "startBlock": {
+          "enum": [16, 48, 80, 112, 144, 176, 208, 240, 272, 304, 336, 448, 480, 512, 544]
+        },
+        "blocks": {"const": 32},
+        "endBlockExclusive": {
+          "enum": [48, 80, 112, 144, 176, 208, 240, 272, 304, 336, 368, 480, 512, 544, 576]
+        },
+        "selectedTokenIdsSHA256": {"$ref": "#/$defs/sha256"}
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            {"properties": {"startBlock": {"const": 16}, "endBlockExclusive": {"const": 48}}},
+            {"properties": {"startBlock": {"const": 48}, "endBlockExclusive": {"const": 80}}},
+            {"properties": {"startBlock": {"const": 80}, "endBlockExclusive": {"const": 112}}},
+            {"properties": {"startBlock": {"const": 112}, "endBlockExclusive": {"const": 144}}},
+            {"properties": {"startBlock": {"const": 144}, "endBlockExclusive": {"const": 176}}},
+            {"properties": {"startBlock": {"const": 176}, "endBlockExclusive": {"const": 208}}},
+            {"properties": {"startBlock": {"const": 208}, "endBlockExclusive": {"const": 240}}},
+            {"properties": {"startBlock": {"const": 240}, "endBlockExclusive": {"const": 272}}},
+            {"properties": {"startBlock": {"const": 272}, "endBlockExclusive": {"const": 304}}},
+            {"properties": {"startBlock": {"const": 304}, "endBlockExclusive": {"const": 336}}},
+            {"properties": {"startBlock": {"const": 336}, "endBlockExclusive": {"const": 368}}},
+            {"properties": {"startBlock": {"const": 448}, "endBlockExclusive": {"const": 480}}},
+            {"properties": {"startBlock": {"const": 480}, "endBlockExclusive": {"const": 512}}},
+            {"properties": {"startBlock": {"const": 512}, "endBlockExclusive": {"const": 544}}},
+            {"properties": {"startBlock": {"const": 544}, "endBlockExclusive": {"const": 576}}}
+          ]
+        }
+      ]
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attentionImplementation",
+        "device",
+        "hfHome",
+        "huggingfaceHub",
+        "machine",
+        "modelDtype",
+        "numpy",
+        "platform",
+        "pyarrow",
+        "python",
+        "safetensors",
+        "seed",
+        "tokenizers",
+        "torch",
+        "transformers",
+        "zlibCompileVersion",
+        "zlibRuntimeVersion"
+      ],
+      "properties": {
+        "attentionImplementation": {"const": "eager"},
+        "device": {"const": "mps"},
+        "hfHome": {"enum": ["configured", null]},
+        "huggingfaceHub": {"const": "1.25.1"},
+        "machine": {"type": "string", "minLength": 1},
+        "modelDtype": {"const": "torch.float32"},
+        "numpy": {"const": "2.5.1"},
+        "platform": {"type": "string", "minLength": 1},
+        "pyarrow": {"const": "23.0.1"},
+        "python": {"const": "3.12.13"},
+        "safetensors": {"const": "0.8.0"},
+        "seed": {"const": 20260729},
+        "tokenizers": {"const": "0.22.2"},
+        "torch": {"const": "2.13.0"},
+        "transformers": {"const": "5.14.1"},
+        "zlibCompileVersion": {"const": "1.2.12"},
+        "zlibRuntimeVersion": {"const": "1.2.12"}
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockIndex",
+        "tokenIdsSHA256",
+        "canonicalCacheBF16SHA256",
+        "layers",
+        "kvHeads",
+        "headDimension",
+        "trajectoryShapePerLayer",
+        "predictionTokens",
+        "denseBF16Bytes",
+        "originalFP32NLLNatPerToken",
+        "canonicalBF16NLLNatPerToken",
+        "nativeBF16DeltaNLLNatPerToken",
+        "nativeBF16Top1Agreement",
+        "exactRebuildMaxAbsLogitDifference",
+        "exactRebuildTop1Identical",
+        "layoutRebuildMaxAbsLogitDifference",
+        "layoutRebuildTop1Identical",
+        "originalContinuationNanoseconds",
+        "originalRebuildContinuationNanoseconds",
+        "baselineContinuationNanoseconds"
+      ],
+      "properties": {
+        "blockIndex": {"type": "integer", "minimum": 0, "maximum": 575},
+        "tokenIdsSHA256": {"$ref": "#/$defs/sha256"},
+        "canonicalCacheBF16SHA256": {"$ref": "#/$defs/sha256"},
+        "layers": {"const": 24},
+        "kvHeads": {"const": 2},
+        "headDimension": {"const": 64},
+        "trajectoryShapePerLayer": {"const": [383, 256]},
+        "predictionTokens": {"const": 128},
+        "denseBF16Bytes": {"const": 4706304},
+        "originalFP32NLLNatPerToken": {"type": "number"},
+        "canonicalBF16NLLNatPerToken": {"type": "number"},
+        "nativeBF16DeltaNLLNatPerToken": {"type": "number"},
+        "nativeBF16Top1Agreement": {"type": "number", "minimum": 0, "maximum": 1},
+        "exactRebuildMaxAbsLogitDifference": {"const": 0.0},
+        "exactRebuildTop1Identical": {"const": true},
+        "layoutRebuildMaxAbsLogitDifference": {"const": 0.0},
+        "layoutRebuildTop1Identical": {"const": true},
+        "originalContinuationNanoseconds": {"type": "integer", "minimum": 0},
+        "originalRebuildContinuationNanoseconds": {"type": "integer", "minimum": 0},
+        "baselineContinuationNanoseconds": {"type": "integer", "minimum": 0}
+      }
+    },
+    "v5ContainerMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "codeCompression",
+        "codeCount",
+        "codeMapping",
+        "dtype",
+        "format",
+        "groupSize",
+        "groupsPerRow",
+        "inputSha256",
+        "layerIndex",
+        "packedBytes",
+        "packing",
+        "payloadBytes",
+        "payloadSha256",
+        "quantization",
+        "reconstructionSha256",
+        "scaleBytes",
+        "scaleCompression",
+        "scaleCount",
+        "scaleDtype",
+        "shape",
+        "signDerivation",
+        "signMode",
+        "storedCodeBytes",
+        "storedScaleBytes",
+        "transform",
+        "transformBlockSize"
+      ],
+      "properties": {
+        "bits": {"type": "integer", "enum": [4, 5, 6, 7, 8, 9, 10, 12, 16]},
+        "bitsByColumnGroup": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "enum": [4, 5, 6, 7, 8, 9, 10, 12, 16]}
+        },
+        "codeCompression": {"enum": ["none", "zlib-9"]},
+        "codeCount": {"type": "integer", "minimum": 1},
+        "codeMapping": {"const": "zigzag-symmetric-v1"},
+        "dtype": {"const": "float32"},
+        "format": {"const": "voidtoken-rotated-entropy-v5"},
+        "groupSize": {"const": 128},
+        "groupsPerRow": {"const": 2},
+        "inputSha256": {"$ref": "#/$defs/sha256"},
+        "layerIndex": {"type": "integer", "minimum": 0, "maximum": 23},
+        "packedBytes": {"type": "integer", "minimum": 1},
+        "packedBytesByColumnGroup": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "integer", "minimum": 1}
+        },
+        "packing": {
+          "enum": [
+            "lsb-first-v1",
+            "byte-low-plus-lsb-high-fields-v1",
+            "column-group-major-mixed-v1"
+          ]
+        },
+        "payloadBytes": {"type": "integer", "minimum": 1},
+        "payloadSha256": {"$ref": "#/$defs/sha256"},
+        "quantization": {"const": "symmetric-max-abs-v1"},
+        "reconstructionSha256": {"$ref": "#/$defs/sha256"},
+        "scaleBytes": {"type": "integer", "minimum": 1},
+        "scaleCompression": {"enum": ["none", "zlib-9"]},
+        "scaleCount": {"type": "integer", "minimum": 1},
+        "scaleDtype": {"const": "float16-le"},
+        "shape": {"const": [383, 256]},
+        "signDerivation": {"const": "shake256-layer-column-v1"},
+        "signMode": {"enum": ["none", "shake256"]},
+        "storedCodeBytes": {"type": "integer", "minimum": 1},
+        "storedScaleBytes": {"type": "integer", "minimum": 1},
+        "transform": {"const": "normalized-walsh-hadamard-v1"},
+        "transformBlockSize": {"const": 128}
+      },
+      "oneOf": [
+        {
+          "required": ["bits"],
+          "not": {"anyOf": [{"required": ["bitsByColumnGroup"]}, {"required": ["packedBytesByColumnGroup"]}]}
+        },
+        {
+          "required": ["bitsByColumnGroup", "packedBytesByColumnGroup"],
+          "not": {"required": ["bits"]}
+        }
+      ]
+    },
+    "containerManifestEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layerIndex",
+        "metadata",
+        "payloadBytes",
+        "containerBytes",
+        "containerSHA256"
+      ],
+      "properties": {
+        "layerIndex": {"type": "integer", "minimum": 0, "maximum": 23},
+        "metadata": {"$ref": "#/$defs/v5ContainerMetadata"},
+        "payloadBytes": {"type": "integer", "minimum": 1},
+        "containerBytes": {"type": "integer", "minimum": 1},
+        "containerSHA256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockIndex",
+        "tokenIdsSHA256",
+        "canonicalCacheBF16SHA256",
+        "configurationId",
+        "predictionTokens",
+        "denseBF16Bytes",
+        "encodedFileBytes",
+        "payloadBytes",
+        "payloadSHA256",
+        "containerManifest",
+        "containerManifestSHA256",
+        "encodeNanoseconds",
+        "decodeNanoseconds",
+        "cacheDifferenceSumSquares",
+        "cacheReferenceSumSquares",
+        "cacheCandidateSumSquares",
+        "cacheDotProduct",
+        "cacheMaximumAbsoluteError",
+        "baselineNLLNatPerToken",
+        "candidateNLLNatPerToken",
+        "deltaNLLNatPerToken",
+        "perplexityRatio",
+        "top1AgreementCount",
+        "top1Agreement",
+        "meanKLDivergenceNat",
+        "modelContinuationNanoseconds"
+      ],
+      "properties": {
+        "blockIndex": {"type": "integer", "minimum": 0, "maximum": 575},
+        "tokenIdsSHA256": {"$ref": "#/$defs/sha256"},
+        "canonicalCacheBF16SHA256": {"$ref": "#/$defs/sha256"},
+        "configurationId": {"const": "4c7be8c836aa7257"},
+        "predictionTokens": {"const": 128},
+        "denseBF16Bytes": {"const": 4706304},
+        "encodedFileBytes": {"type": "integer", "minimum": 1},
+        "payloadBytes": {"type": "integer", "minimum": 1},
+        "payloadSHA256": {"$ref": "#/$defs/sha256"},
+        "containerManifest": {
+          "type": "array",
+          "minItems": 24,
+          "maxItems": 24,
+          "items": {"$ref": "#/$defs/containerManifestEntry"}
+        },
+        "containerManifestSHA256": {"$ref": "#/$defs/sha256"},
+        "encodeNanoseconds": {"type": "integer", "minimum": 0},
+        "decodeNanoseconds": {"type": "integer", "minimum": 0},
+        "cacheDifferenceSumSquares": {"type": "number", "minimum": 0},
+        "cacheReferenceSumSquares": {"type": "number", "minimum": 0},
+        "cacheCandidateSumSquares": {"type": "number", "minimum": 0},
+        "cacheDotProduct": {"type": "number"},
+        "cacheMaximumAbsoluteError": {"type": "number", "minimum": 0},
+        "baselineNLLNatPerToken": {"type": "number"},
+        "candidateNLLNatPerToken": {"type": "number"},
+        "deltaNLLNatPerToken": {"type": "number"},
+        "perplexityRatio": {"type": "number", "exclusiveMinimum": 0},
+        "top1AgreementCount": {"type": "integer", "minimum": 0, "maximum": 128},
+        "top1Agreement": {"type": "number", "minimum": 0, "maximum": 1},
+        "meanKLDivergenceNat": {"type": "number"},
+        "modelContinuationNanoseconds": {"type": "integer", "minimum": 0}
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "configuration",
+        "configurationId",
+        "blocks",
+        "predictionTokens",
+        "denseBF16Bytes",
+        "encodedFileBytes",
+        "compressionRatioVsBF16",
+        "baselineNLLNatPerToken",
+        "candidateNLLNatPerToken",
+        "deltaNLLNatPerToken",
+        "perplexityRatio",
+        "top1Agreement",
+        "meanKLDivergenceNat",
+        "cacheNormalizedRMSE",
+        "cacheCosineSimilarity",
+        "cacheMaximumAbsoluteError",
+        "encodeNanoseconds",
+        "decodeNanoseconds",
+        "modelContinuationNanoseconds",
+        "allPayloadDigestsUnique",
+        "pass",
+        "gates"
+      ],
+      "properties": {
+        "configuration": {"$ref": "#/$defs/configuration"},
+        "configurationId": {"const": "4c7be8c836aa7257"},
+        "blocks": {"const": 32},
+        "predictionTokens": {"const": 4096},
+        "denseBF16Bytes": {"const": 150601728},
+        "encodedFileBytes": {"type": "integer", "minimum": 1},
+        "compressionRatioVsBF16": {"type": "number", "exclusiveMinimum": 0},
+        "baselineNLLNatPerToken": {"type": "number"},
+        "candidateNLLNatPerToken": {"type": "number"},
+        "deltaNLLNatPerToken": {"type": "number"},
+        "perplexityRatio": {"type": "number", "exclusiveMinimum": 0},
+        "top1Agreement": {"type": "number", "minimum": 0, "maximum": 1},
+        "meanKLDivergenceNat": {"type": "number"},
+        "cacheNormalizedRMSE": {"type": "number", "minimum": 0},
+        "cacheCosineSimilarity": {"type": "number"},
+        "cacheMaximumAbsoluteError": {"type": "number", "minimum": 0},
+        "encodeNanoseconds": {"type": "integer", "minimum": 0},
+        "decodeNanoseconds": {"type": "integer", "minimum": 0},
+        "modelContinuationNanoseconds": {"type": "integer", "minimum": 0},
+        "allPayloadDigestsUnique": {"type": "boolean"},
+        "pass": {"type": "boolean"},
+        "gates": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["compression", "deltaNLL", "top1Agreement"],
+          "properties": {
+            "compression": {"type": "boolean"},
+            "deltaNLL": {"type": "boolean"},
+            "top1Agreement": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockDeltaNLLMean",
+        "blockDeltaNLLSampleStandardDeviation",
+        "blockwiseDeltaNLLUpperOneSided95",
+        "blockTop1Mean",
+        "blockTop1SampleStandardDeviation",
+        "blockwiseTop1LowerOneSided95",
+        "predictionTokens",
+        "top1AgreementCount",
+        "wilsonLowerOneSided95"
+      ],
+      "properties": {
+        "blockDeltaNLLMean": {"type": "number"},
+        "blockDeltaNLLSampleStandardDeviation": {"type": "number", "minimum": 0},
+        "blockwiseDeltaNLLUpperOneSided95": {"type": "number"},
+        "blockTop1Mean": {"type": "number", "minimum": 0, "maximum": 1},
+        "blockTop1SampleStandardDeviation": {"type": "number", "minimum": 0},
+        "blockwiseTop1LowerOneSided95": {"type": "number"},
+        "predictionTokens": {"const": 4096},
+        "top1AgreementCount": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "wilsonLowerOneSided95": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "scientificGates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compressionRatioVsBF16",
+        "deltaNLLNatPerToken",
+        "blockwiseDeltaNLLUpperOneSided95",
+        "top1Agreement",
+        "blockwiseTop1LowerOneSided95",
+        "wilsonLowerOneSided95",
+        "structuralReplay"
+      ],
+      "properties": {
+        "compressionRatioVsBF16": {"type": "boolean"},
+        "deltaNLLNatPerToken": {"type": "boolean"},
+        "blockwiseDeltaNLLUpperOneSided95": {"type": "boolean"},
+        "top1Agreement": {"type": "boolean"},
+        "blockwiseTop1LowerOneSided95": {"type": "boolean"},
+        "wilsonLowerOneSided95": {"type": "boolean"},
+        "structuralReplay": {"type": "boolean"}
+      }
+    },
+    "primaryEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "path",
+        "manifestSHA256",
+        "manifestBytes",
+        "containerCount",
+        "containerBytes",
+        "blocks",
+        "predictionTokens"
+      ],
+      "properties": {
+        "schemaVersion": {"const": "corelm-real-llm-primary-evidence-v1"},
+        "path": {"const": "primary-evidence/manifest.json"},
+        "manifestSHA256": {"$ref": "#/$defs/sha256"},
+        "manifestBytes": {"type": "integer", "minimum": 1},
+        "containerCount": {"const": 768},
+        "containerBytes": {"type": "integer", "minimum": 1},
+        "blocks": {"const": 32},
+        "predictionTokens": {"const": 4096}
+      }
+    },
+    "scientificResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "configuration",
+        "configurationSHA256",
+        "gatesDefinition",
+        "environment",
+        "baselines",
+        "records",
+        "aggregate",
+        "confidence",
+        "gates",
+        "pass",
+        "primaryEvidence"
+      ],
+      "properties": {
+        "source": {"$ref": "#/$defs/source"},
+        "configuration": {"$ref": "#/$defs/configuration"},
+        "configurationSHA256": {
+          "const": "4c7be8c836aa725722b51f66dce78af7a5094e887432e622b5322f7ca2cf0af8"
+        },
+        "gatesDefinition": {"$ref": "#/$defs/gatesDefinition"},
+        "environment": {"$ref": "#/$defs/environment"},
+        "baselines": {
+          "type": "array",
+          "minItems": 32,
+          "maxItems": 32,
+          "items": {"$ref": "#/$defs/baseline"}
+        },
+        "records": {
+          "type": "array",
+          "minItems": 32,
+          "maxItems": 32,
+          "items": {"$ref": "#/$defs/record"}
+        },
+        "aggregate": {"$ref": "#/$defs/aggregate"},
+        "confidence": {"$ref": "#/$defs/confidence"},
+        "gates": {"$ref": "#/$defs/scientificGates"},
+        "pass": {"type": "boolean"},
+        "primaryEvidence": {"$ref": "#/$defs/primaryEvidence"}
+      }
+    },
+    "scientificOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "suiteId",
+        "evidenceClass",
+        "countsTowardScientificVerdict",
+        "verdict",
+        "status",
+        "finishedAt",
+        "gitCommitAtExecution",
+        "protocolCommit",
+        "registrationArtifactSHA256",
+        "implementationSHA256",
+        "attemptSHA256",
+        "attemptArtifactSHA256",
+        "resolutionSHA256",
+        "resolutionArtifactSHA256",
+        "scientificResult",
+        "outcomeSHA256"
+      ],
+      "properties": {
+        "schemaVersion": {"const": "corelm-beacon-outcome-v1"},
+        "suiteId": {"const": "qwen2.5-0.5b-kv-voidtoken-v5-beacon-heldout-v1"},
+        "evidenceClass": {"const": "post-freeze-beacon-selected-heldout-window"},
+        "countsTowardScientificVerdict": {"const": true},
+        "verdict": {"enum": ["PASS", "FAIL_GATES"]},
+        "status": {"const": "terminal-scientific-result"},
+        "finishedAt": {"type": "string", "format": "date-time", "pattern": "Z$"},
+        "gitCommitAtExecution": {"$ref": "#/$defs/gitCommit"},
+        "protocolCommit": {"$ref": "#/$defs/gitCommit"},
+        "registrationArtifactSHA256": {"$ref": "#/$defs/sha256"},
+        "implementationSHA256": {"$ref": "#/$defs/sha256"},
+        "attemptSHA256": {"$ref": "#/$defs/sha256"},
+        "attemptArtifactSHA256": {"$ref": "#/$defs/sha256"},
+        "resolutionSHA256": {"$ref": "#/$defs/sha256"},
+        "resolutionArtifactSHA256": {"$ref": "#/$defs/sha256"},
+        "scientificResult": {"$ref": "#/$defs/scientificResult"},
+        "outcomeSHA256": {"$ref": "#/$defs/sha256"}
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "verdict": {"const": "PASS"},
+            "scientificResult": {
+              "allOf": [
+                {"$ref": "#/$defs/scientificResult"},
+                {"properties": {"pass": {"const": true}}}
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "verdict": {"const": "FAIL_GATES"},
+            "scientificResult": {
+              "allOf": [
+                {"$ref": "#/$defs/scientificResult"},
+                {"properties": {"pass": {"const": false}}}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "executionFailureOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "suiteId",
+        "evidenceClass",
+        "countsTowardScientificVerdict",
+        "verdict",
+        "status",
+        "finishedAt",
+        "attemptSHA256",
+        "attemptArtifactSHA256",
+        "resolutionSHA256",
+        "resolutionArtifactSHA256",
+        "error",
+        "scientificResult",
+        "outcomeSHA256"
+      ],
+      "properties": {
+        "schemaVersion": {"const": "corelm-beacon-outcome-v1"},
+        "suiteId": {"const": "qwen2.5-0.5b-kv-voidtoken-v5-beacon-heldout-v1"},
+        "evidenceClass": {"const": "post-freeze-beacon-selected-heldout-window"},
+        "countsTowardScientificVerdict": {"const": true},
+        "verdict": {"const": "FAIL_EXECUTION"},
+        "status": {"const": "terminal-execution-failure"},
+        "finishedAt": {"type": "string", "format": "date-time", "pattern": "Z$"},
+        "attemptSHA256": {"$ref": "#/$defs/sha256"},
+        "attemptArtifactSHA256": {"$ref": "#/$defs/sha256"},
+        "resolutionSHA256": {
+          "oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]
+        },
+        "resolutionArtifactSHA256": {
+          "oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]
+        },
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "message"],
+          "properties": {
+            "type": {"type": "string", "minLength": 1, "maxLength": 256},
+            "message": {"type": "string", "maxLength": 2000}
+          }
+        },
+        "scientificResult": {"type": "null"},
+        "outcomeSHA256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

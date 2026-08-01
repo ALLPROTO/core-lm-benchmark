@@ -1,17 +1,44 @@
 #!/bin/bash
 set -euo pipefail
 
-PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-SELECTED_DEVELOPER_DIR=${DEVELOPER_DIR:-$(xcode-select -p)}
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+TEST_MODE=${CORELM_SWIFT_GATE_TEST_MODE:-0}
+unset SWIFT_EXEC SDKROOT TOOLCHAINS DEVELOPER_DIR CC CXX CPP CFLAGS \
+    CPPFLAGS CXXFLAGS LDFLAGS LD_LIBRARY_PATH DYLD_LIBRARY_PATH \
+    DYLD_FRAMEWORK_PATH DYLD_INSERT_LIBRARIES SWIFTPM_CUSTOM_BIN_DIR \
+    SWIFTPM_BUILD_DIR
+
+PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+case "$TEST_MODE" in
+    0)
+        SELECTED_DEVELOPER_DIR=$(/usr/bin/xcode-select -p)
+        SWIFT_COMMAND=(/usr/bin/xcrun --sdk macosx swift)
+        TEST_ENVIRONMENT=()
+        ;;
+    1)
+        SELECTED_DEVELOPER_DIR=${CORELM_TEST_DEVELOPER_DIR:?}
+        SWIFT_COMMAND=("${CORELM_TEST_SWIFT_LAUNCHER:?}")
+        TEST_ENVIRONMENT=(
+            "CORELM_SWIFT_ARGUMENTS_LOG=${CORELM_SWIFT_ARGUMENTS_LOG:?}"
+            "CORELM_SWIFT_TEST_SUMMARY=${CORELM_SWIFT_TEST_SUMMARY:?}"
+        )
+        ;;
+    *)
+        printf '%s\n' 'CORELM_SWIFT_GATE_TEST_MODE must be 0 or 1.' >&2
+        exit 1
+        ;;
+esac
 TESTING_FRAMEWORKS="$SELECTED_DEVELOPER_DIR/Library/Developer/Frameworks"
-OUTPUT_FILE=$(mktemp "${TMPDIR:-/tmp}/corelm-swift-tests.XXXXXX")
+SWIFT_TEST_TMP=$(/usr/bin/mktemp -d /tmp/corelm-swift-tests.XXXXXX)
+OUTPUT_FILE="$SWIFT_TEST_TMP/output.txt"
 SWIFT_TEST_FLAGS=(
     --enable-swift-testing
     --disable-xctest
 )
 
 cleanup() {
-    rm -f -- "$OUTPUT_FILE"
+    /bin/rm -rf -- "$SWIFT_TEST_TMP"
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -26,11 +53,32 @@ else
 fi
 
 cd "$PROJECT_DIR"
-DEVELOPER_DIR="$SELECTED_DEVELOPER_DIR" swift test \
-    "${SWIFT_TEST_FLAGS[@]}" \
-    2>&1 | tee "$OUTPUT_FILE"
+if [ "$TEST_MODE" = 1 ]; then
+    /usr/bin/env -i \
+        HOME="$HOME" \
+        TMPDIR="$SWIFT_TEST_TMP" \
+        PATH="$PATH" \
+        LANG=C \
+        LC_ALL=C \
+        "${TEST_ENVIRONMENT[@]}" \
+        "${SWIFT_COMMAND[@]}" test \
+        --scratch-path "$SWIFT_TEST_TMP/build" \
+        "${SWIFT_TEST_FLAGS[@]}" \
+        2>&1 | /usr/bin/tee "$OUTPUT_FILE"
+else
+    /usr/bin/env -i \
+        HOME="$HOME" \
+        TMPDIR="$SWIFT_TEST_TMP" \
+        PATH="$PATH" \
+        LANG=C \
+        LC_ALL=C \
+        "${SWIFT_COMMAND[@]}" test \
+        --scratch-path "$SWIFT_TEST_TMP/build" \
+        "${SWIFT_TEST_FLAGS[@]}" \
+        2>&1 | /usr/bin/tee "$OUTPUT_FILE"
+fi
 
-if ! grep -Eq \
+if ! /usr/bin/grep -Eq \
     'Test run with [1-9][0-9]* tests?( in [1-9][0-9]* suites?)? passed' \
     "$OUTPUT_FILE"
 then

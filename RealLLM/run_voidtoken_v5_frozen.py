@@ -1821,6 +1821,7 @@ def _resolve_model_and_split(
             revision=MODEL_REVISION,
             filename="model.safetensors",
             local_files_only=local_files_only,
+            token=False,
         )
     )
     if model_path.stat().st_size != MODEL_WEIGHTS_BYTES:
@@ -1834,6 +1835,7 @@ def _resolve_model_and_split(
                 revision=MODEL_REVISION,
                 filename=filename,
                 local_files_only=local_files_only,
+                token=False,
             )
         )
         if asset_path.stat().st_size != asset["bytes"]:
@@ -1851,6 +1853,7 @@ def _resolve_model_and_split(
             revision=DATASET_REVISION,
             filename=specification["path"],
             local_files_only=local_files_only,
+            token=False,
         )
     )
     if split_path.stat().st_size != specification["bytes"]:

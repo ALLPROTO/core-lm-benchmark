@@ -21,14 +21,26 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from RealLLM.verify_voidtoken_v5_development import _verify_shard  # noqa: E402
+from security.generate_build_provenance import (  # noqa: E402
+    DEFAULT_ARCHIVE_MANIFEST,
+    canonical_json_bytes as canonical_provenance_bytes,
+    inspect_git_source,
+    inspect_source_archive,
+    validate_build_manifest,
+    verify_build_manifest,
+)
 from security.generate_python_runtime_manifest import (  # noqa: E402
     validate_manifest_files,
+)
+from security.verify_primary_evidence import (  # noqa: E402
+    verify_primary_evidence,
 )
 
 
 DEFAULT_EVIDENCE = PROJECT_ROOT / "app-real-llm-evidence"
 MAX_RESULT_BYTES = 4 * 1024 * 1024
 MAX_RECEIPT_BYTES = 64 * 1024
+MAX_BUILD_PROVENANCE_BYTES = 1024 * 1024
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 EXPECTED_FILES = {
     "validation-064-071.json",
@@ -125,6 +137,62 @@ def _timestamp(value: Any, label: str) -> datetime:
     return parsed
 
 
+def _verify_build_provenance_receipt(
+    value: Any,
+    app_bundle: Path | None,
+    *,
+    compare_source_tree: bool,
+) -> dict[str, Any]:
+    receipt = _require_exact_keys(
+        value,
+        {"document", "path", "sha256"},
+        "build provenance receipt",
+    )
+    if receipt["path"] != "Resources/build-provenance.json":
+        raise ValueError("build provenance receipt path is inconsistent")
+    recorded_digest = _require_sha256(
+        receipt["sha256"], "build provenance document"
+    )
+    document = receipt["document"]
+    validate_build_manifest(document)
+    canonical = canonical_provenance_bytes(document)
+    if (
+        len(canonical) > MAX_BUILD_PROVENANCE_BYTES
+        or hashlib.sha256(canonical).hexdigest() != recorded_digest
+    ):
+        raise ValueError("build provenance receipt digest is inconsistent")
+    source = document["source"]
+    if source["dirty"] is not False:
+        raise ValueError("fresh proof was built from a dirty source tree")
+
+    if app_bundle is not None:
+        bundled_path = (
+            app_bundle
+            / "Contents"
+            / "Resources"
+            / "build-provenance.json"
+        )
+        bundled = verify_build_manifest(bundled_path)
+        if bundled != document or _sha256(bundled_path) != recorded_digest:
+            raise ValueError(
+                "provided app build provenance differs from the receipt"
+            )
+
+    if compare_source_tree:
+        if source["mode"] == "git":
+            observed_source = inspect_git_source(PROJECT_ROOT)
+        else:
+            observed_source = inspect_source_archive(
+                PROJECT_ROOT,
+                PROJECT_ROOT / DEFAULT_ARCHIVE_MANIFEST,
+            )
+        if observed_source != source:
+            raise ValueError(
+                "current source tree differs from the app build provenance"
+            )
+    return document
+
+
 def _verify_local_bundle(app: Path) -> None:
     verifier = PROJECT_ROOT / "security" / "verify_app_bundle.sh"
     completed = subprocess.run(
@@ -153,6 +221,10 @@ def _verify_result_and_receipt(
     portable_macos_environment: bool,
     expected_challenge_nonce: str | None,
 ) -> dict[str, Any]:
+    if app_bundle is not None:
+        if app_bundle.is_symlink() or not app_bundle.is_dir():
+            raise ValueError("provided app bundle is missing or unsafe")
+        app_bundle = app_bundle.resolve(strict=True)
     result, _ = _load_object(result_path, MAX_RESULT_BYTES)
     receipt, receipt_raw = _load_object(receipt_path, MAX_RECEIPT_BYTES)
 
@@ -186,8 +258,11 @@ def _verify_result_and_receipt(
         "startedAt",
         "worker",
     }
-    if receipt_schema == "corelm-macos-app-real-llm-run-v3":
+    if "challengeNonce" in receipt:
         receipt_keys.add("challengeNonce")
+    if receipt_schema == "corelm-macos-app-real-llm-run-v4":
+        receipt_keys.add("primaryEvidence")
+        receipt_keys.add("buildProvenance")
     _require_exact_keys(
         receipt,
         receipt_keys,
@@ -196,6 +271,7 @@ def _verify_result_and_receipt(
     if receipt_schema not in {
         "corelm-macos-app-real-llm-run-v2",
         "corelm-macos-app-real-llm-run-v3",
+        "corelm-macos-app-real-llm-run-v4",
     }:
         raise ValueError("receipt schema version is unsupported")
     if not portable_macos_environment and receipt_schema != (
@@ -205,14 +281,45 @@ def _verify_result_and_receipt(
     if expected_challenge_nonce is not None:
         _require_sha256(expected_challenge_nonce, "expected challenge nonce")
         if (
-            receipt_schema != "corelm-macos-app-real-llm-run-v3"
+            receipt_schema != "corelm-macos-app-real-llm-run-v4"
             or receipt.get("challengeNonce") != expected_challenge_nonce
         ):
             raise ValueError("receipt does not contain the proof challenge")
-    elif receipt_schema == "corelm-macos-app-real-llm-run-v3":
+    elif "challengeNonce" in receipt:
         _require_sha256(receipt.get("challengeNonce"), "receipt challenge")
     if receipt["error"] is not None:
         raise ValueError("receipt records an application error")
+    if receipt_schema == "corelm-macos-app-real-llm-run-v4":
+        if result.get("schemaVersion") != (
+            "corelm-voidtoken-v5-validation-development-v3"
+        ):
+            raise ValueError("v4 receipt requires retained primary evidence")
+        primary = _require_exact_keys(
+            receipt["primaryEvidence"],
+            {
+                "schemaVersion",
+                "path",
+                "manifestSHA256",
+                "manifestBytes",
+                "containerCount",
+                "containerBytes",
+                "blocks",
+                "predictionTokens",
+            },
+            "receipt primary evidence",
+        )
+        if primary != result.get("primaryEvidence"):
+            raise ValueError("receipt does not bind the primary evidence")
+        _verify_build_provenance_receipt(
+            receipt["buildProvenance"],
+            app_bundle,
+            compare_source_tree=portable_macos_environment,
+        )
+        verify_primary_evidence(result_path.parent, result)
+    elif result.get("schemaVersion") == (
+        "corelm-voidtoken-v5-validation-development-v3"
+    ):
+        raise ValueError("primary evidence result requires a v4 receipt")
     started_at = _timestamp(receipt["startedAt"], "receipt startedAt")
     result_created_at = _timestamp(result.get("createdAt"), "result createdAt")
     receipt_created_at = _timestamp(receipt["createdAt"], "receipt createdAt")
@@ -269,7 +376,10 @@ def _verify_result_and_receipt(
     _require_sha256(worker["runtimeManifestSHA256"], "runtime manifest")
     _require_sha256(worker["scriptSHA256"], "runner script")
     source_script = PROJECT_ROOT / "RealLLM" / "develop_voidtoken_v5.py"
-    if _sha256(source_script) != worker["scriptSHA256"]:
+    if (
+        portable_macos_environment
+        and _sha256(source_script) != worker["scriptSHA256"]
+    ):
         raise ValueError("receipt runner digest differs from the source tree")
 
     protocol = _require_exact_keys(

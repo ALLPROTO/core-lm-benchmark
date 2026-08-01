@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import subprocess
 import sys
@@ -14,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import publication.build_archives as archives  # noqa: E402
+from security import generate_build_provenance as build_provenance  # noqa: E402
 
 
 def _completed(
@@ -31,6 +33,27 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
+    def test_archive_output_rejects_symlink_directory_and_target(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            outside = root / "outside"
+            outside.mkdir(mode=0o700)
+            linked_output = root / "linked-output"
+            linked_output.symlink_to(outside, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "output directory"):
+                archives._safe_output_directory(linked_output)
+
+            output = root / "output"
+            output.mkdir(mode=0o700)
+            outside_file = outside / "do-not-overwrite"
+            outside_file.write_bytes(b"preserve me")
+            linked_target = output / "SHA256SUMS"
+            linked_target.symlink_to(outside_file)
+            with self.assertRaisesRegex(ValueError, "target is unsafe"):
+                with archives._atomic_output_path(linked_target):
+                    pass
+            self.assertEqual(outside_file.read_bytes(), b"preserve me")
+
     def test_publication_release_identifier_is_synchronized(self):
         citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
@@ -173,6 +196,7 @@ class PublicationArchiveTests(unittest.TestCase):
         return {
             ("rev-parse", "--show-toplevel"): _completed(f"{ROOT}\n"),
             ("rev-parse", "HEAD"): _completed("a" * 40 + "\n"),
+            ("rev-parse", "HEAD^{tree}"): _completed("b" * 40 + "\n"),
             (
                 "status",
                 "--porcelain=v1",
@@ -248,6 +272,7 @@ class PublicationArchiveTests(unittest.TestCase):
             "buildMode": "preview-working-tree",
             "builtFromCleanHead": False,
             "gitHeadCommit": "a" * 40,
+            "gitHeadTree": "b" * 40,
             "releaseTag": None,
             "remoteTagVerified": False,
             "trackedFiles": set(),
@@ -260,6 +285,39 @@ class PublicationArchiveTests(unittest.TestCase):
                 names = set(bundle.getnames())
                 prefix = "corelm_reproducibility"
                 self.assertIn(f"{prefix}/PROVENANCE.json", names)
+                self.assertIn(
+                    f"{prefix}/SOURCE_ARCHIVE_PROVENANCE.json", names
+                )
+                archive_provenance_member = bundle.extractfile(
+                    f"{prefix}/SOURCE_ARCHIVE_PROVENANCE.json"
+                )
+                self.assertIsNotNone(archive_provenance_member)
+                archive_provenance_raw = archive_provenance_member.read()
+                archive_provenance = json.loads(archive_provenance_raw)
+                self.assertEqual(
+                    archive_provenance_raw,
+                    archives.canonical_json_bytes(archive_provenance),
+                )
+                self.assertEqual(
+                    archive_provenance["schemaVersion"],
+                    "corelm-source-archive-manifest-v1",
+                )
+                archived_source_paths = {
+                    entry["path"] for entry in archive_provenance["files"]
+                }
+                self.assertIn("package_app.sh", archived_source_paths)
+                self.assertIn(
+                    "RealLLM/legacy_voidtoken_adapter.py",
+                    archived_source_paths,
+                )
+                self.assertIn(
+                    "security/generate_build_provenance.py",
+                    archived_source_paths,
+                )
+                self.assertIn(
+                    "security/validate_python_bootstrap_archive.py",
+                    archived_source_paths,
+                )
                 provenance_member = bundle.extractfile(
                     f"{prefix}/PROVENANCE.json"
                 )
@@ -289,6 +347,9 @@ class PublicationArchiveTests(unittest.TestCase):
                 )
                 for relative in (
                     "build_local_app.sh",
+                    "bootstrap_python312_macos.sh",
+                    "doctor.sh",
+                    "prepare_offline_inputs.sh",
                     "run_local_app_proof.sh",
                     "requirements.lock",
                     "RealLLM/requirements.lock",
@@ -300,17 +361,44 @@ class PublicationArchiveTests(unittest.TestCase):
                     "docs/development/SCIENTIFIC_IDENTIFIERS.md",
                     "docs/development/RELEASE_PROCESS.md",
                     "SECURITY.md",
+                    "App/Sources/PrimaryEvidenceValidation.swift",
                     "App/Sources/PythonRuntimeManifest.swift",
                     "App/Sources/SecurityValidation.swift",
                     "TestsSwift/SecurityValidationTests.swift",
                     "security/generate_python_runtime_manifest.py",
+                    "security/generate_build_provenance.py",
+                    "security/find_python312.sh",
                     "security/manage_local_runtime.py",
+                    "security/validate_proof_challenge.sh",
                     "security/verify_app_run_evidence.py",
+                    "security/verify_primary_evidence.py",
+                    "security/verify_primary_replay.py",
                     "security/verify_local_app_run.py",
                     "security/verify_locked_environment.py",
                     "security/verify_supply_chain.py",
                     "security/verify_app_bundle.sh",
+                    "Tests/test_build_provenance.py",
+                    "Tests/test_beacon_protocol.py",
                     "Tests/test_swift_security_gate.py",
+                    "Tests/fixtures/nist-beacon-certificate-528943a5.pem",
+                    "Tests/fixtures/nist-beacon-chain-2-pulse-1884240.json",
+                    "schemas/beacon-attempt.schema.json",
+                    "schemas/beacon-freeze.schema.json",
+                    "schemas/beacon-outcome.schema.json",
+                    "schemas/beacon-registration.schema.json",
+                    "schemas/beacon-resolution.schema.json",
+                    "schemas/beacon-window-ledger.schema.json",
+                    "RealLLM/BEACON_HELDOUT_PROTOCOL.md",
+                    "RealLLM/beacon_evaluation.py",
+                    "RealLLM/beacon_protocol.py",
+                    "RealLLM/beacon_registration.json",
+                    "RealLLM/beacon_window_ledger.json",
+                    "RealLLM/prepare_beacon_assets.py",
+                    "RealLLM/prepare_beacon_freeze.py",
+                    "RealLLM/run_beacon_one_shot.py",
+                    "RealLLM/run_beacon_regression.py",
+                    "RealLLM/verify_beacon_evidence.py",
+                    "real-llm-beacon-results/README.md",
                     "app-real-llm-evidence/README.md",
                     "app-real-llm-evidence/SHA256SUMS",
                     "app-real-llm-evidence/app-run-receipt.json",
@@ -324,11 +412,12 @@ class PublicationArchiveTests(unittest.TestCase):
                         names,
                     )
 
-    def test_reproducibility_archive_can_run_publication_archive_test(self):
+    def test_reproducibility_archive_can_run_normal_test_gate(self):
         context = {
             "buildMode": "preview-working-tree",
             "builtFromCleanHead": False,
             "gitHeadCommit": "a" * 40,
+            "gitHeadTree": "b" * 40,
             "releaseTag": None,
             "remoteTagVerified": False,
             "trackedFiles": set(),
@@ -341,28 +430,14 @@ class PublicationArchiveTests(unittest.TestCase):
             with tarfile.open(archive, "r:gz") as bundle:
                 bundle.extractall(extract_root, filter="data")
             extracted = extract_root / "corelm_reproducibility"
-            child_cache = root / "child-pycache"
-            child_cache.mkdir()
             completed = subprocess.run(
-                [
-                    sys.executable,
-                    "-B",
-                    "-X",
-                    f"pycache_prefix={child_cache}",
-                    "-m",
-                    "unittest",
-                    (
-                        "Tests.test_publication_archives."
-                        "PublicationArchiveTests."
-                        "test_v5_arxiv_archive_contains_only_current_"
-                        "submission_sources"
-                    ),
-                    "-v",
-                ],
+                ["/bin/sh", str(extracted / "run_tests.sh")],
                 cwd=extracted,
                 check=False,
                 capture_output=True,
                 text=True,
+                env={**os.environ, "PYTHON_BIN": sys.executable},
+                timeout=180,
             )
             self.assertEqual(
                 completed.returncode,
@@ -370,11 +445,70 @@ class PublicationArchiveTests(unittest.TestCase):
                 msg=completed.stdout + completed.stderr,
             )
 
+    def test_post_freeze_reproducibility_archive_includes_freeze_manifest(self):
+        context = {
+            "buildMode": "preview-working-tree",
+            "builtFromCleanHead": False,
+            "gitHeadCommit": "a" * 40,
+            "gitHeadTree": "b" * 40,
+            "releaseTag": None,
+            "remoteTagVerified": False,
+            "trackedFiles": set(),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fake_freeze = root / "beacon_freeze.json"
+            frozen_bytes = b'{"schemaVersion":"corelm-beacon-freeze-v1"}\n'
+            fake_freeze.write_bytes(frozen_bytes)
+            with patch.object(archives, "BEACON_FREEZE_PATH", fake_freeze):
+                archive = archives.build_reproducibility(root, context)
+            with tarfile.open(archive, "r:gz") as bundle:
+                member = bundle.extractfile(
+                    "corelm_reproducibility/RealLLM/beacon_freeze.json"
+                )
+                self.assertIsNotNone(member)
+                self.assertEqual(member.read(), frozen_bytes)
+
+    def test_clean_reproducibility_archive_is_accepted_without_git(self):
+        context = {
+            "buildMode": "preview-working-tree",
+            "builtFromCleanHead": True,
+            "gitHeadCommit": "a" * 40,
+            "gitHeadTree": "b" * 40,
+            "releaseTag": None,
+            "remoteTagVerified": False,
+            "trackedFiles": set(),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            validation_result = archives._v5_evidence_state()
+            with patch.object(
+                archives,
+                "_validate_v5_evidence",
+                return_value=validation_result,
+            ):
+                archive = archives.build_reproducibility(root, context)
+            extracted_root = root / "extracted"
+            extracted_root.mkdir()
+            with tarfile.open(archive, "r:gz") as bundle:
+                bundle.extractall(extracted_root, filter="data")
+            extracted = extracted_root / "corelm_reproducibility"
+            self.assertFalse((extracted / ".git").exists())
+            source = build_provenance.inspect_source_archive(
+                extracted,
+                extracted / build_provenance.DEFAULT_ARCHIVE_MANIFEST,
+            )
+            self.assertEqual(source["mode"], "archive")
+            self.assertFalse(source["dirty"])
+            self.assertEqual(source["commit"], "a" * 40)
+            self.assertEqual(source["tree"], "b" * 40)
+
     def test_v5_arxiv_archive_contains_only_current_submission_sources(self):
         context = {
             "buildMode": "preview-working-tree",
             "builtFromCleanHead": False,
             "gitHeadCommit": "a" * 40,
+            "gitHeadTree": "b" * 40,
             "releaseTag": None,
             "remoteTagVerified": False,
             "trackedFiles": set(),

@@ -4,20 +4,26 @@ set -eu
 umask 077
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-BOOTSTRAP_PYTHON=${CORELM_BOOTSTRAP_PYTHON:-python3.12}
 RUNTIME_DIR=${CORELM_REAL_LLM_VENV:-"$HOME/.cache/corelm-app-runtime"}
 CACHE_DIR="$HOME/.cache/corelm-model-assets"
 BUILD_CONFIG=${BUILD_CONFIG:-release}
+OFFLINE=${CORELM_OFFLINE:-0}
+WHEELHOUSE=${CORELM_WHEELHOUSE:-}
+PYPI_INDEX_URL=${CORELM_PYPI_INDEX_URL:-https://pypi.org/simple}
+HF_ENDPOINT=${CORELM_HF_ENDPOINT:-https://huggingface.co}
 SKIP_RUNTIME_INSTALL=${CORELM_SKIP_RUNTIME_INSTALL:-0}
 SKIP_ASSET_PREPARATION=${CORELM_SKIP_ASSET_PREPARATION:-0}
-ASSETS_OFFLINE_ONLY=${CORELM_ASSETS_OFFLINE_ONLY:-0}
+ASSETS_OFFLINE_ONLY=${CORELM_ASSETS_OFFLINE_ONLY:-$OFFLINE}
+SKIP_MEMORY_CHECK=${CORELM_SKIP_MEMORY_CHECK:-0}
 SKIP_MPS_CHECK=${CORELM_SKIP_MPS_CHECK:-0}
 SKIP_SMOKE_TEST=${CORELM_SKIP_SMOKE_TEST:-0}
 APP_PATH="$PROJECT_DIR/dist/CoreLMBenchmark.app"
-PYTHON_CACHE=$(mktemp -d "${TMPDIR:-/tmp}/corelm-build-pycache.XXXXXX")
+PYTHON_CACHE=
 
 cleanup() {
-    rm -rf "$PYTHON_CACHE"
+    if [ -n "$PYTHON_CACHE" ] && [ -d "$PYTHON_CACHE" ]; then
+        rm -rf "$PYTHON_CACHE"
+    fi
 }
 trap cleanup EXIT
 
@@ -36,37 +42,47 @@ require_boolean() {
 require_boolean CORELM_SKIP_RUNTIME_INSTALL "$SKIP_RUNTIME_INSTALL"
 require_boolean CORELM_SKIP_ASSET_PREPARATION "$SKIP_ASSET_PREPARATION"
 require_boolean CORELM_ASSETS_OFFLINE_ONLY "$ASSETS_OFFLINE_ONLY"
+require_boolean CORELM_OFFLINE "$OFFLINE"
+require_boolean CORELM_SKIP_MEMORY_CHECK "$SKIP_MEMORY_CHECK"
 require_boolean CORELM_SKIP_MPS_CHECK "$SKIP_MPS_CHECK"
 require_boolean CORELM_SKIP_SMOKE_TEST "$SKIP_SMOKE_TEST"
 
-[ "$(uname -s)" = "Darwin" ] || fail "macOS is required"
-[ "$(uname -m)" = "arm64" ] || fail "Apple Silicon (arm64) is required"
-
-macos_version=$(sw_vers -productVersion)
-macos_major=${macos_version%%.*}
-case "$macos_major" in
-    ''|*[!0-9]*) fail "could not determine the macOS version" ;;
+case "$RUNTIME_DIR" in
+    /*) ;;
+    *) fail "CORELM_REAL_LLM_VENV must be an absolute path" ;;
 esac
-[ "$macos_major" -ge 14 ] || fail "macOS 14 or newer is required"
 
-command -v swift >/dev/null 2>&1 \
-    || fail "Swift is missing; run xcode-select --install"
-command -v codesign >/dev/null 2>&1 \
-    || fail "codesign is missing; run xcode-select --install"
+if [ "$OFFLINE" = 1 ]; then
+    [ "$ASSETS_OFFLINE_ONLY" = 1 ] \
+        || fail "CORELM_OFFLINE=1 requires CORELM_ASSETS_OFFLINE_ONLY=1"
+    if [ "$SKIP_RUNTIME_INSTALL" = 0 ]; then
+        [ -n "$WHEELHOUSE" ] \
+            || fail "CORELM_OFFLINE=1 requires CORELM_WHEELHOUSE"
+    fi
+fi
 
-bootstrap_path=$(command -v "$BOOTSTRAP_PYTHON" 2>/dev/null || true)
-[ -n "$bootstrap_path" ] \
-    || fail "Python 3.12 is missing; set CORELM_BOOTSTRAP_PYTHON"
+set --
+[ "$SKIP_SMOKE_TEST" = 1 ] && set -- "$@" --no-gui
+[ "$SKIP_MEMORY_CHECK" = 1 ] && set -- "$@" --skip-memory-check
+[ "$SKIP_RUNTIME_INSTALL" = 1 ] && set -- "$@" --skip-packages
+[ "$SKIP_ASSET_PREPARATION" = 1 ] && set -- "$@" --skip-assets
+CORELM_OFFLINE="$OFFLINE" \
+CORELM_ASSETS_OFFLINE_ONLY="$ASSETS_OFFLINE_ONLY" \
+CORELM_WHEELHOUSE="$WHEELHOUSE" \
+CORELM_PYPI_INDEX_URL="$PYPI_INDEX_URL" \
+CORELM_HF_ENDPOINT="$HF_ENDPOINT" \
+    "$PROJECT_DIR/doctor.sh" "$@"
+
+bootstrap_path=$("$PROJECT_DIR/security/find_python312.sh" || true)
+[ -n "$bootstrap_path" ] || fail \
+    "Python 3.12 is missing; run ./bootstrap_python312_macos.sh or set CORELM_BOOTSTRAP_PYTHON"
+PYTHON_CACHE=$(mktemp -d "${TMPDIR:-/tmp}/corelm-build-pycache.XXXXXX")
 "$bootstrap_path" -I -B -X "pycache_prefix=$PYTHON_CACHE" -c '
 import sys
 if sys.version_info[:2] != (3, 12):
     raise SystemExit("CORELM_BOOTSTRAP_PYTHON must be Python 3.12")
 '
 
-case "$RUNTIME_DIR" in
-    /*) ;;
-    *) fail "CORELM_REAL_LLM_VENV must be an absolute path" ;;
-esac
 runtime_state=$(
     "$bootstrap_path" -I -B -X "pycache_prefix=$PYTHON_CACHE" \
         "$PROJECT_DIR/security/manage_local_runtime.py" \
@@ -91,24 +107,47 @@ if [ "$SKIP_RUNTIME_INSTALL" = "0" ]; then
             --mode initialize >/dev/null \
             || fail "new dedicated Python runtime failed initialization"
     fi
-    "$RUNTIME_DIR/bin/python" -I -B -X \
-        "pycache_prefix=$PYTHON_CACHE" -m pip install \
-        --isolated \
-        --no-input \
-        --disable-pip-version-check \
-        --only-binary=:all: \
-        --index-url https://pypi.org/simple \
-        --require-hashes \
-        -r "$PROJECT_DIR/.github/locks/pip-bootstrap.txt"
-    "$RUNTIME_DIR/bin/python" -I -B -X \
-        "pycache_prefix=$PYTHON_CACHE" -m pip install \
-        --isolated \
-        --no-input \
-        --disable-pip-version-check \
-        --only-binary=:all: \
-        --index-url https://pypi.org/simple \
-        --require-hashes \
-        -r "$PROJECT_DIR/RealLLM/requirements.lock"
+    if [ -n "$WHEELHOUSE" ]; then
+        "$RUNTIME_DIR/bin/python" -I -B -X \
+            "pycache_prefix=$PYTHON_CACHE" -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --no-index \
+            --find-links "$WHEELHOUSE" \
+            --require-hashes \
+            -r "$PROJECT_DIR/.github/locks/pip-bootstrap.txt"
+        "$RUNTIME_DIR/bin/python" -I -B -X \
+            "pycache_prefix=$PYTHON_CACHE" -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --no-index \
+            --find-links "$WHEELHOUSE" \
+            --require-hashes \
+            -r "$PROJECT_DIR/RealLLM/requirements.lock"
+    else
+        "$RUNTIME_DIR/bin/python" -I -B -X \
+            "pycache_prefix=$PYTHON_CACHE" -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url "$PYPI_INDEX_URL" \
+            --require-hashes \
+            -r "$PROJECT_DIR/.github/locks/pip-bootstrap.txt"
+        "$RUNTIME_DIR/bin/python" -I -B -X \
+            "pycache_prefix=$PYTHON_CACHE" -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url "$PYPI_INDEX_URL" \
+            --require-hashes \
+            -r "$PROJECT_DIR/RealLLM/requirements.lock"
+    fi
 elif [ "$runtime_state" != "existing" ]; then
     fail "CORELM_SKIP_RUNTIME_INSTALL=1 requires an initialized runtime"
 fi
@@ -147,7 +186,8 @@ if [ "$SKIP_ASSET_PREPARATION" = "0" ]; then
     else
         "$APP_PYTHON" -I -B -X "pycache_prefix=$PYTHON_CACHE" \
             "$PROJECT_DIR/RealLLM/prepare_app_assets.py" \
-            --cache "$CACHE_DIR"
+            --cache "$CACHE_DIR" \
+            --endpoint "$HF_ENDPOINT"
     fi
 fi
 

@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/beacon-resolution.schema.json",
+  "title": "Core LM beacon window resolution",
+  "description": "Verified NIST beacon pulse, certificate binding, and deterministic held-out-window selection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "suiteId",
+    "status",
+    "resolvedAt",
+    "attemptSHA256",
+    "registrationArtifactSHA256",
+    "windowLedgerSHA256",
+    "pulseEndpoint",
+    "pulse",
+    "certificatePEMBase64",
+    "verification",
+    "selection",
+    "resolutionSHA256"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "corelm-beacon-resolution-v1"},
+    "suiteId": {
+      "const": "qwen2.5-0.5b-kv-voidtoken-v5-beacon-heldout-v1"
+    },
+    "status": {"const": "beacon-resolved-before-model-data"},
+    "resolvedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "attemptSHA256": {"$ref": "#/$defs/sha256"},
+    "registrationArtifactSHA256": {"$ref": "#/$defs/sha256"},
+    "windowLedgerSHA256": {"$ref": "#/$defs/sha256"},
+    "pulseEndpoint": {
+      "const": "https://beacon.nist.gov/beacon/2.0/pulse/time/1785693600000"
+    },
+    "pulse": {"$ref": "#/$defs/nistPulse"},
+    "certificatePEMBase64": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 87384,
+      "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+      "contentEncoding": "base64"
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "certificateDER_SHA512",
+        "certificatePEM_SHA256",
+        "outputValue",
+        "pulseIndex",
+        "chainIndex",
+        "signatureVerified",
+        "outputValueVerified"
+      ],
+      "properties": {
+        "certificateDER_SHA512": {"$ref": "#/$defs/sha512Lower"},
+        "certificatePEM_SHA256": {"$ref": "#/$defs/sha256"},
+        "outputValue": {
+          "type": "string",
+          "pattern": "^[0-9A-F]{128}$"
+        },
+        "pulseIndex": {"type": "integer", "minimum": 0},
+        "chainIndex": {"type": "integer", "minimum": 0},
+        "signatureVerified": {"const": true},
+        "outputValueVerified": {"const": true}
+      }
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidateCount",
+        "candidateIndex",
+        "counter",
+        "rejectionLimitHex",
+        "seedDigestSHA512",
+        "selectedWindow"
+      ],
+      "properties": {
+        "candidateCount": {"const": 15},
+        "candidateIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 14
+        },
+        "counter": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "rejectionLimitHex": {"$ref": "#/$defs/sha512Lower"},
+        "seedDigestSHA512": {"$ref": "#/$defs/sha512Lower"},
+        "selectedWindow": {"$ref": "#/$defs/eligibleWindow"}
+      }
+    },
+    "resolutionSHA256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sha512": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{128}$"
+    },
+    "sha512Lower": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{128}$"
+    },
+    "nistListValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "type", "value"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "pattern": "^https://beacon\\.nist\\.gov/beacon/2\\.0/chain/(?:0|[1-9][0-9]*)/pulse/(?:0|[1-9][0-9]*)$"
+        },
+        "type": {"enum": ["previous", "hour", "day", "month", "year"]},
+        "value": {"$ref": "#/$defs/sha512"}
+      }
+    },
+    "nistPulse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "uri",
+        "version",
+        "cipherSuite",
+        "period",
+        "certificateId",
+        "chainIndex",
+        "pulseIndex",
+        "timeStamp",
+        "localRandomValue",
+        "external",
+        "listValues",
+        "precommitmentValue",
+        "statusCode",
+        "signatureValue",
+        "outputValue"
+      ],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "pattern": "^https://beacon\\.nist\\.gov/beacon/2\\.0/chain/[0-9]+/pulse/[0-9]+$"
+        },
+        "version": {"const": "2.0"},
+        "cipherSuite": {"const": 0},
+        "period": {"const": 60000},
+        "certificateId": {
+          "type": "string",
+          "pattern": "^(?:528943a555f5f8ca54423be6dfb95925a35c7b552046420e7d7cd072058a14d6536ad3a8e9754b6582f164a90b0cd86a65d659f5426a2659a947595d1c816c8c|528943A555F5F8CA54423BE6DFB95925A35C7B552046420E7D7CD072058A14D6536AD3A8E9754B6582F164A90B0CD86A65D659F5426A2659A947595D1C816C8C)$"
+        },
+        "chainIndex": {"type": "integer", "minimum": 0},
+        "pulseIndex": {"type": "integer", "minimum": 0},
+        "timeStamp": {"const": "2026-08-02T18:00:00.000Z"},
+        "localRandomValue": {"$ref": "#/$defs/sha512"},
+        "external": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sourceId", "statusCode", "value"],
+          "properties": {
+            "sourceId": {"$ref": "#/$defs/sha512"},
+            "statusCode": {"type": "integer", "minimum": 0},
+            "value": {"$ref": "#/$defs/sha512"}
+          }
+        },
+        "listValues": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/nistListValue"},
+          "allOf": [
+            {"contains": {"type": "object", "properties": {"type": {"const": "previous"}}, "required": ["type"]}, "minContains": 1, "maxContains": 1},
+            {"contains": {"type": "object", "properties": {"type": {"const": "hour"}}, "required": ["type"]}, "minContains": 1, "maxContains": 1},
+            {"contains": {"type": "object", "properties": {"type": {"const": "day"}}, "required": ["type"]}, "minContains": 1, "maxContains": 1},
+            {"contains": {"type": "object", "properties": {"type": {"const": "month"}}, "required": ["type"]}, "minContains": 1, "maxContains": 1},
+            {"contains": {"type": "object", "properties": {"type": {"const": "year"}}, "required": ["type"]}, "minContains": 1, "maxContains": 1}
+          ]
+        },
+        "precommitmentValue": {"$ref": "#/$defs/sha512"},
+        "statusCode": {"const": 0},
+        "signatureValue": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 2048,
+          "pattern": "^(?:[0-9A-Fa-f]{2})+$"
+        },
+        "outputValue": {"$ref": "#/$defs/sha512"}
+      }
+    },
+    "eligibleWindow": {
+      "oneOf": [
+        {"const": {"blocks": 32, "id": "test-016-047", "split": "test", "startBlock": 16}},
+        {"const": {"blocks": 32, "id": "test-048-079", "split": "test", "startBlock": 48}},
+        {"const": {"blocks": 32, "id": "test-080-111", "split": "test", "startBlock": 80}},
+        {"const": {"blocks": 32, "id": "test-112-143", "split": "test", "startBlock": 112}},
+        {"const": {"blocks": 32, "id": "test-144-175", "split": "test", "startBlock": 144}},
+        {"const": {"blocks": 32, "id": "test-176-207", "split": "test", "startBlock": 176}},
+        {"const": {"blocks": 32, "id": "test-208-239", "split": "test", "startBlock": 208}},
+        {"const": {"blocks": 32, "id": "test-240-271", "split": "test", "startBlock": 240}},
+        {"const": {"blocks": 32, "id": "test-272-303", "split": "test", "startBlock": 272}},
+        {"const": {"blocks": 32, "id": "test-304-335", "split": "test", "startBlock": 304}},
+        {"const": {"blocks": 32, "id": "test-336-367", "split": "test", "startBlock": 336}},
+        {"const": {"blocks": 32, "id": "test-448-479", "split": "test", "startBlock": 448}},
+        {"const": {"blocks": 32, "id": "test-480-511", "split": "test", "startBlock": 480}},
+        {"const": {"blocks": 32, "id": "test-512-543", "split": "test", "startBlock": 512}},
+        {"const": {"blocks": 32, "id": "test-544-575", "split": "test", "startBlock": 544}}
+      ]
+    }
+  }
+}

@@ -19,17 +19,39 @@ does not turn that claim into a general model-compression result.
 6. The app is not sandboxed and its verified Python worker runs with the current
    user's privileges. Use only trusted source, model assets, and a trusted local
    machine.
-7. Fresh proof results retain exact per-layer container manifests and digests,
-   but not the raw transient container bytes. Offline verification reconstructs
-   manifest-derived totals and checks digest commitments; it cannot parse bytes
-   that were deliberately not retained.
+7. Fresh application proofs retain all 192 raw per-layer containers, all 512
+   source token IDs per block, and per-prediction baseline/candidate losses and
+   top-1 IDs. This makes container parsing, byte accounting, token-slice
+   commitments, NLL, and top-1 independently recomputable. It still does not
+   retain the much larger full-vocabulary logits or canonical BF16 cache, so an
+   offline verifier cannot independently recompute KL or cache-error metrics
+   without rerunning the pinned model. The heavyweight verifier reruns the
+   pinned model to establish the causal link between decoded containers and all
+   retained NLL/top-1 rows, but it still does not independently recompute the
+   reported full-distribution KL or cache-error aggregates.
 8. The registered prospective result predates the richer per-layer manifest.
    Its complete byte total is protected by immutable artifacts and Git history
    but is not independently reconstructible from that historical JSON.
-9. The three repeated native runs establish same-machine repeatability by the
-   author. Independent external reproduction requires another person and Mac to
-   publish their own receipt.
-10. Live dependency-advisory results can change after a release. Hash locks,
+9. Native application runs use fixed, public validation blocks 64–71. Those
+   blocks have been exercised repeatedly and are now an application-regression
+   fixture, not a blind sample, holdout, or basis for a generalization claim.
+10. The three repeated native runs establish same-machine repeatability of one
+    fixed workflow by the author; they are not three independent experiments.
+    Independent external execution reproduction requires another person and Mac
+    to publish their own receipt; it is not an independent implementation, and
+    using blocks 64–71 still would not create new blind evidence.
+11. The local challenge guards the trusted-local workflow against accidentally
+    selecting a stale result. Because the same user controls the ad-hoc receipt,
+    it is not cryptographic proof of freshness or remote execution.
+12. A future selected-window claim requires a separate protocol that publishes
+    commit, digests, parameters, gates, a pool for which the audited public
+    repository contains no metric result, an immutable server-timestamped
+    release, and a deterministic
+    future-randomness-beacon selection rule before resolving the input. It must
+    allow one prospective recorded run without post-result tuning and label all
+    later runs regression. A local marker cannot prove no private copy ran. No
+    such result is claimed here.
+13. Live dependency-advisory results can change after a release. Hash locks,
     SBOM checks, and OSV scanning reduce supply-chain ambiguity but do not prove
     that the operating system, Python distribution, or model files are free of
     all vulnerabilities.

@@ -61,15 +61,29 @@ The frozen attempt markers and results remain in `real-llm-v5-results/`.
 
 ## Stage 5 — native macOS integration
 
-The source-built application ran the pinned real model on validation blocks
-64–71 and retained a 192-entry per-layer manifest. Compression was
-2.052383755x, delta NLL was -8.49366188e-06, top-1 agreement was 99.5117%, and
-scientific, Swift, and Python verification all passed.
+The source-built application ran the pinned real model on fixed public
+validation blocks 64–71 and retained a 192-entry per-layer manifest.
+Compression was 2.052383755x, delta NLL was -8.49366188e-06, top-1 agreement
+was 99.5117%, and scientific, Swift, and Python verification all passed.
 
-The later challenge-bound proof workflow creates a fresh runtime and binds an
+The later proof workflow creates a fresh runtime and binds a trusted-local
 unpredictable nonce to the result, receipt, executable, runner, Python binary,
 and runtime manifest. Three same-machine executions reproduced the same
-scientific content.
+scientific content. Because blocks 64–71 are public and repeatedly exercised,
+these executions are application-regression/repeatability checks, not three
+independent experiments and not a new blind, holdout, or generalization result.
+The nonce protects the trusted-local workflow against accidentally selecting a
+stale run; it does not prove cryptographic freshness to a remote observer.
+
+## Stage 6 — registered beacon-selected held-out protocol
+
+`RealLLM/BEACON_HELDOUT_PROTOCOL.md` prepares a separate suite with a
+two-commit public freeze, exact implementation and artifact hashes, fifteen
+eligible previously unreported test windows, and deterministic selection from
+an exact future NIST beacon pulse. The selected input may be run once without
+post-result tuning; every subsequent run is regression-only. The suite is
+currently awaiting its public pre-beacon freeze and has no result. Validation
+blocks 64–71 are excluded by their prior repeated use.
 
 ## Publication state
 

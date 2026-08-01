@@ -18,27 +18,65 @@ engineering are retained in the separate
 Requirements:
 
 - Apple Silicon Mac with macOS 14 or newer;
-- Python 3.12 from a trusted installation;
-- Apple's free Command Line Tools or Xcode;
-- at least 6 GB of free disk space;
-- network access for the first pinned model and dataset download.
+- Python 3.12 from a trusted owner-controlled installation;
+- Swift 6 or newer from Apple's free Command Line Tools or Xcode;
+- an active macOS desktop session for the visible application run;
+- at least 8 GB of unified memory, with memory-heavy apps closed;
+- at least 6 GiB of free disk space;
+- network access, or a previously prepared hash-checked offline cache.
 
-Run the complete proof:
+Clone the source, then run the read-only prerequisite check:
 
 ```sh
 git clone https://github.com/ALLPROTO/core-lm-benchmark.git
 cd core-lm-benchmark
+./doctor.sh
+```
+
+If Python 3.12 is missing, `./bootstrap_python312_macos.sh` downloads a fixed
+owner-local CPython archive, verifies its registered SHA-256 and safe archive
+topology, and installs it below `~/.local/share/corelm` without `sudo` or a
+system Python change. The binary archive is the explicitly disclosed
+third-party `astral-sh/python-build-standalone` 3.12.13+20260718 distribution;
+its archive SHA-256 is
+`62aeee6161d57303a71a138b75fd5cc6fb8c89c4b1d9c7f0a052d89fa0b6652b`.
+That binary archive is an explicit trust boundary, and the resulting
+interpreter and complete runtime are covered by the application manifest.
+
+Run the complete proof:
+
+```sh
 ./run_local_app_proof.sh
 ```
 
 The command creates a fresh Python runtime with hash-locked packages and an
 exact signed runtime manifest, verifies the model and dataset bytes, builds
 `dist/CoreLMBenchmark.app`, applies a local ad-hoc signature, runs the real
-model on Apple MPS, and checks the new result against a random challenge.
+model on Apple MPS, binds the new result to a random local challenge, then uses
+a separate decoder to replay all retained containers and all 1,024 Qwen
+decisions.
+
+The nonce is a trusted-local workflow guard against accidentally selecting an
+older run; the owner-local ad-hoc receipt is not a cryptographic remote
+attestation. See the security policy for that trust boundary.
 
 No Apple Developer Program membership, Apple signing account, paid certificate,
 Developer ID identity, or notarization is required. The repository distributes
 source so the verifier builds and signs the application locally.
+
+For a later network-free proof, prepare the wheelhouse and registered model
+cache once while connected, then run:
+
+```sh
+./prepare_offline_inputs.sh
+CORELM_OFFLINE=1 \
+CORELM_WHEELHOUSE="$HOME/.cache/corelm-wheelhouse" \
+  ./run_local_app_proof.sh
+```
+
+Both online and offline package installation retain `--require-hashes` and
+binary-wheel-only enforcement. See the detailed guide for HTTPS mirror
+configuration and externally supplied proof challenges.
 
 See [Build and verify](docs/BUILD_AND_VERIFY.md) for the detailed walkthrough
 and troubleshooting.
@@ -54,14 +92,28 @@ the [reproducibility archive instructions](publication/reproducibility/README.md
 | Registered prospective holdout | 4,096 | 2.053291x | -0.000061 | 99.3896% | **PASS** |
 | Native application integration | 1,024 | 2.052384x | -0.00000849 | 99.5117% | **PASS** |
 
-Three challenge-bound application runs from one unchanged local bundle produced
-the same scientific metrics and 192-entry container manifest. Only timestamps,
-timing measurements, and their derived receipt digest changed.
+The native application row uses fixed, public validation blocks 64–71. Those
+blocks have been exercised repeatedly and are now application-regression input,
+not a blind sample, holdout, or basis for a new generalization claim. Three runs
+bound to a trusted-local challenge from one unchanged local bundle produced the
+same scientific metrics and 192-entry container manifest; they are repeatability
+checks of one fixed workflow, not three independent experiments. The scientific
+fields and container manifest remained identical; operational fields such as
+the challenge, timestamps, timings, and derived receipt digest changed.
 
 These measurements cover the pinned `Qwen/Qwen2.5-0.5B` revision, registered
 WikiText-2 windows, canonical BF16 prefill KV cache, teacher-forced replay, and
 Apple MPS. They are not claims about full-model weight compression, free-running
 generation, latency, serving throughput, arbitrary models, or state of the art.
+
+The next evidence line is separately preregistered in the
+[beacon-selected held-out protocol](RealLLM/BEACON_HELDOUT_PROTOCOL.md). It has
+no result yet: the protocol and hashes must first be published under their
+required Git tag and an immutable GitHub Release whose server publication time
+precedes the pulse. Then an exact future NIST beacon selects one of fifteen
+previously unreported test windows for one irreversible recorded run. A repeat
+after terminal `PASS` or `FAIL_GATES` is regression-only; `FAIL_EXECUTION` or an
+incomplete attempt cannot be retried.
 
 Read [Results](docs/RESULTS.md) and [Limitations](docs/LIMITATIONS.md) before
 reusing the numbers.

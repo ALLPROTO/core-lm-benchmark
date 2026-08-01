@@ -39,9 +39,14 @@ This run proves that the source-built macOS app launches the real worker,
 compresses and fresh-parses real cache containers, feeds the decoded cache back
 into Qwen, displays the measured values, and writes a verifiable receipt.
 
-Three separate same-machine challenge-bound executions from the unchanged app
-bundle reproduced the same scientific content and container geometry. Expected
-runtime timestamps and timing measurements differed.
+The application always uses fixed, public validation blocks 64–71. Because
+those blocks have been exercised repeatedly, this is an application-regression
+fixture, not a blind sample, holdout, or new evidence of generalization. Three
+same-machine executions bound to a trusted-local challenge from the unchanged
+app bundle reproduced the same scientific content and container geometry. They
+are three repeatability checks of one fixed workflow, not three independent
+experiments.
+Expected runtime timestamps and timing measurements differed.
 
 ## What PASS means
 
@@ -52,8 +57,14 @@ For the native proof, PASS requires all of the following:
 - at least 99% top-1 agreement;
 - exact structural cache replay;
 - a canonical result digest;
-- Swift verification of the parsed document;
-- independent Python recomputation and receipt/app/runtime binding.
+- Swift verification of the parsed document, all retained container hashes,
+  source-token commitments, and per-token NLL/top-1 metrics;
+- independent standard-library Python parsing of all 192 retained container
+  byte streams and recomputation of compression, NLL, and top-1; and
+- heavyweight independent decoding and pinned-Qwen replay of all 1,024 token
+  decisions, with exact top-1 comparison and bounded per-token loss tolerance;
+  and
+- receipt/app/runtime/primary-evidence binding.
 
 ## Evidence status
 
@@ -61,7 +72,22 @@ The repository contains the author's same-machine repeated proof and a public
 path for anyone to reproduce it. It is not yet an independently published
 cross-machine reproduction. A third party should run
 `./run_local_app_proof.sh` and publish the resulting sanitized receipt to create
-that stronger evidence.
+that stronger external, cross-machine execution reproduction. It still uses the
+same implementation, and because the input remains public validation blocks
+64–71, even an external repeat would not create a new blind or generalization
+result.
+
+## Registered next held-out-window experiment
+
+The separate [beacon-selected protocol](../RealLLM/BEACON_HELDOUT_PROTOCOL.md)
+fixes the commit/digest freeze, all parameters and gates, fifteen eligible
+previously unreported test windows, and a deterministic rule tied to an exact
+future NIST beacon pulse. The freeze requires an immutable GitHub Release with
+a server publication time before the pulse. It permits one recorded run with
+no post-result tuning. A later regression is allowed only after terminal `PASS`
+or `FAIL_GATES`; an execution failure or incomplete attempt cannot be retried.
+No result from that suite is reported on this page, and blocks 64–71 are
+ineligible for it.
 
 Historical scientific chronology and exact internal identifiers are kept in
 the [development history](development/HISTORY.md).

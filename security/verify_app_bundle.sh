@@ -12,10 +12,15 @@ fi
 PLIST="$APP_PATH/Contents/Info.plist"
 EXECUTABLE="$APP_PATH/Contents/MacOS/CoreLMBenchmarkApp"
 RUNTIME_MANIFEST="$APP_PATH/Contents/Resources/python-runtime-manifest.json"
+BUILD_PROVENANCE="$APP_PATH/Contents/Resources/build-provenance.json"
 
 plutil -lint "$PLIST"
 test -x "$EXECUTABLE"
 test -s "$RUNTIME_MANIFEST"
+test -s "$BUILD_PROVENANCE"
+/usr/bin/python3 -I -B \
+    "$PROJECT_DIR/security/generate_build_provenance.py" \
+    --verify "$BUILD_PROVENANCE"
 /usr/bin/python3 -I -B -c '
 import json
 import pathlib
@@ -46,8 +51,8 @@ fi
 
 resource_file_count=$(find "$APP_PATH/Contents/Resources" -type f -print \
     | wc -l | tr -d '[:space:]')
-if [ "$resource_file_count" -ne 6 ]; then
-    printf 'release bundle must contain exactly six declared resources\n' >&2
+if [ "$resource_file_count" -ne 7 ]; then
+    printf 'release bundle must contain exactly seven declared resources\n' >&2
     exit 1
 fi
 
@@ -112,4 +117,4 @@ else
     signing='Developer ID'
 fi
 printf '%s\n' \
-    "APP BUNDLE PASS: resources, Python-runtime manifest, structure, identifier, hardened runtime, and $signing signature are consistent."
+    "APP BUNDLE PASS: resources, source/build provenance, Python-runtime manifest, structure, identifier, hardened runtime, and $signing signature are consistent."

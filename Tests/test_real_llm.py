@@ -566,7 +566,7 @@ else:
             snapshot = root / "snapshot"
             dataset_root = root / "dataset"
             snapshot.mkdir()
-            requested: list[tuple[str, str]] = []
+            requested: list[tuple[str, str, object]] = []
             digests: dict[Path, str] = {}
 
             model_path = snapshot / "model.safetensors"
@@ -587,7 +587,7 @@ else:
                 digests[path] = specification["sha256"]
 
             def fake_download(repository, *, filename, **kwargs):
-                requested.append((repository, filename))
+                requested.append((repository, filename, kwargs.get("token")))
                 if kwargs.get("repo_type") == "dataset":
                     return dataset_root / filename
                 return snapshot / filename
@@ -611,15 +611,16 @@ else:
                     True
                 )
 
-            requested_names = {filename for _, filename in requested}
+            requested_names = {filename for _, filename, _ in requested}
             self.assertTrue(MODEL_ASSET_FILES.keys() <= requested_names)
+            self.assertTrue(all(token is False for _, _, token in requested))
             self.assertEqual(resolved["modelSnapshot"], snapshot)
             self.assertEqual(validation_only["modelSnapshot"], snapshot)
             self.assertNotIn(
                 DATASET_FILES["test"]["path"],
                 [
                     filename
-                    for repository, filename in requested[
+                    for repository, filename, _ in requested[
                         len(MODEL_ASSET_FILES) + 3 :
                     ]
                     if repository != benchmark_module.MODEL_REPOSITORY

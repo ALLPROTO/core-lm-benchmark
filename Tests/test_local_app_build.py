@@ -1,21 +1,33 @@
 import json
+import copy
+import hashlib
+import io
 import os
 import plistlib
 import shutil
 import subprocess
 import sys
 import tempfile
+import tarfile
 import unittest
+import struct
 from pathlib import Path
 from unittest import mock
 
 from RealLLM import prepare_app_assets
 from RealLLM import verify_voidtoken_v5_development as shard_verifier
+from security import generate_build_provenance
 from security import generate_python_runtime_manifest
 from security import manage_local_runtime
 from security import verify_app_run_evidence
 from security import verify_locked_environment
 from security import verify_local_app_run
+from security import verify_primary_evidence
+from security import verify_primary_replay
+from security import validate_python_bootstrap_archive
+from RealLLM.voidtoken_v5 import VoidTokenV5Backend
+
+import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +35,318 @@ EVIDENCE = ROOT / "app-real-llm-evidence"
 
 
 class LocalAppBuildTests(unittest.TestCase):
+    def test_primary_verifier_derives_dense_bytes_from_fixed_geometry(self):
+        expected = verify_primary_evidence.EXPECTED_BF16_BYTES_PER_BLOCK
+        records = [
+            {"denseBF16Bytes": expected}
+            for _ in verify_primary_evidence.EXPECTED_BLOCKS
+        ]
+        baselines = copy.deepcopy(records)
+        self.assertEqual(
+            verify_primary_evidence._verify_dense_bf16_geometry(
+                records, baselines
+            ),
+            verify_primary_evidence.EXPECTED_DENSE_BF16_BYTES,
+        )
+
+        for record in records:
+            record["denseBF16Bytes"] += 2
+        for baseline in baselines:
+            baseline["denseBF16Bytes"] += 2
+        with self.assertRaisesRegex(
+            ValueError, "dense BF16 geometry is inconsistent"
+        ):
+            verify_primary_evidence._verify_dense_bf16_geometry(
+                records, baselines
+            )
+
+    def test_python_bootstrap_archive_uses_tar_hardlink_semantics(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            archive_path = Path(temporary) / "runtime.tar.gz"
+            with tarfile.open(archive_path, mode="w:gz") as archive:
+                payload = b"registered-runtime"
+                regular = tarfile.TarInfo("python/lib/runtime")
+                regular.size = len(payload)
+                archive.addfile(regular, io.BytesIO(payload))
+                hardlink = tarfile.TarInfo("python/a/escape")
+                hardlink.type = tarfile.LNKTYPE
+                hardlink.linkname = "../outside"
+                archive.addfile(hardlink)
+
+            with self.assertRaisesRegex(
+                validate_python_bootstrap_archive.ArchiveValidationError,
+                "archive link escapes Python root",
+            ):
+                validate_python_bootstrap_archive.validate_archive(
+                    archive_path
+                )
+
+    def test_python_bootstrap_archive_rejects_normalized_duplicates(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            archive_path = Path(temporary) / "runtime.tar.gz"
+            with tarfile.open(archive_path, mode="w:gz") as archive:
+                first = tarfile.TarInfo("python/lib/runtime")
+                first.size = 0
+                archive.addfile(first, io.BytesIO())
+                duplicate = tarfile.TarInfo("python/lib/./runtime")
+                duplicate.size = 0
+                archive.addfile(duplicate, io.BytesIO())
+
+            with self.assertRaisesRegex(
+                validate_python_bootstrap_archive.ArchiveValidationError,
+                "duplicate archive entry",
+            ):
+                validate_python_bootstrap_archive.validate_archive(
+                    archive_path
+                )
+
+    def test_heavy_replay_decoder_is_clean_room_and_byte_exact(self):
+        source = (
+            ROOT / "security" / "verify_primary_replay.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("from RealLLM", source)
+        self.assertNotIn("import RealLLM", source)
+
+        rng = np.random.default_rng(20260731)
+        matrix = rng.normal(size=(383, 256)).astype(np.float32)
+        representation = VoidTokenV5Backend.encode(
+            matrix,
+            bits=9,
+            group_size=128,
+            transform_block_size=128,
+            layer_index=0,
+            scale_compression="zlib-9",
+            code_compression="zlib-9",
+            sign_mode="none",
+        )
+        decoded, metadata = verify_primary_replay._decode_container(
+            representation.to_bytes(), 0, np
+        )
+        self.assertTrue(np.array_equal(decoded, representation.reconstructed))
+        self.assertEqual(
+            metadata["reconstructionSha256"],
+            representation.metadata["reconstructionSha256"],
+        )
+
+        corrupted = bytearray(representation.to_bytes())
+        corrupted[-1] ^= 1
+        with self.assertRaises(ValueError):
+            verify_primary_replay._decode_container(bytes(corrupted), 0, np)
+
+    def test_heavy_replay_loss_tolerance_is_explicit_and_fail_closed(self):
+        self.assertTrue(verify_primary_replay._loss_close(1.0, 1.0))
+        self.assertTrue(
+            verify_primary_replay._loss_close(
+                1.0 + verify_primary_replay.LOSS_ABSOLUTE_TOLERANCE / 2,
+                1.0,
+            )
+        )
+        self.assertFalse(verify_primary_replay._loss_close(1.001, 1.0))
+        self.assertFalse(verify_primary_replay._loss_close("1.0", 1.0))
+
+    def test_fresh_receipt_binds_clean_source_and_bundled_provenance(self):
+        document = {
+            "schemaVersion": "corelm-build-provenance-v1",
+            "source": {
+                "archiveManifestSHA256": None,
+                "commit": "1" * 40,
+                "dirty": False,
+                "exactTag": None,
+                "mode": "git",
+                "remote": (
+                    "https://github.com/ALLPROTO/core-lm-benchmark.git"
+                ),
+                "tree": "2" * 40,
+            },
+            "toolchain": {
+                "developerTools": {
+                    "buildVersion": None,
+                    "identifier": "com.apple.pkg.CLTools_Executables",
+                    "kind": "command-line-tools",
+                    "version": "26.6.0.0.1781586589",
+                },
+                "macOS": {
+                    "architecture": "arm64",
+                    "buildVersion": "25D125",
+                    "productName": "macOS",
+                    "productVersion": "26.3",
+                },
+                "sdk": {
+                    "buildVersion": "25F70",
+                    "canonicalName": "macosx",
+                    "version": "26.5",
+                },
+                "swift": {
+                    "compiler": "swift-frontend",
+                    "compilerSHA256": "a" * 64,
+                    "target": "arm64-apple-macosx26.0",
+                    "version": (
+                        "Apple Swift version 6.3.3 "
+                        "(swiftlang-6.3.3.1.3)"
+                    ),
+                },
+            },
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            app = Path(temporary) / "CoreLMBenchmark.app"
+            bundled = (
+                app
+                / "Contents"
+                / "Resources"
+                / "build-provenance.json"
+            )
+            bundled.parent.mkdir(parents=True)
+            raw = generate_build_provenance.canonical_json_bytes(document)
+            bundled.write_bytes(raw)
+            receipt = {
+                "document": document,
+                "path": "Resources/build-provenance.json",
+                "sha256": hashlib.sha256(raw).hexdigest(),
+            }
+            observed = (
+                verify_app_run_evidence._verify_build_provenance_receipt(
+                    receipt,
+                    app,
+                    compare_source_tree=False,
+                )
+            )
+            self.assertEqual(observed, document)
+
+            forged = copy.deepcopy(receipt)
+            forged["document"]["source"]["dirty"] = True
+            forged_raw = generate_build_provenance.canonical_json_bytes(
+                forged["document"]
+            )
+            forged["sha256"] = hashlib.sha256(forged_raw).hexdigest()
+            with self.assertRaisesRegex(ValueError, "dirty source"):
+                verify_app_run_evidence._verify_build_provenance_receipt(
+                    forged,
+                    None,
+                    compare_source_tree=False,
+                )
+
+    def test_clean_room_parser_reads_raw_container_and_rejects_tampering(self):
+        matrix = np.zeros((383, 256), dtype=np.float32)
+        representation = VoidTokenV5Backend.encode(
+            matrix,
+            bits=9,
+            group_size=128,
+            transform_block_size=128,
+            layer_index=0,
+            scale_compression="zlib-9",
+            code_compression="zlib-9",
+            sign_mode="none",
+        )
+        raw = representation.to_bytes()
+        expected = {
+            "layerIndex": 0,
+            "metadata": representation.metadata,
+            "payloadBytes": representation.payload_bytes,
+            "containerBytes": len(raw),
+            "containerSHA256": hashlib.sha256(raw).hexdigest(),
+        }
+        payload_bytes, _ = verify_primary_evidence._parse_container(
+            raw,
+            block_index=64,
+            layer_index=0,
+            expected_manifest=expected,
+        )
+        self.assertEqual(payload_bytes, representation.payload_bytes)
+        corrupted = bytearray(raw)
+        corrupted[-1] ^= 1
+        with self.assertRaises(ValueError):
+            verify_primary_evidence._parse_container(
+                bytes(corrupted),
+                block_index=64,
+                layer_index=0,
+                expected_manifest=expected,
+            )
+
+    @staticmethod
+    def _token_metric_fixture():
+        blocks = []
+        records = []
+        baselines = []
+        for block_index in range(64, 72):
+            token_ids = [
+                (block_index * 512 + offset) % 151_936
+                for offset in range(512)
+            ]
+            token_bytes = b"".join(
+                struct.pack("<I", token_id) for token_id in token_ids
+            )
+            token_sha = hashlib.sha256(token_bytes).hexdigest()
+            tokens = [
+                {
+                    "offset": offset,
+                    "targetTokenId": token_ids[384 + offset],
+                    "baselineLossNat": 1.0 + (offset / 10_000),
+                    "candidateLossNat": 1.001 + (offset / 10_000),
+                    "baselineTop1TokenId": offset,
+                    "candidateTop1TokenId": offset,
+                    "top1Agrees": True,
+                }
+                for offset in range(128)
+            ]
+            baseline_mean = verify_primary_evidence._ordered_binary64_mean(
+                [token["baselineLossNat"] for token in tokens]
+            )
+            candidate_mean = verify_primary_evidence._ordered_binary64_mean(
+                [token["candidateLossNat"] for token in tokens]
+            )
+            blocks.append(
+                {
+                    "blockIndex": block_index,
+                    "tokenIds": token_ids,
+                    "predictionTokens": 128,
+                    "tokens": tokens,
+                }
+            )
+            records.append(
+                {
+                    "blockIndex": block_index,
+                    "tokenIdsSHA256": token_sha,
+                    "baselineNLLNatPerToken": baseline_mean,
+                    "candidateNLLNatPerToken": candidate_mean,
+                    "deltaNLLNatPerToken": candidate_mean - baseline_mean,
+                    "top1AgreementCount": 128,
+                    "top1Agreement": 1.0,
+                }
+            )
+            baselines.append({"tokenIdsSHA256": token_sha})
+        return (
+            {
+                "schemaVersion": verify_primary_evidence.TOKEN_SCHEMA,
+                "blocks": blocks,
+            },
+            {"records": records, "baselines": baselines},
+        )
+
+    def test_token_metric_recomputation_rejects_loss_target_and_id_tampering(
+        self,
+    ):
+        token_document, result = self._token_metric_fixture()
+        summary = verify_primary_evidence._verify_token_metrics(
+            token_document, result
+        )
+        self.assertEqual(summary["predictionTokens"], 1024)
+        self.assertEqual(summary["top1Agreement"], 1.0)
+
+        forged_loss = copy.deepcopy(token_document)
+        forged_loss["blocks"][0]["tokens"][0]["candidateLossNat"] += 0.5
+        with self.assertRaisesRegex(ValueError, "recompute"):
+            verify_primary_evidence._verify_token_metrics(forged_loss, result)
+
+        forged_target = copy.deepcopy(token_document)
+        forged_target["blocks"][0]["tokens"][0]["targetTokenId"] += 1
+        with self.assertRaisesRegex(ValueError, "target"):
+            verify_primary_evidence._verify_token_metrics(forged_target, result)
+
+        forged_source = copy.deepcopy(token_document)
+        forged_source["blocks"][0]["tokenIds"][0] += 1
+        with self.assertRaisesRegex(ValueError, "digest"):
+            verify_primary_evidence._verify_token_metrics(forged_source, result)
+
     def test_release_surface_is_version_free_and_proof_only(self):
         content = (ROOT / "App" / "Sources" / "ContentView.swift").read_text(
             encoding="utf-8"
@@ -87,7 +411,7 @@ class LocalAppBuildTests(unittest.TestCase):
             verifier,
         )
         self.assertIn(
-            "release bundle must contain exactly six declared resources",
+            "release bundle must contain exactly seven declared resources",
             verifier,
         )
         self.assertIn(
@@ -227,10 +551,15 @@ class LocalAppBuildTests(unittest.TestCase):
 
     def test_local_workflow_shell_scripts_parse(self):
         for name in (
+            "bootstrap_python312_macos.sh",
             "build_local_app.sh",
+            "doctor.sh",
             "package_app.sh",
+            "prepare_offline_inputs.sh",
             "run_local_app_proof.sh",
             "run_tests.sh",
+            "security/find_python312.sh",
+            "security/validate_proof_challenge.sh",
         ):
             completed = subprocess.run(
                 ["/bin/sh", "-n", str(ROOT / name)],
@@ -245,15 +574,163 @@ class LocalAppBuildTests(unittest.TestCase):
         for variable in (
             "CORELM_SKIP_RUNTIME_INSTALL",
             "CORELM_SKIP_ASSET_PREPARATION",
-            "CORELM_ASSETS_OFFLINE_ONLY",
+            "CORELM_SKIP_MEMORY_CHECK",
             "CORELM_SKIP_MPS_CHECK",
             "CORELM_SKIP_SMOKE_TEST",
         ):
             self.assertIn(f"{variable}=0", proof)
+        self.assertIn('CORELM_ASSETS_OFFLINE_ONLY="$OFFLINE"', proof)
+        self.assertIn('CORELM_OFFLINE="$OFFLINE"', proof)
+        self.assertIn(
+            'CORELM_PYPI_INDEX_URL="$PYPI_INDEX_URL"', proof
+        )
+        self.assertIn('CORELM_HF_ENDPOINT="$HF_ENDPOINT"', proof)
         self.assertIn('BUILD_CONFIG=release', proof)
         self.assertIn('pycache_prefix=$VERIFY_CACHE', proof)
+        self.assertIn("security/verify_primary_replay.py", proof)
+        self.assertIn("independent heavy replay", proof)
+        self.assertGreaterEqual(proof.count("/usr/bin/env -i"), 3)
+        self.assertIn(
+            'run_clean "$PROJECT_DIR/security/verify_app_bundle.sh"',
+            proof,
+        )
+        self.assertIn(
+            'run_clean "$RUNTIME_DIR/bin/python" -I -B -X', proof
+        )
+        self.assertIn(
+            "/usr/bin/nice -n 10 /usr/bin/env -i", proof
+        )
+        for hostile in (
+            "DYLD_INSERT_LIBRARIES",
+            "DYLD_LIBRARY_PATH",
+            "PYTORCH_MPS_FAST_MATH",
+            "PYTORCH_ENABLE_MPS_FALLBACK",
+        ):
+            self.assertNotIn(f'${{{hostile}', proof)
         tests = (ROOT / "run_tests.sh").read_text(encoding="utf-8")
         self.assertIn('pycache_prefix=$PYTHON_CACHE', tests)
+
+    def test_doctor_and_build_enforce_random_mac_prerequisites(self):
+        doctor = (ROOT / "doctor.sh").read_text(encoding="utf-8")
+        build = (ROOT / "build_local_app.sh").read_text(encoding="utf-8")
+        proof = (ROOT / "run_local_app_proof.sh").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/verify.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('swift_major" -ge 6', doctor)
+        self.assertIn("MINIMUM_FREE_GB=6", doctor)
+        self.assertIn("MINIMUM_MEMORY_GB=8", doctor)
+        self.assertIn("--skip-memory-check", doctor)
+        self.assertIn("CORELM_SKIP_MEMORY_CHECK", build)
+        self.assertIn("CORELM_SKIP_MEMORY_CHECK=1", workflow)
+        self.assertIn('launchctl print "gui/$current_uid"', doctor)
+        self.assertIn("--proto '=https'", doctor)
+        self.assertIn('"$PROJECT_DIR/doctor.sh" "$@"', build)
+        self.assertIn('/usr/bin/shlock -p "$$"', proof)
+
+    def test_owner_local_python_bootstrap_is_pinned_and_has_no_sudo(self):
+        bootstrap = (ROOT / "bootstrap_python312_macos.sh").read_text(
+            encoding="utf-8"
+        )
+        resolver = (
+            ROOT / "security" / "find_python312.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("PYTHON_RELEASE=3.12.13", bootstrap)
+        self.assertIn("BUILD_RELEASE=20260718", bootstrap)
+        self.assertIn(
+            "62aeee6161d57303a71a138b75fd5cc6f"
+            "b8c89c4b1d9c7f0a052d89fa0b6652b",
+            bootstrap,
+        )
+        self.assertIn("--connect-timeout 30", bootstrap)
+        self.assertIn("--max-time 600", bootstrap)
+        self.assertIn(
+            "validate_python_bootstrap_archive.py", bootstrap
+        )
+        validator = (
+            ROOT / "security" / "validate_python_bootstrap_archive.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Tar hardlink", validator)
+        self.assertIn("duplicate archive entry", validator)
+        self.assertIn("archive link escapes Python root", validator)
+        self.assertIn("extracted symlink escapes runtime", bootstrap)
+        self.assertNotIn("/usr/bin/sudo", bootstrap)
+        self.assertIn(
+            '.local/share/corelm/python-3.12.13/bin/python3.12',
+            resolver,
+        )
+
+    def test_random_user_docs_expose_bootstrap_offline_and_hardware_boundary(
+        self,
+    ):
+        documents = {
+            relative: (ROOT / relative).read_text(encoding="utf-8")
+            for relative in (
+                "README.md",
+                "docs/BUILD_AND_VERIFY.md",
+                "SECURITY.md",
+                "publication/reproducibility/README.md",
+            )
+        }
+        digest = (
+            "62aeee6161d57303a71a138b75fd5cc6f"
+            "b8c89c4b1d9c7f0a052d89fa0b6652b"
+        )
+        for relative, text in documents.items():
+            self.assertIn("3.12.13", text, relative)
+            self.assertIn("python-build-standalone", text, relative)
+            self.assertIn(digest, text, relative)
+            self.assertNotIn("/Users/", text, relative)
+            self.assertNotIn(".cache/codex", text, relative)
+
+        for relative in (
+            "README.md",
+            "docs/BUILD_AND_VERIFY.md",
+            "publication/reproducibility/README.md",
+        ):
+            text = documents[relative]
+            self.assertIn("./doctor.sh", text, relative)
+            self.assertIn("./prepare_offline_inputs.sh", text, relative)
+            self.assertIn("CORELM_OFFLINE=1", text, relative)
+            self.assertIn("8 GB", text, relative)
+            self.assertIn("6 GiB", text, relative)
+            self.assertIn("notarization", text, relative)
+
+    def test_offline_proof_keeps_hash_checks_and_disables_indexes(self):
+        build = (ROOT / "build_local_app.sh").read_text(encoding="utf-8")
+        proof = (ROOT / "run_local_app_proof.sh").read_text(encoding="utf-8")
+
+        self.assertIn("CORELM_WHEELHOUSE", build)
+        self.assertIn("--no-index", build)
+        self.assertIn('--find-links "$WHEELHOUSE"', build)
+        self.assertIn("--require-hashes", build)
+        self.assertIn('CORELM_ASSETS_OFFLINE_ONLY="$OFFLINE"', proof)
+        self.assertIn('CORELM_WHEELHOUSE="$WHEELHOUSE"', proof)
+
+    def test_external_proof_challenge_validation_and_exact_propagation(self):
+        validator = ROOT / "security" / "validate_proof_challenge.sh"
+        valid = "a1" * 32
+        accepted = subprocess.run(
+            ["/bin/sh", str(validator), valid],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        self.assertEqual(accepted.stdout.strip(), valid)
+        for invalid in ("a" * 63, "A" * 64, "g" * 64, "a" * 65):
+            rejected = subprocess.run(
+                ["/bin/sh", str(validator), invalid],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(rejected.returncode, 0, invalid)
+
+        proof = (ROOT / "run_local_app_proof.sh").read_text(encoding="utf-8")
+        self.assertIn('--proof-challenge "$challenge"', proof)
 
     def test_asset_preparation_downloads_then_proves_offline_resolution(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -275,6 +752,9 @@ class LocalAppBuildTests(unittest.TestCase):
                 "HF_ENDPOINT": "https://example.invalid",
                 "HF_HUB_CACHE": str(root / "escaped-hub"),
                 "HF_XET_CACHE": str(root / "escaped-xet"),
+                "HF_TOKEN": "must-not-leak",
+                "HF_TOKEN_PATH": str(root / "hostile-token"),
+                "HUGGING_FACE_HUB_TOKEN": "must-not-leak-either",
                 "TRANSFORMERS_CACHE": str(root / "escaped-transformers"),
             }
             with mock.patch.dict(
@@ -300,6 +780,12 @@ class LocalAppBuildTests(unittest.TestCase):
                     str(cache.resolve() / "xet"),
                 )
                 self.assertNotIn("TRANSFORMERS_CACHE", os.environ)
+                self.assertNotIn("HF_TOKEN", os.environ)
+                self.assertNotIn("HF_TOKEN_PATH", os.environ)
+                self.assertNotIn("HUGGING_FACE_HUB_TOKEN", os.environ)
+                self.assertEqual(
+                    os.environ["HF_HUB_DISABLE_IMPLICIT_TOKEN"], "1"
+                )
                 self.assertEqual(
                     downloader.call_args_list,
                     [
@@ -309,6 +795,49 @@ class LocalAppBuildTests(unittest.TestCase):
                 )
             self.assertEqual(observed, resolved)
             self.assertEqual(cache.stat().st_mode & 0o777, 0o700)
+
+    def test_asset_endpoint_is_explicit_https_and_hash_verification_remains(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cache = root / "cache"
+            cache.mkdir(mode=0o700)
+            snapshot = cache / "hub" / "snapshot"
+            snapshot.mkdir(parents=True)
+            model = snapshot / "model.safetensors"
+            validation = cache / "hub" / "validation.parquet"
+            model.write_bytes(b"model")
+            validation.write_bytes(b"validation")
+            resolved = {
+                "modelSnapshot": snapshot,
+                "modelWeights": model,
+                "validation": validation,
+            }
+            with mock.patch.dict(os.environ, {}, clear=False), mock.patch.object(
+                prepare_app_assets,
+                "_download_validation_only",
+                return_value=resolved,
+            ):
+                prepare_app_assets.prepare_assets(
+                    cache,
+                    endpoint="https://mirror.example/huggingface/",
+                )
+                self.assertEqual(
+                    os.environ["HF_ENDPOINT"],
+                    "https://mirror.example/huggingface",
+                )
+            for invalid in (
+                "http://huggingface.co",
+                "https://user:secret@example.test",
+                "https://example.test?q=unsafe",
+                "https://example.test/#unsafe",
+                "https://example.test:invalid",
+                "https://example.test/unsafe\\path",
+                "https://example.test/unsafe path",
+            ):
+                with self.subTest(endpoint=invalid), self.assertRaises(
+                    ValueError
+                ):
+                    prepare_app_assets._validated_endpoint(invalid)
 
     def test_asset_preparation_offline_mode_never_requests_network(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -437,7 +966,7 @@ class LocalAppBuildTests(unittest.TestCase):
                 result = verify_app_run_evidence.verify_fresh_run(run, app)
             self.assertTrue(result["aggregates"][0]["pass"])
 
-    def test_fresh_challenge_must_be_bound_to_v3_receipt(self):
+    def test_fresh_challenge_rejects_legacy_v3_without_primary_evidence(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             run = root / "run"
@@ -506,16 +1035,11 @@ class LocalAppBuildTests(unittest.TestCase):
                     "validate_manifest_files",
                 ),
             ):
-                verify_app_run_evidence.verify_fresh_run(
-                    run,
-                    app,
-                    challenge_nonce=challenge,
-                )
                 with self.assertRaisesRegex(ValueError, "proof challenge"):
                     verify_app_run_evidence.verify_fresh_run(
                         run,
                         app,
-                        challenge_nonce="b" * 64,
+                        challenge_nonce=challenge,
                     )
 
     def test_minimal_runtime_manifest_is_rejected(self):

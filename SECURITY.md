@@ -63,6 +63,43 @@ not authenticate Ivan Tyshchenko as its binary publisher. Developer ID and
 notarization remain an optional, out-of-scope path only if a future maintainer
 chooses to distribute a prebuilt application.
 
+## Local bootstrap, mirrors, and offline inputs
+
+`doctor.sh` is a read-only readiness check, not an evidence verifier. It fails
+before large downloads when the Mac, Swift toolchain, Python trust chain, free
+space, GUI login, required utilities, or configured endpoints are unsuitable.
+The full path requires at least 8 GB physical memory and 6 GiB free under the
+user profile.
+
+The optional `bootstrap_python312_macos.sh` installs no system package and uses
+no administrator access. It downloads one immutable Apple Silicon CPython
+3.12.13+20260718 archive from `astral-sh/python-build-standalone`, requires
+SHA-256
+`62aeee6161d57303a71a138b75fd5cc6fb8c89c4b1d9c7f0a052d89fa0b6652b`,
+rejects unsafe archive paths and links, and installs below the current owner's
+`~/.local/share/corelm/`. This is a disclosed third-party binary trust root
+rather than a build-from-source claim. The packaged app subsequently seals the
+complete base interpreter and virtual environment in its signed runtime
+manifest. A user who does not accept that bootstrap trust root may provide a
+different trusted Python 3.12 via `CORELM_BOOTSTRAP_PYTHON`; the same path and
+manifest checks still apply.
+
+An offline proof requires an owner-controlled wheelhouse and the registered
+Hugging Face cache. Wheels install with `--no-index`,
+`--only-binary=:all:`, and `--require-hashes`; model and dataset resolution is
+local-only and repeats the registered byte-size and SHA-256 checks.
+Configurable PyPI and Hugging Face endpoints must use HTTPS and cannot weaken
+those hash gates.
+
+The proof challenge is an operational stale-run guard in the trusted-local-Mac
+threat model. The locally ad-hoc-signed application and JSON receipt do not
+authenticate a publisher or provide remote attestation; an adversary who can
+rewrite the local result tree can also rewrite its nonce. Do not present the
+challenge alone as cryptographic proof of freshness to a remote auditor.
+`prepare_offline_inputs.sh` creates and immediately exercises those caches
+while connected; `CORELM_OFFLINE=1` makes the later proof fail closed if either
+cache is absent or invalid.
+
 ## Explicit limitations
 
 - `security/osv_direct_audit.py` queries the live OSV service. CI supplies the

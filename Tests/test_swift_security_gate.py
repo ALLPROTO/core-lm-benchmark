@@ -42,8 +42,9 @@ class SwiftSecurityGateTests(unittest.TestCase):
                 {
                     "CORELM_SWIFT_ARGUMENTS_LOG": str(arguments_log),
                     "CORELM_SWIFT_TEST_SUMMARY": summary,
-                    "DEVELOPER_DIR": str(developer),
-                    "PATH": f"{fake_bin}{os.pathsep}{environment['PATH']}",
+                    "CORELM_SWIFT_GATE_TEST_MODE": "1",
+                    "CORELM_TEST_DEVELOPER_DIR": str(developer),
+                    "CORELM_TEST_SWIFT_LAUNCHER": str(fake_swift),
                 }
             )
             completed = subprocess.run(
@@ -77,10 +78,11 @@ class SwiftSecurityGateTests(unittest.TestCase):
                 "after 0.001 seconds."
             ),
         )
-        self.assertEqual(
-            arguments[:3],
-            ["test", "--enable-swift-testing", "--disable-xctest"],
-        )
+        self.assertEqual(arguments[0], "test")
+        self.assertEqual(arguments[1], "--scratch-path")
+        self.assertTrue(arguments[2].endswith("/build"))
+        self.assertIn("--enable-swift-testing", arguments)
+        self.assertIn("--disable-xctest", arguments)
         self.assertEqual(arguments.count("-Xswiftc"), 2)
         self.assertIn("-F", arguments)
         self.assertTrue(arguments[-1].endswith("/Library/Developer/Frameworks"))
@@ -90,9 +92,12 @@ class SwiftSecurityGateTests(unittest.TestCase):
             standalone_framework=False,
             summary="Test run with 11 tests passed after 0.001 seconds.",
         )
+        self.assertEqual(arguments[0], "test")
+        self.assertEqual(arguments[1], "--scratch-path")
+        self.assertTrue(arguments[2].endswith("/build"))
         self.assertEqual(
-            arguments,
-            ["test", "--enable-swift-testing", "--disable-xctest"],
+            arguments[3:],
+            ["--enable-swift-testing", "--disable-xctest"],
         )
 
     def test_zero_test_summary_is_rejected(self):

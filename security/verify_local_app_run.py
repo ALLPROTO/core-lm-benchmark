@@ -54,9 +54,9 @@ def latest_complete_run(results_root: Path) -> Path:
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "recompute manifest-derived container accounting and scientific "
+            "parse retained raw containers, recompute token-level scientific "
             "gates for a CoreLMBenchmark.app result, then bind its receipt "
-            "to the local app"
+            "and primary evidence to the exact source and local app"
         )
     )
     parser.add_argument(
@@ -116,8 +116,9 @@ def main() -> int:
         f"{aggregate['compressionRatioVsBF16']:.6f}x compression, "
         f"delta NLL {aggregate['deltaNLLNatPerToken']:+.8f}, "
         f"top-1 {aggregate['top1Agreement']:.4%}; "
-        "all manifest-derived container totals, gates, receipt hashes, "
-        "runtime identity, runner source, and app executable agree."
+        "all 192 raw containers, token-level metrics, gates, receipt hashes, "
+        "source/build provenance, runtime identity, runner source, and app "
+        "executable agree."
     )
     print(f"Verified run: {run_directory.resolve()}")
     return 0

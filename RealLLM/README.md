@@ -116,14 +116,108 @@ On an Apple-Silicon Mac, `../build_local_app.sh` prepares the hash-locked
 Python environment, uses `prepare_app_assets.py` to download and digest-check
 only the pinned model plus validation data, and creates a locally ad-hoc signed
 app without an Apple Developer account. `../run_local_app_proof.sh` then runs
-candidate 32 on public validation blocks 64–71 through the visible app and
-passes the fresh result to `../security/verify_local_app_run.py`.
+candidate 32 on fixed public validation blocks 64–71 through the visible app and
+passes the resulting regression evidence to
+`../security/verify_local_app_run.py`. Those blocks have been exercised
+repeatedly; they are not blind, held out, or eligible to support a new
+generalization claim.
+
+Every new application proof retains a `primary-evidence/` tree beside its
+result: 192 deterministic `.vtl5` containers, all 512 source token IDs per
+block, and the 128 per-prediction baseline/candidate losses and top-1 IDs. The
+stdlib-only `../security/verify_primary_evidence.py` deliberately imports no
+writer or codec module; it parses the raw headers, canonical metadata and zlib
+streams, recomputes token commitments and quality metrics, and rejects missing,
+extra, symlinked, or digest-mismatched artifacts.
+
+The token-metric schema defines NLL reduction as ordered IEEE-754 binary64
+addition in increasing prediction offset, divided by 128. Aggregate NLL applies
+the same ordered addition to the eight block means. This cross-language rule
+can differ in the last few decimal places from a framework's parallel
+`reduction="mean"`; it does not change the logits, token decisions, or gate.
+
+`../security/verify_primary_replay.py` is the heavyweight causal check. It also
+imports no benchmark or codec code: it verifies and tokenizes the pinned
+WikiText parquet, loads the hash-verified pinned Qwen snapshot, independently
+decodes zlib, bit packing, zigzag values, float16 scales and inverse Hadamard,
+rebuilds both BF16 baseline and decoded candidate caches, and reruns all 1,024
+MPS predictions sequentially. Every top-1 ID must match exactly. Every retained
+loss must match with absolute tolerance `2e-5` and relative tolerance `2e-6`;
+the verified same-machine run matched with zero observed difference.
 
 This integration run is deliberately separate from the immutable prospective
 holdout. It provides a path for another user to execute the real model and
 test the container accounting and quality gates without trusting the author's
 historical app executable. External reproduction is established only when
-another user actually completes and publishes that run.
+another user actually completes and publishes that run. Multiple executions on
+blocks 64–71 are repeatability/regression checks, not independent experiments.
+The receipt challenge only protects a trusted-local workflow from accidentally
+selecting a stale run; it is not cryptographic remote-freshness evidence.
+
+## Registered next held-out-window suite
+
+`BEACON_HELDOUT_PROTOCOL.md`, `beacon_registration.json`, and
+`beacon_window_ledger.json` define a separate post-freeze,
+future-beacon-selected held-out-window experiment. Before selection, the public
+record must fix the exact commit and digests, all parameters and gates, the
+eligible pool, and the deterministic NIST-beacon rule. The selected window may
+then be evaluated once with no post-result tuning. A later execution is
+regression only and is permitted solely after terminal `PASS` or `FAIL_GATES`;
+`FAIL_EXECUTION` and an incomplete attempt cannot be retried. No result is
+reported yet, and blocks 64–71 are excluded.
+The freeze is accepted only if GitHub reports an immutable release for the
+registered tag with a server-side publication time earlier than the beacon.
+
+The normative one-shot command is intentionally locked until the required tag
+is public and the registered pulse time has arrived:
+
+```sh
+./build_local_app.sh
+
+HF_HOME="$HOME/.cache/corelm-model-assets" \
+"$HOME/.cache/corelm-app-runtime/bin/python" -I -B \
+    RealLLM/prepare_beacon_assets.py \
+    --cache "$HOME/.cache/corelm-model-assets"
+
+HF_HOME="$HOME/.cache/corelm-model-assets" \
+"$HOME/.cache/corelm-app-runtime/bin/python" -I -B \
+    RealLLM/prepare_beacon_assets.py \
+    --cache "$HOME/.cache/corelm-model-assets" --offline-only
+```
+
+The preparation step downloads and verifies only the frozen model files and
+test parquet. It deliberately performs no tokenization, model inference, codec
+execution, source-window selection, or metric calculation, so it may be run
+before the beacon. It is worth doing in advance: the one-shot runner forbids
+network access to model/data assets after the irreversible marker exists.
+The second command proves that the same cache resolves and verifies with the
+network disabled before the one-shot marker can be created.
+
+At or after `2026-08-02T18:00:00.000Z`, and no later than
+`2026-08-04T18:00:00.000Z`, execute exactly once from a clean checkout of the
+public frozen tag:
+
+```sh
+HF_HOME="$HOME/.cache/corelm-model-assets" \
+"$HOME/.cache/corelm-app-runtime/bin/python" -I -B \
+    RealLLM/run_beacon_one_shot.py --local-files-only
+
+"$HOME/.cache/corelm-app-runtime/bin/python" -I -B \
+    RealLLM/verify_beacon_evidence.py
+```
+
+The first command has no source, configuration, or gate overrides. Existing
+`attempt.json` consumes the suite even if execution was interrupted. Only after
+a terminal scientific outcome may a later check run as:
+
+```sh
+HF_HOME="$HOME/.cache/corelm-model-assets" \
+"$HOME/.cache/corelm-app-runtime/bin/python" -I -B \
+    RealLLM/run_beacon_regression.py --local-files-only
+```
+
+All 32 selected blocks are evaluated sequentially, and the runner releases the
+MPS cache after each block. It does not batch the full window into Mac memory.
 
 ## Claim boundary
 

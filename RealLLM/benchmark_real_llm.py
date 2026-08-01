@@ -259,6 +259,200 @@ def _exclusive_write_bytes(path: Path, content: bytes) -> None:
         handle.write(content)
 
 
+class PrimaryEvidenceWriter:
+    """Retain bounded, deterministic primary artifacts for an app proof run."""
+
+    SCHEMA_VERSION = "corelm-real-llm-primary-evidence-v1"
+    TOKEN_SCHEMA_VERSION = "corelm-real-llm-token-metrics-v1"
+
+    @staticmethod
+    def _ordered_binary64_mean(values: list[float]) -> float:
+        """Use the schema's offset-order IEEE-754 binary64 summation."""
+        if not values:
+            raise ValueError("token metric sequence must not be empty")
+        total = 0.0
+        for value in values:
+            total += float(value)
+        return total / len(values)
+
+    def __init__(self, directory: Path, *, result_filename: str) -> None:
+        if directory.name != "primary-evidence":
+            raise ValueError(
+                "primary evidence directory must be named primary-evidence"
+            )
+        if directory.exists() or directory.is_symlink():
+            raise FileExistsError(
+                "primary evidence directory already exists or is unsafe"
+            )
+        directory.mkdir(mode=0o700)
+        self.directory = directory
+        self.result_filename = result_filename
+        self.container_entries: list[dict[str, Any]] = []
+        self.token_blocks: list[dict[str, Any]] = []
+        self.block_token_ids: dict[int, list[int]] = {}
+
+    def add_block_token_ids(
+        self, *, block_index: int, token_ids: list[int]
+    ) -> None:
+        if block_index in self.block_token_ids:
+            raise RuntimeError("primary evidence block token IDs were duplicated")
+        if len(token_ids) != BLOCK_TOKENS or any(
+            type(token_id) is not int or token_id < 0 or token_id > 0xFFFFFFFF
+            for token_id in token_ids
+        ):
+            raise ValueError("primary evidence block token IDs are invalid")
+        self.block_token_ids[block_index] = list(token_ids)
+
+    def write_container(
+        self,
+        *,
+        block_index: int,
+        layer_index: int,
+        container: bytes,
+    ) -> None:
+        relative = (
+            f"containers/block-{block_index:03d}/layer-{layer_index:02d}.vtl5"
+        )
+        destination = self.directory / relative
+        destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        _exclusive_write_bytes(destination, container)
+        self.container_entries.append(
+            {
+                "blockIndex": block_index,
+                "layerIndex": layer_index,
+                "path": f"primary-evidence/{relative}",
+                "bytes": len(container),
+                "sha256": sha256_bytes(container),
+            }
+        )
+
+    def add_token_metrics(
+        self,
+        *,
+        block_index: int,
+        targets: Any,
+        baseline_logits: Any,
+        candidate_logits: Any,
+    ) -> tuple[float, float, int]:
+        import torch.nn.functional as functional
+
+        baseline_rows = baseline_logits.reshape(-1, baseline_logits.shape[-1])
+        candidate_rows = candidate_logits.reshape(
+            -1, candidate_logits.shape[-1]
+        )
+        target_rows = targets.reshape(-1)
+        baseline_losses = functional.cross_entropy(
+            baseline_rows.float(), target_rows, reduction="none"
+        ).tolist()
+        candidate_losses = functional.cross_entropy(
+            candidate_rows.float(), target_rows, reduction="none"
+        ).tolist()
+        baseline_top1 = baseline_rows.argmax(dim=-1).tolist()
+        candidate_top1 = candidate_rows.argmax(dim=-1).tolist()
+        target_ids = target_rows.tolist()
+        count = len(target_ids)
+        if not (
+            count
+            == len(baseline_losses)
+            == len(candidate_losses)
+            == len(baseline_top1)
+            == len(candidate_top1)
+        ):
+            raise RuntimeError("per-token evidence lengths are inconsistent")
+        token_rows: list[dict[str, Any]] = []
+        agreements = 0
+        for offset in range(count):
+            agrees = int(baseline_top1[offset]) == int(candidate_top1[offset])
+            agreements += int(agrees)
+            token_rows.append(
+                {
+                    "offset": offset,
+                    "targetTokenId": int(target_ids[offset]),
+                    "baselineLossNat": float(baseline_losses[offset]),
+                    "candidateLossNat": float(candidate_losses[offset]),
+                    "baselineTop1TokenId": int(baseline_top1[offset]),
+                    "candidateTop1TokenId": int(candidate_top1[offset]),
+                    "top1Agrees": agrees,
+                }
+            )
+        self.token_blocks.append(
+            {
+                "blockIndex": block_index,
+                "tokenIds": self.block_token_ids[block_index],
+                "predictionTokens": count,
+                "tokens": token_rows,
+            }
+        )
+        return (
+            self._ordered_binary64_mean(baseline_losses),
+            self._ordered_binary64_mean(candidate_losses),
+            agreements,
+        )
+
+    def finalize(self) -> dict[str, Any]:
+        ordered_containers = sorted(
+            self.container_entries,
+            key=lambda item: (item["blockIndex"], item["layerIndex"]),
+        )
+        ordered_blocks = sorted(
+            self.token_blocks, key=lambda item: item["blockIndex"]
+        )
+        token_document = {
+            "schemaVersion": self.TOKEN_SCHEMA_VERSION,
+            "blocks": ordered_blocks,
+        }
+        token_bytes = (
+            json.dumps(
+                token_document,
+                sort_keys=True,
+                indent=2,
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode("utf-8")
+            + b"\n"
+        )
+        token_path = self.directory / "token-metrics.json"
+        _exclusive_write_bytes(token_path, token_bytes)
+        prediction_tokens = sum(
+            int(block["predictionTokens"]) for block in ordered_blocks
+        )
+        manifest = {
+            "schemaVersion": self.SCHEMA_VERSION,
+            "resultFile": self.result_filename,
+            "containers": ordered_containers,
+            "tokenMetrics": {
+                "path": "primary-evidence/token-metrics.json",
+                "bytes": len(token_bytes),
+                "sha256": sha256_bytes(token_bytes),
+                "blocks": len(ordered_blocks),
+                "predictionTokens": prediction_tokens,
+            },
+        }
+        manifest_bytes = (
+            json.dumps(
+                manifest,
+                sort_keys=True,
+                indent=2,
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode("utf-8")
+            + b"\n"
+        )
+        _exclusive_write_bytes(self.directory / "manifest.json", manifest_bytes)
+        return {
+            "schemaVersion": self.SCHEMA_VERSION,
+            "path": "primary-evidence/manifest.json",
+            "manifestSHA256": sha256_bytes(manifest_bytes),
+            "manifestBytes": len(manifest_bytes),
+            "containerCount": len(ordered_containers),
+            "containerBytes": sum(
+                int(entry["bytes"]) for entry in ordered_containers
+            ),
+            "blocks": len(ordered_blocks),
+            "predictionTokens": prediction_tokens,
+        }
+
+
 def configuration_id(configuration: dict[str, Any]) -> str:
     return sha256_bytes(canonical_json_bytes(configuration))[:16]
 
@@ -539,6 +733,7 @@ def _download_and_verify_inputs(local_files_only: bool) -> dict[str, Path]:
             revision=MODEL_REVISION,
             filename="model.safetensors",
             local_files_only=local_files_only,
+            token=False,
         )
     )
     if model_path.stat().st_size != MODEL_WEIGHTS_BYTES:
@@ -554,6 +749,7 @@ def _download_and_verify_inputs(local_files_only: bool) -> dict[str, Path]:
                 revision=MODEL_REVISION,
                 filename=filename,
                 local_files_only=local_files_only,
+                token=False,
             )
         )
         if asset_path.stat().st_size != asset["bytes"]:
@@ -570,6 +766,7 @@ def _download_and_verify_inputs(local_files_only: bool) -> dict[str, Path]:
                 revision=DATASET_REVISION,
                 filename=specification["path"],
                 local_files_only=local_files_only,
+                token=False,
             )
         )
         if path.stat().st_size != specification["bytes"]:
@@ -581,7 +778,15 @@ def _download_and_verify_inputs(local_files_only: bool) -> dict[str, Path]:
 
 
 def _token_blocks(
-    tokenizer: Any, parquet_path: Path, count: int, *, start_block: int = 0
+    tokenizer: Any,
+    parquet_path: Path,
+    count: int,
+    *,
+    start_block: int = 0,
+    expected_token_count: int | None = None,
+    expected_full_blocks: int | None = None,
+    expected_remainder_tokens: int | None = None,
+    expected_all_token_ids_sha256: str | None = None,
 ) -> tuple[list[list[int]], str]:
     import pyarrow.parquet as parquet
 
@@ -598,6 +803,53 @@ def _token_blocks(
         )["input_ids"]
     finally:
         tokenizer.model_max_length = previous_maximum
+
+    expected_inventory = (
+        expected_token_count,
+        expected_full_blocks,
+        expected_remainder_tokens,
+        expected_all_token_ids_sha256,
+    )
+    if any(value is not None for value in expected_inventory):
+        if any(value is None for value in expected_inventory):
+            raise ValueError(
+                "expected token inventory must specify count, block quotient, "
+                "remainder, and full-token digest together"
+            )
+        if any(
+            type(token_id) is not int
+            or token_id < 0
+            or token_id > 0xFFFFFFFF
+            for token_id in token_ids
+        ):
+            raise RuntimeError("tokenizer emitted a non-uint32 token ID")
+        observed_token_count = len(token_ids)
+        observed_full_blocks, observed_remainder_tokens = divmod(
+            observed_token_count, BLOCK_TOKENS
+        )
+        observed_all_token_ids_sha256 = sha256_bytes(
+            np.asarray(token_ids, dtype="<u4").tobytes()
+        )
+        if observed_token_count != expected_token_count:
+            raise RuntimeError(
+                "full token count differs from the frozen inventory: "
+                f"{observed_token_count} != {expected_token_count}"
+            )
+        if observed_full_blocks != expected_full_blocks:
+            raise RuntimeError(
+                "full-block count differs from the frozen inventory: "
+                f"{observed_full_blocks} != {expected_full_blocks}"
+            )
+        if observed_remainder_tokens != expected_remainder_tokens:
+            raise RuntimeError(
+                "remainder token count differs from the frozen inventory: "
+                f"{observed_remainder_tokens} != {expected_remainder_tokens}"
+            )
+        if observed_all_token_ids_sha256 != expected_all_token_ids_sha256:
+            raise RuntimeError(
+                "full uint32-LE token digest differs from the frozen inventory"
+            )
+
     required = (start_block + count) * BLOCK_TOKENS
     if len(token_ids) < required:
         raise RuntimeError(
@@ -786,7 +1038,11 @@ def _continuation_logits(
 
 
 def _encode_layers(
-    layers: list[np.ndarray], configuration: dict[str, Any]
+    layers: list[np.ndarray],
+    configuration: dict[str, Any],
+    *,
+    primary_evidence_writer: PrimaryEvidenceWriter | None = None,
+    block_index: int | None = None,
 ) -> tuple[list[np.ndarray], dict[str, Any]]:
     reconstructed: list[np.ndarray] = []
     digest = hashlib.sha256()
@@ -875,6 +1131,16 @@ def _encode_layers(
         encode_nanoseconds += int(representation.encode_nanoseconds)
         decode_nanoseconds += int(representation.decode_nanoseconds)
         if configuration["backend"] == "voidtoken-v5":
+            if primary_evidence_writer is not None:
+                if block_index is None:
+                    raise ValueError(
+                        "primary evidence requires a source block index"
+                    )
+                primary_evidence_writer.write_container(
+                    block_index=block_index,
+                    layer_index=layer_index,
+                    container=container,
+                )
             container_manifest.append(
                 {
                     "layerIndex": layer_index,
@@ -1089,8 +1355,14 @@ def _evaluate_candidate(
     block_index: int,
     token_digest: str,
     cache_digest: str,
+    primary_evidence_writer: PrimaryEvidenceWriter | None = None,
 ) -> dict[str, Any]:
-    reconstructed, encoding = _encode_layers(canonical_layers, configuration)
+    reconstructed, encoding = _encode_layers(
+        canonical_layers,
+        configuration,
+        primary_evidence_writer=primary_evidence_writer,
+        block_index=block_index,
+    )
     candidate_logits, continuation_nanoseconds = _continuation_logits(
         model,
         continuation_input_ids,
@@ -1100,11 +1372,21 @@ def _evaluate_candidate(
         head_dimension=head_dimension,
         torch_module=torch_module,
     )
-    baseline_nll = _nll(baseline_logits, targets_cpu)
-    candidate_nll = _nll(candidate_logits, targets_cpu)
-    baseline_top1 = baseline_logits.argmax(dim=-1)
-    candidate_top1 = candidate_logits.argmax(dim=-1)
-    agreement_count = int((baseline_top1 == candidate_top1).sum().item())
+    if primary_evidence_writer is None:
+        baseline_nll = _nll(baseline_logits, targets_cpu)
+        candidate_nll = _nll(candidate_logits, targets_cpu)
+        baseline_top1 = baseline_logits.argmax(dim=-1)
+        candidate_top1 = candidate_logits.argmax(dim=-1)
+        agreement_count = int((baseline_top1 == candidate_top1).sum().item())
+    else:
+        baseline_nll, candidate_nll, agreement_count = (
+            primary_evidence_writer.add_token_metrics(
+                block_index=block_index,
+                targets=targets_cpu,
+                baseline_logits=baseline_logits,
+                candidate_logits=candidate_logits,
+            )
+        )
     cache_errors = _cache_error_accumulators(canonical_layers, reconstructed)
     dense_bf16_bytes = sum(layer.size * 2 for layer in canonical_layers)
     return {
@@ -1137,6 +1419,7 @@ def _evaluate_block(
     model: Any,
     device: str,
     torch_module: Any,
+    primary_evidence_writer: PrimaryEvidenceWriter | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     ids_cpu = torch_module.tensor(token_ids, dtype=torch_module.long).unsqueeze(0)
     ids = ids_cpu.to(device)
@@ -1256,6 +1539,10 @@ def _evaluate_block(
         "originalRebuildContinuationNanoseconds": original_rebuild_runtime,
         "baselineContinuationNanoseconds": baseline_runtime,
     }
+    if primary_evidence_writer is not None:
+        primary_evidence_writer.add_block_token_ids(
+            block_index=block_index, token_ids=token_ids
+        )
     candidate_records = [
         _evaluate_candidate(
             configuration,
@@ -1271,9 +1558,21 @@ def _evaluate_block(
             block_index=block_index,
             token_digest=token_digest,
             cache_digest=cache_digest,
+            primary_evidence_writer=primary_evidence_writer,
         )
         for configuration in configurations
     ]
+    if primary_evidence_writer is not None:
+        primary_baseline_nll = candidate_records[0][
+            "baselineNLLNatPerToken"
+        ]
+        native_bf16_baseline["canonicalBF16NLLNatPerToken"] = (
+            primary_baseline_nll
+        )
+        native_bf16_baseline["nativeBF16DeltaNLLNatPerToken"] = (
+            primary_baseline_nll
+            - native_bf16_baseline["originalFP32NLLNatPerToken"]
+        )
     return native_bf16_baseline, candidate_records
 
 

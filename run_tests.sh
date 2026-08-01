@@ -3,7 +3,18 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PYTHON_BIN=${PYTHON_BIN:-python3}
+case "$PYTHON_BIN" in
+    /*) PYTHON_EXECUTABLE=$PYTHON_BIN ;;
+    *) PYTHON_EXECUTABLE=$(command -v "$PYTHON_BIN" 2>/dev/null || true) ;;
+esac
+[ -n "$PYTHON_EXECUTABLE" ] && [ -x "$PYTHON_EXECUTABLE" ] || {
+    printf 'TEST GATE FAIL: Python executable is missing: %s\n' \
+        "$PYTHON_BIN" >&2
+    exit 1
+}
 PYTHON_CACHE=$(mktemp -d "${TMPDIR:-/tmp}/corelm-test-pycache.XXXXXX")
+TEST_TMP="$PYTHON_CACHE/tmp"
+/bin/mkdir -m 700 "$TEST_TMP"
 
 cleanup() {
     rm -rf "$PYTHON_CACHE"
@@ -11,9 +22,28 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$SCRIPT_DIR"
-"$PYTHON_BIN" -B -X "pycache_prefix=$PYTHON_CACHE" \
-    -m unittest -v \
+/usr/bin/env -i \
+    HOME="$HOME" \
+    TMPDIR="$TEST_TMP" \
+    PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+    LANG=C \
+    LC_ALL=C \
+    "$PYTHON_EXECUTABLE" -I -B -X "pycache_prefix=$PYTHON_CACHE" \
+    -c '
+import pathlib
+import sys
+import unittest
+
+root = pathlib.Path(sys.argv[1]).resolve(strict=True)
+sys.path.insert(0, str(root))
+suite = unittest.defaultTestLoader.loadTestsFromNames(sys.argv[2:])
+result = unittest.TextTestRunner(verbosity=2).run(suite)
+raise SystemExit(0 if result.wasSuccessful() else 1)
+' \
+    "$SCRIPT_DIR" \
     Tests.test_app_real_llm_evidence \
+    Tests.test_beacon_protocol \
+    Tests.test_build_provenance \
     Tests.test_local_app_build \
     Tests.test_real_llm \
     Tests.test_security_supply_chain \

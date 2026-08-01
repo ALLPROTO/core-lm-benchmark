@@ -25,6 +25,14 @@
 - [x] Negative holdout delta NLL is not claimed as a model improvement.
 - [x] Earlier test-parquet access and disjoint v1 blocks are disclosed.
 - [x] Reserve blocks are described as unscored, not unread or secret.
+- [x] Validation blocks 64--71 are labelled fixed, public, repeatedly exercised
+      application-regression input, not blind/holdout/generalization evidence.
+- [x] Three same-machine application runs are labelled repeatability checks,
+      not three independent experiments.
+- [x] The local challenge is labelled trusted-local stale-run binding, not
+      cryptographic remote freshness or attestation.
+- [x] The separately registered beacon-selected one-shot protocol is described
+      as awaiting public freeze/execution; no unperformed result is claimed.
 - [x] The paper makes no full-model, SOTA, latency, serving, or free-running
       claim.
 - [x] Canonical result hashes are distinguished from physical file hashes.
