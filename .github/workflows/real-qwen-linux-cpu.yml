@@ -91,15 +91,27 @@ jobs:
             --no-input \
             --disable-pip-version-check \
             --no-cache-dir \
+            --no-deps \
             --only-binary=:all: \
             --index-url https://pypi.org/simple \
             --require-hashes \
-            -r RealLLM/requirements.lock
+            -r .github/locks/real-llm-linux-cpu-py312.txt
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --no-cache-dir \
+            --no-deps \
+            --only-binary=:all: \
+            --index-url https://download.pytorch.org/whl/cpu \
+            --require-hashes \
+            -r .github/locks/torch-linux-cpu-py312.txt
           "$app_python" -I -B -m pip check
           "$app_python" -I -B security/verify_locked_environment.py \
             --runtime "$CORELM_RUNTIME" \
             --lock .github/locks/pip-bootstrap.txt \
-            --lock RealLLM/requirements.lock
+            --lock .github/locks/real-llm-linux-cpu-py312.txt \
+            --lock .github/locks/torch-linux-cpu-py312.txt
       - name: Download and independently verify real inputs
         shell: bash
         run: |

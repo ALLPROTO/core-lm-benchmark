@@ -350,6 +350,12 @@ def dependency_errors() -> list[str]:
         bootstrap = manifest_pins(ROOT / ".github/locks/pip-bootstrap.txt")
         real_direct = manifest_pins(ROOT / "RealLLM/requirements.txt")
         real_portable = manifest_pins(ROOT / "RealLLM/requirements.lock")
+        real_linux_cpu = manifest_pins(
+            ROOT / ".github/locks/real-llm-linux-cpu-py312.txt"
+        )
+        linux_cpu_torch = manifest_pins(
+            ROOT / ".github/locks/torch-linux-cpu-py312.txt"
+        )
     except (OSError, ValueError) as error:
         return [str(error)]
     for platform, locked in (
@@ -367,6 +373,19 @@ def dependency_errors() -> list[str]:
             errors.append(
                 f"RealLLM lock does not contain {name}=={version}"
             )
+    expected_linux_cpu = {
+        name: version
+        for name, version in real_portable.items()
+        if name != "torch"
+    }
+    if real_linux_cpu != expected_linux_cpu:
+        errors.append(
+            "Linux CPU RealLLM lock must match the portable lock except torch"
+        )
+    if linux_cpu_torch != {"torch": "2.13.0+cpu"}:
+        errors.append(
+            "Linux CPU torch lock must contain only torch==2.13.0+cpu"
+        )
     if set(bootstrap) != {"pip"}:
         errors.append("pip bootstrap lock must contain only pip")
     for lock in (
@@ -383,6 +402,8 @@ def dependency_errors() -> list[str]:
     for lock in (
         ROOT / "requirements.lock",
         ROOT / "RealLLM/requirements.lock",
+        ROOT / ".github/locks/real-llm-linux-cpu-py312.txt",
+        ROOT / ".github/locks/torch-linux-cpu-py312.txt",
     ):
         errors.extend(hashed_lock_errors(lock))
     return errors

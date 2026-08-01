@@ -14,7 +14,8 @@ Run the `Real Qwen Linux CPU Regression` workflow manually. The workflow:
 
 1. checks out source commit
    `aaae33c744fe1b384877079c600fe4833966e74a`;
-2. builds a dedicated Python 3.12.13 environment from the hash-complete lock;
+2. builds a dedicated Python 3.12.13 environment from the hash-complete
+   Ubuntu CPU locks, including the official PyTorch CPU-only wheel;
 3. downloads and digest-verifies only the pinned model and real validation
    parquet, then proves both resolve offline;
 4. executes eight real Qwen blocks on CPU;
@@ -32,6 +33,12 @@ result channel in the checkout.
 Use Ubuntu 24.04 x86_64 with Python 3.12.13, at least 8 GiB available memory,
 and at least 6 GiB free disk after installing the locked runtime. Prepare the
 pinned assets online and prove offline reuse before inference:
+
+The Linux runtime is the union of
+`.github/locks/real-llm-linux-cpu-py312.txt` and
+`.github/locks/torch-linux-cpu-py312.txt`. The latter must be installed only
+from `https://download.pytorch.org/whl/cpu`; both installs retain
+`--require-hashes`, `--only-binary=:all:`, and `--no-deps`.
 
 ```sh
 export HF_HOME=/absolute/private/corelm-real-qwen-cache
