@@ -267,6 +267,10 @@ def dependabot_text_errors(display: str, text: str) -> list[str]:
             errors.append(
                 f"{display}: root pip updater must exclude RealLLM/**"
             )
+        if root_entries[0].get("open-pull-requests-limit") != "0":
+            errors.append(
+                f"{display}: root pip updates must use the lock workflow"
+            )
     if len(real_entries) != 1:
         errors.append(f"{display}: exactly one RealLLM pip updater is required")
     elif real_entries[0].get("open-pull-requests-limit") != "0":

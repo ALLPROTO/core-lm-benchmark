@@ -87,8 +87,25 @@ jobs:
             dependabot_text_errors(
                 "dependabot.yml",
                 config.replace(
-                    "    open-pull-requests-limit: 0",
-                    "    open-pull-requests-limit: 5",
+                    "    open-pull-requests-limit: 0\n"
+                    "    groups:\n"
+                    "      core-python:",
+                    "    open-pull-requests-limit: 5\n"
+                    "    groups:\n"
+                    "      core-python:",
+                ),
+            )
+        )
+        self.assertTrue(
+            dependabot_text_errors(
+                "dependabot.yml",
+                config.replace(
+                    "    open-pull-requests-limit: 0\n"
+                    "    groups:\n"
+                    "      real-llm-python:",
+                    "    open-pull-requests-limit: 5\n"
+                    "    groups:\n"
+                    "      real-llm-python:",
                 ),
             )
         )
