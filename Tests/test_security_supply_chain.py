@@ -1,6 +1,13 @@
 import unittest
+from pathlib import Path
 
-from security.verify_supply_chain import workflow_text_errors
+from security.verify_supply_chain import (
+    dependabot_text_errors,
+    workflow_text_errors,
+)
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class SupplyChainPolicyTests(unittest.TestCase):
@@ -64,3 +71,24 @@ jobs:
             "permissions: read-all\n    permissions: {}",
         )
         self.assertTrue(workflow_text_errors("duplicate.yml", duplicated))
+
+    def test_dependabot_cannot_rewrite_the_frozen_real_llm_manifest(self):
+        config = (ROOT / ".github" / "dependabot.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertEqual(dependabot_text_errors("dependabot.yml", config), [])
+        self.assertTrue(
+            dependabot_text_errors(
+                "dependabot.yml",
+                config.replace('      - "RealLLM/**"', '      - "other/**"'),
+            )
+        )
+        self.assertTrue(
+            dependabot_text_errors(
+                "dependabot.yml",
+                config.replace(
+                    "    open-pull-requests-limit: 0",
+                    "    open-pull-requests-limit: 5",
+                ),
+            )
+        )

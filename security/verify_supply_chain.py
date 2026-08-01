@@ -236,6 +236,57 @@ def workflow_errors() -> list[str]:
     return errors
 
 
+def dependabot_text_errors(display: str, text: str) -> list[str]:
+    try:
+        document = yaml.load(text, Loader=UniqueKeyLoader)
+    except yaml.YAMLError as error:
+        return [f"{display}: invalid or duplicate-key YAML: {error}"]
+    if not isinstance(document, dict):
+        return [f"{display}: root must be a mapping"]
+    updates = document.get("updates")
+    if not isinstance(updates, list):
+        return [f"{display}: updates must be a list"]
+
+    pip_entries = [
+        entry
+        for entry in updates
+        if isinstance(entry, dict) and entry.get("package-ecosystem") == "pip"
+    ]
+    root_entries = [
+        entry for entry in pip_entries if entry.get("directory") == "/"
+    ]
+    real_entries = [
+        entry for entry in pip_entries if entry.get("directory") == "/RealLLM"
+    ]
+    errors: list[str] = []
+    if len(root_entries) != 1:
+        errors.append(f"{display}: exactly one root pip updater is required")
+    else:
+        excluded = root_entries[0].get("exclude-paths")
+        if not isinstance(excluded, list) or "RealLLM/**" not in excluded:
+            errors.append(
+                f"{display}: root pip updater must exclude RealLLM/**"
+            )
+    if len(real_entries) != 1:
+        errors.append(f"{display}: exactly one RealLLM pip updater is required")
+    elif real_entries[0].get("open-pull-requests-limit") != "0":
+        errors.append(
+            f"{display}: frozen RealLLM version updates must remain disabled"
+        )
+    return errors
+
+
+def dependabot_errors() -> list[str]:
+    config = ROOT / ".github" / "dependabot.yml"
+    try:
+        return dependabot_text_errors(
+            str(config.relative_to(ROOT)),
+            config.read_text(encoding="utf-8"),
+        )
+    except OSError as error:
+        return [str(error)]
+
+
 def manifest_pins(path: Path) -> dict[str, str]:
     pins: dict[str, str] = {}
     display = str(path.relative_to(ROOT))
@@ -447,6 +498,7 @@ def secret_errors() -> list[str]:
 def main() -> int:
     checks = {
         "workflow policy": workflow_errors(),
+        "Dependabot freeze boundary": dependabot_errors(),
         "dependency locks": dependency_errors(),
         "tracked and reachable-history secrets": secret_errors(),
     }
