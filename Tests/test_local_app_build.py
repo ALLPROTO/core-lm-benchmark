@@ -574,6 +574,7 @@ class LocalAppBuildTests(unittest.TestCase):
         for variable in (
             "CORELM_SKIP_RUNTIME_INSTALL",
             "CORELM_SKIP_ASSET_PREPARATION",
+            "CORELM_SKIP_MEMORY_CHECK",
             "CORELM_SKIP_MPS_CHECK",
             "CORELM_SKIP_SMOKE_TEST",
         ):
@@ -613,10 +614,16 @@ class LocalAppBuildTests(unittest.TestCase):
         doctor = (ROOT / "doctor.sh").read_text(encoding="utf-8")
         build = (ROOT / "build_local_app.sh").read_text(encoding="utf-8")
         proof = (ROOT / "run_local_app_proof.sh").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/verify.yml").read_text(
+            encoding="utf-8"
+        )
 
         self.assertIn('swift_major" -ge 6', doctor)
         self.assertIn("MINIMUM_FREE_GB=6", doctor)
         self.assertIn("MINIMUM_MEMORY_GB=8", doctor)
+        self.assertIn("--skip-memory-check", doctor)
+        self.assertIn("CORELM_SKIP_MEMORY_CHECK", build)
+        self.assertIn("CORELM_SKIP_MEMORY_CHECK=1", workflow)
         self.assertIn('launchctl print "gui/$current_uid"', doctor)
         self.assertIn("--proto '=https'", doctor)
         self.assertIn('"$PROJECT_DIR/doctor.sh" "$@"', build)

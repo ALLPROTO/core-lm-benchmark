@@ -12,6 +12,7 @@ PYPI_INDEX_URL=${CORELM_PYPI_INDEX_URL:-https://pypi.org/simple}
 HF_ENDPOINT=${CORELM_HF_ENDPOINT:-https://huggingface.co}
 CACHE_DIR="$HOME/.cache/corelm-model-assets"
 SKIP_GUI=0
+SKIP_MEMORY_CHECK=0
 CHECK_PACKAGES=1
 CHECK_ASSETS=1
 MINIMUM_FREE_GB=6
@@ -24,7 +25,7 @@ fail() {
 
 usage() {
     cat <<'EOF'
-Usage: ./doctor.sh [--no-gui] [--skip-packages] [--skip-assets]
+Usage: ./doctor.sh [--no-gui] [--skip-memory-check] [--skip-packages] [--skip-assets]
 
 Checks whether this Mac can run the complete local application proof. The
 check does not install packages, create directories, or modify the repository.
@@ -41,6 +42,7 @@ EOF
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --no-gui) SKIP_GUI=1 ;;
+        --skip-memory-check) SKIP_MEMORY_CHECK=1 ;;
         --skip-packages) CHECK_PACKAGES=0 ;;
         --skip-assets) CHECK_ASSETS=0 ;;
         -h|--help) usage; exit 0 ;;
@@ -138,6 +140,7 @@ probe_https() {
 require_boolean CORELM_OFFLINE "$OFFLINE"
 require_boolean CORELM_ASSETS_OFFLINE_ONLY "$ASSETS_OFFLINE_ONLY"
 require_boolean internal-gui-check "$SKIP_GUI"
+require_boolean internal-memory-check "$SKIP_MEMORY_CHECK"
 require_boolean internal-package-check "$CHECK_PACKAGES"
 require_boolean internal-asset-check "$CHECK_ASSETS"
 
@@ -207,16 +210,21 @@ case "$project_available_kb" in
 esac
 [ "$project_available_kb" -ge $((1024 * 1024)) ] \
     || fail "at least 1 GiB free is required on the checkout filesystem"
-physical_memory_bytes=$(/usr/sbin/sysctl -n hw.memsize 2>/dev/null || true)
-case "$physical_memory_bytes" in
-    ''|*[!0-9]*) fail "could not determine installed physical memory" ;;
-esac
-minimum_memory_bytes=$((MINIMUM_MEMORY_GB * 1024 * 1024 * 1024))
-[ "$physical_memory_bytes" -ge "$minimum_memory_bytes" ] \
-    || fail "at least ${MINIMUM_MEMORY_GB} GiB unified memory is required"
-physical_memory_gb=$((physical_memory_bytes / 1024 / 1024 / 1024))
-printf '  PASS  %s GiB unified memory (minimum %s GiB)\n' \
-    "$physical_memory_gb" "$MINIMUM_MEMORY_GB"
+if [ "$SKIP_MEMORY_CHECK" = 1 ]; then
+    printf '%s\n' \
+        '  SKIP  installed-memory check was explicitly disabled for build-only packaging'
+else
+    physical_memory_bytes=$(/usr/sbin/sysctl -n hw.memsize 2>/dev/null || true)
+    case "$physical_memory_bytes" in
+        ''|*[!0-9]*) fail "could not determine installed physical memory" ;;
+    esac
+    minimum_memory_bytes=$((MINIMUM_MEMORY_GB * 1024 * 1024 * 1024))
+    [ "$physical_memory_bytes" -ge "$minimum_memory_bytes" ] \
+        || fail "at least ${MINIMUM_MEMORY_GB} GiB unified memory is required"
+    physical_memory_gb=$((physical_memory_bytes / 1024 / 1024 / 1024))
+    printf '  PASS  %s GiB unified memory (minimum %s GiB)\n' \
+        "$physical_memory_gb" "$MINIMUM_MEMORY_GB"
+fi
 
 if [ "$SKIP_GUI" = 0 ]; then
     current_uid=$(/usr/bin/id -u)
