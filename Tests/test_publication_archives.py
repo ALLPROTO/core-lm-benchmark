@@ -378,7 +378,27 @@ class PublicationArchiveTests(unittest.TestCase):
                     "security/verify_supply_chain.py",
                     "security/verify_app_bundle.sh",
                     "Tests/test_build_provenance.py",
+                    "Tests/test_beacon_protocol.py",
                     "Tests/test_swift_security_gate.py",
+                    "Tests/fixtures/nist-beacon-certificate-528943a5.pem",
+                    "Tests/fixtures/nist-beacon-chain-2-pulse-1884240.json",
+                    "schemas/beacon-attempt.schema.json",
+                    "schemas/beacon-freeze.schema.json",
+                    "schemas/beacon-outcome.schema.json",
+                    "schemas/beacon-registration.schema.json",
+                    "schemas/beacon-resolution.schema.json",
+                    "schemas/beacon-window-ledger.schema.json",
+                    "RealLLM/BEACON_HELDOUT_PROTOCOL.md",
+                    "RealLLM/beacon_evaluation.py",
+                    "RealLLM/beacon_protocol.py",
+                    "RealLLM/beacon_registration.json",
+                    "RealLLM/beacon_window_ledger.json",
+                    "RealLLM/prepare_beacon_assets.py",
+                    "RealLLM/prepare_beacon_freeze.py",
+                    "RealLLM/run_beacon_one_shot.py",
+                    "RealLLM/run_beacon_regression.py",
+                    "RealLLM/verify_beacon_evidence.py",
+                    "real-llm-beacon-results/README.md",
                     "app-real-llm-evidence/README.md",
                     "app-real-llm-evidence/SHA256SUMS",
                     "app-real-llm-evidence/app-run-receipt.json",
@@ -424,6 +444,30 @@ class PublicationArchiveTests(unittest.TestCase):
                 0,
                 msg=completed.stdout + completed.stderr,
             )
+
+    def test_post_freeze_reproducibility_archive_includes_freeze_manifest(self):
+        context = {
+            "buildMode": "preview-working-tree",
+            "builtFromCleanHead": False,
+            "gitHeadCommit": "a" * 40,
+            "gitHeadTree": "b" * 40,
+            "releaseTag": None,
+            "remoteTagVerified": False,
+            "trackedFiles": set(),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fake_freeze = root / "beacon_freeze.json"
+            frozen_bytes = b'{"schemaVersion":"corelm-beacon-freeze-v1"}\n'
+            fake_freeze.write_bytes(frozen_bytes)
+            with patch.object(archives, "BEACON_FREEZE_PATH", fake_freeze):
+                archive = archives.build_reproducibility(root, context)
+            with tarfile.open(archive, "r:gz") as bundle:
+                member = bundle.extractfile(
+                    "corelm_reproducibility/RealLLM/beacon_freeze.json"
+                )
+                self.assertIsNotNone(member)
+                self.assertEqual(member.read(), frozen_bytes)
 
     def test_clean_reproducibility_archive_is_accepted_without_git(self):
         context = {

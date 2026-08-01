@@ -141,12 +141,13 @@ independent replay:
 The automated proof creates and retains a fresh runtime with hash-locked
 packages and an exact signed runtime manifest (roughly 1 GB plus caches), then
 prints its path. It supplies a random challenge to the app and requires that
-exact nonce in the receipt. This is a trusted-local guard against accidentally
-selecting an older run, not cryptographic remote freshness: the owner-local
-ad-hoc receipt has no independently trusted signature and a malicious local
-user could edit it. Another observer may instead provide exactly 64 lowercase
-hexadecimal characters in `CORELM_PROOF_CHALLENGE`; the value is propagated
-unchanged under the same trust boundary.
+exact nonce in the receipt. This is only a trusted-local stale-run binding: it
+guards against accidentally selecting an older local result, not cryptographic
+remote freshness. The owner-local ad-hoc receipt has no independently trusted
+signature and a malicious local user could edit it. Another observer may
+instead provide exactly 64 lowercase hexadecimal characters in
+`CORELM_PROOF_CHALLENGE`; the value is propagated unchanged under the same
+trust boundary.
 
 The receipt embeds canonical build provenance. A Git build requires a clean
 tree and binds the public remote, commit, tree, and exact tag when present; an
@@ -177,7 +178,7 @@ integrity gate. Connected users may configure HTTPS mirrors through
 `CORELM_PYPI_INDEX_URL` and `CORELM_HF_ENDPOINT`; the same hashes remain
 mandatory.
 
-For a manual run, keep validation blocks 64–71, click
+For a manual run, keep fixed public validation blocks 64–71, click
 **Run Compression Proof**, then:
 
 ```sh
@@ -187,7 +188,8 @@ For a manual run, keep validation blocks 64–71, click
 ```
 
 Without the automated proof's challenge, the manual command checks consistency,
-not freshness. New fresh runs from the current source retain a
+not trusted-local stale-run binding. Neither mode proves remote freshness. New
+runs from the current source retain a
 `primary-evidence/` directory with 192 raw `.vtl5` containers, all eight source
 token slices of 512 IDs, and 1,024 per-token baseline/candidate loss and top-1
 rows. The fast standard-library verifier parses the raw format independently,
@@ -211,6 +213,30 @@ aggregate cache-error metrics from new model tensors. Those fields remain
 subject to schema, identity, and aggregate-arithmetic checks. The retained
 primary evidence and heavyweight replay independently establish the byte,
 compression, NLL, and top-1 paths described above.
+
+Validation blocks 64–71 have been exercised repeatedly and are now an
+application-regression fixture. Repeating this workflow checks repeatability;
+three same-machine runs are not three independent experiments. Neither a local
+nor an external repeat on these blocks creates a new blind, holdout, or
+generalization result.
+
+## Prospective beacon-selected experiment
+
+The archive includes the preregistered beacon protocol, frozen registration,
+audited public-result ledger, strict schemas, NIST certificate fixture, one-shot
+runner, regression runner, and independent verifier.
+`RealLLM/BEACON_HELDOUT_PROTOCOL.md` is the normative operator guide. The target
+pulse is in the future, so this archive contains no result from the
+beacon-selected suite and makes no new generalization claim.
+
+Before the target pulse, the protocol requires two public commits, a lightweight
+tag, and a non-draft, non-prerelease immutable GitHub Release. After the NIST
+pulse deterministically selects one preregistered window, exactly one recorded
+execution is permitted. A later regression is allowed only after terminal
+`PASS` or `FAIL_GATES`; `FAIL_EXECUTION` or an incomplete attempt cannot be
+retried. Parameters and gates may not be adjusted after observing the outcome.
+Blocks 64–71 remain a public application-regression fixture and cannot support
+this claim.
 
 ## Evidence chain
 

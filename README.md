@@ -52,7 +52,7 @@ Run the complete proof:
 The command creates a fresh Python runtime with hash-locked packages and an
 exact signed runtime manifest, verifies the model and dataset bytes, builds
 `dist/CoreLMBenchmark.app`, applies a local ad-hoc signature, runs the real
-model on Apple MPS, checks the new result against a random challenge, then uses
+model on Apple MPS, binds the new result to a random local challenge, then uses
 a separate decoder to replay all retained containers and all 1,024 Qwen
 decisions.
 
@@ -92,14 +92,28 @@ the [reproducibility archive instructions](publication/reproducibility/README.md
 | Registered prospective holdout | 4,096 | 2.053291x | -0.000061 | 99.3896% | **PASS** |
 | Native application integration | 1,024 | 2.052384x | -0.00000849 | 99.5117% | **PASS** |
 
-Three challenge-bound application runs from one unchanged local bundle produced
-the same scientific metrics and 192-entry container manifest. Only timestamps,
-timing measurements, and their derived receipt digest changed.
+The native application row uses fixed, public validation blocks 64–71. Those
+blocks have been exercised repeatedly and are now application-regression input,
+not a blind sample, holdout, or basis for a new generalization claim. Three runs
+bound to a trusted-local challenge from one unchanged local bundle produced the
+same scientific metrics and 192-entry container manifest; they are repeatability
+checks of one fixed workflow, not three independent experiments. The scientific
+fields and container manifest remained identical; operational fields such as
+the challenge, timestamps, timings, and derived receipt digest changed.
 
 These measurements cover the pinned `Qwen/Qwen2.5-0.5B` revision, registered
 WikiText-2 windows, canonical BF16 prefill KV cache, teacher-forced replay, and
 Apple MPS. They are not claims about full-model weight compression, free-running
 generation, latency, serving throughput, arbitrary models, or state of the art.
+
+The next evidence line is separately preregistered in the
+[beacon-selected held-out protocol](RealLLM/BEACON_HELDOUT_PROTOCOL.md). It has
+no result yet: the protocol and hashes must first be published under their
+required Git tag and an immutable GitHub Release whose server publication time
+precedes the pulse. Then an exact future NIST beacon selects one of fifteen
+previously unreported test windows for one irreversible recorded run. A repeat
+after terminal `PASS` or `FAIL_GATES` is regression-only; `FAIL_EXECUTION` or an
+incomplete attempt cannot be retried.
 
 Read [Results](docs/RESULTS.md) and [Limitations](docs/LIMITATIONS.md) before
 reusing the numbers.

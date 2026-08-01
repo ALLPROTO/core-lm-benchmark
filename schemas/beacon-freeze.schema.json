@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/beacon-freeze.schema.json",
+  "title": "Core LM beacon public freeze manifest",
+  "description": "Second-commit manifest binding the public protocol commit and every normative file before the future beacon pulse.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "suiteId",
+    "status",
+    "preparedAt",
+    "protocolCommit",
+    "registrationArtifactSHA256",
+    "registrationCanonicalSHA256",
+    "windowLedgerSHA256",
+    "implementationSHA256",
+    "normativeFiles"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "corelm-beacon-freeze-v1"},
+    "suiteId": {
+      "const": "qwen2.5-0.5b-kv-voidtoken-v5-beacon-heldout-v1"
+    },
+    "status": {"const": "protocol-files-frozen-before-beacon"},
+    "preparedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "protocolCommit": {"$ref": "#/$defs/gitCommit"},
+    "registrationArtifactSHA256": {"$ref": "#/$defs/sha256"},
+    "registrationCanonicalSHA256": {"$ref": "#/$defs/sha256"},
+    "windowLedgerSHA256": {"$ref": "#/$defs/sha256"},
+    "implementationSHA256": {"$ref": "#/$defs/sha256"},
+    "normativeFiles": {
+      "type": "array",
+      "minItems": 26,
+      "maxItems": 26,
+      "uniqueItems": true,
+      "prefixItems": [
+        {"$ref": "#/$defs/fileBenchmarkCore"},
+        {"$ref": "#/$defs/fileBeaconProtocolDoc"},
+        {"$ref": "#/$defs/fileBeaconEvaluation"},
+        {"$ref": "#/$defs/fileBeaconProtocol"},
+        {"$ref": "#/$defs/fileRegistration"},
+        {"$ref": "#/$defs/fileLedger"},
+        {"$ref": "#/$defs/fileBenchmarkRealLLM"},
+        {"$ref": "#/$defs/fileCodecs"},
+        {"$ref": "#/$defs/filePrepareAssets"},
+        {"$ref": "#/$defs/filePrepareFreeze"},
+        {"$ref": "#/$defs/fileRequirementsLock"},
+        {"$ref": "#/$defs/fileRequirements"},
+        {"$ref": "#/$defs/fileRunOneShot"},
+        {"$ref": "#/$defs/fileRunRegression"},
+        {"$ref": "#/$defs/fileVerifyBeacon"},
+        {"$ref": "#/$defs/fileVoidTokenV5"},
+        {"$ref": "#/$defs/fileFixtureCertificate"},
+        {"$ref": "#/$defs/fileFixturePulse"},
+        {"$ref": "#/$defs/fileTests"},
+        {"$ref": "#/$defs/fileAttemptSchema"},
+        {"$ref": "#/$defs/fileFreezeSchema"},
+        {"$ref": "#/$defs/fileOutcomeSchema"},
+        {"$ref": "#/$defs/fileRegistrationSchema"},
+        {"$ref": "#/$defs/fileResolutionSchema"},
+        {"$ref": "#/$defs/fileLedgerSchema"},
+        {"$ref": "#/$defs/fileIndependentVerifier"}
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "normativeFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+$"
+        },
+        "bytes": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "fileBenchmarkCore": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "BenchmarkCore/corelm_benchmark.py"}}}
+      ]
+    },
+    "fileBeaconProtocolDoc": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/BEACON_HELDOUT_PROTOCOL.md"}}}
+      ]
+    },
+    "fileBeaconEvaluation": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/beacon_evaluation.py"}}}
+      ]
+    },
+    "fileBeaconProtocol": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/beacon_protocol.py"}}}
+      ]
+    },
+    "fileRegistration": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/beacon_registration.json"}}}
+      ]
+    },
+    "fileLedger": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/beacon_window_ledger.json"}}}
+      ]
+    },
+    "fileBenchmarkRealLLM": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/benchmark_real_llm.py"}}}
+      ]
+    },
+    "fileCodecs": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/codecs.py"}}}
+      ]
+    },
+    "filePrepareAssets": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/prepare_beacon_assets.py"}}}
+      ]
+    },
+    "fileRequirementsLock": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/requirements.lock"}}}
+      ]
+    },
+    "fileRequirements": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/requirements.txt"}}}
+      ]
+    },
+    "filePrepareFreeze": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/prepare_beacon_freeze.py"}}}
+      ]
+    },
+    "fileRunOneShot": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/run_beacon_one_shot.py"}}}
+      ]
+    },
+    "fileRunRegression": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/run_beacon_regression.py"}}}
+      ]
+    },
+    "fileVerifyBeacon": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/verify_beacon_evidence.py"}}}
+      ]
+    },
+    "fileVoidTokenV5": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "RealLLM/voidtoken_v5.py"}}}
+      ]
+    },
+    "fileFixtureCertificate": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "Tests/fixtures/nist-beacon-certificate-528943a5.pem"}}}
+      ]
+    },
+    "fileFixturePulse": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "Tests/fixtures/nist-beacon-chain-2-pulse-1884240.json"}}}
+      ]
+    },
+    "fileTests": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "Tests/test_beacon_protocol.py"}}}
+      ]
+    },
+    "fileAttemptSchema": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "schemas/beacon-attempt.schema.json"}}}
+      ]
+    },
+    "fileFreezeSchema": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "schemas/beacon-freeze.schema.json"}}}
+      ]
+    },
+    "fileOutcomeSchema": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "schemas/beacon-outcome.schema.json"}}}
+      ]
+    },
+    "fileRegistrationSchema": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "schemas/beacon-registration.schema.json"}}}
+      ]
+    },
+    "fileResolutionSchema": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "schemas/beacon-resolution.schema.json"}}}
+      ]
+    },
+    "fileLedgerSchema": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "schemas/beacon-window-ledger.schema.json"}}}
+      ]
+    },
+    "fileIndependentVerifier": {
+      "allOf": [
+        {"$ref": "#/$defs/normativeFile"},
+        {"properties": {"path": {"const": "security/verify_primary_evidence.py"}}}
+      ]
+    }
+  }
+}

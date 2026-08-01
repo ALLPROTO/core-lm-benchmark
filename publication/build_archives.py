@@ -25,6 +25,7 @@ PUBLICATION = ROOT / "publication"
 ARXIV_V3 = PUBLICATION / "arxiv"
 ARXIV_V5 = PUBLICATION / "arxiv-v5"
 OUTPUT = ROOT / "output"
+BEACON_FREEZE_PATH = ROOT / "RealLLM/beacon_freeze.json"
 ARCHIVE_MTIME = 0
 PUBLIC_ORIGIN = "https://github.com/ALLPROTO/core-lm-benchmark"
 if str(ROOT) not in sys.path:
@@ -172,6 +173,22 @@ def _assert_release_source(
     )
     if committed.returncode or committed.stdout != source.read_bytes():
         raise ValueError(f"release input differs from HEAD: {relative}")
+
+
+def _copy_optional_beacon_freeze(
+    stage: Path, build_context: dict[str, object]
+) -> bool:
+    """Include the second-commit freeze when building at or after that commit."""
+
+    if not os.path.lexists(BEACON_FREEZE_PATH):
+        return False
+    if BEACON_FREEZE_PATH.is_symlink() or not BEACON_FREEZE_PATH.is_file():
+        raise ValueError("beacon freeze manifest must be a regular file")
+    _assert_release_source(BEACON_FREEZE_PATH, build_context)
+    destination = stage / "RealLLM/beacon_freeze.json"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(BEACON_FREEZE_PATH, destination)
+    return True
 
 
 def _load_json_object(path: Path) -> dict[str, object]:
@@ -560,6 +577,7 @@ def build_reproducibility(
             "TestsSwift/SecurityValidationTests.swift",
             "TestsSwift/Fixtures/real-llm-validation-064-071.json",
             "Tests/test_app_real_llm_evidence.py",
+            "Tests/test_beacon_protocol.py",
             "Tests/test_build_provenance.py",
             "Tests/test_benchmark.py",
             "Tests/test_local_app_build.py",
@@ -570,25 +588,43 @@ def build_reproducibility(
             "Tests/test_voidtoken_v5.py",
             "Tests/test_voidtoken_v5_development.py",
             "Tests/test_voidtoken_v5_frozen.py",
+            "Tests/fixtures/nist-beacon-certificate-528943a5.pem",
+            "Tests/fixtures/nist-beacon-chain-2-pulse-1884240.json",
+            "schemas/beacon-attempt.schema.json",
+            "schemas/beacon-freeze.schema.json",
+            "schemas/beacon-outcome.schema.json",
+            "schemas/beacon-registration.schema.json",
+            "schemas/beacon-resolution.schema.json",
+            "schemas/beacon-window-ledger.schema.json",
             "schemas/benchmark-result.schema.json",
             "schemas/real-llm-result.schema.json",
             "schemas/voidtoken-v5-attempt.schema.json",
             "schemas/voidtoken-v5-phase-result.schema.json",
             "RealLLM/__init__.py",
+            "RealLLM/BEACON_HELDOUT_PROTOCOL.md",
             "RealLLM/README.md",
             "RealLLM/PROTOCOL.md",
             "RealLLM/V5_PROTOCOL.md",
+            "RealLLM/beacon_evaluation.py",
+            "RealLLM/beacon_protocol.py",
+            "RealLLM/beacon_registration.json",
+            "RealLLM/beacon_window_ledger.json",
             "RealLLM/benchmark_real_llm.py",
             "RealLLM/codecs.py",
             "RealLLM/develop_voidtoken_v5.py",
             "RealLLM/legacy_voidtoken_adapter.py",
             "RealLLM/prepare_app_assets.py",
+            "RealLLM/prepare_beacon_assets.py",
+            "RealLLM/prepare_beacon_freeze.py",
             "RealLLM/registration.json",
             "RealLLM/requirements.lock",
             "RealLLM/requirements.txt",
+            "RealLLM/run_beacon_one_shot.py",
+            "RealLLM/run_beacon_regression.py",
             "RealLLM/run_voidtoken_v5_frozen.py",
             "RealLLM/v5_registration.json",
             "RealLLM/verify_real_llm_evidence.py",
+            "RealLLM/verify_beacon_evidence.py",
             "RealLLM/verify_voidtoken_v5_development.py",
             "RealLLM/verify_voidtoken_v5_evidence.py",
             "RealLLM/voidtoken_v5.py",
@@ -617,6 +653,7 @@ def build_reproducibility(
             "app-real-llm-evidence/validation-064-071.json",
             "real-llm-results/aggregate.json",
             "real-llm-results/README.md",
+            "real-llm-beacon-results/README.md",
             "real-llm-v5-development/README.md",
             "real-llm-v5-development/manifest.json",
             "real-llm-v5-development/validation-000-007.json",
@@ -631,6 +668,8 @@ def build_reproducibility(
             destination = stage / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
+
+        _copy_optional_beacon_freeze(stage, context)
 
         for source in prospective_artifacts:
             _assert_release_source(source, context)

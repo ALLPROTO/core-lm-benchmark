@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/beacon-window-ledger.schema.json",
+  "title": "Core LM beacon held-out window ledger",
+  "description": "Fail-closed inventory of eligible and excluded WikiText-2 windows for the beacon-held-out v1 suite.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "audit",
+    "corpus",
+    "eligibleWindows",
+    "excludedRanges",
+    "schemaVersion",
+    "suiteId"
+  ],
+  "properties": {
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["auditCommit", "auditDate", "scope", "statement"],
+      "properties": {
+        "auditCommit": {"$ref": "#/$defs/gitCommit"},
+        "auditDate": {"const": "2026-08-01"},
+        "scope": {
+          "const": "Published repository artifacts and source-range declarations"
+        },
+        "statement": {
+          "const": "Eligible means no metric result for the window was found in the audited public repository. It does not prove that a public corpus window was never viewed or privately evaluated."
+        }
+      }
+    },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allTokenIdsSHA256",
+        "blockTokens",
+        "configuration",
+        "fileBytes",
+        "fileSHA256",
+        "filename",
+        "fullBlocks",
+        "inventoryMethod",
+        "remainderTokens",
+        "repository",
+        "revision",
+        "split",
+        "tokenCount",
+        "tokenizerRepository",
+        "tokenizerRevision"
+      ],
+      "properties": {
+        "allTokenIdsSHA256": {
+          "const": "b44603066a92719a20e2dc18d6c5f7f5342b1877c20c1e2bdd92deca662d3d56"
+        },
+        "blockTokens": {"const": 512},
+        "configuration": {"const": "wikitext-2-raw-v1"},
+        "fileBytes": {"const": 732610},
+        "fileSHA256": {
+          "const": "5f1bea067869d04849c0f975a2b29c4ff47d867f484f5010ea5e861eab246d91"
+        },
+        "filename": {
+          "const": "wikitext-2-raw-v1/test-00000-of-00001.parquet"
+        },
+        "fullBlocks": {"const": 584},
+        "inventoryMethod": {
+          "const": "Rows in stored order joined by two LF characters and tokenized once with add_special_tokens=false. Only token count and token-ID digest were computed; no model, codec, or quality metric was run."
+        },
+        "remainderTokens": {"const": 70},
+        "repository": {"const": "Salesforce/wikitext"},
+        "revision": {"const": "b08601e04326c79dfdd32d625aee71d232d685c3"},
+        "split": {"const": "test"},
+        "tokenCount": {"const": 299078},
+        "tokenizerRepository": {"const": "Qwen/Qwen2.5-0.5B"},
+        "tokenizerRevision": {
+          "const": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+        }
+      }
+    },
+    "eligibleWindows": {
+      "type": "array",
+      "minItems": 15,
+      "maxItems": 15,
+      "uniqueItems": true,
+      "prefixItems": [
+        {"const": {"blocks": 32, "id": "test-016-047", "split": "test", "startBlock": 16}},
+        {"const": {"blocks": 32, "id": "test-048-079", "split": "test", "startBlock": 48}},
+        {"const": {"blocks": 32, "id": "test-080-111", "split": "test", "startBlock": 80}},
+        {"const": {"blocks": 32, "id": "test-112-143", "split": "test", "startBlock": 112}},
+        {"const": {"blocks": 32, "id": "test-144-175", "split": "test", "startBlock": 144}},
+        {"const": {"blocks": 32, "id": "test-176-207", "split": "test", "startBlock": 176}},
+        {"const": {"blocks": 32, "id": "test-208-239", "split": "test", "startBlock": 208}},
+        {"const": {"blocks": 32, "id": "test-240-271", "split": "test", "startBlock": 240}},
+        {"const": {"blocks": 32, "id": "test-272-303", "split": "test", "startBlock": 272}},
+        {"const": {"blocks": 32, "id": "test-304-335", "split": "test", "startBlock": 304}},
+        {"const": {"blocks": 32, "id": "test-336-367", "split": "test", "startBlock": 336}},
+        {"const": {"blocks": 32, "id": "test-448-479", "split": "test", "startBlock": 448}},
+        {"const": {"blocks": 32, "id": "test-480-511", "split": "test", "startBlock": 480}},
+        {"const": {"blocks": 32, "id": "test-512-543", "split": "test", "startBlock": 512}},
+        {"const": {"blocks": 32, "id": "test-544-575", "split": "test", "startBlock": 544}}
+      ],
+      "items": false
+    },
+    "excludedRanges": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "prefixItems": [
+        {
+          "const": {
+            "endBlockExclusive": 72,
+            "reason": "validation 0-31 was adaptive development, 32-63 was consumed one-shot selection, and 64-71 is the repeatedly exercised application-regression slice",
+            "split": "validation",
+            "startBlock": 0,
+            "status": "evaluated"
+          }
+        },
+        {
+          "const": {
+            "endBlockExclusive": null,
+            "reason": "the public application permits user-selected validation ranges, so no remaining validation window is represented as procedurally blind",
+            "split": "validation",
+            "startBlock": 72,
+            "status": "excluded-entire-remainder"
+          }
+        },
+        {
+          "const": {
+            "endBlockExclusive": 8,
+            "reason": "conservative buffer before the historical exploratory pilot",
+            "split": "test",
+            "startBlock": 0,
+            "status": "excluded-buffer"
+          }
+        },
+        {
+          "const": {
+            "endBlockExclusive": 16,
+            "reason": "historical exploratory pilot",
+            "split": "test",
+            "startBlock": 8,
+            "status": "evaluated"
+          }
+        },
+        {
+          "const": {
+            "endBlockExclusive": 384,
+            "reason": "sixteen-block buffer before the historical v5 holdout",
+            "split": "test",
+            "startBlock": 368,
+            "status": "excluded-buffer"
+          }
+        },
+        {
+          "const": {
+            "endBlockExclusive": 416,
+            "reason": "consumed prospective VoidToken v5 holdout",
+            "split": "test",
+            "startBlock": 384,
+            "status": "evaluated"
+          }
+        },
+        {
+          "const": {
+            "endBlockExclusive": 448,
+            "reason": "previously disclosed VoidToken v5 reserve; intentionally not repurposed after seeing the v5 result",
+            "split": "test",
+            "startBlock": 416,
+            "status": "reserved-excluded"
+          }
+        },
+        {
+          "const": {
+            "endBlockExclusive": 584,
+            "reason": "only eight complete blocks remain, fewer than the frozen 32-block experiment size",
+            "split": "test",
+            "startBlock": 576,
+            "status": "excluded-incomplete-window"
+          }
+        }
+      ],
+      "items": false
+    },
+    "schemaVersion": {"const": "corelm-beacon-window-ledger-v1"},
+    "suiteId": {
+      "const": "qwen2.5-0.5b-kv-voidtoken-v5-beacon-heldout-v1"
+    }
+  },
+  "$defs": {
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    }
+  }
+}

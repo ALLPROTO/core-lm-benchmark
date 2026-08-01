@@ -27,15 +27,25 @@ is bounded to the registered model revision, WikiText-2 windows,
 teacher-forced replay, and MPS runtime.
 
 The current-source native-app proof is deliberately separate from those
-historical claims. Each fresh eight-block validation run retains 192 raw VTL5
-containers, the eight 512-token source slices, and 1,024 token-level metric
-rows. A fast standard-library verifier recomputes container bytes,
-compression, NLL, top-1 agreement, and digests; a heavyweight clean-room
+historical claims. Each run uses fixed public validation blocks 64–71 and
+retains 192 raw VTL5 containers, the eight 512-token source slices, and 1,024
+token-level metric rows. A fast standard-library verifier recomputes container
+bytes, compression, NLL, top-1 agreement, and digests; a heavyweight clean-room
 replay retokenizes the pinned WikiText input, decodes VTL5 without importing
 the RealLLM codec, rebuilds both KV paths, and reruns all 1,024 Qwen decisions.
-This improves reproducibility for new runs but does not reconstruct the
-immutable v1 containers or independently regenerate full-distribution KL and
-cache-error aggregates.
+This improves application-regression reproducibility but does not reconstruct
+the immutable v1 containers or independently regenerate full-distribution KL
+and cache-error aggregates. Blocks 64–71 have been exercised repeatedly, so
+these runs are repeatability checks, not independent experiments or new blind,
+holdout, or generalization evidence.
+
+A separate future selected-window protocol must publish its commit, hashes,
+parameters, gates, a pool with no metric result found in the audited public
+repository, and a deterministic future-public-beacon selection rule before
+resolving a window. It then permits one run without post-result tuning. A later
+regression is allowed only after `PASS` or `FAIL_GATES`; `FAIL_EXECUTION` and an
+incomplete attempt forbid retry. No such result is part of the current
+publication package.
 
 ## Generate and preview
 

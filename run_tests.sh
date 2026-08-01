@@ -42,6 +42,7 @@ raise SystemExit(0 if result.wasSuccessful() else 1)
 ' \
     "$SCRIPT_DIR" \
     Tests.test_app_real_llm_evidence \
+    Tests.test_beacon_protocol \
     Tests.test_build_provenance \
     Tests.test_local_app_build \
     Tests.test_real_llm \

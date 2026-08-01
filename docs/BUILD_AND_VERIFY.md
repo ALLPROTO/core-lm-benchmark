@@ -107,8 +107,9 @@ and validating the archive checksums; see the
 6. The release application is built and locally ad-hoc signed.
 7. Python and Swift regression/security gates run.
 8. The visible application executes the pinned Qwen compression workload on
-   Apple MPS.
-9. A random challenge is bound into the new receipt.
+   fixed public validation blocks 64–71 using Apple MPS.
+9. A random challenge binds the trusted-local invocation to the new receipt so
+   an older local run is not selected accidentally.
 10. The app retains all 192 raw containers, the full source token slices, and
     per-token baseline/candidate losses and top-1 IDs in the run directory.
 11. An independent standard-library verifier parses those container bytes,
@@ -146,7 +147,9 @@ open dist/CoreLMBenchmark.app
 
 The reusable manual-build runtime is stored at
 `~/.cache/corelm-app-runtime/`. In the application, press **Run Compression
-Proof** with the registered validation slice shown in the toolbar.
+Proof** with fixed public validation blocks 64–71 shown in the toolbar. This
+range has been exercised repeatedly and is an application-regression fixture,
+not blind or held-out input.
 
 A manual run proves internal consistency. The one-command workflow is stronger
 operationally because it creates a challenge after its run marker and rejects a
@@ -162,13 +165,18 @@ prevents two applications from racing over the shared result and build paths.
 
 Another observer may supply the challenge instead of using the local random
 number generation. It must be exactly 64 lowercase hexadecimal characters and
-is passed unchanged into the application receipt; the same trusted-local
-limitation still applies:
+is passed unchanged into the application receipt; this still provides only
+trusted-local stale-run binding, not remote freshness:
 
 ```sh
 CORELM_PROOF_CHALLENGE=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
   ./run_local_app_proof.sh
 ```
+
+Every execution of this command evaluates the same public blocks 64–71.
+Multiple executions are regression/repeatability checks of the app and
+evidence pipeline, not independent scientific experiments. They cannot support
+a new blind, holdout, or generalization claim.
 
 ## Prepare and use the offline path
 
@@ -243,6 +251,18 @@ script independently stops it if system free memory falls below 15%. The app
 run and independent heavy replay each enforce a 300-second limit and terminate
 their process group if a limit is reached. A safety stop is a failed proof; it
 never produces a PASS receipt.
+
+## Boundary for a future prospective experiment
+
+Do not use `run_local_app_proof.sh` or blocks 64–71 to claim a new blind result.
+A separate future protocol must first publish its exact commit, source and
+configuration digests, parameters, gates, a pool for which the audited public
+repository contains no metric result, and a deterministic selection rule tied
+to a future public randomness beacon.
+Only after that beacon is available may the selected window be resolved and run
+once, without post-result tuning. A later regression is allowed only after
+terminal `PASS` or `FAIL_GATES`; `FAIL_EXECUTION` or an incomplete attempt cannot
+be retried. This repository does not claim a result from that future protocol.
 
 ## Cleanup
 

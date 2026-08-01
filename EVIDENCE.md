@@ -34,11 +34,15 @@ runtime-манифеста, Python executable, runner resource и результ
 result/receipt. Новый пользователь собирает другой бинарник; команда
 `python security/verify_local_app_run.py --app dist/CoreLMBenchmark.app`
 проверяет согласованность его ручного запуска, а `./run_local_app_proof.sh`
-добавляет случайный challenge в receipt и тем самым проверяет свежесть
-автоматизированного прогона. SHA-256 нового бинарника не должен совпадать со
-старым receipt. Это post-development integration evidence на
-validation-блоках 64–71, а не новый preregistered holdout и не расширение
-исторического prospective claim.
+связывает receipt со случайным local challenge. Challenge защищает
+trusted-local workflow от случайного выбора stale run, но не доказывает
+криптографическую свежесть удалённому наблюдателю. SHA-256 нового
+бинарника не должен совпадать со старым receipt. Это post-development
+integration regression evidence на фиксированных публичных validation-блоках
+64–71. Они многократно использовались, поэтому не являются blind-выборкой,
+новым holdout или основанием для generalization claim. Три одинаковых
+прогона проверяют repeatability одного workflow, а не являются тремя
+независимыми экспериментами.
 
 ## Полный suite
 
@@ -199,3 +203,21 @@ evidence. Финальный PASS ограничен закреплёнными 
 выше ограничением, а не как независимо восстановленный container byte
 accounting; это также не универсальное утверждение о других моделях или
 production latency.
+
+## Следующий beacon-selected held-out эксперимент
+
+Отдельные `RealLLM/BEACON_HELDOUT_PROTOCOL.md`,
+`beacon_registration.json` и `beacon_window_ledger.json` уже фиксируют точные
+параметры, gates, 15 допустимых test-окон и правило выбора по будущему NIST
+Randomness Beacon. До появления выбранного окна коммит, хеши и обязательный
+Git-тег должны быть опубликованы как immutable GitHub Release; серверное
+`published_at` должно предшествовать beacon. После beacon разрешён один
+необратимый записанный запуск без последующей подстройки. Только после
+терминального `PASS` или `FAIL_GATES` повтор публикуется как regression;
+`FAIL_EXECUTION` и незавершённый attempt запрещают повторный запуск.
+Результата этого suite пока нет, а блоки 64–71 для него исключены. Поскольку
+WikiText-2 публичен, корректное название — post-freeze beacon-selected
+held-out-window evaluation, а не доказательство того, что данные никто ранее
+не мог просмотреть или запустить приватно. Локальный attempt marker —
+процедурный контроль, а не remote-attested доказательство отсутствия тайных
+копий запуска.

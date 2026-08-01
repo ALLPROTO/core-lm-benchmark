@@ -22,10 +22,20 @@ did not retain per-layer container manifests: their compression totals are
 digest/provenance-protected runner records, not independently reconstructed
 byte accounting.
 
-Current source adds a separate fresh-validation proof path. It retains 192 raw
-VTL5 containers plus source-token and per-token metric evidence, then runs a
-fast standard-library byte/metric verifier and a heavyweight clean-room replay
-that independently retokenizes pinned WikiText, decodes without RealLLM codec
-imports, rebuilds both KV caches, and checks all 1,024 Qwen decisions. This is
-new-run reproducibility evidence, not a revision of the registered v1
-selection or holdout.
+Current source adds a separate application-regression proof path on fixed public
+validation blocks 64–71. It retains 192 raw VTL5 containers plus source-token
+and per-token metric evidence, then runs a fast standard-library byte/metric
+verifier and a heavyweight clean-room replay that independently retokenizes
+pinned WikiText, decodes without RealLLM codec imports, rebuilds both KV caches,
+and checks all 1,024 Qwen decisions. Blocks 64–71 have been exercised
+repeatedly: these executions demonstrate same-machine repeatability and provide
+a path for external execution reproduction of the application pipeline, not an
+independent implementation, independent experiments, a
+revision of the registered v1 selection/holdout, or new blind/generalization
+evidence.
+
+The manuscript states that any future selected-window claim requires a separate
+prepublished commit, hashes, parameters, gates, a pool with no metric result
+found in the audited public repository, and a deterministic future-public-
+randomness-beacon selection rule, followed by one run without post-result
+tuning. No result from such a protocol is reported.

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/beacon-attempt.schema.json",
+  "title": "Core LM beacon one-shot attempt marker",
+  "description": "Durably created marker that consumes the normative beacon-held-out suite before beacon or data resolution.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "suiteId",
+    "status",
+    "startedAt",
+    "gitCommitAtExecution",
+    "gitTagAtExecution",
+    "protocolCommit",
+    "publicFreezeRelease",
+    "registrationArtifactSHA256",
+    "registrationCanonicalSHA256",
+    "windowLedgerSHA256",
+    "implementationSHA256",
+    "beaconTargetTimestamp",
+    "beaconEndpoint",
+    "beaconWillBeFetchedAfterMarker",
+    "testSplitWillBeResolvedAfterBeacon",
+    "rerunPermitted",
+    "attemptSHA256"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "corelm-beacon-attempt-v1"},
+    "suiteId": {
+      "const": "qwen2.5-0.5b-kv-voidtoken-v5-beacon-heldout-v1"
+    },
+    "status": {
+      "const": "attempt-started-beacon-and-data-not-yet-resolved"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "gitCommitAtExecution": {"$ref": "#/$defs/gitCommit"},
+    "gitTagAtExecution": {"const": "corelm-beacon-heldout-v1"},
+    "protocolCommit": {"$ref": "#/$defs/gitCommit"},
+    "publicFreezeRelease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["apiURL", "htmlURL", "immutable", "publishedAt"],
+      "properties": {
+        "apiURL": {
+          "const": "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/releases/tags/corelm-beacon-heldout-v1"
+        },
+        "htmlURL": {
+          "const": "https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-beacon-heldout-v1"
+        },
+        "immutable": {"const": true},
+        "publishedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      }
+    },
+    "registrationArtifactSHA256": {"$ref": "#/$defs/sha256"},
+    "registrationCanonicalSHA256": {"$ref": "#/$defs/sha256"},
+    "windowLedgerSHA256": {"$ref": "#/$defs/sha256"},
+    "implementationSHA256": {"$ref": "#/$defs/sha256"},
+    "beaconTargetTimestamp": {"const": "2026-08-02T18:00:00.000Z"},
+    "beaconEndpoint": {
+      "const": "https://beacon.nist.gov/beacon/2.0/pulse/time/1785693600000"
+    },
+    "beaconWillBeFetchedAfterMarker": {"const": true},
+    "testSplitWillBeResolvedAfterBeacon": {"const": true},
+    "rerunPermitted": {"const": false},
+    "attemptSHA256": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    }
+  }
+}

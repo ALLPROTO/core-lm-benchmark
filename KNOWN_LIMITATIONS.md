@@ -74,8 +74,26 @@
     историю доступа исходного процесса к данным.
 17. Проверяемый реальный прогон macOS-приложения на validation-блоках 64–71
     подтверждает интеграцию `.app` → внешний pinned Python runtime → Qwen/MPS
-    → Swift verifier и точный v2 container accounting. Эти блоки являются
-    раскрытым инженерным резервом, поэтому успешный прогон не считается новым
-    prospective evidence. Во время MPS-прогона приложение блокирует idle sleep;
+    → Swift verifier и точный v2 container accounting. Этот фиксированный
+    публичный диапазон уже многократно использовался и теперь является только
+    application-regression input. Успешный прогон не считается новым blind,
+    holdout, prospective или generalization evidence. Во время MPS-прогона
+    приложение блокирует idle sleep;
     явный Sleep, закрытие крышки или критический заряд всё ещё могут прервать
     выполнение, и такой незавершённый запуск не должен считаться evidence.
+18. Local challenge связывает invocation и receipt только в trusted-local модели
+    и защищает от случайного выбора stale run. Ad-hoc подпись и контролируемый
+    владельцем receipt не доказывают криптографическую свежесть или удалённое
+    выполнение. Три повтора на одной машине — это repeatability checks, а не три
+    независимых эксперимента.
+19. Новый beacon-selected held-out suite уже описан отдельным протоколом, но
+    ещё не имеет результата. До future NIST beacon требуется публично
+    зафиксировать его commit, hashes и обязательный tag как immutable GitHub
+    Release с серверным временем до beacon; после beacon допустим только один
+    записанный запуск без последующей подстройки. Повторы как regression
+    разрешены только после `PASS` или `FAIL_GATES`; `FAIL_EXECUTION` и
+    незавершённый attempt повторять нельзя.
+    Публичность WikiText-2 не позволяет доказать отсутствие любых тайных
+    предварительных запусков по всем eligible-окнам, а локальный marker не
+    является remote trusted-execution attestation. Текущие блоки 64–71 для
+    этого suite недопустимы.

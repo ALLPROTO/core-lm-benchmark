@@ -1,0 +1,102 @@
+{
+  "audit": {
+    "auditCommit": "cbe87f131fa04c6cc91dee94aa5a9f7b7a8dcb8f",
+    "auditDate": "2026-08-01",
+    "scope": "Published repository artifacts and source-range declarations",
+    "statement": "Eligible means no metric result for the window was found in the audited public repository. It does not prove that a public corpus window was never viewed or privately evaluated."
+  },
+  "corpus": {
+    "allTokenIdsSHA256": "b44603066a92719a20e2dc18d6c5f7f5342b1877c20c1e2bdd92deca662d3d56",
+    "blockTokens": 512,
+    "configuration": "wikitext-2-raw-v1",
+    "fileBytes": 732610,
+    "fileSHA256": "5f1bea067869d04849c0f975a2b29c4ff47d867f484f5010ea5e861eab246d91",
+    "filename": "wikitext-2-raw-v1/test-00000-of-00001.parquet",
+    "fullBlocks": 584,
+    "inventoryMethod": "Rows in stored order joined by two LF characters and tokenized once with add_special_tokens=false. Only token count and token-ID digest were computed; no model, codec, or quality metric was run.",
+    "remainderTokens": 70,
+    "repository": "Salesforce/wikitext",
+    "revision": "b08601e04326c79dfdd32d625aee71d232d685c3",
+    "split": "test",
+    "tokenCount": 299078,
+    "tokenizerRepository": "Qwen/Qwen2.5-0.5B",
+    "tokenizerRevision": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+  },
+  "eligibleWindows": [
+    {"blocks": 32, "id": "test-016-047", "split": "test", "startBlock": 16},
+    {"blocks": 32, "id": "test-048-079", "split": "test", "startBlock": 48},
+    {"blocks": 32, "id": "test-080-111", "split": "test", "startBlock": 80},
+    {"blocks": 32, "id": "test-112-143", "split": "test", "startBlock": 112},
+    {"blocks": 32, "id": "test-144-175", "split": "test", "startBlock": 144},
+    {"blocks": 32, "id": "test-176-207", "split": "test", "startBlock": 176},
+    {"blocks": 32, "id": "test-208-239", "split": "test", "startBlock": 208},
+    {"blocks": 32, "id": "test-240-271", "split": "test", "startBlock": 240},
+    {"blocks": 32, "id": "test-272-303", "split": "test", "startBlock": 272},
+    {"blocks": 32, "id": "test-304-335", "split": "test", "startBlock": 304},
+    {"blocks": 32, "id": "test-336-367", "split": "test", "startBlock": 336},
+    {"blocks": 32, "id": "test-448-479", "split": "test", "startBlock": 448},
+    {"blocks": 32, "id": "test-480-511", "split": "test", "startBlock": 480},
+    {"blocks": 32, "id": "test-512-543", "split": "test", "startBlock": 512},
+    {"blocks": 32, "id": "test-544-575", "split": "test", "startBlock": 544}
+  ],
+  "excludedRanges": [
+    {
+      "endBlockExclusive": 72,
+      "reason": "validation 0-31 was adaptive development, 32-63 was consumed one-shot selection, and 64-71 is the repeatedly exercised application-regression slice",
+      "split": "validation",
+      "startBlock": 0,
+      "status": "evaluated"
+    },
+    {
+      "endBlockExclusive": null,
+      "reason": "the public application permits user-selected validation ranges, so no remaining validation window is represented as procedurally blind",
+      "split": "validation",
+      "startBlock": 72,
+      "status": "excluded-entire-remainder"
+    },
+    {
+      "endBlockExclusive": 8,
+      "reason": "conservative buffer before the historical exploratory pilot",
+      "split": "test",
+      "startBlock": 0,
+      "status": "excluded-buffer"
+    },
+    {
+      "endBlockExclusive": 16,
+      "reason": "historical exploratory pilot",
+      "split": "test",
+      "startBlock": 8,
+      "status": "evaluated"
+    },
+    {
+      "endBlockExclusive": 384,
+      "reason": "sixteen-block buffer before the historical v5 holdout",
+      "split": "test",
+      "startBlock": 368,
+      "status": "excluded-buffer"
+    },
+    {
+      "endBlockExclusive": 416,
+      "reason": "consumed prospective VoidToken v5 holdout",
+      "split": "test",
+      "startBlock": 384,
+      "status": "evaluated"
+    },
+    {
+      "endBlockExclusive": 448,
+      "reason": "previously disclosed VoidToken v5 reserve; intentionally not repurposed after seeing the v5 result",
+      "split": "test",
+      "startBlock": 416,
+      "status": "reserved-excluded"
+    },
+    {
+      "endBlockExclusive": 584,
+      "reason": "only eight complete blocks remain, fewer than the frozen 32-block experiment size",
+      "split": "test",
+      "startBlock": 576,
+      "status": "excluded-incomplete-window"
+    }
+  ],
+  "schemaVersion": "corelm-beacon-window-ledger-v1",
+  "suiteId": "qwen2.5-0.5b-kv-voidtoken-v5-beacon-heldout-v1"
+}

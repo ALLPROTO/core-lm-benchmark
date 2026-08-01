@@ -778,7 +778,15 @@ def _download_and_verify_inputs(local_files_only: bool) -> dict[str, Path]:
 
 
 def _token_blocks(
-    tokenizer: Any, parquet_path: Path, count: int, *, start_block: int = 0
+    tokenizer: Any,
+    parquet_path: Path,
+    count: int,
+    *,
+    start_block: int = 0,
+    expected_token_count: int | None = None,
+    expected_full_blocks: int | None = None,
+    expected_remainder_tokens: int | None = None,
+    expected_all_token_ids_sha256: str | None = None,
 ) -> tuple[list[list[int]], str]:
     import pyarrow.parquet as parquet
 
@@ -795,6 +803,53 @@ def _token_blocks(
         )["input_ids"]
     finally:
         tokenizer.model_max_length = previous_maximum
+
+    expected_inventory = (
+        expected_token_count,
+        expected_full_blocks,
+        expected_remainder_tokens,
+        expected_all_token_ids_sha256,
+    )
+    if any(value is not None for value in expected_inventory):
+        if any(value is None for value in expected_inventory):
+            raise ValueError(
+                "expected token inventory must specify count, block quotient, "
+                "remainder, and full-token digest together"
+            )
+        if any(
+            type(token_id) is not int
+            or token_id < 0
+            or token_id > 0xFFFFFFFF
+            for token_id in token_ids
+        ):
+            raise RuntimeError("tokenizer emitted a non-uint32 token ID")
+        observed_token_count = len(token_ids)
+        observed_full_blocks, observed_remainder_tokens = divmod(
+            observed_token_count, BLOCK_TOKENS
+        )
+        observed_all_token_ids_sha256 = sha256_bytes(
+            np.asarray(token_ids, dtype="<u4").tobytes()
+        )
+        if observed_token_count != expected_token_count:
+            raise RuntimeError(
+                "full token count differs from the frozen inventory: "
+                f"{observed_token_count} != {expected_token_count}"
+            )
+        if observed_full_blocks != expected_full_blocks:
+            raise RuntimeError(
+                "full-block count differs from the frozen inventory: "
+                f"{observed_full_blocks} != {expected_full_blocks}"
+            )
+        if observed_remainder_tokens != expected_remainder_tokens:
+            raise RuntimeError(
+                "remainder token count differs from the frozen inventory: "
+                f"{observed_remainder_tokens} != {expected_remainder_tokens}"
+            )
+        if observed_all_token_ids_sha256 != expected_all_token_ids_sha256:
+            raise RuntimeError(
+                "full uint32-LE token digest differs from the frozen inventory"
+            )
+
     required = (start_block + count) * BLOCK_TOKENS
     if len(token_ids) < required:
         raise RuntimeError(

@@ -15,7 +15,7 @@ Qwen model -> Prefill -> BF16 KV cache -> VoidToken codec -> Fresh parser
 Teacher-forced continuation -> Metrics -> Scientific gates -> Swift verifier
                                                                |
                                                                v
-                                           Challenge-bound result and receipt
+                                    Trusted-local stale-run binding and receipt
                                                                |
                                                                v
                                              Independent Python verification
@@ -68,6 +68,25 @@ proof workflow. Their chronology is documented in the
 [development record](docs/development/HISTORY.md).
 
 ## Reproducibility boundary
+
+The application always evaluates fixed, public validation blocks 64–71. They
+have been exercised repeatedly and therefore form an application-regression
+fixture: the pipeline can demonstrate that the app, codec, evidence retention,
+and verifiers still work, but it cannot turn those blocks into a blind sample,
+holdout, or generalization experiment. Repeated executions on that fixture are
+repeatability checks, not independent experiments. The local challenge binds a
+receipt to the current trusted-local invocation so the workflow does not
+accidentally select an older result; it is not remote freshness attestation.
+
+The separately registered beacon-selected held-out experiment is a different
+architecture path. `RealLLM/BEACON_HELDOUT_PROTOCOL.md` fixes its commit/digest
+freeze, parameters, gates, eligible unreported-window pool, and deterministic
+future-NIST-beacon selection before resolution. It allows one recorded
+execution. Only after terminal `PASS` or `FAIL_GATES` may a later execution be
+labelled regression-only; `FAIL_EXECUTION` and an incomplete attempt forbid a
+retry. No result from that path is claimed yet.
+
+## Identifier boundary
 
 Internal schema, codec, receipt, and protocol identifiers are intentionally
 stable and may contain revision numbers. They are machine compatibility keys,
