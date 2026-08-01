@@ -61,7 +61,7 @@ A release candidate is not ready until all applicable gates pass:
    `security/verify_app_run_evidence.py`.
 
 The reproducibility release distributes source, not a prebuilt macOS binary.
-`build_local_app.sh` therefore uses an explicit local ad-hoc signature and
+`./corelm macos build` therefore uses an explicit local ad-hoc signature and
 requires no Apple Developer Program account, paid certificate, Developer ID
 identity, or notarization. The signature seals the user's own build but does
 not authenticate Ivan Tyshchenko as its binary publisher. Developer ID and
@@ -70,13 +70,13 @@ chooses to distribute a prebuilt application.
 
 ## Local bootstrap, mirrors, and offline inputs
 
-`doctor.sh` is a read-only readiness check, not an evidence verifier. It fails
+`./corelm macos doctor` is a read-only readiness check, not an evidence verifier. It fails
 before large downloads when the Mac, Swift toolchain, Python trust chain, free
 space, GUI login, required utilities, or configured endpoints are unsuitable.
 The full path requires at least 8 GB physical memory and 6 GiB free under the
 user profile.
 
-The optional `bootstrap_python312_macos.sh` installs no system package and uses
+The optional `./corelm macos bootstrap` installs no system package and uses
 no administrator access. It downloads one immutable Apple Silicon CPython
 3.12.13+20260718 archive from `astral-sh/python-build-standalone`, requires
 SHA-256
@@ -101,7 +101,7 @@ threat model. The locally ad-hoc-signed application and JSON receipt do not
 authenticate a publisher or provide remote attestation; an adversary who can
 rewrite the local result tree can also rewrite its nonce. Do not present the
 challenge alone as cryptographic proof of freshness to a remote auditor.
-`prepare_offline_inputs.sh` creates and immediately exercises those caches
+`./corelm macos prepare-offline` creates and immediately exercises those caches
 while connected; `CORELM_OFFLINE=1` makes the later proof fail closed if either
 cache is absent or invalid.
 
@@ -118,7 +118,7 @@ cache is absent or invalid.
   history using high-confidence credential formats. It complements, but does
   not replace, GitHub secret scanning and push protection.
 - Passing the security workflow does not strengthen or broaden the scientific
-  claims in `EVIDENCE.md` and `KNOWN_LIMITATIONS.md`.
+  claims in `docs/RESULTS.md` and `docs/LIMITATIONS.md`.
 - The application runs local Python code with the current user's privileges.
   It verifies every file and rejects unmanifested additions in the
   build-recorded external runtime before each worker launch. That runtime is

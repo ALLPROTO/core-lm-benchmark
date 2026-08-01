@@ -35,7 +35,7 @@ transfer no package, model, or dataset files:
 ```sh
 git clone https://github.com/ALLPROTO/core-lm-benchmark.git
 cd core-lm-benchmark
-./doctor.sh
+./corelm macos doctor
 ```
 
 It checks macOS and CPU compatibility, Swift 6, signing tools, a trusted Python
@@ -46,14 +46,14 @@ runtime or model downloads begin.
 Then run:
 
 ```sh
-./run_local_app_proof.sh
+./corelm macos proof
 ```
 
 If Python is installed under another command name, resolve it explicitly:
 
 ```sh
 CORELM_BOOTSTRAP_PYTHON="$(command -v python3.12)" \
-  ./run_local_app_proof.sh
+  ./corelm macos proof
 ```
 
 The resolver first checks the repository's owner-local location, then standard
@@ -61,8 +61,8 @@ python.org, Homebrew, and PATH locations. For a machine without Python 3.12,
 the repository provides an opt-in bootstrap:
 
 ```sh
-./bootstrap_python312_macos.sh
-./doctor.sh
+./corelm macos bootstrap
+./corelm macos doctor
 ```
 
 It downloads the immutable Astral `python-build-standalone` CPython 3.12.13
@@ -82,7 +82,7 @@ in both this base runtime and the proof virtual environment. To revalidate and
 remove group/world write permissions from that exact existing local copy:
 
 ```sh
-./bootstrap_python312_macos.sh --harden-installed
+./corelm macos bootstrap --harden-installed
 ```
 
 The proof deliberately creates a new runtime under
@@ -150,7 +150,7 @@ The fresh result and receipt are written below:
 ## Build without the automatic real-model run
 
 ```sh
-./build_local_app.sh
+./corelm macos build
 open dist/CoreLMBenchmark.app
 ```
 
@@ -179,7 +179,7 @@ trusted-local stale-run binding, not remote freshness:
 
 ```sh
 CORELM_PROOF_CHALLENGE=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
-  ./run_local_app_proof.sh
+  ./corelm macos proof
 ```
 
 Every execution of this command evaluates the same public blocks 64–71.
@@ -192,7 +192,7 @@ a new blind, holdout, or generalization claim.
 While connected, run:
 
 ```sh
-./prepare_offline_inputs.sh
+./corelm macos prepare-offline
 ```
 
 This command downloads only binary wheels named by the two lock files, verifies
@@ -211,7 +211,7 @@ application proof entirely from those inputs:
 ```sh
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm-wheelhouse" \
-  ./run_local_app_proof.sh
+  ./corelm macos proof
 ```
 
 Offline mode fails closed when either directory is missing or unsafe. Package
@@ -229,7 +229,7 @@ Connected builds may use HTTPS-compatible mirrors:
 ```sh
 CORELM_PYPI_INDEX_URL=https://pypi.example/simple \
 CORELM_HF_ENDPOINT=https://huggingface.example \
-  ./run_local_app_proof.sh
+  ./corelm macos proof
 ```
 
 URLs containing inline credentials, query strings, fragments, or non-HTTPS
@@ -239,7 +239,7 @@ SHA-256. `--isolated` prevents ambient pip configuration from silently changing
 the selected index. The proof deliberately starts build and replay processes
 with a minimal environment, so ambient proxy, credential, and custom-CA
 variables are not inherited. If an organization requires those settings, use
-them only while running `./prepare_offline_inputs.sh` on the approved network,
+them only while running `./corelm macos prepare-offline` on the approved network,
 then run the proof with `CORELM_OFFLINE=1`; do not place secrets in endpoint
 variables or command history.
 
@@ -263,7 +263,7 @@ never produces a PASS receipt.
 
 ## Boundary for the frozen beacon-selected experiment
 
-Do not use `run_local_app_proof.sh` or blocks 64–71 to claim a new blind result.
+Do not use `./corelm macos proof` or blocks 64–71 to claim a new blind result.
 The separate protocol has now published its exact commit, source and
 configuration digests, parameters, gates, eligible pool, and deterministic
 selection rule under immutable release `corelm-beacon-heldout-v1`. It has no

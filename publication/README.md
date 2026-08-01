@@ -1,21 +1,19 @@
 # Core LM publication package
 
-This directory preserves two separate papers and one shared reproducibility
+This directory contains the current real-model paper and its reproducibility
 package.
 
 ## Contents
 
-- `arxiv/` - historical VoidToken v3 synthetic trajectory paper source.
-- `corelm_voidtoken_v3.pdf` - visually inspected historical v3 PDF.
 - `arxiv-v5/` - current prospective real-model VoidToken v5 paper source.
 - `corelm_voidtoken_v5.pdf` - visually inspected current v5 PDF.
-- `reproducibility/` - instructions for verifying both evidence lines.
+- `reproducibility/` - instructions for verifying the real-model evidence.
 - `build_archives.py` - deterministic v5 arXiv and reproducibility archive
   builder.
 
-The two papers must not be conflated. The v3 paper reports the registered
-115-run synthetic dynamical benchmark. The v5 paper reports the separately
-frozen Qwen2.5-0.5B prefill KV-cache selection and prospective holdout.
+The retired synthetic paper and its 115-run data are deliberately absent from
+the default branch. Their exact historical bytes remain recoverable from the
+immutable `voidtoken-v5-paper-v5` Git tag. They are not part of this package.
 
 The historical v1 runner recorded 150,601,728 canonical BF16 bytes and
 73,346,513 complete-container bytes (`2.0532909x`) for the v5 holdout, with

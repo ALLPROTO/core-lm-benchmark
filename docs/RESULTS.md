@@ -71,7 +71,7 @@ For the native proof, PASS requires all of the following:
 The repository contains the author's same-machine repeated proof and a public
 path for anyone to reproduce it. It is not yet an independently published
 cross-machine reproduction. A third party should run
-`./run_local_app_proof.sh` and publish the resulting sanitized receipt to create
+`./corelm macos proof` and publish the resulting sanitized receipt to create
 that stronger external, cross-machine execution reproduction. It still uses the
 same implementation, and because the input remains public validation blocks
 64–71, even an external repeat would not create a new blind or generalization

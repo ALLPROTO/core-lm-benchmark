@@ -6,9 +6,8 @@
 > `docs/BUILD_AND_VERIFY.md`.
 
 The reproducibility archive contains the files needed to inspect the
-implementation, rerun the test suite and benchmark, rebuild the macOS app, and
-trace the historical VoidToken v3 result and the prospective VoidToken v5
-result to machine-readable evidence.
+implementation, run the verification suites, rebuild the macOS app or Linux
+CPU runtime, and trace the real-model result to machine-readable evidence.
 
 ## Requirements
 
@@ -28,26 +27,25 @@ From the extracted archive:
 
 ```sh
 python3 -m pip install --require-hashes -r requirements.lock
-./run_tests.sh
+./corelm verify
 ```
 
 This command runs the explicit real-model, application-evidence, and security
 suite used by the ordinary-user proof. Historical development benchmarks are
 kept separate from this gate.
 
-## Historical synthetic provenance
+## Real-data-only scope
 
-The 115-run development suite is a preserved historical record, not a current
-model benchmark. Its source and registered artifacts remain in the archive so
-reviewers can trace the project's development, but the current execution
-policy does not regenerate it. It must not be cited as real-Qwen evidence or
-combined with current real-model metrics.
-
-Current benchmark, application-proof, model-evaluation, and
-scientific-evidence runs use only the pinned pretrained Qwen model and
-registered real WikiText inputs. Synthetic or mocked values are restricted to
-isolated unit, parser, security, and protocol-control tests whose outputs never
-enter an evidence or result directory.
+The retired synthetic runner, verifier, schema, and result directory are not
+included in the current archive. Their exact historical bytes remain in the
+immutable `voidtoken-v5-paper-v5` Git tag. The archive retains only the frozen
+compatibility source `BenchmarkCore/corelm_benchmark.py`, byte-identical at its
+registered path because it contributes to the published implementation hash;
+current commands and CI do not execute it. Current benchmark,
+application-proof, model-evaluation, and scientific-evidence runs use only the
+pinned pretrained Qwen model and registered real WikiText inputs. Mocked values
+are restricted to isolated unit, parser, security, and protocol-control tests
+whose outputs never enter an evidence or result directory.
 
 ## Regenerate the paper figures
 
@@ -55,9 +53,8 @@ enter an evidence or result directory.
 python3 publication/arxiv-v5/generate_figures.py
 ```
 
-The v5 generator reads the adaptive development manifest plus the frozen
-selection and holdout JSON records. The historical v3 generator remains in a
-full repository clone under `publication/arxiv/`.
+The generator reads the adaptive development manifest plus the frozen
+selection and holdout JSON records.
 
 ## Build the native application
 
@@ -69,7 +66,7 @@ publisher identity.
 Run the read-only readiness check before downloading packages or model files:
 
 ```sh
-./doctor.sh
+./corelm macos doctor
 ```
 
 It checks Apple Silicon/macOS compatibility, Swift 6, signing utilities,
@@ -80,7 +77,7 @@ offline sources.
 If Python 3.12 is absent, an optional owner-local bootstrap is available:
 
 ```sh
-./bootstrap_python312_macos.sh
+./corelm macos bootstrap
 ```
 
 It downloads the immutable
@@ -95,13 +92,13 @@ every loadable file in that base interpreter and the fresh virtual environment.
 Users who do not accept this bootstrap may supply another trusted Python 3.12:
 
 ```sh
-CORELM_BOOTSTRAP_PYTHON="$(command -v python3.12)" ./doctor.sh
+CORELM_BOOTSTRAP_PYTHON="$(command -v python3.12)" ./corelm macos doctor
 ```
 
 To build without automatically running model inference:
 
 ```sh
-./build_local_app.sh
+./corelm macos build
 open dist/CoreLMBenchmark.app
 ```
 
@@ -116,7 +113,7 @@ real-Qwen application, the fast independent verifier, and the heavyweight
 independent replay:
 
 ```sh
-./run_local_app_proof.sh
+./corelm macos proof
 ```
 
 The automated proof creates and retains a fresh runtime with hash-locked
@@ -141,7 +138,7 @@ proof rejects dirty-source overrides.
 For a later network-free proof, prepare all inputs once while connected:
 
 ```sh
-./prepare_offline_inputs.sh
+./corelm macos prepare-offline
 ```
 
 Then disconnect if desired and run:
@@ -149,7 +146,7 @@ Then disconnect if desired and run:
 ```sh
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm-wheelhouse" \
-  ./run_local_app_proof.sh
+  ./corelm macos proof
 ```
 
 The offline package stage uses `--no-index`, `--only-binary=:all:`, and
@@ -223,17 +220,16 @@ public application-regression fixture and cannot support this claim.
 
 ## Evidence chain
 
-`BenchmarkCore/corelm_benchmark.py` defines the transition, codecs, metrics,
-verdict, and serialization. `BenchmarkCore/run_suite.py` defines the evaluation
-matrix. `Tests/test_benchmark.py` exercises invariants and regression gates.
-`benchmark-results/aggregate.json` records the authoritative run identifiers.
-The paper figure generator reads that aggregate and those records directly.
+`RealLLM/voidtoken_v5.py` defines the production container and codec,
+`RealLLM/develop_voidtoken_v5.py` defines the public-validation regression,
+and the frozen runner plus independent verifiers bind the registered selection
+and holdout. The paper figure generator reads only the checked-in real-Qwen
+development and frozen-result artifacts.
 
 ## Verify the historical real-LLM pilot
 
 The archive also includes the checked-in exploratory Qwen KV-cache pilot. Its
-negative verdicts remain intact and do not alter either the historical
-115-run v3 result or the separate prospective v5 result.
+negative verdicts remain intact and do not alter the later prospective result.
 
 ```sh
 python3 RealLLM/verify_real_llm_evidence.py
@@ -250,7 +246,7 @@ the pinned Qwen weights plus two pinned WikiText-2 parquet files:
 
 ```sh
 python3 -m pip install --require-hashes -r RealLLM/requirements.lock
-./run_real_llm_benchmark.sh
+python3 RealLLM/benchmark_real_llm.py
 ```
 
 The recorded result is an Apple-Silicon/MPS pilot. Cross-device exact PyTorch

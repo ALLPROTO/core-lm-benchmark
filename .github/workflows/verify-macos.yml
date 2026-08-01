@@ -1,0 +1,137 @@
+name: Verify macOS
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-application:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            .github/locks/pip-bootstrap.txt
+            .github/locks/core-macos-arm64-py312.txt
+            RealLLM/requirements.lock
+      - name: Install hash-locked dependencies
+        run: |
+          python -m pip install --require-hashes -r .github/locks/pip-bootstrap.txt
+          python -m pip install --require-hashes -r .github/locks/core-macos-arm64-py312.txt
+          python -m pip check
+      - run: PYTHON_BIN=python ./corelm verify
+      - name: Run non-empty Swift security test gate
+        run: ./security/run_swift_security_tests.sh
+      - name: Build hash-locked external app runtime
+        run: |
+          /bin/mkdir -p "$HOME/.cache"
+          /bin/chmod 700 "$HOME/.cache"
+          app_runtime="$HOME/.cache/corelm-ci-app-runtime"
+          app_python="$app_runtime/bin/python"
+          python -m venv "$app_runtime"
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r .github/locks/pip-bootstrap.txt
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r RealLLM/requirements.lock
+          "$app_python" -I -B -m pip check
+
+          base_prefix=$(
+            "$app_python" -I -B -c 'import sys; print(sys.base_prefix)'
+          )
+          virtual_prefix=$(
+            "$app_python" -I -B -c 'import sys; print(sys.prefix)'
+          )
+          expected_base_prefix="/Library/Frameworks/Python.framework/Versions/3.12"
+          if [ "$base_prefix" != "$expected_base_prefix" ]; then
+            printf 'unexpected base Python prefix: %s\n' "$base_prefix" >&2
+            exit 1
+          fi
+          if [ "$virtual_prefix" != "$app_runtime" ]; then
+            printf 'unexpected virtual-environment prefix: %s\n' \
+              "$virtual_prefix" >&2
+            exit 1
+          fi
+          if [ ! -d "$base_prefix" ] || [ -L "$base_prefix" ]; then
+            printf 'unsafe base Python prefix: %s\n' "$base_prefix" >&2
+            exit 1
+          fi
+          if [ ! -d "$virtual_prefix" ] || [ -L "$virtual_prefix" ]; then
+            printf 'unsafe virtual-environment prefix: %s\n' \
+              "$virtual_prefix" >&2
+            exit 1
+          fi
+          if [ "$(/usr/bin/stat -f '%u' "$base_prefix")" -ne 0 ]; then
+            printf 'base Python prefix is not root-owned: %s\n' \
+              "$base_prefix" >&2
+            exit 1
+          fi
+          runner_uid=$(/usr/bin/id -u)
+          if [ "$(/usr/bin/stat -f '%u' "$virtual_prefix")" \
+              -ne "$runner_uid" ]; then
+            printf 'virtual-environment prefix has an unexpected owner: %s\n' \
+              "$virtual_prefix" >&2
+            exit 1
+          fi
+
+          for trusted_directory in \
+            /Library \
+            /Library/Frameworks \
+            /Library/Frameworks/Python.framework \
+            /Library/Frameworks/Python.framework/Versions
+          do
+            if [ ! -d "$trusted_directory" ] \
+                || [ -L "$trusted_directory" ] \
+                || [ "$(/usr/bin/stat -f '%u' "$trusted_directory")" -ne 0 ]
+            then
+              printf 'unsafe base Python ancestor: %s\n' \
+                "$trusted_directory" >&2
+              exit 1
+            fi
+            sudo /bin/chmod go-w "$trusted_directory"
+          done
+          sudo /bin/chmod -RP go-w "$base_prefix"
+          /bin/chmod -RP go-w "$virtual_prefix"
+          python -I -B security/manage_local_runtime.py \
+            --path "$app_runtime" \
+            --project "$GITHUB_WORKSPACE" \
+            --mode initialize
+      - name: Build and package the macOS application
+        run: |
+          CORELM_BOOTSTRAP_PYTHON=python \
+          CORELM_REAL_LLM_VENV="$HOME/.cache/corelm-ci-app-runtime" \
+          CORELM_SKIP_RUNTIME_INSTALL=1 \
+          CORELM_SKIP_ASSET_PREPARATION=1 \
+          CORELM_SKIP_MEMORY_CHECK=1 \
+          CORELM_SKIP_MPS_CHECK=1 \
+          CORELM_SKIP_APP_LAUNCH_CHECK=1 \
+          BUILD_CONFIG=release \
+            ./corelm macos build
+      - name: Verify application bundle integrity and signature
+        run: ./security/verify_app_bundle.sh dist/CoreLMBenchmark.app
+      - name: Verify recorded real-Qwen application evidence
+        run: python security/verify_app_run_evidence.py

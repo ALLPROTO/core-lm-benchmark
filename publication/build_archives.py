@@ -22,7 +22,6 @@ from typing import Iterator
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLICATION = ROOT / "publication"
-ARXIV_V3 = PUBLICATION / "arxiv"
 ARXIV_V5 = PUBLICATION / "arxiv-v5"
 OUTPUT = ROOT / "output"
 BEACON_FREEZE_PATH = ROOT / "RealLLM/beacon_freeze.json"
@@ -454,7 +453,6 @@ def _v5_provenance_document(
     )
 
     evidence_paths = [
-        ROOT / "benchmark-results" / "aggregate.json",
         ROOT / "real-llm-results" / "aggregate.json",
         ROOT / "RealLLM" / "v5_registration.json",
         ROOT / "real-llm-v5-development" / "manifest.json",
@@ -518,68 +516,77 @@ def build_reproducibility(
         git_provenance=bool(context.get("builtFromCleanHead"))
     )
     target = output_directory / "corelm_reproducibility.tar.gz"
-    aggregate = json.loads((ROOT / "benchmark-results/aggregate.json").read_text())
-
     with tempfile.TemporaryDirectory(prefix="corelm-repro-") as temporary:
         stage = Path(temporary) / "corelm_reproducibility"
         stage.mkdir()
 
         files = [
-            "ARCHITECTURE.md",
+            "AGENTS.md",
             "CITATION.cff",
-            "EVIDENCE.md",
-            "KNOWN_LIMITATIONS.md",
             "LICENSE",
             "Package.swift",
             "README.md",
             "SECURITY.md",
+            "corelm",
             "requirements.lock",
             "requirements.txt",
-            "bootstrap_python312_macos.sh",
-            "build_local_app.sh",
-            "doctor.sh",
-            "prepare_offline_inputs.sh",
-            "run_local_app_proof.sh",
-            "run_tests.sh",
-            "run_benchmark.sh",
-            "run_real_llm_benchmark.sh",
-            "package_app.sh",
+            "scripts/verify-python.sh",
         ]
         for relative in files:
             source = ROOT / relative
             _assert_release_source(source, context)
-            shutil.copy2(source, stage / relative)
+            destination = stage / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
 
         source_files = [
             ".github/dependabot.yml",
             ".github/locks/core-linux-py312.txt",
             ".github/locks/core-macos-arm64-py312.txt",
             ".github/locks/pip-bootstrap.txt",
-            ".github/workflows/verify.yml",
-            "App/Info.plist",
-            "App/Sources/BenchmarkStore.swift",
-            "App/Sources/ContentView.swift",
-            "App/Sources/CoreLMBenchmarkApp.swift",
-            "App/Sources/Models.swift",
-            "App/Sources/PrimaryEvidenceValidation.swift",
-            "App/Sources/PythonRuntimeManifest.swift",
-            "App/Sources/RealLLMModels.swift",
-            "App/Sources/SecurityValidation.swift",
+            ".github/locks/real-llm-linux-cpu-py312.txt",
+            ".github/locks/torch-linux-cpu-py312.txt",
+            ".github/workflows/real-qwen-linux-cpu.yml",
+            ".github/workflows/verify-linux.yml",
+            ".github/workflows/verify-macos.yml",
+            "platforms/macos/README.md",
+            "platforms/macos/App/Info.plist",
+            "platforms/macos/App/Sources/BenchmarkStore.swift",
+            "platforms/macos/App/Sources/ContentView.swift",
+            "platforms/macos/App/Sources/CoreLMBenchmarkApp.swift",
+            "platforms/macos/App/Sources/Models.swift",
+            "platforms/macos/App/Sources/PrimaryEvidenceValidation.swift",
+            "platforms/macos/App/Sources/PythonRuntimeManifest.swift",
+            "platforms/macos/App/Sources/RealLLMModels.swift",
+            "platforms/macos/App/Sources/SecurityValidation.swift",
+            "platforms/macos/Tests/SecurityValidationTests.swift",
+            "platforms/macos/Tests/Fixtures/real-llm-validation-064-071.json",
+            "platforms/macos/scripts/bootstrap-python.sh",
+            "platforms/macos/scripts/build-app.sh",
+            "platforms/macos/scripts/doctor.sh",
+            "platforms/macos/scripts/package-app.sh",
+            "platforms/macos/scripts/prepare-offline.sh",
+            "platforms/macos/scripts/run-proof.sh",
+            "platforms/linux/README.md",
+            "platforms/linux/scripts/doctor.sh",
+            "platforms/linux/scripts/build-runtime.sh",
+            "platforms/linux/scripts/run-regression.sh",
             "BenchmarkCore/corelm_benchmark.py",
-            "BenchmarkCore/run_suite.py",
-            "BenchmarkCore/verify_evidence.py",
+            "BenchmarkCore/README.md",
+            "docs/ARCHITECTURE.md",
+            "docs/BEACON_LAUNCH_RUNBOOK.md",
+            "docs/BEACON_V1_AUDIT_AND_V2.md",
             "docs/BUILD_AND_VERIFY.md",
+            "docs/LINUX_REAL_QWEN.md",
             "docs/RESULTS.md",
             "docs/LIMITATIONS.md",
             "docs/development/HISTORY.md",
             "docs/development/SCIENTIFIC_IDENTIFIERS.md",
             "docs/development/RELEASE_PROCESS.md",
-            "TestsSwift/SecurityValidationTests.swift",
-            "TestsSwift/Fixtures/real-llm-validation-064-071.json",
             "Tests/test_app_real_llm_evidence.py",
+            "Tests/test_beacon_launch_runbook.py",
             "Tests/test_beacon_protocol.py",
             "Tests/test_build_provenance.py",
-            "Tests/test_benchmark.py",
             "Tests/test_local_app_build.py",
             "Tests/test_publication_archives.py",
             "Tests/test_real_llm.py",
@@ -596,7 +603,6 @@ def build_reproducibility(
             "schemas/beacon-registration.schema.json",
             "schemas/beacon-resolution.schema.json",
             "schemas/beacon-window-ledger.schema.json",
-            "schemas/benchmark-result.schema.json",
             "schemas/real-llm-result.schema.json",
             "schemas/voidtoken-v5-attempt.schema.json",
             "schemas/voidtoken-v5-phase-result.schema.json",
@@ -638,7 +644,6 @@ def build_reproducibility(
             "security/generate_python_runtime_manifest.py",
             "security/generate_direct_sbom.py",
             "security/manage_local_runtime.py",
-            "security/notarize_app.sh",
             "security/osv_direct_audit.py",
             "security/proof_process_groups.sh",
             "security/run_process_group_tests.sh",
@@ -682,22 +687,6 @@ def build_reproducibility(
             destination = stage / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
-
-        results = stage / "benchmark-results"
-        results.mkdir()
-        aggregate_path = ROOT / "benchmark-results/aggregate.json"
-        benchmark_readme = ROOT / "benchmark-results/README.md"
-        _assert_release_source(aggregate_path, context)
-        _assert_release_source(benchmark_readme, context)
-        shutil.copy2(aggregate_path, results)
-        shutil.copy2(benchmark_readme, results)
-        for run_id in aggregate["runIds"]:
-            for suffix in [".json", ".md"]:
-                source = ROOT / "benchmark-results" / f"{run_id}{suffix}"
-                if not source.is_file():
-                    raise FileNotFoundError(source)
-                _assert_release_source(source, context)
-                shutil.copy2(source, results)
 
         publication_arxiv = stage / "publication/arxiv-v5"
         publication_arxiv.mkdir(parents=True)

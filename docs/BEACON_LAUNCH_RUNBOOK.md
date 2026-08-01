@@ -90,8 +90,11 @@ required offline resolution check. These preparation commands do not tokenize
 the test corpus, select a window, load the model for inference, run the codec,
 or calculate a metric.
 
-The immutable tag retains the environment-variable name published with that
-tag. In this command it disables only the application launch check.
+The immutable tag retains both the historical root script path and the
+environment-variable name published with that tag. The command below is run
+only after the detached-tag checkout above; it is intentionally different from
+the current default branch's `./corelm macos build` command. The variable
+disables only the application launch check.
 
 ```sh
 CORELM_SKIP_SMOKE_TEST=1 ./build_local_app.sh

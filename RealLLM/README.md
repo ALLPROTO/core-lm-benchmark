@@ -114,10 +114,10 @@ unchanged and permanently forbids the pretest tag and holdout. Runner exit code
 
 ## Local macOS application proof
 
-On an Apple-Silicon Mac, `../build_local_app.sh` prepares the hash-locked
+On an Apple-Silicon Mac, `./corelm macos build` prepares the hash-locked
 Python environment, uses `prepare_app_assets.py` to download and digest-check
 only the pinned model plus validation data, and creates a locally ad-hoc signed
-app without an Apple Developer account. `../run_local_app_proof.sh` then runs
+app without an Apple Developer account. `./corelm macos proof` then runs
 candidate 32 on fixed public validation blocks 64–71 through the visible app and
 passes the resulting regression evidence to
 `../security/verify_local_app_run.py`. Those blocks have been exercised
@@ -174,7 +174,7 @@ The normative one-shot command is intentionally locked until the required tag
 is public and the registered pulse time has arrived:
 
 ```sh
-./build_local_app.sh
+./corelm macos build
 
 HF_HOME="$HOME/.cache/corelm-model-assets" \
 "$HOME/.cache/corelm-app-runtime/bin/python" -I -B \

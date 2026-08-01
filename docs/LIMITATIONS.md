@@ -59,5 +59,5 @@ does not turn that claim into a general model-compression result.
     that the operating system, Python distribution, or model files are free of
     all vulnerabilities.
 
-The detailed versioned research record is intentionally preserved in
-`EVIDENCE.md`, `KNOWN_LIMITATIONS.md`, and `docs/development/`.
+The detailed versioned research record is preserved under `docs/development/`
+and in immutable publication tags.

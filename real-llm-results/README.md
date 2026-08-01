@@ -1,7 +1,9 @@
 # Exploratory real-LLM pilot result
 
-This directory is separate from `benchmark-results/`. The synthetic 115-run
-evidence remains unchanged.
+This directory preserves an early real-Qwen pilot. It is separate from the
+later registered development, prospective, application, and Linux regression
+records. The retired synthetic result tree is not present on the default
+branch.
 
 The pilot used the pinned pretrained `Qwen/Qwen2.5-0.5B` model, canonical
 BF16-rounded KV cache from all 24 layers, WikiText-2 test source blocks 8–15,

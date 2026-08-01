@@ -12,8 +12,7 @@ beacon one-shot.
 
 Run the `Real Qwen Linux CPU Regression` workflow manually. The workflow:
 
-1. checks out source commit
-   `aaae33c744fe1b384877079c600fe4833966e74a`;
+1. checks out and records the exact requested commit and tree;
 2. builds a dedicated Python 3.12.13 environment from the hash-complete
    Ubuntu CPU locks, including the official PyTorch CPU-only wheel;
 3. downloads and digest-verifies only the pinned model and real validation
@@ -31,47 +30,32 @@ result channel in the checkout.
 ## Equivalent command in another Linux VM
 
 Use Ubuntu 24.04 x86_64 with Python 3.12.13, at least 8 GiB available memory,
-and at least 6 GiB free disk after installing the locked runtime. Prepare the
-pinned assets online and prove offline reuse before inference:
-
-The Linux runtime is the union of
-`.github/locks/real-llm-linux-cpu-py312.txt` and
-`.github/locks/torch-linux-cpu-py312.txt`. The latter must be installed only
-from `https://download.pytorch.org/whl/cpu`; both installs retain
-`--require-hashes`, `--only-binary=:all:`, and `--no-deps`.
+and at least 6 GiB free disk. The same checked-in entrypoint is used by a local
+clone and GitHub Actions:
 
 ```sh
-export HF_HOME=/absolute/private/corelm-real-qwen-cache
-export CORELM_RUN_DIR=/absolute/private/corelm-linux-cpu-regression
-install -d -m 700 "$HF_HOME" "$CORELM_RUN_DIR"
-
-python -I -B RealLLM/prepare_app_assets.py --cache "$HF_HOME"
-python -I -B RealLLM/prepare_app_assets.py \
-  --cache "$HF_HOME" --offline-only
+./corelm linux doctor
+./corelm linux build
+./corelm linux run
 ```
 
-Then disconnect model/data resolution from the network and execute the fixed
-regression without changing its range or candidate:
+The build is the union of the hash-complete Linux Qwen closure and the official
+PyTorch CPU-only wheel lock. The scripts retain `--require-hashes`,
+`--only-binary=:all:`, and `--no-deps`, then prove that the model and validation
+data resolve offline before inference.
+
+To choose explicit private locations:
 
 ```sh
-HF_HUB_OFFLINE=1 \
-TRANSFORMERS_OFFLINE=1 \
-TOKENIZERS_PARALLELISM=false \
-OMP_NUM_THREADS=2 \
-OPENBLAS_NUM_THREADS=2 \
-MKL_NUM_THREADS=2 \
-NUMEXPR_NUM_THREADS=2 \
-python -I -B RealLLM/develop_voidtoken_v5.py \
-  --device cpu \
-  --validation-start-block 64 \
-  --validation-blocks 8 \
-  --candidate-index 32 \
-  --local-files-only \
-  --output "$CORELM_RUN_DIR/validation-064-071.json" \
-  --primary-evidence-directory "$CORELM_RUN_DIR/primary-evidence"
-
-python -I -B security/verify_primary_evidence.py "$CORELM_RUN_DIR"
+CORELM_LINUX_RUNTIME=/absolute/private/corelm-runtime \
+CORELM_LINUX_HF_HOME=/absolute/private/corelm-model-cache \
+CORELM_RUN_DIR=/absolute/private/corelm-run \
+  ./corelm linux run
 ```
+
+The runner requires a clean Git checkout, writes a pre-run contract before
+inference, fixes the public validation range and configuration, verifies all
+raw evidence, and produces `SHA256SUMS`. It never calls a beacon command.
 
 The required source-token digest is
 `1bb36c91d441379596361ae779ca0542c85457e9902a290a6ab6945cb2513453`.

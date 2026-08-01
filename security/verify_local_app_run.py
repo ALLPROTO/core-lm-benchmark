@@ -83,7 +83,7 @@ def parse_arguments() -> argparse.Namespace:
         "--challenge",
         help=(
             "64-character nonce supplied to the app by "
-            "run_local_app_proof.sh; required for a freshness claim"
+            "./corelm macos proof; required for a freshness claim"
         ),
     )
     return parser.parse_args()

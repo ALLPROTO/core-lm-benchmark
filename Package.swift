@@ -38,13 +38,13 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "CoreLMBenchmarkApp",
-            path: "App/Sources",
+            path: "platforms/macos/App/Sources",
             linkerSettings: [.linkedFramework("Security")]
         ),
         .testTarget(
             name: "CoreLMBenchmarkSecurityTests",
             dependencies: ["CoreLMBenchmarkApp"],
-            path: "TestsSwift",
+            path: "platforms/macos/Tests",
             resources: [.copy("Fixtures")],
             swiftSettings: testingSwiftSettings,
             linkerSettings: testingLinkerSettings

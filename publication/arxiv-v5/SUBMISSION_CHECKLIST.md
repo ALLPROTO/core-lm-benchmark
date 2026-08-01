@@ -43,7 +43,8 @@
 
 ## Local package checks
 
-- [x] Historical `publication/arxiv/` v3 source remains separate.
+- [x] Retired synthetic source is excluded from the current submission and
+      remains recoverable only from the immutable historical Git tag.
 - [x] Top-level v5 source is `main.tex`.
 - [x] File names and TeX source use arXiv-safe ASCII.
 - [x] All figures are vector PDF files.

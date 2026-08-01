@@ -305,7 +305,10 @@ class PublicationArchiveTests(unittest.TestCase):
                 archived_source_paths = {
                     entry["path"] for entry in archive_provenance["files"]
                 }
-                self.assertIn("package_app.sh", archived_source_paths)
+                self.assertIn(
+                    "platforms/macos/scripts/package-app.sh",
+                    archived_source_paths,
+                )
                 self.assertIn(
                     "RealLLM/legacy_voidtoken_adapter.py",
                     archived_source_paths,
@@ -354,11 +357,16 @@ class PublicationArchiveTests(unittest.TestCase):
                     names,
                 )
                 for relative in (
-                    "build_local_app.sh",
-                    "bootstrap_python312_macos.sh",
-                    "doctor.sh",
-                    "prepare_offline_inputs.sh",
-                    "run_local_app_proof.sh",
+                    "corelm",
+                    "platforms/macos/scripts/build-app.sh",
+                    "platforms/macos/scripts/bootstrap-python.sh",
+                    "platforms/macos/scripts/doctor.sh",
+                    "platforms/macos/scripts/prepare-offline.sh",
+                    "platforms/macos/scripts/run-proof.sh",
+                    "platforms/linux/scripts/doctor.sh",
+                    "platforms/linux/scripts/build-runtime.sh",
+                    "platforms/linux/scripts/run-regression.sh",
+                    "scripts/verify-python.sh",
                     "requirements.lock",
                     "RealLLM/requirements.lock",
                     "RealLLM/prepare_app_assets.py",
@@ -369,10 +377,10 @@ class PublicationArchiveTests(unittest.TestCase):
                     "docs/development/SCIENTIFIC_IDENTIFIERS.md",
                     "docs/development/RELEASE_PROCESS.md",
                     "SECURITY.md",
-                    "App/Sources/PrimaryEvidenceValidation.swift",
-                    "App/Sources/PythonRuntimeManifest.swift",
-                    "App/Sources/SecurityValidation.swift",
-                    "TestsSwift/SecurityValidationTests.swift",
+                    "platforms/macos/App/Sources/PrimaryEvidenceValidation.swift",
+                    "platforms/macos/App/Sources/PythonRuntimeManifest.swift",
+                    "platforms/macos/App/Sources/SecurityValidation.swift",
+                    "platforms/macos/Tests/SecurityValidationTests.swift",
                     "security/generate_python_runtime_manifest.py",
                     "security/generate_build_provenance.py",
                     "security/find_python312.sh",
@@ -439,7 +447,10 @@ class PublicationArchiveTests(unittest.TestCase):
                 bundle.extractall(extract_root, filter="data")
             extracted = extract_root / "corelm_reproducibility"
             completed = subprocess.run(
-                ["/bin/sh", str(extracted / "run_tests.sh")],
+                [
+                    "/bin/sh",
+                    str(extracted / "scripts/verify-python.sh"),
+                ],
                 cwd=extracted,
                 check=False,
                 capture_output=True,

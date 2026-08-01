@@ -1,188 +1,172 @@
 # Core LM Benchmark
 
-[![Verify](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify.yml/badge.svg)](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify.yml)
+[![Linux](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-linux.yml/badge.svg)](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-linux.yml)
+[![macOS](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-macos.yml/badge.svg)](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-macos.yml)
 
-Core LM Benchmark is an open-source macOS application for checking a real
-KV-cache compression result on your own machine. It builds from source, loads a
-pinned Qwen model, creates compressed cache containers, replays them through the
-model, displays every architecture module, and independently verifies the
-result and application receipt.
+Core LM Benchmark is an open-source, real-data benchmark for inspecting a
+KV-cache compression result end to end. It loads a pinned Qwen model, evaluates
+registered WikiText input, creates complete compressed cache containers,
+fresh-parses them, replays the cache through the model, and independently
+verifies the result.
 
-The release application has one clear workflow: **Compression Proof**.
-Earlier experiments, rejected approaches, protocol revisions, and release
-engineering are retained in the separate
-[development record](docs/development/HISTORY.md).
+The repository has two explicit platform targets:
 
-## Real-data policy
+| Platform | Deliverable | Compute path |
+|---|---|---|
+| macOS | Native SwiftUI application | Apple MPS |
+| Linux | Command-line regression and raw evidence | x86_64 CPU |
 
-Every benchmark, application proof, model evaluation, and scientific-evidence
-run executes the pinned pretrained Qwen model on registered real WikiText
-inputs. Synthetic, generated, toy, or mocked inputs cannot produce benchmark
-metrics, evidence, PASS/FAIL claims, or publication results. Deterministic
-fixtures remain permitted only in isolated parser, security, unit, and
-protocol-control tests; their outputs never enter evidence or result channels.
-Historical synthetic artifacts are preserved for provenance and integrity
-checking only, not rerun as current evidence.
+## Choose your platform
 
-## Build and verify
-
-Requirements:
-
-- Apple Silicon Mac with macOS 14 or newer;
-- Python 3.12 from a trusted owner-controlled installation;
-- Swift 6 or newer from Apple's free Command Line Tools or Xcode;
-- an active macOS desktop session for the visible application run;
-- at least 8 GB of unified memory, with memory-heavy apps closed;
-- at least 6 GiB of free disk space;
-- network access, or a previously prepared hash-checked offline cache.
-
-Clone the source, then run the read-only prerequisite check:
+Clone once, then use the single dispatcher:
 
 ```sh
 git clone https://github.com/ALLPROTO/core-lm-benchmark.git
 cd core-lm-benchmark
-./doctor.sh
+./corelm --help
 ```
 
-If Python 3.12 is missing, `./bootstrap_python312_macos.sh` downloads a fixed
-owner-local CPython archive, verifies its registered SHA-256 and safe archive
-topology, and installs it below `~/.local/share/corelm` without `sudo` or a
-system Python change. The binary archive is the explicitly disclosed
-third-party `astral-sh/python-build-standalone` 3.12.13+20260718 distribution;
-its archive SHA-256 is
-`62aeee6161d57303a71a138b75fd5cc6fb8c89c4b1d9c7f0a052d89fa0b6652b`.
-That binary archive is an explicit trust boundary, and the resulting
-interpreter and complete runtime are covered by the application manifest.
+### macOS application
 
-Run the complete proof:
+Requirements: Apple Silicon, macOS 14 or newer, Swift 6, Python 3.12.13,
+8 GB unified memory, 6 GiB free disk, and an active desktop session.
 
 ```sh
-./run_local_app_proof.sh
+./corelm macos doctor
+./corelm macos proof
 ```
 
-The command creates a fresh Python runtime with hash-locked packages and an
-exact signed runtime manifest, verifies the model and dataset bytes, builds
-`dist/CoreLMBenchmark.app`, applies a local ad-hoc signature, runs the real
-model on Apple MPS, binds the new result to a random local challenge, then uses
-a separate decoder to replay all retained containers and all 1,024 Qwen
-decisions.
+The proof creates a fresh hash-locked runtime, verifies model and dataset
+bytes, builds `dist/CoreLMBenchmark.app`, applies a local ad-hoc signature,
+runs real Qwen on Apple MPS, and independently replays all 1,024 decisions.
+No Apple developer account, paid certificate, Developer ID, or notarization is
+required.
 
-The nonce is a trusted-local workflow guard against accidentally selecting an
-older run; the owner-local ad-hoc receipt is not a cryptographic remote
-attestation. See the security policy for that trust boundary.
-
-No Apple Developer Program membership, Apple signing account, paid certificate,
-Developer ID identity, or notarization is required. The repository distributes
-source so the verifier builds and signs the application locally.
-
-For a later network-free proof, prepare the wheelhouse and registered model
-cache once while connected, then run:
+Build without starting the full proof:
 
 ```sh
-./prepare_offline_inputs.sh
+./corelm macos build
+open dist/CoreLMBenchmark.app
+```
+
+If Python 3.12.13 is missing, the optional owner-local bootstrap downloads the
+fixed `astral-sh/python-build-standalone` archive and verifies SHA-256
+`62aeee6161d57303a71a138b75fd5cc6fb8c89c4b1d9c7f0a052d89fa0b6652b`:
+
+```sh
+./corelm macos bootstrap
+```
+
+Prepare a hash-checked wheelhouse and model cache for later offline proofs:
+
+```sh
+./corelm macos prepare-offline
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm-wheelhouse" \
-  ./run_local_app_proof.sh
+  ./corelm macos proof
 ```
 
-Both online and offline package installation retain `--require-hashes` and
-binary-wheel-only enforcement. See the detailed guide for HTTPS mirror
-configuration and externally supplied proof challenges.
+See [the macOS guide](platforms/macos/README.md) and the detailed
+[build-and-verify walkthrough](docs/BUILD_AND_VERIFY.md).
 
-See [Build and verify](docs/BUILD_AND_VERIFY.md) for the detailed walkthrough
-and troubleshooting.
+### Linux CPU regression
 
-This flow verifies the current public checkout. To reproduce the exact frozen
-publication instead, use its recorded release tag and checksums, then follow
-the [reproducibility archive instructions](publication/reproducibility/README.md).
+Requirements: Ubuntu 24.04 x86_64, Python 3.12.13, 8 GiB available memory,
+and 6 GiB free disk.
 
-## Verified reference result
+```sh
+./corelm linux doctor
+./corelm linux build
+./corelm linux run
+```
+
+The Linux path builds a separate CPU-only, hash-locked runtime, verifies the
+same pinned model and real validation data, retains 192 containers and 1,024
+token decisions, and runs the independent raw-evidence verifier. It is a
+regression on already-public validation input, not a new blind or held-out
+claim. See [the Linux guide](platforms/linux/README.md) and the
+[recorded public VM run](docs/LINUX_REAL_QWEN.md).
+
+## Real-data policy
+
+Every benchmark, application proof, model evaluation, and scientific-evidence
+run uses the pinned pretrained Qwen model on registered real WikiText input.
+Synthetic, generated, toy, or mocked input cannot produce benchmark metrics,
+evidence, PASS/FAIL claims, or publication results. Deterministic fixtures are
+permitted only in isolated parser, security, unit, and protocol-control tests;
+their outputs never enter an evidence or result directory.
+
+The old synthetic runner, its 115 result pairs, verifier, schema, paper source,
+and PDF are absent from the default branch. Their immutable historical bytes
+remain available only in the published
+[`voidtoken-v5-paper-v5`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/voidtoken-v5-paper-v5)
+tag. One frozen compatibility source, `BenchmarkCore/corelm_benchmark.py`, must
+remain byte-identical at its registered path until the beacon attempt because
+it is part of the published implementation hash. It is not exposed by
+`./corelm`, CI, or either platform build.
+
+## Verified reference results
 
 | Evaluation | Predictions | Compression vs BF16 | Delta NLL | Top-1 agreement | Verdict |
 |---|---:|---:|---:|---:|---|
 | Registered prospective holdout | 4,096 | 2.053291x | -0.000061 | 99.3896% | **PASS** |
-| Native application integration | 1,024 | 2.052384x | -0.00000849 | 99.5117% | **PASS** |
+| Native macOS integration | 1,024 | 2.052384x | -0.00000849 | 99.5117% | **PASS** |
+| Linux CPU regression | 1,024 | 2.052389x | +0.00002232 | 99.6094% | **PASS** |
 
-The native application row uses fixed, public validation blocks 64–71. Those
-blocks have been exercised repeatedly and are now application-regression input,
-not a blind sample, holdout, or basis for a new generalization claim. Three runs
-bound to a trusted-local challenge from one unchanged local bundle produced the
-same scientific metrics and 192-entry container manifest; they are repeatability
-checks of one fixed workflow, not three independent experiments. The scientific
-fields and container manifest remained identical; operational fields such as
-the challenge, timestamps, timings, and derived receipt digest changed.
+The macOS and Linux integration rows use fixed public validation blocks
+64-71. They demonstrate repeatability of the application, codec, retained
+evidence, and verifiers; they are not blind samples or new generalization
+evidence. CPU and Apple MPS values need not be bit-identical.
 
-These measurements cover the pinned `Qwen/Qwen2.5-0.5B` revision, registered
-WikiText-2 windows, canonical BF16 prefill KV cache, teacher-forced replay, and
-Apple MPS. They are not claims about full-model weight compression, free-running
-generation, latency, serving throughput, arbitrary models, or state of the art.
+These measurements cover one pinned Qwen revision, registered WikiText-2
+windows, canonical BF16 prefill KV cache, teacher-forced replay, and the stated
+devices. They do not claim weight compression, free-running generation
+quality, latency, throughput, arbitrary-model transfer, or state of the art.
 
-The next evidence line is separately preregistered in the
-[beacon-selected held-out protocol](RealLLM/BEACON_HELDOUT_PROTOCOL.md). Its
-protocol and hashes are already published under immutable release
-[`corelm-beacon-heldout-v1`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-beacon-heldout-v1):
-tag commit `0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44`, protocol commit
-`b34bc4d06c00c86b99076b117049e2d590d73bcd`, and GitHub server publication
-time `2026-08-01T01:18:09Z`. The release body names four key artifacts; the
-authoritative complete normative inventory is the 26 entries in
-`RealLLM/beacon_freeze.json`. A pre-pulse notes-only correction at
-`2026-08-01T10:08:12Z` clarified that label without changing the tag, assets,
-frozen files, or original `published_at`.
+## Prospective beacon experiment
 
-That suite still has no result. At `2026-08-02T18:00:00.000Z`, the exact NIST
-beacon selects one of fifteen previously unreported test windows for one
-irreversible recorded run, which must complete by
-`2026-08-04T18:00:00.000Z`. A repeat after terminal `PASS` or `FAIL_GATES` is
-regression-only; `FAIL_EXECUTION` or an incomplete attempt cannot be retried.
-The public [launch and publication runbook](docs/BEACON_LAUNCH_RUNBOOK.md)
-fixes the clean-checkout, Mac power, no-retry, and unchanged-artifact procedure.
-The separate [v1 audit and v2 hardening record](docs/BEACON_V1_AUDIT_AND_V2.md)
-states the trusted-local limitations that remain frozen into v1 and the changes
-required before any stronger future protocol.
+The separately preregistered selected-window experiment is frozen under the
+immutable release
+[`corelm-beacon-heldout-v1`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-beacon-heldout-v1).
+Its tag commit is `0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44`, and the exact
+NIST pulse is `2026-08-02T18:00:00.000Z`. It still has no result.
 
-Read [Results](docs/RESULTS.md) and [Limitations](docs/LIMITATIONS.md) before
-reusing the numbers.
-
-## Use the application
-
-To build without automatically running the full proof:
-
-```sh
-./build_local_app.sh
-open dist/CoreLMBenchmark.app
-```
-
-The release interface opens directly on **Compression Proof**. Its sidebar
-shows the state of model loading, prefill, cache extraction, compression,
-rebuild, continuation, metrics, and verification. Press **Run Compression
-Proof** to produce a new local result.
-
-## Documentation
-
-- [Build and verify](docs/BUILD_AND_VERIFY.md) — ordinary-user installation and proof flow.
-- [Real Qwen on Linux](docs/LINUX_REAL_QWEN.md) — CPU regression on pinned public validation data.
-- [Results](docs/RESULTS.md) — current measurements and what PASS means.
-- [Limitations](docs/LIMITATIONS.md) — honest boundary of the demonstrated claim.
-- [Architecture](ARCHITECTURE.md) — final application and verifier pipeline.
-- [Beacon launch runbook](docs/BEACON_LAUNCH_RUNBOOK.md) — one-shot operator and publication procedure.
-- [Security policy](SECURITY.md) — runtime, bundle, asset, and supply-chain controls.
-- [Development history](docs/development/HISTORY.md) — versioned experiments and chronology.
-- [Scientific identifiers](docs/development/SCIENTIFIC_IDENTIFIERS.md) — internal names retained for reproducibility.
-- [Release process](docs/development/RELEASE_PROCESS.md) — maintainer-only publication workflow.
+That one-shot must be executed only from a clean detached checkout of the
+immutable tag, never from the evolving default branch. Follow the
+[launch runbook](docs/BEACON_LAUNCH_RUNBOOK.md). A repeat after terminal
+`PASS` or `FAIL_GATES` is regression-only; execution failure or an incomplete
+attempt cannot be retried.
 
 ## Repository map
 
-- `App/` — native SwiftUI application.
-- `RealLLM/` — pinned real-model runner, codec, and independent verifiers.
-- `security/` — bundle, runtime, result, dependency, and workflow checks.
-- `Tests/` and `TestsSwift/` — real-model regression and security suites.
-- `app-real-llm-evidence/` — sanitized native-application reference receipt.
-- `docs/` — final-user documentation and separate development history.
-- `publication/` — paper, submission source, and deterministic archive tooling.
+- `platforms/macos/` — native application, Swift tests, and macOS scripts.
+- `platforms/linux/` — CPU runtime and real-Qwen regression scripts.
+- `RealLLM/` — shared pinned model, codec, protocols, and verifiers.
+- `Tests/` — Python unit, protocol, evidence, and security gates.
+- `security/` and `schemas/` — independent validation and contracts.
+- `app-real-llm-evidence/` and `real-llm-v5-*` — registered real-data records.
+- `publication/` — current paper, submission source, and archive tooling.
+- `docs/` — architecture, results, limitations, and maintainer records.
+
+Run the lightweight repository gates with:
+
+```sh
+./corelm verify
+```
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Build and verify on macOS](docs/BUILD_AND_VERIFY.md)
+- [Real Qwen on Linux](docs/LINUX_REAL_QWEN.md)
+- [Results](docs/RESULTS.md)
+- [Limitations](docs/LIMITATIONS.md)
+- [Security policy](SECURITY.md)
+- [Publication reproducibility](publication/reproducibility/README.md)
 
 ## Citation and license
 
-Citation metadata is provided in `CITATION.cff`. Author:
+Citation metadata is in `CITATION.cff`. Author:
 [Ivan Tyshchenko](https://orcid.org/0009-0000-7935-6090).
 
 The software is released under the MIT License. The paper and submission source

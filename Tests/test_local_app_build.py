@@ -33,6 +33,9 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE = ROOT / "app-real-llm-evidence"
+MACOS_ROOT = ROOT / "platforms" / "macos"
+MACOS_APP = MACOS_ROOT / "App"
+MACOS_SCRIPTS = MACOS_ROOT / "scripts"
 
 
 class LocalAppBuildTests(unittest.TestCase):
@@ -349,14 +352,14 @@ class LocalAppBuildTests(unittest.TestCase):
             verify_primary_evidence._verify_token_metrics(forged_source, result)
 
     def test_release_surface_is_version_free_and_proof_only(self):
-        content = (ROOT / "App" / "Sources" / "ContentView.swift").read_text(
+        content = (MACOS_APP / "Sources" / "ContentView.swift").read_text(
             encoding="utf-8"
         )
         store = (
-            ROOT / "App" / "Sources" / "BenchmarkStore.swift"
+            MACOS_APP / "Sources" / "BenchmarkStore.swift"
         ).read_text(encoding="utf-8")
         application = (
-            ROOT / "App" / "Sources" / "CoreLMBenchmarkApp.swift"
+            MACOS_APP / "Sources" / "CoreLMBenchmarkApp.swift"
         ).read_text(encoding="utf-8")
 
         self.assertIn('Label("Compression Proof"', content)
@@ -387,7 +390,7 @@ class LocalAppBuildTests(unittest.TestCase):
             self.assertNotIn(stale, store)
         self.assertNotIn('Button("Open Development Result…")', application)
 
-        models = (ROOT / "App" / "Sources" / "Models.swift").read_text(
+        models = (MACOS_APP / "Sources" / "Models.swift").read_text(
             encoding="utf-8"
         )
         self.assertIn("enum Verdict", models)
@@ -396,18 +399,18 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertNotIn("RunSettings", models)
 
     def test_final_bundle_and_default_gates_exclude_legacy_benchmark(self):
-        package = (ROOT / "package_app.sh").read_text(encoding="utf-8")
+        package = (MACOS_SCRIPTS / "package-app.sh").read_text(encoding="utf-8")
         verifier = (
             ROOT / "security" / "verify_app_bundle.sh"
         ).read_text(encoding="utf-8")
-        build = (ROOT / "build_local_app.sh").read_text(encoding="utf-8")
-        tests = (ROOT / "run_tests.sh").read_text(encoding="utf-8")
-        proof = (ROOT / "run_local_app_proof.sh").read_text(encoding="utf-8")
+        build = (MACOS_SCRIPTS / "build-app.sh").read_text(encoding="utf-8")
+        tests = (ROOT / "scripts/verify-python.sh").read_text(encoding="utf-8")
+        proof = (MACOS_SCRIPTS / "run-proof.sh").read_text(encoding="utf-8")
         store = (
-            ROOT / "App" / "Sources" / "BenchmarkStore.swift"
+            MACOS_APP / "Sources" / "BenchmarkStore.swift"
         ).read_text(encoding="utf-8")
         workflow = (
-            ROOT / ".github" / "workflows" / "verify.yml"
+            ROOT / ".github" / "workflows" / "verify-macos.yml"
         ).read_text(encoding="utf-8")
 
         self.assertNotIn("BenchmarkCore", package)
@@ -442,7 +445,7 @@ class LocalAppBuildTests(unittest.TestCase):
             "codecs.py",
             "voidtoken_v5.py",
         )
-        package_source = (ROOT / "package_app.sh").read_text(encoding="utf-8")
+        package_source = (MACOS_SCRIPTS / "package-app.sh").read_text(encoding="utf-8")
 
         with tempfile.TemporaryDirectory() as temporary:
             temporary_root = Path(temporary)
@@ -505,13 +508,13 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertNotIn("develop_voidtoken_v5.py", package_source)
 
     def test_worker_group_is_child_created_and_proof_cleanup_is_recursive(self):
-        store = (ROOT / "App/Sources/BenchmarkStore.swift").read_text(
+        store = (MACOS_APP / "Sources/BenchmarkStore.swift").read_text(
             encoding="utf-8"
         )
         runner = (ROOT / "RealLLM/app_proof_runner.py").read_text(
             encoding="utf-8"
         )
-        proof = (ROOT / "run_local_app_proof.sh").read_text(
+        proof = (MACOS_SCRIPTS / "run-proof.sh").read_text(
             encoding="utf-8"
         )
         group_supervisor = (
@@ -566,7 +569,7 @@ class LocalAppBuildTests(unittest.TestCase):
     def test_final_user_docs_and_paths_are_separate_from_versions(self):
         for relative in (
             "README.md",
-            "ARCHITECTURE.md",
+            "docs/ARCHITECTURE.md",
             "docs/BUILD_AND_VERIFY.md",
             "docs/RESULTS.md",
             "docs/LIMITATIONS.md",
@@ -587,13 +590,13 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertIn("VoidToken v3", history)
         self.assertIn("VoidToken v5", history)
 
-        build_script = (ROOT / "build_local_app.sh").read_text(
+        build_script = (MACOS_SCRIPTS / "build-app.sh").read_text(
             encoding="utf-8"
         )
-        package_script = (ROOT / "package_app.sh").read_text(
+        package_script = (MACOS_SCRIPTS / "package-app.sh").read_text(
             encoding="utf-8"
         )
-        proof_script = (ROOT / "run_local_app_proof.sh").read_text(
+        proof_script = (MACOS_SCRIPTS / "run-proof.sh").read_text(
             encoding="utf-8"
         )
         self.assertIn(".cache/corelm-app-runtime", build_script)
@@ -603,13 +606,13 @@ class LocalAppBuildTests(unittest.TestCase):
         for source in (build_script, package_script, proof_script):
             self.assertNotIn("corelm-real-llm-app-runtime-v1", source)
 
-        plist = plistlib.loads((ROOT / "App" / "Info.plist").read_bytes())
+        plist = plistlib.loads((MACOS_APP / "Info.plist").read_bytes())
         self.assertEqual(plist["CFBundleName"], "Core LM Benchmark")
         self.assertEqual(plist["CFBundleShortVersionString"], "1.0.0")
         self.assertEqual(plist["CFBundleVersion"], "6")
 
     def test_packager_has_no_author_specific_default_python_digest(self):
-        source = (ROOT / "package_app.sh").read_text(encoding="utf-8")
+        source = (MACOS_SCRIPTS / "package-app.sh").read_text(encoding="utf-8")
         self.assertNotIn(
             "eb9d74b9c7cfdfb2c9b91614edb2c3607360ba46c5aa7fc4557b3a4a23e97cff",
             source,
@@ -617,21 +620,25 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertIn("CORELM_REAL_LLM_PYTHON_SHA256", source)
 
     def test_local_workflow_shell_scripts_parse(self):
-        for name in (
-            "bootstrap_python312_macos.sh",
-            "build_local_app.sh",
-            "doctor.sh",
-            "package_app.sh",
-            "prepare_offline_inputs.sh",
-            "run_local_app_proof.sh",
-            "run_tests.sh",
-            "security/find_python312.sh",
-            "security/proof_process_groups.sh",
-            "security/run_process_group_tests.sh",
-            "security/validate_proof_challenge.sh",
+        for path in (
+            ROOT / "corelm",
+            MACOS_SCRIPTS / "bootstrap-python.sh",
+            MACOS_SCRIPTS / "build-app.sh",
+            MACOS_SCRIPTS / "doctor.sh",
+            MACOS_SCRIPTS / "package-app.sh",
+            MACOS_SCRIPTS / "prepare-offline.sh",
+            MACOS_SCRIPTS / "run-proof.sh",
+            ROOT / "platforms/linux/scripts/doctor.sh",
+            ROOT / "platforms/linux/scripts/build-runtime.sh",
+            ROOT / "platforms/linux/scripts/run-regression.sh",
+            ROOT / "scripts/verify-python.sh",
+            ROOT / "security/find_python312.sh",
+            ROOT / "security/proof_process_groups.sh",
+            ROOT / "security/run_process_group_tests.sh",
+            ROOT / "security/validate_proof_challenge.sh",
         ):
             completed = subprocess.run(
-                ["/bin/sh", "-n", str(ROOT / name)],
+                ["/bin/sh", "-n", str(path)],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -639,7 +646,7 @@ class LocalAppBuildTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_proof_cannot_inherit_ci_skip_flags_or_runtime_pycache(self):
-        proof = (ROOT / "run_local_app_proof.sh").read_text(encoding="utf-8")
+        proof = (MACOS_SCRIPTS / "run-proof.sh").read_text(encoding="utf-8")
         for variable in (
             "CORELM_SKIP_RUNTIME_INSTALL",
             "CORELM_SKIP_ASSET_PREPARATION",
@@ -676,14 +683,14 @@ class LocalAppBuildTests(unittest.TestCase):
             "PYTORCH_ENABLE_MPS_FALLBACK",
         ):
             self.assertNotIn(f'${{{hostile}', proof)
-        tests = (ROOT / "run_tests.sh").read_text(encoding="utf-8")
+        tests = (ROOT / "scripts/verify-python.sh").read_text(encoding="utf-8")
         self.assertIn('pycache_prefix=$PYTHON_CACHE', tests)
 
     def test_doctor_and_build_enforce_random_mac_prerequisites(self):
-        doctor = (ROOT / "doctor.sh").read_text(encoding="utf-8")
-        build = (ROOT / "build_local_app.sh").read_text(encoding="utf-8")
-        proof = (ROOT / "run_local_app_proof.sh").read_text(encoding="utf-8")
-        workflow = (ROOT / ".github/workflows/verify.yml").read_text(
+        doctor = (MACOS_SCRIPTS / "doctor.sh").read_text(encoding="utf-8")
+        build = (MACOS_SCRIPTS / "build-app.sh").read_text(encoding="utf-8")
+        proof = (MACOS_SCRIPTS / "run-proof.sh").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/verify-macos.yml").read_text(
             encoding="utf-8"
         )
 
@@ -695,11 +702,14 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertIn("CORELM_SKIP_MEMORY_CHECK=1", workflow)
         self.assertIn('launchctl print "gui/$current_uid"', doctor)
         self.assertIn("--proto '=https'", doctor)
-        self.assertIn('"$PROJECT_DIR/doctor.sh" "$@"', build)
+        self.assertIn(
+            '"$PROJECT_DIR/platforms/macos/scripts/doctor.sh" "$@"',
+            build,
+        )
         self.assertIn('/usr/bin/shlock -p "$$"', proof)
 
     def test_owner_local_python_bootstrap_is_pinned_and_has_no_sudo(self):
-        bootstrap = (ROOT / "bootstrap_python312_macos.sh").read_text(
+        bootstrap = (MACOS_SCRIPTS / "bootstrap-python.sh").read_text(
             encoding="utf-8"
         )
         resolver = (
@@ -760,16 +770,16 @@ class LocalAppBuildTests(unittest.TestCase):
             "publication/reproducibility/README.md",
         ):
             text = documents[relative]
-            self.assertIn("./doctor.sh", text, relative)
-            self.assertIn("./prepare_offline_inputs.sh", text, relative)
+            self.assertIn("./corelm macos doctor", text, relative)
+            self.assertIn("./corelm macos prepare-offline", text, relative)
             self.assertIn("CORELM_OFFLINE=1", text, relative)
             self.assertIn("8 GB", text, relative)
             self.assertIn("6 GiB", text, relative)
             self.assertIn("notarization", text, relative)
 
     def test_offline_proof_keeps_hash_checks_and_disables_indexes(self):
-        build = (ROOT / "build_local_app.sh").read_text(encoding="utf-8")
-        proof = (ROOT / "run_local_app_proof.sh").read_text(encoding="utf-8")
+        build = (MACOS_SCRIPTS / "build-app.sh").read_text(encoding="utf-8")
+        proof = (MACOS_SCRIPTS / "run-proof.sh").read_text(encoding="utf-8")
 
         self.assertIn("CORELM_WHEELHOUSE", build)
         self.assertIn("--no-index", build)
@@ -798,7 +808,7 @@ class LocalAppBuildTests(unittest.TestCase):
             )
             self.assertNotEqual(rejected.returncode, 0, invalid)
 
-        proof = (ROOT / "run_local_app_proof.sh").read_text(encoding="utf-8")
+        proof = (MACOS_SCRIPTS / "run-proof.sh").read_text(encoding="utf-8")
         self.assertIn('--proof-challenge "$challenge"', proof)
 
     def test_asset_preparation_downloads_then_proves_offline_resolution(self):
