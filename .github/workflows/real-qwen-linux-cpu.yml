@@ -17,6 +17,9 @@ jobs:
   real-qwen-linux-cpu:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: source
     env:
       CORELM_CODE_COMMIT: aaae33c744fe1b384877079c600fe4833966e74a
       HF_HUB_DISABLE_IMPLICIT_TOKEN: "1"
@@ -27,10 +30,17 @@ jobs:
       NUMEXPR_NUM_THREADS: "2"
       TOKENIZERS_PARALLELISM: "false"
     steps:
+      - name: Check out the workflow contract and Linux locks
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          path: orchestration
+          persist-credentials: false
       - name: Check out the exact benchmark implementation
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: aaae33c744fe1b384877079c600fe4833966e74a
+          path: source
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
@@ -85,7 +95,7 @@ jobs:
             --only-binary=:all: \
             --index-url https://pypi.org/simple \
             --require-hashes \
-            -r .github/locks/pip-bootstrap.txt
+            -r ../orchestration/.github/locks/pip-bootstrap.txt
           "$app_python" -I -B -m pip install \
             --isolated \
             --no-input \
@@ -95,7 +105,7 @@ jobs:
             --only-binary=:all: \
             --index-url https://pypi.org/simple \
             --require-hashes \
-            -r .github/locks/real-llm-linux-cpu-py312.txt
+            -r ../orchestration/.github/locks/real-llm-linux-cpu-py312.txt
           "$app_python" -I -B -m pip install \
             --isolated \
             --no-input \
@@ -105,13 +115,13 @@ jobs:
             --only-binary=:all: \
             --index-url https://download.pytorch.org/whl/cpu \
             --require-hashes \
-            -r .github/locks/torch-linux-cpu-py312.txt
+            -r ../orchestration/.github/locks/torch-linux-cpu-py312.txt
           "$app_python" -I -B -m pip check
           "$app_python" -I -B security/verify_locked_environment.py \
             --runtime "$CORELM_RUNTIME" \
-            --lock .github/locks/pip-bootstrap.txt \
-            --lock .github/locks/real-llm-linux-cpu-py312.txt \
-            --lock .github/locks/torch-linux-cpu-py312.txt
+            --lock ../orchestration/.github/locks/pip-bootstrap.txt \
+            --lock ../orchestration/.github/locks/real-llm-linux-cpu-py312.txt \
+            --lock ../orchestration/.github/locks/torch-linux-cpu-py312.txt
       - name: Download and independently verify real inputs
         shell: bash
         run: |
