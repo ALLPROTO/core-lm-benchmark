@@ -193,18 +193,14 @@ network access to model/data assets after the irreversible marker exists.
 The second command proves that the same cache resolves and verifies with the
 network disabled before the one-shot marker can be created.
 
-At or after `2026-08-02T18:00:00.000Z`, and no later than
-`2026-08-04T18:00:00.000Z`, execute exactly once from a clean checkout of the
-public frozen tag:
-
-```sh
-HF_HOME="$HOME/.cache/corelm-model-assets" \
-"$HOME/.cache/corelm-app-runtime/bin/python" -I -B \
-    RealLLM/run_beacon_one_shot.py --local-files-only
-
-"$HOME/.cache/corelm-app-runtime/bin/python" -I -B \
-    RealLLM/verify_beacon_evidence.py
-```
+The frozen protocol's earliest start remains `2026-08-02T18:00:00.000Z` and
+its deadline remains `2026-08-04T18:00:00.000Z`. A separate non-normative
+operator rule announced before reveal forbids invoking the one-shot before
+`2026-08-02T18:15:00.000Z`. Execute exactly once from a clean checkout of the
+public frozen tag, using the executable time, AC-power, `caffeinate`, integrity,
+and artifact checks in
+[`docs/BEACON_LAUNCH_RUNBOOK.md`](../docs/BEACON_LAUNCH_RUNBOOK.md). Do not use
+an abbreviated direct command from another document.
 
 The first command has no source, configuration, or gate overrides. Existing
 `attempt.json` consumes the suite even if execution was interrupted. Only after
