@@ -35,6 +35,13 @@ time is in effect. Use UTC as the authority. A scientific `PASS` or
 `FAIL_GATES` must be written no later than 20:00 on 4 August 2026 in
 Europe/Prague. The runner enforces the UTC timestamps.
 
+The frozen protocol permits execution as soon as the target pulse exists. As
+a stricter, non-normative operator rule publicly announced before reveal, the
+one-shot will not be invoked before 20:15 Prague (`18:15Z`). This does not
+change the frozen 18:00 pulse or earliest start. The fixed delay reduces the
+observed beacon-publication-lag risk without fetching or polling NIST before
+the attempt marker; it cannot guarantee future endpoint availability.
+
 ## Rules that do not change after reveal
 
 - Do not move, delete, recreate, or edit the frozen tag or release.
@@ -58,6 +65,18 @@ paths, terminal arguments, or environment values. A terminal
 or rewritten after the attempt.
 
 ## Preparation before the pulse
+
+Before `2026-08-02T17:00:00Z`, run the separate two-contour synthetic rehearsal
+from the current default branch as documented in
+[`BEACON_REHEARSAL.md`](BEACON_REHEARSAL.md):
+
+```sh
+./security/run_beacon_rehearsal.sh
+```
+
+Do not copy its scripts or any temporary output into the dedicated one-shot
+clone. A rehearsal PASS is operational evidence only and does not consume or
+predict the scientific result.
 
 Use a new clone dedicated to the one-shot. Do not execute these commands inside
 a working copy containing documentation or development changes.
@@ -121,10 +140,17 @@ model and dataset remain offline-only.
 
 ## One scientific invocation
 
-Do not paste this block before `2026-08-02T18:00:00.000Z`, and do not run it
+Do not paste this block before the precommitted operator safety time
+`2026-08-02T18:15:00.000Z`, and do not run it
 after `2026-08-04T18:00:00.000Z`. Reconfirm the detached commit, clean tree,
-absent artifacts, AC power, open lid, free memory, cache, and network immediately
-before the command.
+absent artifacts, AC power, open lid, free memory, cache, generic connectivity,
+and the GitHub freeze immediately before the command.
+
+Do not poll `/pulse/last`, fetch the exact target, or resolve a candidate before
+the runner creates `attempt.json`. The fixed 15-minute delay is the entire
+pre-marker NIST-availability precaution.
+It does not prove that the target endpoint is available. A target fetch failure
+after marker creation still consumes the attempt.
 
 `caffeinate` is an external macOS power assertion; it does not change the frozen
 Python runner, selected data, model, codec, parameters, gates, or evidence. Its
@@ -132,13 +158,27 @@ exit status is the runner's exit status: 0 for `PASS`, 2 for `FAIL_GATES`, and 1
 for execution or integrity failure.
 
 ```sh
+(
+set -eu
+
 BEACON_TAG_SHA=0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44
 BEACON_PYTHON="$HOME/.cache/corelm-app-runtime/bin/python"
 BEACON_CACHE="$HOME/.cache/corelm-model-assets"
+BEACON_OPERATOR_NOT_BEFORE=1785694500
 
 test "$(git rev-parse HEAD)" = "$BEACON_TAG_SHA"
 test -z "$(git status --porcelain=v1 --untracked-files=all --ignored=no)"
+test "$(/bin/date -u +%s)" -ge "$BEACON_OPERATOR_NOT_BEFORE"
 test ! -e real-llm-beacon-results/attempt.json
+test ! -L real-llm-beacon-results/attempt.json
+test ! -e real-llm-beacon-results/resolution.json
+test ! -L real-llm-beacon-results/resolution.json
+test ! -e real-llm-beacon-results/outcome.json
+test ! -L real-llm-beacon-results/outcome.json
+test ! -e real-llm-beacon-results/primary-evidence
+test ! -L real-llm-beacon-results/primary-evidence
+test ! -e "$HOME/.cache/corelm-proof-runtimes/.proof-run.lock"
+test ! -L "$HOME/.cache/corelm-proof-runtimes/.proof-run.lock"
 /usr/bin/pmset -g batt | /usr/bin/grep -Fq "Now drawing from 'AC Power'"
 
 if HF_HOME="$BEACON_CACHE" \
@@ -150,6 +190,8 @@ else
     BEACON_EXIT=$?
 fi
 printf 'Beacon runner exit code: %s\n' "$BEACON_EXIT"
+exit "$BEACON_EXIT"
+)
 ```
 
 Do not invoke `run_beacon_one_shot.py` a second time. The files on disk, not a
