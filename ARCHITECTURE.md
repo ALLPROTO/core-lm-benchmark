@@ -73,7 +73,7 @@ Qwen model -> Prefill -> KV cache -> VoidToken codec -> Cache rebuild
 
 The states are `Ready`, `Running`, and `Complete`. Dashboard values come only
 from the parsed result produced by the Python worker; the Swift UI does not
-synthesize benchmark values.
+invent benchmark values.
 
 ## Final application surface
 

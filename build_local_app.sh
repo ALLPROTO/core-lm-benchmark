@@ -16,7 +16,7 @@ SKIP_ASSET_PREPARATION=${CORELM_SKIP_ASSET_PREPARATION:-0}
 ASSETS_OFFLINE_ONLY=${CORELM_ASSETS_OFFLINE_ONLY:-$OFFLINE}
 SKIP_MEMORY_CHECK=${CORELM_SKIP_MEMORY_CHECK:-0}
 SKIP_MPS_CHECK=${CORELM_SKIP_MPS_CHECK:-0}
-SKIP_SMOKE_TEST=${CORELM_SKIP_SMOKE_TEST:-0}
+SKIP_APP_LAUNCH_CHECK=${CORELM_SKIP_APP_LAUNCH_CHECK:-0}
 APP_PATH="$PROJECT_DIR/dist/CoreLMBenchmark.app"
 PYTHON_CACHE=
 
@@ -45,7 +45,7 @@ require_boolean CORELM_ASSETS_OFFLINE_ONLY "$ASSETS_OFFLINE_ONLY"
 require_boolean CORELM_OFFLINE "$OFFLINE"
 require_boolean CORELM_SKIP_MEMORY_CHECK "$SKIP_MEMORY_CHECK"
 require_boolean CORELM_SKIP_MPS_CHECK "$SKIP_MPS_CHECK"
-require_boolean CORELM_SKIP_SMOKE_TEST "$SKIP_SMOKE_TEST"
+require_boolean CORELM_SKIP_APP_LAUNCH_CHECK "$SKIP_APP_LAUNCH_CHECK"
 
 case "$RUNTIME_DIR" in
     /*) ;;
@@ -62,7 +62,7 @@ if [ "$OFFLINE" = 1 ]; then
 fi
 
 set --
-[ "$SKIP_SMOKE_TEST" = 1 ] && set -- "$@" --no-gui
+[ "$SKIP_APP_LAUNCH_CHECK" = 1 ] && set -- "$@" --no-gui
 [ "$SKIP_MEMORY_CHECK" = 1 ] && set -- "$@" --skip-memory-check
 [ "$SKIP_RUNTIME_INSTALL" = 1 ] && set -- "$@" --skip-packages
 [ "$SKIP_ASSET_PREPARATION" = 1 ] && set -- "$@" --skip-assets
@@ -200,8 +200,8 @@ REQUIRE_DEVELOPER_ID=0 \
 
 "$PROJECT_DIR/security/verify_app_bundle.sh" "$APP_PATH"
 
-if [ "$SKIP_SMOKE_TEST" = "0" ]; then
-    "$APP_PATH/Contents/MacOS/CoreLMBenchmarkApp" --app-smoke-run
+if [ "$SKIP_APP_LAUNCH_CHECK" = "0" ]; then
+    "$APP_PATH/Contents/MacOS/CoreLMBenchmarkApp" --app-launch-check
 fi
 
 printf '%s\n' \

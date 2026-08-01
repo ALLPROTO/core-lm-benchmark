@@ -197,7 +197,7 @@ jobs:
           CORELM_SKIP_ASSET_PREPARATION=1 \
           CORELM_SKIP_MEMORY_CHECK=1 \
           CORELM_SKIP_MPS_CHECK=1 \
-          CORELM_SKIP_SMOKE_TEST=1 \
+          CORELM_SKIP_APP_LAUNCH_CHECK=1 \
           BUILD_CONFIG=release \
             ./build_local_app.sh
       - name: Verify application bundle integrity and signature

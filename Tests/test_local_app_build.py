@@ -395,20 +395,24 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertNotIn("BenchmarkResult", models)
         self.assertNotIn("RunSettings", models)
 
-    def test_final_bundle_and_default_gates_exclude_synthetic_benchmark(self):
+    def test_final_bundle_and_default_gates_exclude_legacy_benchmark(self):
         package = (ROOT / "package_app.sh").read_text(encoding="utf-8")
         verifier = (
             ROOT / "security" / "verify_app_bundle.sh"
         ).read_text(encoding="utf-8")
         build = (ROOT / "build_local_app.sh").read_text(encoding="utf-8")
         tests = (ROOT / "run_tests.sh").read_text(encoding="utf-8")
+        proof = (ROOT / "run_local_app_proof.sh").read_text(encoding="utf-8")
+        store = (
+            ROOT / "App" / "Sources" / "BenchmarkStore.swift"
+        ).read_text(encoding="utf-8")
         workflow = (
             ROOT / ".github" / "workflows" / "verify.yml"
         ).read_text(encoding="utf-8")
 
         self.assertNotIn("BenchmarkCore", package)
         self.assertIn(
-            "release bundle must not contain the synthetic BenchmarkCore",
+            "release bundle must not contain the legacy BenchmarkCore",
             verifier,
         )
         self.assertIn(
@@ -420,8 +424,9 @@ class LocalAppBuildTests(unittest.TestCase):
             verifier,
         )
         self.assertNotIn("BenchmarkCore/corelm_benchmark.py", verifier)
-        self.assertIn("--app-smoke-run", build)
-        self.assertNotIn('CoreLMBenchmarkApp" --smoke-run', build)
+        self.assertIn("--app-launch-check", build)
+        self.assertIn("--automated-compression-proof", proof)
+        self.assertIn("--automated-compression-proof", store)
         self.assertNotIn("Tests.test_benchmark", tests)
         self.assertNotIn("Tests.test_publication_archives", tests)
         self.assertNotIn("unittest discover", tests)
@@ -640,7 +645,7 @@ class LocalAppBuildTests(unittest.TestCase):
             "CORELM_SKIP_ASSET_PREPARATION",
             "CORELM_SKIP_MEMORY_CHECK",
             "CORELM_SKIP_MPS_CHECK",
-            "CORELM_SKIP_SMOKE_TEST",
+            "CORELM_SKIP_APP_LAUNCH_CHECK",
         ):
             self.assertIn(f"{variable}=0", proof)
         self.assertIn('CORELM_ASSETS_OFFLINE_ONLY="$OFFLINE"', proof)
