@@ -2,9 +2,6 @@ name: Real Qwen Linux CPU Regression
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - agent/real-qwen-linux-cpu
 
 permissions:
   contents: read
