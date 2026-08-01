@@ -242,10 +242,11 @@ struct SecurityValidationTests {
 
     @Test
     func testPythonRuntimeManifestRejectsTamperingAndExtraFiles() throws {
-        let temporary = URL(fileURLWithPath: #filePath)
+        let buildDirectory = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .appendingPathComponent(".build", isDirectory: true)
+        let temporary = buildDirectory
             .appendingPathComponent(
                 "corelm-runtime-manifest-\(UUID().uuidString)",
                 isDirectory: true
@@ -261,6 +262,11 @@ struct SecurityValidationTests {
             "bin", isDirectory: true
         )
         defer { try? FileManager.default.removeItem(at: temporary) }
+        try FileManager.default.createDirectory(
+            at: buildDirectory,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
         for directory in [temporary, base, virtualEnvironment, baseBin, venvBin] {
             try FileManager.default.createDirectory(
                 at: directory,
