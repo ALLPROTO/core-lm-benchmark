@@ -13,6 +13,17 @@ Earlier experiments, rejected approaches, protocol revisions, and release
 engineering are retained in the separate
 [development record](docs/development/HISTORY.md).
 
+## Real-data policy
+
+Every benchmark, application proof, model evaluation, and scientific-evidence
+run executes the pinned pretrained Qwen model on registered real WikiText
+inputs. Synthetic, generated, toy, or mocked inputs cannot produce benchmark
+metrics, evidence, PASS/FAIL claims, or publication results. Deterministic
+fixtures remain permitted only in isolated parser, security, unit, and
+protocol-control tests; their outputs never enter evidence or result channels.
+Historical synthetic artifacts are preserved for provenance and integrity
+checking only, not rerun as current evidence.
+
 ## Build and verify
 
 Requirements:
@@ -149,6 +160,7 @@ Proof** to produce a new local result.
 ## Documentation
 
 - [Build and verify](docs/BUILD_AND_VERIFY.md) — ordinary-user installation and proof flow.
+- [Real Qwen on Linux](docs/LINUX_REAL_QWEN.md) — CPU regression on pinned public validation data.
 - [Results](docs/RESULTS.md) — current measurements and what PASS means.
 - [Limitations](docs/LIMITATIONS.md) — honest boundary of the demonstrated claim.
 - [Architecture](ARCHITECTURE.md) — final application and verifier pipeline.

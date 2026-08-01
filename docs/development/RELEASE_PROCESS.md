@@ -28,7 +28,8 @@ Before creating any new release:
 
 1. work from a clean branch and preserve all historical evidence;
 2. run the Python and Swift suites;
-3. replay registered synthetic and real-model evidence;
+3. integrity-check preserved historical artifacts without regenerating them,
+   and execute or replay only registered real-model evidence;
 4. verify workflow policy, dependency locks, SBOM, secret history, and OSV;
 5. build the application and run a fresh challenge-bound proof;
 6. verify deterministic archives twice;

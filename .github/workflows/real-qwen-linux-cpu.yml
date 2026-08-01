@@ -1,0 +1,284 @@
+name: Real Qwen Linux CPU Regression
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/real-qwen-linux-cpu
+
+permissions:
+  contents: read
+
+concurrency:
+  group: real-qwen-linux-cpu-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  real-qwen-linux-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CORELM_CODE_COMMIT: aaae33c744fe1b384877079c600fe4833966e74a
+      CORELM_RUN_DIR: ${{ runner.temp }}/corelm-linux-cpu-regression
+      CORELM_RUNTIME: ${{ runner.temp }}/corelm-real-qwen-runtime
+      HF_HOME: ${{ runner.temp }}/corelm-real-qwen-cache
+      HF_HUB_DISABLE_IMPLICIT_TOKEN: "1"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      NUMEXPR_NUM_THREADS: "2"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - name: Check out the exact benchmark implementation
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: aaae33c744fe1b384877079c600fe4833966e74a
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Set up exact Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12.13"
+      - name: Prove clean source and sufficient VM resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CORELM_CODE_COMMIT"
+          test -z "$(git status --porcelain=v1 --untracked-files=all --ignored=no)"
+          test "$(uname -s)" = Linux
+          test "$(uname -m)" = x86_64
+          test "$(python -I -B -c 'import platform; print(platform.python_version())')" = 3.12.13
+          test ! -e real-llm-beacon-results/attempt.json
+          available_kib=$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)
+          free_kib=$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 {print $4}')
+          test "$available_kib" -ge 8388608
+          test "$free_kib" -ge 6291456
+          printf 'source commit: %s\n' "$(git rev-parse HEAD)"
+          printf 'source tree: %s\n' "$(git rev-parse 'HEAD^{tree}')"
+          uname -a
+          lscpu
+          free -h
+          df -h "$RUNNER_TEMP"
+      - name: Build exact hash-locked runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$CORELM_RUNTIME"
+          python -I -B -m venv "$CORELM_RUNTIME"
+          app_python="$CORELM_RUNTIME/bin/python"
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --no-cache-dir \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r .github/locks/pip-bootstrap.txt
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --no-cache-dir \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r RealLLM/requirements.lock
+          "$app_python" -I -B -m pip check
+          "$app_python" -I -B security/verify_locked_environment.py \
+            --runtime "$CORELM_RUNTIME" \
+            --lock .github/locks/pip-bootstrap.txt \
+            --lock RealLLM/requirements.lock
+      - name: Download and independently verify real inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$HF_HOME"
+          "$CORELM_RUNTIME/bin/python" -I -B \
+            RealLLM/prepare_app_assets.py --cache "$HF_HOME"
+          "$CORELM_RUNTIME/bin/python" -I -B \
+            RealLLM/prepare_app_assets.py \
+            --cache "$HF_HOME" \
+            --offline-only
+      - name: Record immutable regression contract
+        shell: bash
+        env:
+          CORELM_WORKFLOW_COMMIT: ${{ github.sha }}
+          CORELM_WORKFLOW_REF: ${{ github.workflow_ref }}
+          CORELM_RUN_ID: ${{ github.run_id }}
+          CORELM_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test ! -e "$CORELM_RUN_DIR"
+          install -d -m 700 "$CORELM_RUN_DIR"
+          "$CORELM_RUNTIME/bin/python" -I -B - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          run_directory = Path(os.environ["CORELM_RUN_DIR"])
+          contract = {
+              "schemaVersion": "corelm-real-qwen-linux-regression-contract-v1",
+              "evidenceClass": "regression-only",
+              "countsTowardScientificVerdict": False,
+              "dataClass": "real-public-validation",
+              "modelExecutionRequested": True,
+              "modelRepository": "Qwen/Qwen2.5-0.5B",
+              "modelRevision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+              "datasetRepository": "Salesforce/wikitext",
+              "datasetSplit": "validation",
+              "validationStartBlock": 64,
+              "validationBlocks": 8,
+              "candidateIndex": 32,
+              "device": "cpu",
+              "testDataAccessAllowed": False,
+              "beaconExecutionAllowed": False,
+              "sourceCommit": os.environ["CORELM_CODE_COMMIT"],
+              "workflowCommit": os.environ["CORELM_WORKFLOW_COMMIT"],
+              "workflowRef": os.environ["CORELM_WORKFLOW_REF"],
+              "runId": os.environ["CORELM_RUN_ID"],
+              "runAttempt": os.environ["CORELM_RUN_ATTEMPT"],
+          }
+          payload = json.dumps(
+              contract,
+              sort_keys=True,
+              indent=2,
+              ensure_ascii=False,
+              allow_nan=False,
+          ).encode("utf-8") + b"\n"
+          (run_directory / "pre-run-contract.json").write_bytes(payload)
+          PY
+          {
+            printf 'workflow commit: %s\n' "$CORELM_WORKFLOW_COMMIT"
+            printf 'source commit: %s\n' "$CORELM_CODE_COMMIT"
+            printf 'source tree: %s\n' "$(git rev-parse 'HEAD^{tree}')"
+            printf 'UTC start: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf 'runner: %s\n' "$RUNNER_NAME"
+            printf 'runner OS: %s\n' "$RUNNER_OS"
+            printf 'runner architecture: %s\n' "$RUNNER_ARCH"
+            uname -a
+            "$CORELM_RUNTIME/bin/python" -VV
+            "$CORELM_RUNTIME/bin/python" -I -B -m pip freeze --all
+          } > "$CORELM_RUN_DIR/environment.txt"
+          printf '%s\n' \
+            'python -I -B RealLLM/develop_voidtoken_v5.py --device cpu --validation-start-block 64 --validation-blocks 8 --candidate-index 32 --local-files-only --output "$CORELM_RUN_DIR/validation-064-071.json" --primary-evidence-directory "$CORELM_RUN_DIR/primary-evidence"' \
+            > "$CORELM_RUN_DIR/command.txt"
+      - name: Execute real Qwen on public validation data
+        shell: bash
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+        run: |
+          set -euo pipefail
+          set +e
+          /usr/bin/timeout --signal=TERM --kill-after=120s 105m \
+            /usr/bin/time -v -o "$CORELM_RUN_DIR/resource-usage.txt" \
+            "$CORELM_RUNTIME/bin/python" -I -B \
+              RealLLM/develop_voidtoken_v5.py \
+              --device cpu \
+              --validation-start-block 64 \
+              --validation-blocks 8 \
+              --candidate-index 32 \
+              --local-files-only \
+              --output "$CORELM_RUN_DIR/validation-064-071.json" \
+              --primary-evidence-directory \
+                "$CORELM_RUN_DIR/primary-evidence" \
+            > >(tee "$CORELM_RUN_DIR/stdout.log") \
+            2> >(tee "$CORELM_RUN_DIR/stderr.log" >&2)
+          runner_exit=$?
+          set -e
+          printf '%s\n' "$runner_exit" \
+            > "$CORELM_RUN_DIR/runner-exit-code.txt"
+          printf 'UTC end: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            > "$CORELM_RUN_DIR/end-time.txt"
+          test "$runner_exit" -eq 0
+      - name: Independently verify primary evidence and result contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            "$CORELM_RUNTIME/bin/python" -I -B \
+              security/verify_primary_evidence.py "$CORELM_RUN_DIR"
+            "$CORELM_RUNTIME/bin/python" -I -B - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          run_directory = Path(os.environ["CORELM_RUN_DIR"])
+          result = json.loads(
+              (run_directory / "validation-064-071.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          assert result["schemaVersion"] == "corelm-voidtoken-v5-validation-development-v3"
+          assert result["status"] == "validation-only-development"
+          assert result["testDataOpened"] is False
+          assert result["protocol"]["split"] == "validation"
+          assert result["protocol"]["validationStartBlock"] == 64
+          assert result["protocol"]["validationBlocks"] == 8
+          assert result["protocol"]["evaluatedCandidateIndices"] == [32]
+          assert result["environment"]["device"] == "cpu"
+          assert result["selectedTokenIdsSHA256"] == (
+              "1bb36c91d441379596361ae779ca0542c85457e9902a290a6ab6945cb2513453"
+          )
+          assert len(result["baselines"]) == 8
+          assert len(result["records"]) == 8
+          assert len(result["aggregates"]) == 1
+          assert result["primaryEvidence"]["containerCount"] == 192
+          assert result["primaryEvidence"]["predictionTokens"] == 1024
+          aggregate = result["aggregates"][0]
+          assert aggregate["denseBF16Bytes"] == 37_650_432
+          assert aggregate["configurationId"] == "4c7be8c836aa7257"
+          manifest = {
+              "schemaVersion": "corelm-real-qwen-linux-regression-run-v1",
+              "evidenceClass": "regression-only",
+              "countsTowardScientificVerdict": False,
+              "dataClass": "real-public-validation",
+              "modelExecuted": True,
+              "testDataOpened": False,
+              "beaconExecuted": False,
+              "sourceCommit": os.environ["CORELM_CODE_COMMIT"],
+              "resultSHA256": result["resultSHA256"],
+              "selectedTokenIdsSHA256": result["selectedTokenIdsSHA256"],
+              "containerCount": result["primaryEvidence"]["containerCount"],
+              "predictionTokens": result["primaryEvidence"]["predictionTokens"],
+              "compressionRatioVsBF16": aggregate["compressionRatioVsBF16"],
+              "deltaNLLNatPerToken": aggregate["deltaNLLNatPerToken"],
+              "top1Agreement": aggregate["top1Agreement"],
+              "metricVerdict": "PASS" if aggregate["pass"] else "FAIL",
+          }
+          payload = json.dumps(
+              manifest,
+              sort_keys=True,
+              indent=2,
+              ensure_ascii=False,
+              allow_nan=False,
+          ).encode("utf-8") + b"\n"
+          (run_directory / "run-manifest.json").write_bytes(payload)
+          print(
+              "REAL QWEN RESULT CONTRACT PASS: "
+              f"ratio={aggregate['compressionRatioVsBF16']:.6f}x, "
+              f"deltaNLL={aggregate['deltaNLLNatPerToken']:+.9f}, "
+              f"top1={aggregate['top1Agreement']:.6%}, "
+              f"verdict={manifest['metricVerdict']}"
+          )
+          PY
+          } | tee "$CORELM_RUN_DIR/verification.log"
+          test -z "$(git status --porcelain=v1 --untracked-files=all --ignored=no)"
+          (
+            cd "$CORELM_RUN_DIR"
+            find . -type f ! -name SHA256SUMS -print0 \
+              | LC_ALL=C sort -z \
+              | xargs -0 sha256sum > SHA256SUMS
+          )
+      - name: Upload immutable regression evidence
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: real-qwen-linux-cpu-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/corelm-linux-cpu-regression
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6

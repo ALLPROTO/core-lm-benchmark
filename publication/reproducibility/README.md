@@ -35,38 +35,19 @@ This command runs the explicit real-model, application-evidence, and security
 suite used by the ordinary-user proof. Historical development benchmarks are
 kept separate from this gate.
 
-## Re-run the historical 115-run development benchmark
+## Historical synthetic provenance
 
-```sh
-python3 BenchmarkCore/run_suite.py --full --output replay-results
-```
+The 115-run development suite is a preserved historical record, not a current
+model benchmark. Its source and registered artifacts remain in the archive so
+reviewers can trace the project's development, but the current execution
+policy does not regenerate it. It must not be cited as real-Qwen evidence or
+combined with current real-model metrics.
 
-The expected aggregate verdict is `PASS`. The exact gate is:
-
-- compression ratio at least 4
-- NRMSE at most 0.10
-- cosine similarity at least 0.95
-- absolute mean-energy drift at most 0.05
-- zero invariant violations
-- deterministic replay
-
-The checked-in `benchmark-results/aggregate.json` names all 115 authoritative
-JSON records. This indirection prevents older exploratory runs in a working
-directory from entering the reported result.
-
-To rerun the full matrix in a temporary directory and compare every scientific
-field against the registered evidence:
-
-```sh
-python3 BenchmarkCore/verify_evidence.py
-```
-
-The verifier requires exact run IDs, input digests, configurations, Core state
-SHA-256, VoidToken payload SHA-256, VoidToken container SHA-256, decoded
-VoidToken trajectory SHA-256, invariants, and verdicts. Floating-point
-diagnostics use `rtol=1e-4`, `atol=1e-5` for the PCA/LAPACK baseline; the exact
-digests prevent this tolerance from accepting a different Core or VoidToken
-byte stream or decoded trajectory.
+Current benchmark, application-proof, model-evaluation, and
+scientific-evidence runs use only the pinned pretrained Qwen model and
+registered real WikiText inputs. Synthetic or mocked values are restricted to
+isolated unit, parser, security, and protocol-control tests whose outputs never
+enter an evidence or result directory.
 
 ## Regenerate the paper figures
 
