@@ -64,6 +64,11 @@ jobs:
           cache-dependency-path: |
             .github/locks/pip-bootstrap.txt
             .github/locks/core-linux-py312.txt
+      - name: Normalize the pinned hosted Python trust boundary
+        run: >-
+          python -I -B security/normalize_ci_python_permissions.py
+          --runner-tool-cache "$RUNNER_TOOL_CACHE"
+          --python-location "$pythonLocation"
       - name: Install hash-locked dependencies
         run: |
           python -m pip install --require-hashes -r .github/locks/pip-bootstrap.txt

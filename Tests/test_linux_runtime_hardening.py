@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from platforms.linux.scripts import runtime_safety
+from security import normalize_ci_python_permissions
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -114,6 +115,67 @@ class LinuxRuntimePathTests(unittest.TestCase):
                         paths, minimum_free_kib=1
                     )
             disk_usage.assert_called_once_with(base)
+
+
+class LinuxCIPythonPermissionTests(unittest.TestCase):
+    def test_exact_hosted_python_permissions_are_narrowed_without_byte_changes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            tool_cache = Path(temporary).resolve()
+            location = (
+                tool_cache
+                / "Python"
+                / normalize_ci_python_permissions.EXPECTED_VERSION
+                / normalize_ci_python_permissions.EXPECTED_ARCHITECTURE
+            )
+            binary = (
+                location
+                / "bin"
+                / normalize_ci_python_permissions.EXPECTED_EXECUTABLE_NAME
+            )
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b"pinned-python-binary\n")
+            location.chmod(0o775)
+            binary.parent.chmod(0o775)
+            binary.chmod(0o775)
+            before = binary.read_bytes()
+
+            result = normalize_ci_python_permissions.normalize_permissions(
+                runner_tool_cache=tool_cache,
+                python_location=location,
+                executable=binary,
+            )
+
+            self.assertEqual(binary.read_bytes(), before)
+            self.assertEqual(result["version"], "3.12.13")
+            for path in (location, binary.parent, binary):
+                self.assertEqual(path.stat().st_mode & 0o022, 0)
+
+    def test_hosted_python_normalizer_rejects_path_aliases_and_escape(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            tool_cache = Path(temporary).resolve()
+            location = (
+                tool_cache
+                / "Python"
+                / normalize_ci_python_permissions.EXPECTED_VERSION
+                / normalize_ci_python_permissions.EXPECTED_ARCHITECTURE
+            )
+            outside = tool_cache / "outside-python"
+            outside.write_bytes(b"outside\n")
+            binary = (
+                location
+                / "bin"
+                / normalize_ci_python_permissions.EXPECTED_EXECUTABLE_NAME
+            )
+            binary.parent.mkdir(parents=True)
+            binary.symlink_to(outside)
+            with self.assertRaisesRegex(
+                ValueError, "resolved Python executable differs"
+            ):
+                normalize_ci_python_permissions.normalize_permissions(
+                    runner_tool_cache=tool_cache,
+                    python_location=location,
+                    executable=binary,
+                )
 
 
 class LinuxRuntimeIdentityTests(unittest.TestCase):
@@ -237,6 +299,23 @@ class LinuxRuntimeIdentityTests(unittest.TestCase):
 
 
 class LinuxRuntimeShellContractTests(unittest.TestCase):
+    def test_linux_ci_normalizes_only_the_pinned_setup_python_boundary(self):
+        helper = (
+            ROOT / "security" / "normalize_ci_python_permissions.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("chmod -R", helper)
+        self.assertNotIn("sudo", helper)
+        for relative, later in (
+            (".github/workflows/verify-linux.yml", "./corelm verify"),
+            (".github/workflows/real-qwen-linux-cpu.yml", "./corelm linux doctor"),
+        ):
+            workflow = (ROOT / relative).read_text(encoding="utf-8")
+            marker = "security/normalize_ci_python_permissions.py"
+            self.assertEqual(workflow.count(marker), 1)
+            self.assertIn('--runner-tool-cache "$RUNNER_TOOL_CACHE"', workflow)
+            self.assertIn('--python-location "$pythonLocation"', workflow)
+            self.assertLess(workflow.index(marker), workflow.index(later))
+
     def test_first_offline_build_fails_before_staging_is_created(self):
         source = (LINUX_SCRIPTS / "build-runtime.sh").read_text(
             encoding="utf-8"

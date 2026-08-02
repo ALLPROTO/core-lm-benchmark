@@ -27,6 +27,11 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12.13"
+      - name: Normalize the pinned hosted Python trust boundary
+        run: >-
+          python -I -B security/normalize_ci_python_permissions.py
+          --runner-tool-cache "$RUNNER_TOOL_CACHE"
+          --python-location "$pythonLocation"
       - name: Verify the Linux host
         run: ./corelm linux doctor
       - name: Build and execute the real-Qwen regression

@@ -653,6 +653,7 @@ def build_reproducibility(
             "security/generate_python_runtime_manifest.py",
             "security/generate_direct_sbom.py",
             "security/manage_local_runtime.py",
+            "security/normalize_ci_python_permissions.py",
             "security/osv_direct_audit.py",
             "security/proof_process_groups.sh",
             "security/run_process_group_tests.sh",
