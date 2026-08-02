@@ -1,0 +1,81 @@
+name: Audit Immutable Beacon Evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-beacon-evidence-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  immutable-evidence-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Require the evolving main audit branch
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "AUDIT REF FAIL: dispatch this audit only from main." >&2
+            exit 1
+          fi
+      - name: Check out the audit controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: control
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Check out the fixed public evidence tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: evidence
+          ref: corelm-beacon-heldout-v1-evidence
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Set up exact audit Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.13"
+      - name: Verify topology and frozen lock bytes before installation
+        run: >-
+          python -I -B control/security/audit_beacon_evidence_ref.py
+          preflight --repository evidence
+      - name: Derive the frozen verifier-only dependency closure
+        run: >-
+          python -I -B control/security/audit_beacon_evidence_ref.py
+          extract-lock
+          --source evidence/RealLLM/requirements.lock
+          --output "${RUNNER_TEMP}/corelm-beacon-audit.lock"
+      - name: Build the exact verifier-only runtime
+        env:
+          PIP_CONFIG_FILE: /dev/null
+        run: |
+          AUDIT_RUNTIME="${RUNNER_TEMP}/corelm-beacon-audit-runtime"
+          python -m venv "$AUDIT_RUNTIME"
+          AUDIT_PYTHON="$AUDIT_RUNTIME/bin/python"
+          "$AUDIT_PYTHON" -I -B -m pip install \
+            --isolated --no-input --disable-pip-version-check \
+            --only-binary=:all: --require-hashes \
+            -r evidence/.github/locks/pip-bootstrap.txt
+          "$AUDIT_PYTHON" -I -B -m pip install \
+            --isolated --no-input --disable-pip-version-check \
+            --only-binary=:all: --require-hashes \
+            -r "${RUNNER_TEMP}/corelm-beacon-audit.lock"
+          "$AUDIT_PYTHON" -I -B -m pip check
+          "$AUDIT_PYTHON" -I -B \
+            control/security/verify_locked_environment.py \
+            --runtime "$AUDIT_RUNTIME" \
+            --lock evidence/.github/locks/pip-bootstrap.txt \
+            --lock "${RUNNER_TEMP}/corelm-beacon-audit.lock"
+      - name: Audit without NIST network access or a new scientific attempt
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          "${RUNNER_TEMP}/corelm-beacon-audit-runtime/bin/python" -I -B
+          control/security/audit_beacon_evidence_ref.py audit
+          --repository evidence
+          --summary "${GITHUB_STEP_SUMMARY}"

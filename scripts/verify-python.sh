@@ -2,14 +2,41 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
-PYTHON_BIN=${PYTHON_BIN:-python3}
-case "$PYTHON_BIN" in
-    /*) PYTHON_EXECUTABLE=$PYTHON_BIN ;;
-    *) PYTHON_EXECUTABLE=$(command -v "$PYTHON_BIN" 2>/dev/null || true) ;;
+if [ "${PYTHON_BIN+x}" = x ]; then
+    PYTHON_REQUEST=$PYTHON_BIN
+else
+    case "$(/usr/bin/uname -s)" in
+        Darwin)
+            PLATFORM_RUNTIME=${CORELM_REAL_LLM_VENV:-"$HOME/.cache/corelm/macos/runtime"}
+            ;;
+        Linux)
+            PLATFORM_RUNTIME=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime"}
+            ;;
+        *) PLATFORM_RUNTIME= ;;
+    esac
+    if [ -n "$PLATFORM_RUNTIME" ] && [ -x "$PLATFORM_RUNTIME/bin/python" ]; then
+        PYTHON_REQUEST=$PLATFORM_RUNTIME/bin/python
+    else
+        PYTHON_REQUEST=python3
+    fi
+fi
+case "$PYTHON_REQUEST" in
+    /*) PYTHON_EXECUTABLE=$PYTHON_REQUEST ;;
+    *) PYTHON_EXECUTABLE=$(command -v "$PYTHON_REQUEST" 2>/dev/null || true) ;;
 esac
 [ -n "$PYTHON_EXECUTABLE" ] && [ -x "$PYTHON_EXECUTABLE" ] || {
     printf 'TEST GATE FAIL: Python executable is missing: %s\n' \
-        "$PYTHON_BIN" >&2
+        "$PYTHON_REQUEST" >&2
+    exit 1
+}
+PYTHON_VERSION=$(
+    "$PYTHON_EXECUTABLE" -I -B -c \
+        'import platform; print(platform.python_version())'
+)
+[ "$PYTHON_VERSION" = 3.12.13 ] || {
+    printf '%s\n' \
+        "TEST GATE FAIL: Python 3.12.13 is required; found $PYTHON_VERSION at $PYTHON_EXECUTABLE" \
+        'Build the platform runtime first or set PYTHON_BIN to its exact interpreter.' >&2
     exit 1
 }
 PYTHON_CACHE=$(mktemp -d "${TMPDIR:-/tmp}/corelm-test-pycache.XXXXXX")
@@ -25,6 +52,7 @@ if [ "$#" -eq 0 ]; then
     set -- \
         Tests.test_app_real_llm_evidence \
         Tests.test_beacon_launch_runbook \
+        Tests.test_beacon_publication_audit \
         Tests.test_beacon_protocol \
         Tests.test_build_provenance \
         Tests.test_linux_runtime_hardening \

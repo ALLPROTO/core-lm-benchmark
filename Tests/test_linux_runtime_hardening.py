@@ -1,3 +1,4 @@
+import os
 import platform
 import stat
 import subprocess
@@ -16,6 +17,44 @@ LINUX_SCRIPTS = ROOT / "platforms" / "linux" / "scripts"
 
 
 class LinuxRuntimePathTests(unittest.TestCase):
+    def test_private_anchor_below_root_owned_sticky_temp_is_allowed(self):
+        system_temp = Path("/tmp").resolve(strict=True)
+        status = system_temp.stat()
+        if status.st_uid != 0 or not status.st_mode & stat.S_ISVTX:
+            self.skipTest("system temp is not a root-owned sticky directory")
+        with tempfile.TemporaryDirectory(dir=system_temp) as temporary:
+            private_anchor = Path(temporary).resolve(strict=True)
+            private_anchor.chmod(0o700)
+            runtime_safety._safe_existing_chain(private_anchor / "runtime")
+
+    def test_missing_target_directly_below_sticky_temp_is_rejected(self):
+        system_temp = Path("/tmp").resolve(strict=True)
+        status = system_temp.stat()
+        if status.st_uid != 0 or not status.st_mode & stat.S_ISVTX:
+            self.skipTest("system temp is not a root-owned sticky directory")
+        target = system_temp / f"corelm-missing-target-{os.getpid()}"
+        self.assertFalse(target.exists())
+        with self.assertRaisesRegex(ValueError, "unsafe directory"):
+            runtime_safety._safe_existing_chain(target)
+
+    def test_root_owned_world_writable_non_sticky_ancestor_is_rejected(self):
+        candidate = mock.Mock()
+        candidate.lstat.return_value = SimpleNamespace(
+            st_mode=stat.S_IFDIR | 0o777,
+            st_uid=0,
+        )
+        with self.assertRaisesRegex(ValueError, "unsafe directory"):
+            runtime_safety._safe_directory(candidate, current_owner=False)
+
+    def test_non_root_sticky_world_writable_ancestor_is_rejected(self):
+        candidate = mock.Mock()
+        candidate.lstat.return_value = SimpleNamespace(
+            st_mode=stat.S_IFDIR | stat.S_ISVTX | 0o777,
+            st_uid=os.getuid() if os.getuid() != 0 else 1,
+        )
+        with self.assertRaisesRegex(ValueError, "unsafe directory"):
+            runtime_safety._safe_directory(candidate, current_owner=False)
+
     def test_targets_are_canonical_disjoint_and_checked_on_target_volume(self):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary).resolve()

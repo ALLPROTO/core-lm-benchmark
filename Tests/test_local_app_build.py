@@ -685,6 +685,9 @@ class LocalAppBuildTests(unittest.TestCase):
             self.assertNotIn(f'${{{hostile}', proof)
         tests = (ROOT / "scripts/verify-python.sh").read_text(encoding="utf-8")
         self.assertIn('pycache_prefix=$PYTHON_CACHE', tests)
+        self.assertIn("CORELM_REAL_LLM_VENV", tests)
+        self.assertIn("CORELM_LINUX_RUNTIME", tests)
+        self.assertIn("Python 3.12.13 is required", tests)
 
     def test_doctor_and_build_enforce_random_mac_prerequisites(self):
         doctor = (MACOS_SCRIPTS / "doctor.sh").read_text(encoding="utf-8")

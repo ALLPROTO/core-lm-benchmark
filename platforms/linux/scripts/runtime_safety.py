@@ -50,8 +50,18 @@ def _safe_existing_chain(path: Path) -> None:
         if parent == current:
             raise ValueError(f"path has no existing ancestor: {path}")
         current = parent
+    anchor = current
     while True:
-        _safe_directory(current, current_owner=False)
+        status = current.lstat()
+        root_owned_sticky_ancestor = (
+            current != anchor
+            and stat.S_ISDIR(status.st_mode)
+            and not stat.S_ISLNK(status.st_mode)
+            and status.st_uid == 0
+            and bool(status.st_mode & stat.S_ISVTX)
+        )
+        if not root_owned_sticky_ancestor:
+            _safe_directory(current, current_owner=False)
         if current == Path("/"):
             return
         current = current.parent

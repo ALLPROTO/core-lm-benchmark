@@ -171,6 +171,10 @@ Run the lightweight repository gates with:
 ./corelm verify
 ```
 
+The command automatically reuses the current platform's already-built locked
+runtime. Before that runtime exists, provide an exact Python 3.12.13 test
+environment with `PYTHON_BIN=/absolute/path/to/python`.
+
 ## Documentation
 
 - [Documentation index](docs/README.md)
