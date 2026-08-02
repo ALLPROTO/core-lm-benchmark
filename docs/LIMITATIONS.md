@@ -52,12 +52,12 @@ does not turn that claim into a general model-compression result.
     every permitted later run regression-only. A local marker cannot prove that
     no private copy ran. The public
     [launch runbook](BEACON_LAUNCH_RUNBOOK.md) fixes the operator procedure, and
-    the [v1 audit](BEACON_V1_AUDIT_AND_V2.md) records the remaining trusted-local
-    limitations and requirements for a stronger v2.
+    the [v1 audit](development/BEACON_V1_AUDIT_AND_V2.md) records the remaining
+    trusted-local limitations and requirements for a stronger v2.
 13. Live dependency-advisory results can change after a release. Hash locks,
     SBOM checks, and OSV scanning reduce supply-chain ambiguity but do not prove
     that the operating system, Python distribution, or model files are free of
     all vulnerabilities.
 
-The detailed versioned research record is intentionally preserved in
-`EVIDENCE.md`, `KNOWN_LIMITATIONS.md`, and `docs/development/`.
+The detailed versioned research record is preserved under `docs/development/`
+and in immutable publication tags.

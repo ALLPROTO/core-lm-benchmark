@@ -233,7 +233,7 @@ class BuildProvenanceTests(unittest.TestCase):
                 provenance.inspect_source_archive(source, linked)
 
     def test_packager_and_bundle_verifier_bind_provenance_resource(self):
-        package = (ROOT / "package_app.sh").read_text(encoding="utf-8")
+        package = (ROOT / "platforms/macos/scripts/package-app.sh").read_text(encoding="utf-8")
         verifier = (ROOT / "security/verify_app_bundle.sh").read_text(
             encoding="utf-8"
         )

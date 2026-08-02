@@ -1,8 +1,8 @@
 # VoidToken v5 paper source
 
 This directory is the independent arXiv source tree for the prospective
-VoidToken v5 real-model artifact study. It does not replace the historical
-VoidToken v3 trajectory-compression paper under `publication/arxiv/`.
+real-model artifact study. The retired synthetic paper is available only from
+the immutable historical Git tag.
 
 Generate tables and vector figures from the checked-in evidence:
 

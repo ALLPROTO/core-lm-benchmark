@@ -1,16 +1,16 @@
 #!/bin/sh
 set -eu
 
-# Resolve a usable Python 3.12 without importing site packages or writing
+# Resolve the registered Python 3.12.13 without importing site packages or writing
 # bytecode. An explicit override is authoritative: an invalid override must not
 # silently fall back to another interpreter.
 
-is_python312() {
+is_python31213() {
     candidate=$1
     [ -x "$candidate" ] || return 1
     "$candidate" -I -B -c '
 import sys
-raise SystemExit(0 if sys.version_info[:2] == (3, 12) else 1)
+raise SystemExit(0 if sys.version_info[:3] == (3, 12, 13) else 1)
 ' >/dev/null 2>&1
 }
 
@@ -21,7 +21,7 @@ resolve_candidate() {
         *) resolved=$(command -v "$candidate" 2>/dev/null || true) ;;
     esac
     [ -n "$resolved" ] || return 1
-    is_python312 "$resolved" || return 1
+    is_python31213 "$resolved" || return 1
     printf '%s\n' "$resolved"
 }
 

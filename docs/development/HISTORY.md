@@ -16,8 +16,14 @@ The immutable suite contains 115/115 passing runs. The worst registered values
 are 4.2353x compression, 0.06089 NRMSE, 0.99821 cosine similarity, 0.04955
 relative energy drift, zero invariant violations, and exact replay.
 
-Sources and evidence remain in `BenchmarkCore/`, `benchmark-results/`,
-`publication/arxiv/`, and `publication/corelm_voidtoken_v3.pdf`.
+The default branch no longer carries the complete supported synthetic runtime
+or its 115 result pairs. One dormant frozen compatibility source remains at its
+registered path solely because published implementation digests include its
+path and bytes; its direct historical CLI is unsupported and cannot create
+current evidence. Exact suite, evidence, and paper bytes remain recoverable
+from the immutable
+[`voidtoken-v5-paper-v5`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/voidtoken-v5-paper-v5)
+tag at commit `e77175759dde47dfb7b56f4013c04686ffb7ddc9`.
 
 ## Stage 2 — first real-model pilot
 

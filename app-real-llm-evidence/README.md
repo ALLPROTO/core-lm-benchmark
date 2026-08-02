@@ -7,10 +7,12 @@ offline, ran the registered VoidToken codec on Apple MPS, verified the returned
 document in Swift, and wrote the sanitized application receipt.
 
 This is **not** a new preregistered or untouched holdout result. Validation
-blocks 64–71 are the public development/smoke-test reserve. The artifact is
-useful as evidence that the macOS application path executes the real model and
-the same exact container accounting as the command-line runner; it must not be
-used to strengthen the historical prospective claim.
+blocks 64–71 are a repeatedly exercised public application-regression fixture.
+The artifact is useful as evidence that the macOS application path executes the
+real model and the same exact container accounting as the command-line runner;
+it must not be used to strengthen the historical prospective claim. This is
+the archived 2026-07-30 manifest-era receipt; current fresh proofs additionally
+retain raw primary evidence for heavyweight replay.
 
 ## Recorded result
 

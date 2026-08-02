@@ -3,12 +3,11 @@
 > This is a versioned scientific and provenance record. Revision numbers in
 > this document identify protocols and immutable evidence, not alternative app
 > editions. Ordinary users should begin with the repository `README.md` and
-> `docs/BUILD_AND_VERIFY.md`.
+> `platforms/macos/BUILD_AND_VERIFY.md`.
 
 The reproducibility archive contains the files needed to inspect the
-implementation, rerun the test suite and benchmark, rebuild the macOS app, and
-trace the historical VoidToken v3 result and the prospective VoidToken v5
-result to machine-readable evidence.
+implementation, run the verification suites, rebuild the macOS app or Linux
+CPU runtime, and trace the real-model result to machine-readable evidence.
 
 ## Requirements
 
@@ -16,11 +15,18 @@ result to machine-readable evidence.
 - Swift 6 or newer from Apple's free Command Line Tools or Xcode
 - an active desktop login for the visible native-application run
 - at least 8 GB unified memory and 6 GiB free disk for the full proof
-- Python 3.12 (the registered and owner-local bootstrap version is 3.12.13)
+- Python 3.12.13 from a trusted owner-controlled installation
 - network access, or the prepared wheelhouse and registered model/data cache
 - NumPy 2.3.5 for the core archive suite; the separately locked application
   runtime installs NumPy 2.5.1 and its complete real-model dependency closure
 - ReportLab 4.4.9 for regenerating the vector paper figures
+
+If the exact interpreter is absent, use the platform-specific pinned bootstrap
+before the verification command: `./corelm macos bootstrap` on Apple Silicon
+or `./corelm linux bootstrap` on Ubuntu x86_64. Both verify a fixed immutable
+archive by SHA-256, install under an owner-only platform-specific path, use no
+administrator access, and remain disclosed third-party binary trust roots
+rather than build-from-source claims.
 
 ## Verify the implementation
 
@@ -28,45 +34,33 @@ From the extracted archive:
 
 ```sh
 python3 -m pip install --require-hashes -r requirements.lock
-./run_tests.sh
+./corelm verify
 ```
 
 This command runs the explicit real-model, application-evidence, and security
 suite used by the ordinary-user proof. Historical development benchmarks are
 kept separate from this gate.
 
-## Re-run the historical 115-run development benchmark
+## Real-data-only scope
 
-```sh
-python3 BenchmarkCore/run_suite.py --full --output replay-results
-```
-
-The expected aggregate verdict is `PASS`. The exact gate is:
-
-- compression ratio at least 4
-- NRMSE at most 0.10
-- cosine similarity at least 0.95
-- absolute mean-energy drift at most 0.05
-- zero invariant violations
-- deterministic replay
-
-The checked-in `benchmark-results/aggregate.json` names all 115 authoritative
-JSON records. This indirection prevents older exploratory runs in a working
-directory from entering the reported result.
-
-To rerun the full matrix in a temporary directory and compare every scientific
-field against the registered evidence:
-
-```sh
-python3 BenchmarkCore/verify_evidence.py
-```
-
-The verifier requires exact run IDs, input digests, configurations, Core state
-SHA-256, VoidToken payload SHA-256, VoidToken container SHA-256, decoded
-VoidToken trajectory SHA-256, invariants, and verdicts. Floating-point
-diagnostics use `rtol=1e-4`, `atol=1e-5` for the PCA/LAPACK baseline; the exact
-digests prevent this tolerance from accepting a different Core or VoidToken
-byte stream or decoded trajectory.
+The retired supported synthetic suite runner, verifier, schema, and result
+directory are not included in the current archive. Their exact historical
+bytes remain in the immutable `voidtoken-v5-paper-v5` Git tag. The archive
+retains only the frozen compatibility source
+`BenchmarkCore/corelm_benchmark.py`, byte-identical at its registered path
+because it contributes to the published implementation hash; current v5
+macOS/Linux runs do not import or package it, and evidence verification does
+not execute it—it hashes the registered path and bytes. The historical-pilot
+reproduction command and one isolated compatibility unit test execute it;
+neither produces current evidence. The frozen source also retains a dormant,
+directly invocable historical synthetic CLI; it is unsupported, excluded from
+`./corelm` and both platform builds, and cannot create evidence accepted by
+current verifiers.
+Supported current benchmark, application-proof, model-evaluation, and
+scientific-evidence runs use only the pinned pretrained Qwen model and
+registered real WikiText inputs. Mocked values are restricted to isolated
+unit, parser, security, and protocol-control tests whose outputs never enter a
+current evidence or result directory.
 
 ## Regenerate the paper figures
 
@@ -74,9 +68,8 @@ byte stream or decoded trajectory.
 python3 publication/arxiv-v5/generate_figures.py
 ```
 
-The v5 generator reads the adaptive development manifest plus the frozen
-selection and holdout JSON records. The historical v3 generator remains in a
-full repository clone under `publication/arxiv/`.
+The generator reads the adaptive development manifest plus the frozen
+selection and holdout JSON records.
 
 ## Build the native application
 
@@ -88,7 +81,7 @@ publisher identity.
 Run the read-only readiness check before downloading packages or model files:
 
 ```sh
-./doctor.sh
+./corelm macos doctor
 ```
 
 It checks Apple Silicon/macOS compatibility, Swift 6, signing utilities,
@@ -96,10 +89,10 @@ Python trust-chain permissions, at least 8 GB physical memory, at least 6 GiB
 free under the user profile, an active GUI session, and the required online or
 offline sources.
 
-If Python 3.12 is absent, an optional owner-local bootstrap is available:
+If Python 3.12.13 is absent, an optional owner-local bootstrap is available:
 
 ```sh
-./bootstrap_python312_macos.sh
+./corelm macos bootstrap
 ```
 
 It downloads the immutable
@@ -111,16 +104,16 @@ escaping links, and special files and uses neither `sudo` nor the system Python
 installation. This third-party binary archive is an explicit trust boundary,
 not a build-from-source claim. The final signed application manifest covers
 every loadable file in that base interpreter and the fresh virtual environment.
-Users who do not accept this bootstrap may supply another trusted Python 3.12:
+Users who do not accept this bootstrap may supply another trusted Python 3.12.13:
 
 ```sh
-CORELM_BOOTSTRAP_PYTHON="$(command -v python3.12)" ./doctor.sh
+CORELM_BOOTSTRAP_PYTHON="$(command -v python3.12)" ./corelm macos doctor
 ```
 
 To build without automatically running model inference:
 
 ```sh
-./build_local_app.sh
+./corelm macos build
 open dist/CoreLMBenchmark.app
 ```
 
@@ -135,7 +128,7 @@ real-Qwen application, the fast independent verifier, and the heavyweight
 independent replay:
 
 ```sh
-./run_local_app_proof.sh
+./corelm macos proof
 ```
 
 The automated proof creates and retains a fresh runtime with hash-locked
@@ -160,15 +153,15 @@ proof rejects dirty-source overrides.
 For a later network-free proof, prepare all inputs once while connected:
 
 ```sh
-./prepare_offline_inputs.sh
+./corelm macos prepare-offline
 ```
 
 Then disconnect if desired and run:
 
 ```sh
 CORELM_OFFLINE=1 \
-CORELM_WHEELHOUSE="$HOME/.cache/corelm-wheelhouse" \
-  ./run_local_app_proof.sh
+CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
+  ./corelm macos proof
 ```
 
 The offline package stage uses `--no-index`, `--only-binary=:all:`, and
@@ -182,7 +175,7 @@ For a manual run, keep fixed public validation blocks 64–71, click
 **Run Compression Proof**, then:
 
 ```sh
-"$HOME/.cache/corelm-app-runtime/bin/python" \
+"$HOME/.cache/corelm/macos/runtime/bin/python" \
   security/verify_local_app_run.py \
   --app dist/CoreLMBenchmark.app
 ```
@@ -242,17 +235,16 @@ public application-regression fixture and cannot support this claim.
 
 ## Evidence chain
 
-`BenchmarkCore/corelm_benchmark.py` defines the transition, codecs, metrics,
-verdict, and serialization. `BenchmarkCore/run_suite.py` defines the evaluation
-matrix. `Tests/test_benchmark.py` exercises invariants and regression gates.
-`benchmark-results/aggregate.json` records the authoritative run identifiers.
-The paper figure generator reads that aggregate and those records directly.
+`RealLLM/voidtoken_v5.py` defines the production container and codec,
+`RealLLM/develop_voidtoken_v5.py` defines the public-validation regression,
+and the frozen runner plus independent verifiers bind the registered selection
+and holdout. The paper figure generator reads only the checked-in real-Qwen
+development and frozen-result artifacts.
 
 ## Verify the historical real-LLM pilot
 
 The archive also includes the checked-in exploratory Qwen KV-cache pilot. Its
-negative verdicts remain intact and do not alter either the historical
-115-run v3 result or the separate prospective v5 result.
+negative verdicts remain intact and do not alter the later prospective result.
 
 ```sh
 python3 RealLLM/verify_real_llm_evidence.py
@@ -269,7 +261,7 @@ the pinned Qwen weights plus two pinned WikiText-2 parquet files:
 
 ```sh
 python3 -m pip install --require-hashes -r RealLLM/requirements.lock
-./run_real_llm_benchmark.sh
+python3 RealLLM/benchmark_real_llm.py
 ```
 
 The recorded result is an Apple-Silicon/MPS pilot. Cross-device exact PyTorch

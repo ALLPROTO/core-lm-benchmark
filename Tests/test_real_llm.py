@@ -265,7 +265,7 @@ class RealLLMProtocolTests(unittest.TestCase):
             "codecs.py",
             "voidtoken_v5.py",
         )
-        package_script = (ROOT / "package_app.sh").read_text(encoding="utf-8")
+        package_script = (ROOT / "platforms/macos/scripts/package-app.sh").read_text(encoding="utf-8")
         self.assertNotIn("legacy_voidtoken_adapter.py", package_script)
         self.assertNotIn("benchmark_real_llm.py", package_script)
         self.assertNotIn("develop_voidtoken_v5.py", package_script)

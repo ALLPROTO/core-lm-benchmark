@@ -1,7 +1,15 @@
 # Current verified results
 
-Core LM Benchmark separates the registered prospective result from the native
-application integration proof. Both pass, but they answer different questions.
+Each evidence lane answers a different question. A regression PASS confirms
+that an implementation still reproduces its registered behavior; it does not
+create another prospective observation.
+
+| Evidence lane | Class | Current state | What it establishes |
+|---|---|---|---|
+| Registered holdout | Prospective result | PASS | Frozen Qwen/WikiText claim on the registered holdout |
+| macOS application | Integration regression | PASS | Native app, MPS worker, containers, and independent replay work together |
+| Linux CPU | Cross-platform regression | PASS | The same registered real-data path executes and verifies on Ubuntu CPU |
+| Beacon-heldout | Preregistered one-shot | Awaiting outcome | No result until the immutable one-shot publishes an outcome |
 
 ## Registered prospective holdout
 
@@ -31,7 +39,7 @@ not independently reconstructible from the old JSON alone.
 | Compression ratio | 2.052383755x |
 | Delta NLL | -0.00000849366 nat/token |
 | Top-1 agreement | 99.51171875% |
-| Scientific verdict | PASS |
+| Registered regression gate | PASS |
 | Swift structural verification | PASS |
 | Independent Python verification | PASS |
 
@@ -48,7 +56,25 @@ are three repeatability checks of one fixed workflow, not three independent
 experiments.
 Expected runtime timestamps and timing measurements differed.
 
-## What PASS means
+## Linux CPU regression
+
+| Measure | Result |
+|---|---:|
+| Blocks / predictions | 8 / 1,024 |
+| Per-layer container entries | 192 |
+| Compression ratio | 2.052389237x |
+| Delta NLL | +0.0000223219 nat/token |
+| Top-1 agreement | 99.609375% |
+| Registered regression gate | PASS |
+| Independent raw-evidence verification | PASS |
+
+The public Ubuntu 24.04 CPU run used the same fixed validation blocks 64–71
+and produced complete raw evidence. CPU and Apple MPS values are not required
+to be bit-identical. This is environmental repeatability, not another
+scientific holdout. Exact provenance and the disclosed setup-only attempts are
+recorded in the [Linux run report](../platforms/linux/RECORDED_RUN_2026-08-01.md).
+
+## What macOS integration PASS means
 
 For the native proof, PASS requires all of the following:
 
@@ -60,10 +86,10 @@ For the native proof, PASS requires all of the following:
 - Swift verification of the parsed document, all retained container hashes,
   source-token commitments, and per-token NLL/top-1 metrics;
 - independent standard-library Python parsing of all 192 retained container
-  byte streams and recomputation of compression, NLL, and top-1; and
-- heavyweight independent decoding and pinned-Qwen replay of all 1,024 token
-  decisions, with exact top-1 comparison and bounded per-token loss tolerance;
-  and
+  byte streams and recomputation of compression, NLL, and top-1;
+- heavyweight independent decoding and pinned-Qwen replay of all 1,024
+  token decisions, with exact top-1 comparison and bounded per-token loss
+  tolerance; and
 - receipt/app/runtime/primary-evidence binding.
 
 ## Evidence status
@@ -71,7 +97,7 @@ For the native proof, PASS requires all of the following:
 The repository contains the author's same-machine repeated proof and a public
 path for anyone to reproduce it. It is not yet an independently published
 cross-machine reproduction. A third party should run
-`./run_local_app_proof.sh` and publish the resulting sanitized receipt to create
+`./corelm macos proof` and publish the resulting sanitized receipt to create
 that stronger external, cross-machine execution reproduction. It still uses the
 same implementation, and because the input remains public validation blocks
 64–71, even an external repeat would not create a new blind or generalization

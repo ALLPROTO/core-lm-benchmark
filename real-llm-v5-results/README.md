@@ -22,9 +22,10 @@ runner-recorded and bound to immutable canonical result digests, physical file
 SHA-256 values, execution commits, and public Git tags, but cannot be
 independently reconstructed per layer. They must not be rerun or rewritten.
 Any mutation fails the legacy digest/provenance allowlist. Quality metrics and
-aggregate/gate arithmetic remain independently recomputed. A future separately
-registered v2 suite is required for an independently reconstructed compression
-claim.
+aggregate/gate arithmetic remain independently recomputed. The separately
+registered beacon-heldout suite is designed to retain raw per-layer containers
+for a reconstructible compression result, but its future outcome cannot repair
+or replace these historical artifacts.
 
 | Metric | Frozen selection result |
 |---|---:|
@@ -84,69 +85,14 @@ four exact shards and their digest/range manifest are published in
 python RealLLM/verify_voidtoken_v5_development.py
 ```
 
-## Frozen sequence
+## Verification only
 
-1. Commit and publish the normative files. Create and publish the lightweight
-   protocol tag, and confirm that the public remote returns the exact commit:
+Both one-shot phases are consumed. The historical runner remains in source for
+audit and tagged reproducibility, but invoking it again cannot create another
+scientific observation and must not be presented as a rerun of the suite.
 
-   ```sh
-   git tag voidtoken-v5-selection-protocol-v1
-   git push origin HEAD
-   git push origin refs/tags/voidtoken-v5-selection-protocol-v1
-   git ls-remote --exit-code origin \
-     refs/tags/voidtoken-v5-selection-protocol-v1
-   ```
-
-2. In a clean disposable checkout with no local Python bytecode, run the
-   one-shot selection on validation blocks 32–63:
-
-   ```sh
-   HF_HOME=/path/to/cache python -I -B \
-     RealLLM/run_voidtoken_v5_frozen.py selection --local-files-only
-   ```
-
-   Exit `0` means a recorded scientific PASS. Exit `2` means a correctly
-   recorded, terminal scientific FAIL; publish
-   `real-llm-v5-results/selection.attempt.json` and
-   `real-llm-v5-results/selection.json`, then **stop permanently**. Do not
-   create the pretest tag and do not run holdout. Exit `1` after the attempt
-   marker exists means `CONSUMED_INCOMPLETE`; publish the marker and stop.
-   None of these states permits a retry of this suite.
-
-3. Only after selection PASS, commit both selection files, create the
-   lightweight pretest tag, push it, and confirm its public commit:
-
-   ```sh
-   git add real-llm-v5-results/selection.attempt.json \
-     real-llm-v5-results/selection.json
-   git commit -m "Record frozen VoidToken v5 selection"
-   git tag voidtoken-v5-pretest-v1
-   git push origin HEAD
-   git push origin refs/tags/voidtoken-v5-pretest-v1
-   git ls-remote --exit-code origin refs/tags/voidtoken-v5-pretest-v1
-   ```
-
-4. Only from a clean disposable checkout of that exact public pretest tag, run
-   the prospective holdout:
-
-   ```sh
-   HF_HOME=/path/to/cache python -I -B \
-     RealLLM/run_voidtoken_v5_frozen.py holdout --local-files-only
-   ```
-
-5. Publish holdout PASS (`0`) or scientific FAIL (`2`) unchanged. Exit `1`
-   after `holdout.attempt.json` exists is a terminal incomplete attempt:
-   publish that marker unchanged and do not retry.
-
-The holdout runner cannot accept alternate source indices, block counts,
-configuration, gates, model, dataset, or device. It refuses to resolve the test
-split until the public pretest tag and passing selection artifact are verified.
-Each `*.attempt.json` is created durably before its split is resolved. If a
-machine or process fails after that point, the attempt is consumed and the
-incomplete marker is published; it is never deleted to retry the same suite.
-
-Verify all artifacts currently present without loading the model. In a full
-clone with tags, require Git provenance:
+Verify the immutable artifacts without loading the model. In a full clone with
+tags, require Git provenance:
 
 ```sh
 git fetch --tags --force

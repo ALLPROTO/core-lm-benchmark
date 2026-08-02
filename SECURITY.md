@@ -61,7 +61,7 @@ A release candidate is not ready until all applicable gates pass:
    `security/verify_app_run_evidence.py`.
 
 The reproducibility release distributes source, not a prebuilt macOS binary.
-`build_local_app.sh` therefore uses an explicit local ad-hoc signature and
+`./corelm macos build` therefore uses an explicit local ad-hoc signature and
 requires no Apple Developer Program account, paid certificate, Developer ID
 identity, or notarization. The signature seals the user's own build but does
 not authenticate Ivan Tyshchenko as its binary publisher. Developer ID and
@@ -70,13 +70,13 @@ chooses to distribute a prebuilt application.
 
 ## Local bootstrap, mirrors, and offline inputs
 
-`doctor.sh` is a read-only readiness check, not an evidence verifier. It fails
+`./corelm macos doctor` is a read-only readiness check, not an evidence verifier. It fails
 before large downloads when the Mac, Swift toolchain, Python trust chain, free
 space, GUI login, required utilities, or configured endpoints are unsuitable.
 The full path requires at least 8 GB physical memory and 6 GiB free under the
 user profile.
 
-The optional `bootstrap_python312_macos.sh` installs no system package and uses
+The optional `./corelm macos bootstrap` installs no system package and uses
 no administrator access. It downloads one immutable Apple Silicon CPython
 3.12.13+20260718 archive from `astral-sh/python-build-standalone`, requires
 SHA-256
@@ -86,8 +86,22 @@ rejects unsafe archive paths and links, and installs below the current owner's
 rather than a build-from-source claim. The packaged app subsequently seals the
 complete base interpreter and virtual environment in its signed runtime
 manifest. A user who does not accept that bootstrap trust root may provide a
-different trusted Python 3.12 via `CORELM_BOOTSTRAP_PYTHON`; the same path and
+different trusted Python 3.12.13 via `CORELM_BOOTSTRAP_PYTHON`; the same path and
 manifest checks still apply.
+
+The Linux contour has a separate `./corelm linux bootstrap` command. It pins
+the immutable x86_64 Linux CPython 3.12.13+20260718 archive at byte length
+111,280,988 and SHA-256
+`7eea0959fa425c8aff3ea0a1352ee7d01d794b51439ed8f5fcfa017dbc0ec661`.
+It validates archive topology, extracts into a private sibling staging
+directory, publishes with one same-filesystem rename, and requires an exact
+exclusive receipt before reusing the platform-qualified installation at
+`~/.local/share/corelm/linux-x86_64/python-3.12.13+20260718`. It uses no
+administrator access and does not modify `/opt`, the hosted tool cache, or the
+system Python. `CORELM_LINUX_PYTHON` remains an explicit, fail-closed override
+for users who supply another trusted Python 3.12.13. The receipt records a
+canonical SHA-256 observation and entry count for the post-hardening installed
+tree; reuse recomputes that observation before the interpreter is executed.
 
 An offline proof requires an owner-controlled wheelhouse and the registered
 Hugging Face cache. Wheels install with `--no-index`,
@@ -101,7 +115,7 @@ threat model. The locally ad-hoc-signed application and JSON receipt do not
 authenticate a publisher or provide remote attestation; an adversary who can
 rewrite the local result tree can also rewrite its nonce. Do not present the
 challenge alone as cryptographic proof of freshness to a remote auditor.
-`prepare_offline_inputs.sh` creates and immediately exercises those caches
+`./corelm macos prepare-offline` creates and immediately exercises those caches
 while connected; `CORELM_OFFLINE=1` makes the later proof fail closed if either
 cache is absent or invalid.
 
@@ -112,13 +126,14 @@ cache is absent or invalid.
   binary, model-file, or operating-system scan.
 - `security/direct-dependencies.cdx.json` is intentionally a deterministic
   direct-dependency SBOM. It does not claim to enumerate the user's external
-  Python environment, Apple frameworks, model weights, corpus cache, or every
-  transitive RealLLM package.
+  Python environment, the two separately hash-disclosed bootstrap interpreter
+  archives, Apple frameworks, model weights, corpus cache, or every transitive
+  RealLLM package.
 - The deterministic secret check covers tracked files and reachable Git
   history using high-confidence credential formats. It complements, but does
   not replace, GitHub secret scanning and push protection.
 - Passing the security workflow does not strengthen or broaden the scientific
-  claims in `EVIDENCE.md` and `KNOWN_LIMITATIONS.md`.
+  claims in `docs/RESULTS.md` and `docs/LIMITATIONS.md`.
 - The application runs local Python code with the current user's privileges.
   It verifies every file and rejects unmanifested additions in the
   build-recorded external runtime before each worker launch. That runtime is

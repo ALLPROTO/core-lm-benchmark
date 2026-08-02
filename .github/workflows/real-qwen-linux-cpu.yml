@@ -1,0 +1,40 @@
+name: Real Qwen Linux CPU Regression
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: real-qwen-linux-cpu-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  real-qwen-linux-cpu:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out the exact requested source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Bootstrap pinned owner-local Python 3.12.13
+        run: ./corelm linux bootstrap
+      - name: Verify the Linux host
+        run: ./corelm linux doctor
+      - name: Build and execute the real-Qwen regression
+        env:
+          CORELM_LINUX_RUNTIME: ${{ runner.temp }}/corelm-linux-runtime
+          CORELM_LINUX_HF_HOME: ${{ runner.temp }}/corelm-linux-model-assets
+          CORELM_RUN_DIR: ${{ runner.temp }}/corelm-linux-run
+        run: ./corelm linux run
+      - name: Upload the complete verified run
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: corelm-real-qwen-linux-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/corelm-linux-run
+          if-no-files-found: error
+          retention-days: 90

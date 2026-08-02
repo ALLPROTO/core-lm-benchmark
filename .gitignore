@@ -1,21 +1,44 @@
+# Operating-system and editor files.
 .DS_Store
-.build/
-dist/
-tmp/
-output/
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local configuration and credentials.
+.env
+.env.*
+!.env.example
+
+# Python caches and local environments.
 **/__pycache__/
 *.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Swift and Xcode build state.
+.build/
+.swiftpm/
+DerivedData/
+*.xcarchive
+
+# Generated application and publication artifacts.
+dist/
+output/
+tmp/
+*.log
+*.tmp
 
 # Local delivery and progress notes are not part of the scientific artifact.
 COMPLETION_AUDIT.md
 FINAL_REPORT.md
 PROGRESS.md
-
-# The working directory can contain exploratory runs. The initial public commit
-# force-adds only the 115 run IDs named by aggregate.json.
-benchmark-results/*
-!benchmark-results/aggregate.json
-!benchmark-results/README.md
 
 # Real-model exploratory outputs remain local; only the recorded aggregate
 # and its human-readable interpretation are scientific evidence.

@@ -1,0 +1,86 @@
+#!/bin/sh
+set -eu
+
+PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+
+usage() {
+    cat <<'EOF'
+Usage:
+  ./corelm macos doctor [options]
+  ./corelm macos bootstrap [options]
+  ./corelm macos build [options]
+  ./corelm macos package [options]
+  ./corelm macos prepare-offline [options]
+  ./corelm macos proof [options]
+  ./corelm linux doctor [options]
+  ./corelm linux bootstrap [options]
+  ./corelm linux build [options]
+  ./corelm linux run [options]
+  ./corelm beacon verify-tag
+  ./corelm verify
+
+macOS builds the native SwiftUI application and runs the real Qwen proof on
+Apple MPS. Linux builds an isolated CPU runtime and runs the same registered
+public-validation regression without claiming a new blind result. Beacon is a
+read-only compatibility contour; it cannot launch the one-shot experiment.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help|'')
+        usage
+        exit 0
+        ;;
+    verify)
+        shift
+        [ "$#" -eq 0 ] || {
+            printf '%s\n' './corelm verify accepts no arguments' >&2
+            exit 2
+        }
+        "$PROJECT_DIR/scripts/verify-python.sh"
+        exec "$PROJECT_DIR/scripts/verify-python.sh" \
+            Tests.test_publication_archives
+        ;;
+    macos|linux|beacon)
+        platform=$1
+        shift
+        ;;
+    *)
+        printf 'Unknown platform or command: %s\n\n' "$1" >&2
+        usage >&2
+        exit 2
+        ;;
+esac
+
+command=${1:-}
+[ -n "$command" ] || {
+    usage >&2
+    exit 2
+}
+shift
+
+case "$platform:$command" in
+    macos:doctor) script=platforms/macos/scripts/doctor.sh ;;
+    macos:bootstrap) script=platforms/macos/scripts/bootstrap-python.sh ;;
+    macos:build) script=platforms/macos/scripts/build-app.sh ;;
+    macos:package) script=platforms/macos/scripts/package-app.sh ;;
+    macos:prepare-offline) script=platforms/macos/scripts/prepare-offline.sh ;;
+    macos:proof) script=platforms/macos/scripts/run-proof.sh ;;
+    linux:doctor) script=platforms/linux/scripts/doctor.sh ;;
+    linux:bootstrap) script=platforms/linux/scripts/bootstrap-python.sh ;;
+    linux:build) script=platforms/linux/scripts/build-runtime.sh ;;
+    linux:run) script=platforms/linux/scripts/run-regression.sh ;;
+    beacon:verify-tag) script=platforms/beacon/scripts/verify-frozen-tag.py ;;
+    *)
+        printf 'Unknown command: %s %s\n\n' "$platform" "$command" >&2
+        usage >&2
+        exit 2
+        ;;
+esac
+
+[ "$platform" != beacon ] || [ "$#" -eq 0 ] || {
+    printf '%s\n' './corelm beacon verify-tag accepts no arguments' >&2
+    exit 2
+}
+
+exec "$PROJECT_DIR/$script" "$@"

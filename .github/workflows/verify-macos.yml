@@ -1,0 +1,168 @@
+name: Verify macOS
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-application:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Bootstrap pinned owner-local Python 3.12.13
+        run: |
+          ./corelm macos bootstrap
+          bootstrap_python="$HOME/.local/share/corelm/python-3.12.13/bin/python3.12"
+          test -x "$bootstrap_python"
+          "$bootstrap_python" -I -B -c '
+          import sys
+          if sys.version_info[:3] != (3, 12, 13):
+              raise SystemExit("owner-local Python must be 3.12.13")
+          '
+          "$bootstrap_python" -I -B -c '
+          import importlib.metadata
+          for distribution in sorted(
+              importlib.metadata.distributions(),
+              key=lambda item: item.metadata["Name"].lower(),
+          ):
+              print(distribution.metadata["Name"], distribution.version)
+          ' >"$RUNNER_TEMP/corelm-base-distributions.before"
+      - name: Record exact build toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          xcrun --sdk macosx --show-sdk-version
+          "$HOME/.local/share/corelm/python-3.12.13/bin/python3.12" --version
+      - name: Build exact-lock core verification runtime
+        run: |
+          bootstrap_python="$HOME/.local/share/corelm/python-3.12.13/bin/python3.12"
+          core_runtime="$HOME/.cache/corelm-ci-core-runtime"
+          core_python="$core_runtime/bin/python"
+          /bin/mkdir -p "$HOME/.cache"
+          /bin/chmod 700 "$HOME/.cache"
+          state=$(
+            "$bootstrap_python" -I -B security/manage_local_runtime.py \
+              --path "$core_runtime" \
+              --project "$GITHUB_WORKSPACE" \
+              --mode preflight
+          )
+          test "$state" = new
+          "$bootstrap_python" -I -B -m venv "$core_runtime"
+          "$bootstrap_python" -I -B security/manage_local_runtime.py \
+            --path "$core_runtime" \
+            --project "$GITHUB_WORKSPACE" \
+            --mode initialize
+          "$core_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r .github/locks/pip-bootstrap.txt
+          "$core_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r .github/locks/core-macos-arm64-py312.txt
+          /bin/chmod -RP go-w "$core_runtime"
+          "$core_python" -I -B -m pip check
+          "$core_python" -I -B security/verify_locked_environment.py \
+            --runtime "$core_runtime" \
+            --lock .github/locks/pip-bootstrap.txt \
+            --lock .github/locks/core-macos-arm64-py312.txt
+      - name: Verify immutable beacon compatibility boundary
+        run: ./corelm beacon verify-tag
+      - name: Run Python and publication gates
+        run: >-
+          PYTHON_BIN="$HOME/.cache/corelm-ci-core-runtime/bin/python"
+          ./corelm verify
+      - name: Run non-empty Swift security test gate
+        run: ./security/run_swift_security_tests.sh
+      - name: Build hash-locked external app runtime
+        run: |
+          bootstrap_python="$HOME/.local/share/corelm/python-3.12.13/bin/python3.12"
+          app_runtime="$HOME/.cache/corelm-ci-app-runtime"
+          app_python="$app_runtime/bin/python"
+          state=$(
+            "$bootstrap_python" -I -B security/manage_local_runtime.py \
+              --path "$app_runtime" \
+              --project "$GITHUB_WORKSPACE" \
+              --mode preflight
+          )
+          test "$state" = new
+          "$bootstrap_python" -I -B -m venv "$app_runtime"
+          "$bootstrap_python" -I -B security/manage_local_runtime.py \
+            --path "$app_runtime" \
+            --project "$GITHUB_WORKSPACE" \
+            --mode initialize
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r .github/locks/pip-bootstrap.txt
+          "$app_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r RealLLM/requirements.lock
+          /bin/chmod -RP go-w "$app_runtime"
+          "$app_python" -I -B -m pip check
+          "$app_python" -I -B security/verify_locked_environment.py \
+            --runtime "$app_runtime" \
+            --lock .github/locks/pip-bootstrap.txt \
+            --lock RealLLM/requirements.lock
+      - name: Verify owner-local base package set stayed unmodified
+        run: |
+          bootstrap_python="$HOME/.local/share/corelm/python-3.12.13/bin/python3.12"
+          "$bootstrap_python" -I -B -c '
+          import importlib.metadata
+          for distribution in sorted(
+              importlib.metadata.distributions(),
+              key=lambda item: item.metadata["Name"].lower(),
+          ):
+              print(distribution.metadata["Name"], distribution.version)
+          ' >"$RUNNER_TEMP/corelm-base-distributions.after"
+          cmp \
+            "$RUNNER_TEMP/corelm-base-distributions.before" \
+            "$RUNNER_TEMP/corelm-base-distributions.after"
+          ./corelm macos bootstrap --harden-installed
+      - name: Build and package the macOS application
+        run: |
+          CORELM_BOOTSTRAP_PYTHON="$HOME/.local/share/corelm/python-3.12.13/bin/python3.12" \
+          CORELM_REAL_LLM_VENV="$HOME/.cache/corelm-ci-app-runtime" \
+          CORELM_SKIP_RUNTIME_INSTALL=1 \
+          CORELM_SKIP_ASSET_PREPARATION=1 \
+          CORELM_SKIP_MEMORY_CHECK=1 \
+          CORELM_SKIP_MPS_CHECK=1 \
+          CORELM_SKIP_APP_LAUNCH_CHECK=1 \
+          BUILD_CONFIG=release \
+            ./corelm macos build
+      - name: Verify application bundle integrity and signature
+        run: ./security/verify_app_bundle.sh dist/CoreLMBenchmark.app
+      - name: Verify recorded real-Qwen application evidence
+        run: >-
+          "$HOME/.cache/corelm-ci-core-runtime/bin/python" -I -B
+          security/verify_app_run_evidence.py

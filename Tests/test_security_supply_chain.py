@@ -109,3 +109,38 @@ jobs:
                 ),
             )
         )
+
+    def test_beacon_evidence_audit_is_manual_fixed_and_non_executing(self):
+        path = ROOT / ".github/workflows/audit-beacon-evidence.yml"
+        workflow = path.read_text(encoding="utf-8")
+        self.assertEqual(workflow_text_errors(path.name, workflow), [])
+        for required in (
+            "workflow_dispatch:",
+            "ref: corelm-beacon-heldout-v1-evidence",
+            "audit_beacon_evidence_ref.py",
+            "preflight --repository evidence",
+            "extract-lock",
+            "--repository evidence",
+            "Audit without NIST network access or a new scientific attempt",
+        ):
+            self.assertIn(required, workflow)
+        for forbidden in (
+            "run_beacon_one_shot",
+            "run_beacon_regression",
+            "prepare_beacon_assets",
+            "beacon.nist.gov",
+            "actions/upload-artifact",
+            "torch==",
+            "transformers==",
+        ):
+            self.assertNotIn(forbidden, workflow)
+        preflight = workflow.index("preflight --repository evidence")
+        extraction = workflow.index("extract-lock")
+        installation = workflow.index("-m pip install")
+        control_environment_check = workflow.index(
+            "control/security/verify_locked_environment.py"
+        )
+        self.assertLess(preflight, extraction)
+        self.assertLess(extraction, installation)
+        self.assertLess(installation, control_environment_check)
+        self.assertNotIn("evidence/security/", workflow)
