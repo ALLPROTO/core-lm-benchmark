@@ -1,0 +1,25 @@
+{
+  "attemptSHA256": "1c572aad5a4d0bc91376305f420e4a1589212fc3d7082d61e3b4602c0766b311",
+  "beaconEndpoint": "https://beacon.nist.gov/beacon/2.0/pulse/time/1785693600000",
+  "beaconTargetTimestamp": "2026-08-02T18:00:00.000Z",
+  "beaconWillBeFetchedAfterMarker": true,
+  "gitCommitAtExecution": "0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44",
+  "gitTagAtExecution": "corelm-beacon-heldout-v1",
+  "implementationSHA256": "bf8dea05e7b6dbf726d0a857d2e9f78219bf28c24a949c8a93f21891eac83d56",
+  "protocolCommit": "b34bc4d06c00c86b99076b117049e2d590d73bcd",
+  "publicFreezeRelease": {
+    "apiURL": "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/releases/tags/corelm-beacon-heldout-v1",
+    "htmlURL": "https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-beacon-heldout-v1",
+    "immutable": true,
+    "publishedAt": "2026-08-01T01:18:09Z"
+  },
+  "registrationArtifactSHA256": "7c0cb4cf544773041be84e75de4314c72769c71682e1b138b99ea85996cc5779",
+  "registrationCanonicalSHA256": "ce4e1bf9b4bd90e8ca6bdb32279c9ff015bcc7a271fe4be1bcfc9c6b0ea38a4e",
+  "rerunPermitted": false,
+  "schemaVersion": "corelm-beacon-attempt-v1",
+  "startedAt": "2026-08-02T18:15:46Z",
+  "status": "attempt-started-beacon-and-data-not-yet-resolved",
+  "suiteId": "qwen2.5-0.5b-kv-voidtoken-v5-beacon-heldout-v1",
+  "testSplitWillBeResolvedAfterBeacon": true,
+  "windowLedgerSHA256": "81e84d09682bb4beab5f42c8bd87179a874b879eaf6e6ca539723e54bbc75a83"
+}
