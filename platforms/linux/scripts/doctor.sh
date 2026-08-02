@@ -2,7 +2,6 @@
 set -eu
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-PYTHON_REQUEST=${CORELM_LINUX_PYTHON:-python3.12}
 RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime"}
 HF_CACHE=${CORELM_LINUX_HF_HOME:-"$HOME/.cache/corelm/linux/model-assets"}
 RUN_ROOT=${CORELM_LINUX_RUN_ROOT:-"$HOME/.cache/corelm/linux/runs"}
@@ -11,6 +10,7 @@ SKIP_MEMORY_CHECK=0
 MINIMUM_AVAILABLE_KIB=8388608
 MINIMUM_FREE_KIB=6291456
 SAFETY_SCRIPT="$PROJECT_DIR/platforms/linux/scripts/runtime_safety.py"
+PYTHON_FINDER="$PROJECT_DIR/platforms/linux/scripts/find-python312.sh"
 
 fail() {
     printf 'LINUX DOCTOR FAIL: %s\n' "$*" >&2
@@ -23,6 +23,7 @@ Usage: ./corelm linux doctor [--skip-memory-check]
 
 CORELM_LINUX_PYTHON may name an exact Python 3.12.13 executable. Runtime,
 model-cache, and run paths must be absolute, canonical, private, and disjoint.
+If Python is missing, run ./corelm linux bootstrap first.
 EOF
 }
 
@@ -38,15 +39,8 @@ done
 [ "$(uname -s)" = Linux ] || fail "Linux is required"
 [ "$(uname -m)" = x86_64 ] || fail "the published locks require x86_64"
 
-case "$PYTHON_REQUEST" in
-    /*) PYTHON_BIN=$PYTHON_REQUEST ;;
-    *) PYTHON_BIN=$(command -v "$PYTHON_REQUEST" 2>/dev/null || true) ;;
-esac
-[ -n "$PYTHON_BIN" ] && [ -x "$PYTHON_BIN" ] \
-    || fail "Python executable is missing: $PYTHON_REQUEST"
-PYTHON_BIN=$("$PYTHON_BIN" -I -B -c \
-    'import pathlib,sys; print(pathlib.Path(sys.executable).resolve(strict=True))') \
-    || fail "cannot resolve Python executable"
+PYTHON_BIN=$("$PYTHON_FINDER") \
+    || fail "trusted Python 3.12.13 resolution failed"
 version=$("$PYTHON_BIN" -I -B -c \
     'import platform; print(platform.python_version())')
 [ "$version" = 3.12.13 ] \

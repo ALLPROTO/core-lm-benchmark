@@ -3,11 +3,11 @@ set -eu
 
 umask 077
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-PYTHON_REQUEST=${CORELM_LINUX_PYTHON:-python3.12}
 RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime"}
 HF_CACHE=${CORELM_LINUX_HF_HOME:-"$HOME/.cache/corelm/linux/model-assets"}
 OFFLINE=${CORELM_OFFLINE:-0}
 SAFETY_SCRIPT="$PROJECT_DIR/platforms/linux/scripts/runtime_safety.py"
+PYTHON_FINDER="$PROJECT_DIR/platforms/linux/scripts/find-python312.sh"
 STAGING_DIR=
 RUNTIME_PARENT=
 
@@ -47,13 +47,10 @@ for path in "$RUNTIME_DIR" "$HF_CACHE"; do
     case "$path" in /*) ;; *) fail "runtime and cache paths must be absolute" ;; esac
 done
 
-CORELM_LINUX_PYTHON="$PYTHON_REQUEST" \
+PYTHON_BIN=$("$PYTHON_FINDER") \
+    || fail "trusted Python 3.12.13 resolution failed"
+CORELM_LINUX_PYTHON="$PYTHON_BIN" \
     "$PROJECT_DIR/platforms/linux/scripts/doctor.sh"
-
-case "$PYTHON_REQUEST" in
-    /*) PYTHON_BIN=$PYTHON_REQUEST ;;
-    *) PYTHON_BIN=$(command -v "$PYTHON_REQUEST") ;;
-esac
 
 if [ -e "$RUNTIME_DIR" ] || [ -L "$RUNTIME_DIR" ]; then
     "$PYTHON_BIN" -I -B "$SAFETY_SCRIPT" validate-runtime \

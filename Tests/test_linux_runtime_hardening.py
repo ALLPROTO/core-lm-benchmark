@@ -10,7 +10,6 @@ from types import SimpleNamespace
 from unittest import mock
 
 from platforms.linux.scripts import runtime_safety
-from security import normalize_ci_python_permissions
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -116,162 +115,152 @@ class LinuxRuntimePathTests(unittest.TestCase):
                     )
             disk_usage.assert_called_once_with(base)
 
-
-class LinuxCIPythonPermissionTests(unittest.TestCase):
-    def test_exact_hosted_python_permissions_are_narrowed_without_byte_changes(self):
+    def test_owner_tree_hardening_is_bounded_and_rejects_escape(self):
         with tempfile.TemporaryDirectory() as temporary:
-            tool_cache = Path(temporary).resolve()
-            location = (
-                tool_cache
-                / "Python"
-                / normalize_ci_python_permissions.EXPECTED_VERSION
-                / normalize_ci_python_permissions.EXPECTED_ARCHITECTURE
-            )
-            binary = (
-                location
-                / "bin"
-                / normalize_ci_python_permissions.EXPECTED_EXECUTABLE_NAME
-            )
-            binary.parent.mkdir(parents=True)
-            binary.write_bytes(b"pinned-python-binary\n")
-            (tool_cache / "Python").chmod(0o775)
-            version_directory = (
-                tool_cache
-                / "Python"
-                / normalize_ci_python_permissions.EXPECTED_VERSION
-            )
-            sibling_version = tool_cache / "Python" / "3.11.99"
-            sibling_version.mkdir()
-            sibling_payload = sibling_version / "untouched"
-            sibling_payload.write_bytes(b"sibling-version\n")
-            sibling_version.chmod(0o775)
-            sibling_payload.chmod(0o664)
-            version_directory.chmod(0o775)
-            location.chmod(0o775)
-            binary.parent.chmod(0o775)
-            binary.chmod(0o775)
-            before = binary.read_bytes()
+            base = Path(temporary).resolve()
+            root = base / "runtime"
+            root.mkdir(mode=0o775)
+            root.chmod(0o775)
+            payload = root / "payload"
+            payload.write_bytes(b"runtime\n")
+            payload.chmod(0o666)
+            internal = root / "internal-link"
+            internal.symlink_to(payload)
+            sibling = base / "sibling"
+            sibling.mkdir(mode=0o777)
+            sibling.chmod(0o777)
 
-            with mock.patch.object(
-                normalize_ci_python_permissions.os,
-                "chmod",
-                wraps=os.chmod,
-            ) as chmod:
-                result = normalize_ci_python_permissions.normalize_permissions(
-                    runner_tool_cache=tool_cache,
-                    python_location=location,
-                    executable=binary,
-                )
+            result = runtime_safety.harden_owner_tree(root)
 
-            self.assertEqual(binary.read_bytes(), before)
-            self.assertEqual(result["version"], "3.12.13")
-            for path in (
-                tool_cache / "Python",
-                version_directory,
-                location,
-                binary.parent,
-                binary,
-            ):
-                self.assertEqual(path.stat().st_mode & 0o022, 0)
-            self.assertEqual(stat.S_IMODE(sibling_version.stat().st_mode), 0o775)
-            self.assertEqual(stat.S_IMODE(sibling_payload.stat().st_mode), 0o664)
-            self.assertEqual(sibling_payload.read_bytes(), b"sibling-version\n")
-            self.assertEqual(
-                chmod.call_args_list,
-                [
-                    mock.call(path, 0o755, follow_symlinks=False)
-                    for path in (
-                        tool_cache / "Python",
-                        version_directory,
-                        location,
-                        binary.parent,
-                        binary,
-                    )
-                ],
-            )
+            self.assertEqual(result["root"], str(root))
+            self.assertEqual(result["paths"], 3)
+            self.assertEqual(root.stat().st_mode & 0o022, 0)
+            self.assertEqual(payload.stat().st_mode & 0o022, 0)
+            self.assertTrue(internal.is_symlink())
+            self.assertEqual(stat.S_IMODE(sibling.stat().st_mode), 0o777)
 
-    def test_hosted_python_normalizer_rejects_each_directory_alias(self):
-        for component_index in range(4):
-            with self.subTest(component_index=component_index):
-                with tempfile.TemporaryDirectory() as temporary:
-                    tool_cache = Path(temporary).resolve()
-                    location = (
-                        tool_cache
-                        / "Python"
-                        / normalize_ci_python_permissions.EXPECTED_VERSION
-                        / normalize_ci_python_permissions.EXPECTED_ARCHITECTURE
-                    )
-                    binary = (
-                        location
-                        / "bin"
-                        / normalize_ci_python_permissions.EXPECTED_EXECUTABLE_NAME
-                    )
-                    binary.parent.mkdir(parents=True)
-                    binary.write_bytes(b"pinned-python-binary\n")
-                    components = (
-                        tool_cache / "Python",
-                        tool_cache
-                        / "Python"
-                        / normalize_ci_python_permissions.EXPECTED_VERSION,
-                        location,
-                        binary.parent,
-                    )
-                    aliased = components[component_index]
-                    outside = tool_cache / f"outside-{component_index}"
-                    aliased.rename(outside)
-                    aliased.symlink_to(outside, target_is_directory=True)
-
-                    with self.assertRaisesRegex(
-                        ValueError, "must be an existing canonical path"
-                    ):
-                        normalize_ci_python_permissions.normalize_permissions(
-                            runner_tool_cache=tool_cache,
-                            python_location=location,
-                            executable=binary,
-                        )
-
-    def test_writable_foreign_owned_target_is_never_changed(self):
-        foreign_uid = 1 if os.getuid() == 0 else 0
-        before = SimpleNamespace(st_mode=stat.S_IFDIR | 0o775, st_uid=foreign_uid)
-        with mock.patch.object(
-            normalize_ci_python_permissions.os, "chmod"
-        ) as chmod:
-            with self.assertRaisesRegex(
-                ValueError, "writable by another principal"
-            ):
-                normalize_ci_python_permissions._remove_other_write(
-                    Path("/not-opened"),
-                    before,
-                    label="foreign test directory",
-                )
-        chmod.assert_not_called()
-
-    def test_hosted_python_normalizer_rejects_path_aliases_and_escape(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            tool_cache = Path(temporary).resolve()
-            location = (
-                tool_cache
-                / "Python"
-                / normalize_ci_python_permissions.EXPECTED_VERSION
-                / normalize_ci_python_permissions.EXPECTED_ARCHITECTURE
-            )
-            outside = tool_cache / "outside-python"
+            outside = base / "outside"
             outside.write_bytes(b"outside\n")
-            binary = (
-                location
-                / "bin"
-                / normalize_ci_python_permissions.EXPECTED_EXECUTABLE_NAME
+            escaping = root / "escaping-link"
+            escaping.symlink_to(outside)
+            with self.assertRaisesRegex(ValueError, "symlink escapes root"):
+                runtime_safety.harden_owner_tree(root)
+
+
+class LinuxPythonBootstrapContractTests(unittest.TestCase):
+    def test_bootstrap_receipt_rejects_installed_tree_byte_drift(self):
+        source = (LINUX_SCRIPTS / "bootstrap-python.sh").read_text(
+            encoding="utf-8"
+        )
+        receipt_program = source.split("<<'PY'\n", 1)[1].split("\nPY\n", 1)[0]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve() / "python"
+            root.mkdir(mode=0o700)
+            payload = root / "payload.bin"
+            payload.write_bytes(b"registered bytes\n")
+            arguments = [
+                sys.executable,
+                "-I",
+                "-B",
+                "-c",
+                receipt_program,
+                "create",
+                str(root),
+                ".receipt.json",
+                "3.12.13",
+                "20260718",
+                "x86_64-unknown-linux-gnu",
+                "0" * 64,
+            ]
+            created = subprocess.run(
+                arguments, check=False, capture_output=True, text=True
             )
-            binary.parent.mkdir(parents=True)
-            binary.symlink_to(outside)
-            with self.assertRaisesRegex(
-                ValueError, "resolved Python executable differs"
-            ):
-                normalize_ci_python_permissions.normalize_permissions(
-                    runner_tool_cache=tool_cache,
-                    python_location=location,
-                    executable=binary,
-                )
+            self.assertEqual(created.returncode, 0, created.stderr)
+            receipt = root / ".receipt.json"
+            self.assertEqual(stat.S_IMODE(receipt.stat().st_mode), 0o600)
+
+            arguments[5] = "validate"
+            accepted = subprocess.run(
+                arguments, check=False, capture_output=True, text=True
+            )
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+
+            payload.write_bytes(b"unexpected bytes\n")
+            rejected = subprocess.run(
+                arguments, check=False, capture_output=True, text=True
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+
+    def test_owner_local_bootstrap_is_fixed_safe_and_sudo_free(self):
+        source = (LINUX_SCRIPTS / "bootstrap-python.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("PYTHON_RELEASE=3.12.13", source)
+        self.assertIn("BUILD_RELEASE=20260718", source)
+        self.assertIn(
+            "7eea0959fa425c8aff3ea0a1352ee7d01"
+            "d794b51439ed8f5fcfa017dbc0ec661",
+            source,
+        )
+        self.assertIn("x86_64-unknown-linux-gnu-install_only.tar.gz", source)
+        self.assertIn("validate_python_bootstrap_archive.py", source)
+        self.assertIn("--no-same-owner", source)
+        hardener = (LINUX_SCRIPTS / "runtime_safety.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("owner tree symlink escapes root", hardener)
+        self.assertIn(".corelm-python312-stage.*", source)
+        self.assertIn(".corelm-python-bootstrap-v1.json", source)
+        self.assertIn("ARCHIVE_SIZE=111280988", source)
+        self.assertIn('"treeSha256": tree_sha256', source)
+        self.assertIn('"treeEntries": tree_entries', source)
+        self.assertIn("receipt_operation validate", source)
+        self.assertNotIn("chmod -RP", source)
+        self.assertNotIn("/usr/bin/sudo", source)
+        self.assertNotIn("\nsudo ", source)
+
+    def test_linux_commands_and_ci_use_owner_local_bootstrap(self):
+        dispatcher = (ROOT / "corelm").read_text(encoding="utf-8")
+        doctor = (LINUX_SCRIPTS / "doctor.sh").read_text(encoding="utf-8")
+        build = (LINUX_SCRIPTS / "build-runtime.sh").read_text(
+            encoding="utf-8"
+        )
+        finder = (LINUX_SCRIPTS / "find-python312.sh").read_text(
+            encoding="utf-8"
+        )
+        verify_workflow = (
+            ROOT / ".github/workflows/verify-linux.yml"
+        ).read_text(encoding="utf-8")
+        regression_workflow = (
+            ROOT / ".github/workflows/real-qwen-linux-cpu.yml"
+        ).read_text(encoding="utf-8")
+        bootstrap_path = (
+            ".local/share/corelm/linux-x86_64/"
+            "python-3.12.13+20260718/bin/python3.12"
+        )
+
+        self.assertIn("linux:bootstrap", dispatcher)
+        self.assertIn("bootstrap-python.sh", dispatcher)
+        self.assertIn(bootstrap_path, finder)
+        self.assertIn("${CORELM_LINUX_PYTHON+x}", finder)
+        self.assertIn("--harden-installed", finder)
+        self.assertIn("pinned Python executable escaped bootstrap root", finder)
+        self.assertIn("base_prefix != expected_root", finder)
+        self.assertIn("find-python312.sh", doctor)
+        self.assertIn("find-python312.sh", build)
+        self.assertIn("./corelm linux bootstrap", verify_workflow)
+        self.assertIn("corelm-ci-linux-core-runtime", verify_workflow)
+        self.assertIn('-m venv --copies "$core_runtime"', verify_workflow)
+        self.assertIn("umask 077", verify_workflow)
+        self.assertIn("security/manage_local_runtime.py", verify_workflow)
+        self.assertIn("security/verify_locked_environment.py", verify_workflow)
+        self.assertIn("corelm-linux-base-distributions.before", verify_workflow)
+        self.assertIn("corelm-linux-base-distributions.after", verify_workflow)
+        self.assertEqual(verify_workflow.count("actions/setup-python"), 1)
+        self.assertIn("./corelm linux bootstrap", regression_workflow)
+        self.assertNotIn("actions/setup-python", regression_workflow)
+        self.assertNotIn("normalize_ci_python_permissions", verify_workflow)
+        self.assertNotIn("normalize_ci_python_permissions", regression_workflow)
 
 
 class LinuxRuntimeIdentityTests(unittest.TestCase):
@@ -395,23 +384,6 @@ class LinuxRuntimeIdentityTests(unittest.TestCase):
 
 
 class LinuxRuntimeShellContractTests(unittest.TestCase):
-    def test_linux_ci_normalizes_only_the_pinned_setup_python_boundary(self):
-        helper = (
-            ROOT / "security" / "normalize_ci_python_permissions.py"
-        ).read_text(encoding="utf-8")
-        self.assertNotIn("chmod -R", helper)
-        self.assertNotIn("sudo", helper)
-        for relative, later in (
-            (".github/workflows/verify-linux.yml", "./corelm verify"),
-            (".github/workflows/real-qwen-linux-cpu.yml", "./corelm linux doctor"),
-        ):
-            workflow = (ROOT / relative).read_text(encoding="utf-8")
-            marker = "security/normalize_ci_python_permissions.py"
-            self.assertEqual(workflow.count(marker), 1)
-            self.assertIn('--runner-tool-cache "$RUNNER_TOOL_CACHE"', workflow)
-            self.assertIn('--python-location "$pythonLocation"', workflow)
-            self.assertLess(workflow.index(marker), workflow.index(later))
-
     def test_first_offline_build_fails_before_staging_is_created(self):
         source = (LINUX_SCRIPTS / "build-runtime.sh").read_text(
             encoding="utf-8"

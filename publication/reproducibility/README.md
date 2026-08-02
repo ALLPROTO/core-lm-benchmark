@@ -21,6 +21,13 @@ CPU runtime, and trace the real-model result to machine-readable evidence.
   runtime installs NumPy 2.5.1 and its complete real-model dependency closure
 - ReportLab 4.4.9 for regenerating the vector paper figures
 
+If the exact interpreter is absent, use the platform-specific pinned bootstrap
+before the verification command: `./corelm macos bootstrap` on Apple Silicon
+or `./corelm linux bootstrap` on Ubuntu x86_64. Both verify a fixed immutable
+archive by SHA-256, install under an owner-only platform-specific path, use no
+administrator access, and remain disclosed third-party binary trust roots
+rather than build-from-source claims.
+
 ## Verify the implementation
 
 From the extracted archive:

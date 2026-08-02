@@ -73,10 +73,12 @@ See [the macOS guide](platforms/macos/README.md) and the detailed
 
 ### Linux CPU regression
 
-Requirements: Ubuntu 24.04 x86_64, Python 3.12.13, 8 GiB available memory,
-and 6 GiB free disk.
+Requirements: Ubuntu 24.04 x86_64, 8 GiB available memory, and 6 GiB free
+disk. The repository includes a hash-pinned owner-local Python 3.12.13
+bootstrap.
 
 ```sh
+./corelm linux bootstrap
 ./corelm linux doctor
 ./corelm linux build
 ./corelm linux run

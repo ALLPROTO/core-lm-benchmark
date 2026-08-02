@@ -10,9 +10,10 @@ already published immutable experiment.
 | Linux | `platforms/linux/`, Linux CPU locks, shared current `RealLLM/` code | `~/.cache/corelm/linux/runtime`, `~/.cache/corelm/linux/model-assets` | `~/.cache/corelm/linux/runs/` |
 | Beacon | Git blobs from immutable tag `corelm-beacon-heldout-v1` | `~/.cache/corelm-app-runtime`, `~/.cache/corelm-model-assets` (frozen tag paths) | `real-llm-beacon-results/` inside the detached tagged checkout |
 
-Use `./corelm macos ...` and `./corelm linux ...` for active builds. The only
-current-tree beacon command is `./corelm beacon verify-tag`; it reads Git
-objects and cannot launch an experiment.
+Use `./corelm macos ...` and `./corelm linux ...` for active builds. Both
+platform contours provide separate hash-pinned owner-local Python bootstrap
+commands. The only current-tree beacon command is `./corelm beacon verify-tag`;
+it reads Git objects and cannot launch an experiment.
 
 The beacon cache paths above intentionally differ from the active macOS paths.
 They are documented by the current, non-normative

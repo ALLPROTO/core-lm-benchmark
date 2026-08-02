@@ -324,6 +324,52 @@ def publish_runtime(staging: Path, destination: Path) -> None:
     os.rename(staging, destination)
 
 
+def harden_owner_tree(root: Path) -> dict[str, Any]:
+    """Remove only group/world write from one validated owner-local tree."""
+
+    if root.resolve(strict=True) != root:
+        raise ValueError("owner tree root is not canonical")
+    records: list[tuple[Path, os.stat_result]] = []
+    for path in (root, *root.rglob("*")):
+        status = path.lstat()
+        if status.st_uid != os.getuid():
+            raise ValueError(f"owner tree path has an unexpected owner: {path}")
+        if stat.S_ISLNK(status.st_mode):
+            resolved = path.resolve(strict=True)
+            if resolved != root and root not in resolved.parents:
+                raise ValueError(f"owner tree symlink escapes root: {path}")
+        elif not (
+            stat.S_ISREG(status.st_mode) or stat.S_ISDIR(status.st_mode)
+        ):
+            raise ValueError(f"unsupported owner tree file type: {path}")
+        records.append((path, status))
+
+    for path, status in records:
+        if not stat.S_ISLNK(status.st_mode) and status.st_mode & 0o022:
+            os.chmod(
+                path,
+                stat.S_IMODE(status.st_mode) & ~0o022,
+                follow_symlinks=False,
+            )
+
+    for path, before in records:
+        after = path.lstat()
+        if (
+            after.st_dev != before.st_dev
+            or after.st_ino != before.st_ino
+            or after.st_uid != before.st_uid
+            or stat.S_IFMT(after.st_mode) != stat.S_IFMT(before.st_mode)
+        ):
+            raise ValueError(f"owner tree path changed during hardening: {path}")
+        if stat.S_ISLNK(after.st_mode):
+            resolved = path.resolve(strict=True)
+            if resolved != root and root not in resolved.parents:
+                raise ValueError(f"owner tree symlink escaped during hardening: {path}")
+        elif after.st_mode & 0o022:
+            raise ValueError(f"owner tree path remains writable: {path}")
+    return {"root": str(root), "paths": len(records)}
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -344,6 +390,9 @@ def _parser() -> argparse.ArgumentParser:
     publish = subparsers.add_parser("publish-runtime")
     publish.add_argument("--staging", required=True, type=Path)
     publish.add_argument("--destination", required=True, type=Path)
+
+    harden = subparsers.add_parser("harden-owner-tree")
+    harden.add_argument("--root", required=True, type=Path)
     return parser
 
 
@@ -370,6 +419,8 @@ def main(arguments: Iterable[str] | None = None) -> int:
         elif parsed.command == "publish-runtime":
             publish_runtime(parsed.staging, parsed.destination)
             result = {"runtime": str(parsed.destination), "published": True}
+        elif parsed.command == "harden-owner-tree":
+            result = harden_owner_tree(parsed.root)
         else:  # pragma: no cover - argparse enforces the command set.
             raise AssertionError("unreachable command")
     except (OSError, subprocess.SubprocessError, ValueError) as error:

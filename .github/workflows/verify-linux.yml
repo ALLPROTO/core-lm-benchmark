@@ -57,29 +57,92 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12.13"
-          cache: pip
-          cache-dependency-path: |
-            .github/locks/pip-bootstrap.txt
-            .github/locks/core-linux-py312.txt
-      - name: Normalize the pinned hosted Python trust boundary
-        run: >-
-          python -I -B security/normalize_ci_python_permissions.py
-          --runner-tool-cache "$RUNNER_TOOL_CACHE"
-          --python-location "$pythonLocation"
-      - name: Install hash-locked dependencies
+      - name: Bootstrap pinned owner-local Python 3.12.13
         run: |
-          python -m pip install --require-hashes -r .github/locks/pip-bootstrap.txt
-          python -m pip install --require-hashes -r .github/locks/core-linux-py312.txt
-          python -m pip check
-      - run: PYTHON_BIN=python ./corelm verify
+          ./corelm linux bootstrap
+          bootstrap_python="$HOME/.local/share/corelm/linux-x86_64/python-3.12.13+20260718/bin/python3.12"
+          "$bootstrap_python" -I -B -c '
+          import importlib.metadata
+          for distribution in sorted(
+              importlib.metadata.distributions(),
+              key=lambda item: item.metadata["Name"].lower(),
+          ):
+              print(distribution.metadata["Name"], distribution.version)
+          ' >"$RUNNER_TEMP/corelm-linux-base-distributions.before"
+      - name: Build exact-lock core verification runtime
+        run: |
+          umask 077
+          bootstrap_python="$HOME/.local/share/corelm/linux-x86_64/python-3.12.13+20260718/bin/python3.12"
+          core_runtime="$HOME/.cache/corelm-ci-linux-core-runtime"
+          core_python="$core_runtime/bin/python"
+          /bin/mkdir -p "$HOME/.cache"
+          /bin/chmod 700 "$HOME/.cache"
+          state=$(
+            "$bootstrap_python" -I -B security/manage_local_runtime.py \
+              --path "$core_runtime" \
+              --project "$GITHUB_WORKSPACE" \
+              --mode preflight
+          )
+          test "$state" = new
+          "$bootstrap_python" -I -B -m venv --copies "$core_runtime"
+          "$bootstrap_python" -I -B security/manage_local_runtime.py \
+            --path "$core_runtime" \
+            --project "$GITHUB_WORKSPACE" \
+            --mode initialize
+          "$core_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --no-cache-dir \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r .github/locks/pip-bootstrap.txt
+          "$core_python" -I -B -m pip install \
+            --isolated \
+            --no-input \
+            --disable-pip-version-check \
+            --no-cache-dir \
+            --only-binary=:all: \
+            --index-url https://pypi.org/simple \
+            --require-hashes \
+            -r .github/locks/core-linux-py312.txt
+          "$bootstrap_python" -I -B \
+            platforms/linux/scripts/runtime_safety.py \
+            harden-owner-tree --root "$core_runtime"
+          "$core_python" -I -B -m pip check
+          "$core_python" -I -B security/verify_locked_environment.py \
+            --runtime "$core_runtime" \
+            --lock .github/locks/pip-bootstrap.txt \
+            --lock .github/locks/core-linux-py312.txt
+          "$bootstrap_python" -I -B -c '
+          import importlib.metadata
+          for distribution in sorted(
+              importlib.metadata.distributions(),
+              key=lambda item: item.metadata["Name"].lower(),
+          ):
+              print(distribution.metadata["Name"], distribution.version)
+          ' >"$RUNNER_TEMP/corelm-linux-base-distributions.after"
+          /usr/bin/cmp \
+            "$RUNNER_TEMP/corelm-linux-base-distributions.before" \
+            "$RUNNER_TEMP/corelm-linux-base-distributions.after"
+      - name: Run Python and publication gates
+        run: >-
+          PYTHON_BIN="$HOME/.cache/corelm-ci-linux-core-runtime/bin/python"
+          ./corelm verify
       - name: Verify exploratory real-Qwen pilot artifact
-        run: python RealLLM/verify_real_llm_evidence.py
+        run: >-
+          $HOME/.cache/corelm-ci-linux-core-runtime/bin/python -I -B
+          RealLLM/verify_real_llm_evidence.py
       - name: Verify adaptive real-Qwen development artifacts
-        run: python RealLLM/verify_voidtoken_v5_development.py
+        run: >-
+          $HOME/.cache/corelm-ci-linux-core-runtime/bin/python -I -B
+          RealLLM/verify_voidtoken_v5_development.py
       - name: Verify prospective registration and real-Qwen artifacts
-        run: python RealLLM/verify_voidtoken_v5_evidence.py --require-git-provenance
+        run: >-
+          $HOME/.cache/corelm-ci-linux-core-runtime/bin/python -I -B
+          RealLLM/verify_voidtoken_v5_evidence.py --require-git-provenance
       - name: Verify deterministic publication archives
-        run: python publication/build_archives.py --verify-determinism
+        run: >-
+          $HOME/.cache/corelm-ci-linux-core-runtime/bin/python -I -B
+          publication/build_archives.py --verify-determinism

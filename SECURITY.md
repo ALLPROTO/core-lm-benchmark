@@ -89,6 +89,20 @@ manifest. A user who does not accept that bootstrap trust root may provide a
 different trusted Python 3.12.13 via `CORELM_BOOTSTRAP_PYTHON`; the same path and
 manifest checks still apply.
 
+The Linux contour has a separate `./corelm linux bootstrap` command. It pins
+the immutable x86_64 Linux CPython 3.12.13+20260718 archive at byte length
+111,280,988 and SHA-256
+`7eea0959fa425c8aff3ea0a1352ee7d01d794b51439ed8f5fcfa017dbc0ec661`.
+It validates archive topology, extracts into a private sibling staging
+directory, publishes with one same-filesystem rename, and requires an exact
+exclusive receipt before reusing the platform-qualified installation at
+`~/.local/share/corelm/linux-x86_64/python-3.12.13+20260718`. It uses no
+administrator access and does not modify `/opt`, the hosted tool cache, or the
+system Python. `CORELM_LINUX_PYTHON` remains an explicit, fail-closed override
+for users who supply another trusted Python 3.12.13. The receipt records a
+canonical SHA-256 observation and entry count for the post-hardening installed
+tree; reuse recomputes that observation before the interpreter is executed.
+
 An offline proof requires an owner-controlled wheelhouse and the registered
 Hugging Face cache. Wheels install with `--no-index`,
 `--only-binary=:all:`, and `--require-hashes`; model and dataset resolution is
@@ -112,8 +126,9 @@ cache is absent or invalid.
   binary, model-file, or operating-system scan.
 - `security/direct-dependencies.cdx.json` is intentionally a deterministic
   direct-dependency SBOM. It does not claim to enumerate the user's external
-  Python environment, Apple frameworks, model weights, corpus cache, or every
-  transitive RealLLM package.
+  Python environment, the two separately hash-disclosed bootstrap interpreter
+  archives, Apple frameworks, model weights, corpus cache, or every transitive
+  RealLLM package.
 - The deterministic secret check covers tracked files and reachable Git
   history using high-confidence credential formats. It complements, but does
   not replace, GitHub secret scanning and push protection.

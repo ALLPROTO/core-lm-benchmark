@@ -13,6 +13,7 @@ Usage:
   ./corelm macos prepare-offline [options]
   ./corelm macos proof [options]
   ./corelm linux doctor [options]
+  ./corelm linux bootstrap [options]
   ./corelm linux build [options]
   ./corelm linux run [options]
   ./corelm beacon verify-tag
@@ -66,6 +67,7 @@ case "$platform:$command" in
     macos:prepare-offline) script=platforms/macos/scripts/prepare-offline.sh ;;
     macos:proof) script=platforms/macos/scripts/run-proof.sh ;;
     linux:doctor) script=platforms/linux/scripts/doctor.sh ;;
+    linux:bootstrap) script=platforms/linux/scripts/bootstrap-python.sh ;;
     linux:build) script=platforms/linux/scripts/build-runtime.sh ;;
     linux:run) script=platforms/linux/scripts/run-regression.sh ;;
     beacon:verify-tag) script=platforms/beacon/scripts/verify-frozen-tag.py ;;
