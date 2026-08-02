@@ -234,11 +234,11 @@ if [ "${CORELM_BOOTSTRAP_PYTHON+x}" = x ]; then
     bootstrap_path=$(run_clean \
         CORELM_BOOTSTRAP_PYTHON="$CORELM_BOOTSTRAP_PYTHON" \
         "$PROJECT_DIR/security/find_python312.sh") \
-        || fail "explicit Python 3.12 bootstrap is invalid"
+        || fail "explicit Python 3.12.13 bootstrap is invalid"
 else
     bootstrap_path=$(run_clean \
         "$PROJECT_DIR/security/find_python312.sh") \
-        || fail "Python 3.12 is missing; run ./corelm macos bootstrap"
+        || fail "Python 3.12.13 is missing; run ./corelm macos bootstrap"
 fi
 
 run_clean \

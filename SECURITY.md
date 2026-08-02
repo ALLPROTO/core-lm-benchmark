@@ -86,7 +86,7 @@ rejects unsafe archive paths and links, and installs below the current owner's
 rather than a build-from-source claim. The packaged app subsequently seals the
 complete base interpreter and virtual environment in its signed runtime
 manifest. A user who does not accept that bootstrap trust root may provide a
-different trusted Python 3.12 via `CORELM_BOOTSTRAP_PYTHON`; the same path and
+different trusted Python 3.12.13 via `CORELM_BOOTSTRAP_PYTHON`; the same path and
 manifest checks still apply.
 
 An offline proof requires an owner-controlled wheelhouse and the registered

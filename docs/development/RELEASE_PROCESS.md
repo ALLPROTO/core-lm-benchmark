@@ -1,7 +1,7 @@
 # Release process
 
 This document is for maintainers. End users should start with
-`docs/BUILD_AND_VERIFY.md`.
+`platforms/macos/BUILD_AND_VERIFY.md`.
 
 ## Preserved artifact channels
 

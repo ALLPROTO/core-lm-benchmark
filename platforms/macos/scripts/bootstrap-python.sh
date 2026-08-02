@@ -29,7 +29,7 @@ usage() {
     cat <<'EOF'
 Usage: ./corelm macos bootstrap [--harden-installed]
 
-Install the registered Astral python-build-standalone CPython 3.12 runtime
+Install the registered Astral python-build-standalone CPython 3.12.13 runtime
 under ~/.local/share/corelm without sudo. --harden-installed performs no
 download and only revalidates/hardens the exact existing owner-local runtime.
 EOF

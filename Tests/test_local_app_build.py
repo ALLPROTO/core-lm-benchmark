@@ -570,7 +570,7 @@ class LocalAppBuildTests(unittest.TestCase):
         for relative in (
             "README.md",
             "docs/ARCHITECTURE.md",
-            "docs/BUILD_AND_VERIFY.md",
+            "platforms/macos/BUILD_AND_VERIFY.md",
             "docs/RESULTS.md",
             "docs/LIMITATIONS.md",
         ):
@@ -695,6 +695,7 @@ class LocalAppBuildTests(unittest.TestCase):
         )
 
         self.assertIn('swift_major" -ge 6', doctor)
+        self.assertIn("sys.version_info[:3] != (3, 12, 13)", build)
         self.assertIn("MINIMUM_FREE_GB=6", doctor)
         self.assertIn("MINIMUM_MEMORY_GB=8", doctor)
         self.assertIn("--skip-memory-check", doctor)
@@ -740,6 +741,7 @@ class LocalAppBuildTests(unittest.TestCase):
             '.local/share/corelm/python-3.12.13/bin/python3.12',
             resolver,
         )
+        self.assertIn("sys.version_info[:3] == (3, 12, 13)", resolver)
 
     def test_random_user_docs_expose_bootstrap_offline_and_hardware_boundary(
         self,
@@ -748,7 +750,7 @@ class LocalAppBuildTests(unittest.TestCase):
             relative: (ROOT / relative).read_text(encoding="utf-8")
             for relative in (
                 "README.md",
-                "docs/BUILD_AND_VERIFY.md",
+                "platforms/macos/BUILD_AND_VERIFY.md",
                 "SECURITY.md",
                 "publication/reproducibility/README.md",
             )
@@ -766,7 +768,7 @@ class LocalAppBuildTests(unittest.TestCase):
 
         for relative in (
             "README.md",
-            "docs/BUILD_AND_VERIFY.md",
+            "platforms/macos/BUILD_AND_VERIFY.md",
             "publication/reproducibility/README.md",
         ):
             text = documents[relative]

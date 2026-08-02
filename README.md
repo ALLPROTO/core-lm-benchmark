@@ -69,7 +69,7 @@ CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
 ```
 
 See [the macOS guide](platforms/macos/README.md) and the detailed
-[build-and-verify walkthrough](docs/BUILD_AND_VERIFY.md).
+[build-and-verify walkthrough](platforms/macos/BUILD_AND_VERIFY.md).
 
 ### Linux CPU regression
 
@@ -87,7 +87,7 @@ same pinned model and real validation data, retains 192 containers and 1,024
 token decisions, and runs the independent raw-evidence verifier. It is a
 regression on already-public validation input, not a new blind or held-out
 claim. See [the Linux guide](platforms/linux/README.md) and the
-[recorded public VM run](docs/LINUX_REAL_QWEN.md).
+[recorded public VM run](platforms/linux/RECORDED_RUN_2026-08-01.md).
 
 ## Real-data policy
 
@@ -105,8 +105,8 @@ default branch. Their immutable historical bytes remain available only in the
 published
 [`voidtoken-v5-paper-v5`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/voidtoken-v5-paper-v5)
 tag. One frozen compatibility source, `BenchmarkCore/corelm_benchmark.py`, must
-remain byte-identical at its registered path until the beacon attempt because
-it is part of the published implementation hash. Current v5 macOS/Linux runs
+remain byte-identical at its registered path because it is part of the
+published implementation hash. Current v5 macOS/Linux runs
 do not import or package it. Evidence verification does not execute it; it
 hashes its registered path and bytes. Documented workflows execute it only for
 historical-pilot reproduction and an isolated compatibility unit test. The
@@ -171,9 +171,10 @@ Run the lightweight repository gates with:
 
 ## Documentation
 
+- [Documentation index](docs/README.md)
 - [Architecture](docs/ARCHITECTURE.md)
-- [Build and verify on macOS](docs/BUILD_AND_VERIFY.md)
-- [Real Qwen on Linux](docs/LINUX_REAL_QWEN.md)
+- [Build and verify on macOS](platforms/macos/BUILD_AND_VERIFY.md)
+- [Recorded real Qwen run on Linux](platforms/linux/RECORDED_RUN_2026-08-01.md)
 - [Results](docs/RESULTS.md)
 - [Limitations](docs/LIMITATIONS.md)
 - [Security policy](SECURITY.md)

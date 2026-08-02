@@ -31,7 +31,7 @@ Checks whether this Mac can run the complete local application proof. The
 check does not install packages, create directories, or modify the repository.
 
 Environment:
-  CORELM_BOOTSTRAP_PYTHON  explicit Python 3.12 executable
+  CORELM_BOOTSTRAP_PYTHON  explicit Python 3.12.13 executable
   CORELM_OFFLINE=1         require a local wheelhouse and cached HF assets
   CORELM_WHEELHOUSE        absolute owner-controlled wheel directory
   CORELM_PYPI_INDEX_URL    HTTPS Python package index (online mode)
@@ -176,7 +176,7 @@ printf '  PASS  Swift %s and codesign are available\n' "$swift_version"
 
 bootstrap_path=$("$PROJECT_DIR/security/find_python312.sh" || true)
 [ -n "$bootstrap_path" ] || fail \
-    "Python 3.12 is missing; run ./corelm macos bootstrap or set CORELM_BOOTSTRAP_PYTHON"
+    "Python 3.12.13 is missing; run ./corelm macos bootstrap or set CORELM_BOOTSTRAP_PYTHON"
 "$bootstrap_path" -I -B -c '
 import pathlib
 import sys
@@ -187,7 +187,7 @@ from security.manage_local_runtime import _safe_existing_chain
 
 _safe_existing_chain(pathlib.Path(sys.base_prefix))
 ' "$PROJECT_DIR" || fail \
-    "Python 3.12 base prefix is writable or untrusted; run ./corelm macos bootstrap for the pinned owner-local runtime"
+    "Python 3.12.13 base prefix is writable or untrusted; run ./corelm macos bootstrap for the pinned owner-local runtime"
 python_version=$("$bootstrap_path" -I -B -c \
     'import platform; print(platform.python_version())')
 printf '  PASS  trusted Python %s at %s\n' \

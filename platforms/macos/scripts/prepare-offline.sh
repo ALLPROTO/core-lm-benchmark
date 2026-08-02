@@ -46,7 +46,7 @@ CORELM_ASSETS_OFFLINE_ONLY=1 \
 
 bootstrap_path=$("$PROJECT_DIR/security/find_python312.sh" || true)
 [ -n "$bootstrap_path" ] \
-    || fail "Python 3.12 is missing; run ./corelm macos bootstrap"
+    || fail "Python 3.12.13 is missing; run ./corelm macos bootstrap"
 
 printf 'Downloading only registered hash-locked wheels into %s\n' "$WHEELHOUSE"
 "$bootstrap_path" -I -B -m pip download \

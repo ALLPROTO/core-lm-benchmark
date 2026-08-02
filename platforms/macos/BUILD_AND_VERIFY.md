@@ -7,7 +7,7 @@ macOS application.
 
 - Apple Silicon (`arm64`).
 - macOS 14 or newer.
-- Python 3.12 from a trusted owner-controlled installation.
+- Python 3.12.13 from a trusted owner-controlled installation.
 - Swift 6 or newer from Apple's free Command Line Tools or Xcode
   (`xcode-select --install`). Older Command Line Tools are insufficient for the
   Swift security test gate even if they can compile part of the application.
@@ -39,7 +39,7 @@ cd core-lm-benchmark
 ```
 
 It checks macOS and CPU compatibility, Swift 6, signing tools, a trusted Python
-3.12 chain, free disk space, the active GUI login, required macOS utilities, and
+3.12.13 chain, free disk space, the active GUI login, required macOS utilities, and
 the package/model endpoints. A failure occurs before the roughly gigabyte-scale
 runtime or model downloads begin.
 
@@ -57,7 +57,7 @@ CORELM_BOOTSTRAP_PYTHON="$(command -v python3.12)" \
 ```
 
 The resolver first checks the repository's owner-local location, then standard
-python.org, Homebrew, and PATH locations. For a machine without Python 3.12,
+python.org, Homebrew, and PATH locations. For a machine without Python 3.12.13,
 the repository provides an opt-in bootstrap:
 
 ```sh
@@ -93,7 +93,7 @@ sizes and SHA-256 digests have been checked.
 This command verifies the current public checkout. Exact reproduction of a
 frozen publication additionally requires checking out its recorded release tag
 and validating the archive checksums; see the
-[reproducibility archive instructions](../publication/reproducibility/README.md).
+[reproducibility archive instructions](../../publication/reproducibility/README.md).
 
 ## What happens
 
@@ -273,7 +273,7 @@ without post-result tuning, and a scientific outcome must complete by
 `2026-08-04T18:00:00.000Z`. A later regression is allowed only after terminal
 `PASS` or `FAIL_GATES`; `FAIL_EXECUTION` or an incomplete attempt cannot be
 retried. The exact clean detached-tag, AC-power, `caffeinate`, and publication
-procedure is the [beacon launch runbook](BEACON_LAUNCH_RUNBOOK.md).
+procedure is the [beacon launch runbook](../../docs/BEACON_LAUNCH_RUNBOOK.md).
 
 ## Cleanup
 
@@ -290,7 +290,7 @@ verifying them again.
 
 ## Troubleshooting
 
-- **Python 3.12 is missing:** install a trusted Python 3.12 distribution and set
+- **Python 3.12.13 is missing:** install a trusted Python 3.12.13 distribution and set
   `CORELM_BOOTSTRAP_PYTHON` to its absolute executable, or run the authenticated
   bootstrap above.
 - **Swift is older than 6:** update Command Line Tools or select a newer Xcode
@@ -311,5 +311,5 @@ verifying them again.
   recoverable operation, then let the asset preparer download it again. Do not
   bypass the registered digest.
 
-For security details, see [Security policy](../SECURITY.md). For the exact claim
-boundary, see [Limitations](LIMITATIONS.md).
+For security details, see [Security policy](../../SECURITY.md). For the exact
+claim boundary, see [Limitations](../../docs/LIMITATIONS.md).

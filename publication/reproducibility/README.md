@@ -3,7 +3,7 @@
 > This is a versioned scientific and provenance record. Revision numbers in
 > this document identify protocols and immutable evidence, not alternative app
 > editions. Ordinary users should begin with the repository `README.md` and
-> `docs/BUILD_AND_VERIFY.md`.
+> `platforms/macos/BUILD_AND_VERIFY.md`.
 
 The reproducibility archive contains the files needed to inspect the
 implementation, run the verification suites, rebuild the macOS app or Linux
@@ -15,7 +15,7 @@ CPU runtime, and trace the real-model result to machine-readable evidence.
 - Swift 6 or newer from Apple's free Command Line Tools or Xcode
 - an active desktop login for the visible native-application run
 - at least 8 GB unified memory and 6 GiB free disk for the full proof
-- Python 3.12 (the registered and owner-local bootstrap version is 3.12.13)
+- Python 3.12.13 from a trusted owner-controlled installation
 - network access, or the prepared wheelhouse and registered model/data cache
 - NumPy 2.3.5 for the core archive suite; the separately locked application
   runtime installs NumPy 2.5.1 and its complete real-model dependency closure
@@ -82,7 +82,7 @@ Python trust-chain permissions, at least 8 GB physical memory, at least 6 GiB
 free under the user profile, an active GUI session, and the required online or
 offline sources.
 
-If Python 3.12 is absent, an optional owner-local bootstrap is available:
+If Python 3.12.13 is absent, an optional owner-local bootstrap is available:
 
 ```sh
 ./corelm macos bootstrap
@@ -97,7 +97,7 @@ escaping links, and special files and uses neither `sudo` nor the system Python
 installation. This third-party binary archive is an explicit trust boundary,
 not a build-from-source claim. The final signed application manifest covers
 every loadable file in that base interpreter and the fresh virtual environment.
-Users who do not accept this bootstrap may supply another trusted Python 3.12:
+Users who do not accept this bootstrap may supply another trusted Python 3.12.13:
 
 ```sh
 CORELM_BOOTSTRAP_PYTHON="$(command -v python3.12)" ./corelm macos doctor

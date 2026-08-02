@@ -75,12 +75,12 @@ CORELM_HF_ENDPOINT="$HF_ENDPOINT" \
 
 bootstrap_path=$("$PROJECT_DIR/security/find_python312.sh" || true)
 [ -n "$bootstrap_path" ] || fail \
-    "Python 3.12 is missing; run ./corelm macos bootstrap or set CORELM_BOOTSTRAP_PYTHON"
+    "Python 3.12.13 is missing; run ./corelm macos bootstrap or set CORELM_BOOTSTRAP_PYTHON"
 PYTHON_CACHE=$(mktemp -d "${TMPDIR:-/tmp}/corelm-build-pycache.XXXXXX")
 "$bootstrap_path" -I -B -X "pycache_prefix=$PYTHON_CACHE" -c '
 import sys
-if sys.version_info[:2] != (3, 12):
-    raise SystemExit("CORELM_BOOTSTRAP_PYTHON must be Python 3.12")
+if sys.version_info[:3] != (3, 12, 13):
+    raise SystemExit("CORELM_BOOTSTRAP_PYTHON must be Python 3.12.13")
 '
 
 runtime_state=$(
@@ -156,8 +156,8 @@ APP_PYTHON="$RUNTIME_DIR/bin/python"
 [ -x "$APP_PYTHON" ] || fail "dedicated Python runtime is incomplete"
 "$APP_PYTHON" -I -B -X "pycache_prefix=$PYTHON_CACHE" -c '
 import pathlib, sys
-if sys.version_info[:2] != (3, 12):
-    raise SystemExit("app runtime must use Python 3.12")
+if sys.version_info[:3] != (3, 12, 13):
+    raise SystemExit("app runtime must use Python 3.12.13")
 expected = pathlib.Path(sys.argv[1]).resolve(strict=True)
 actual = pathlib.Path(sys.prefix).resolve(strict=True)
 if actual != expected:
