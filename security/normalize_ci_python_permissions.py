@@ -95,14 +95,17 @@ def normalize_permissions(
     """Normalize only the exact setup-python directory, bin dir, and executable."""
 
     _canonical_directory(runner_tool_cache, label="runner tool cache")
-    expected_location = (
-        runner_tool_cache
-        / "Python"
-        / EXPECTED_VERSION
-        / EXPECTED_ARCHITECTURE
-    )
+    python_root = runner_tool_cache / "Python"
+    version_directory = python_root / EXPECTED_VERSION
+    expected_location = version_directory / EXPECTED_ARCHITECTURE
     if python_location != expected_location:
         raise NormalizationError("pythonLocation differs from the pinned tool-cache path")
+    python_root_status = _canonical_directory(
+        python_root, label="Python tool-cache root"
+    )
+    version_status = _canonical_directory(
+        version_directory, label="pinned Python version directory"
+    )
     location_status = _canonical_directory(
         python_location, label="pinned Python location"
     )
@@ -117,23 +120,39 @@ def normalize_permissions(
         label="pinned Python executable",
     )
 
-    modes = {
-        "location": _remove_other_write(
-            python_location,
-            location_status,
-            label="pinned Python location",
+    targets = (
+        ("pythonRoot", python_root, python_root_status, "Python tool-cache root"),
+        (
+            "version",
+            version_directory,
+            version_status,
+            "pinned Python version directory",
         ),
-        "bin": _remove_other_write(
-            bin_directory,
-            bin_status,
-            label="pinned Python bin",
-        ),
-        "executable": _remove_other_write(
+        ("location", python_location, location_status, "pinned Python location"),
+        ("bin", bin_directory, bin_status, "pinned Python bin"),
+        (
+            "executable",
             resolved_executable,
             executable_status,
-            label="pinned Python executable",
+            "pinned Python executable",
         ),
+    )
+    modes = {
+        key: _remove_other_write(path, before, label=label)
+        for key, path, before, label in targets
     }
+    for key, path, before, label in targets:
+        after = path.lstat()
+        if (
+            after.st_dev != before.st_dev
+            or after.st_ino != before.st_ino
+            or after.st_uid != before.st_uid
+            or stat.S_IFMT(after.st_mode) != stat.S_IFMT(before.st_mode)
+            or stat.S_IMODE(after.st_mode) != modes[key]
+        ):
+            raise NormalizationError(
+                f"{label} changed after trust-boundary normalization"
+            )
     digest_after, _ = _regular_file_sha256(
         resolved_executable,
         label="normalized Python executable",

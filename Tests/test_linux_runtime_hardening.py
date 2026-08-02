@@ -134,21 +134,117 @@ class LinuxCIPythonPermissionTests(unittest.TestCase):
             )
             binary.parent.mkdir(parents=True)
             binary.write_bytes(b"pinned-python-binary\n")
+            (tool_cache / "Python").chmod(0o775)
+            version_directory = (
+                tool_cache
+                / "Python"
+                / normalize_ci_python_permissions.EXPECTED_VERSION
+            )
+            sibling_version = tool_cache / "Python" / "3.11.99"
+            sibling_version.mkdir()
+            sibling_payload = sibling_version / "untouched"
+            sibling_payload.write_bytes(b"sibling-version\n")
+            sibling_version.chmod(0o775)
+            sibling_payload.chmod(0o664)
+            version_directory.chmod(0o775)
             location.chmod(0o775)
             binary.parent.chmod(0o775)
             binary.chmod(0o775)
             before = binary.read_bytes()
 
-            result = normalize_ci_python_permissions.normalize_permissions(
-                runner_tool_cache=tool_cache,
-                python_location=location,
-                executable=binary,
-            )
+            with mock.patch.object(
+                normalize_ci_python_permissions.os,
+                "chmod",
+                wraps=os.chmod,
+            ) as chmod:
+                result = normalize_ci_python_permissions.normalize_permissions(
+                    runner_tool_cache=tool_cache,
+                    python_location=location,
+                    executable=binary,
+                )
 
             self.assertEqual(binary.read_bytes(), before)
             self.assertEqual(result["version"], "3.12.13")
-            for path in (location, binary.parent, binary):
+            for path in (
+                tool_cache / "Python",
+                version_directory,
+                location,
+                binary.parent,
+                binary,
+            ):
                 self.assertEqual(path.stat().st_mode & 0o022, 0)
+            self.assertEqual(stat.S_IMODE(sibling_version.stat().st_mode), 0o775)
+            self.assertEqual(stat.S_IMODE(sibling_payload.stat().st_mode), 0o664)
+            self.assertEqual(sibling_payload.read_bytes(), b"sibling-version\n")
+            self.assertEqual(
+                chmod.call_args_list,
+                [
+                    mock.call(path, 0o755, follow_symlinks=False)
+                    for path in (
+                        tool_cache / "Python",
+                        version_directory,
+                        location,
+                        binary.parent,
+                        binary,
+                    )
+                ],
+            )
+
+    def test_hosted_python_normalizer_rejects_each_directory_alias(self):
+        for component_index in range(4):
+            with self.subTest(component_index=component_index):
+                with tempfile.TemporaryDirectory() as temporary:
+                    tool_cache = Path(temporary).resolve()
+                    location = (
+                        tool_cache
+                        / "Python"
+                        / normalize_ci_python_permissions.EXPECTED_VERSION
+                        / normalize_ci_python_permissions.EXPECTED_ARCHITECTURE
+                    )
+                    binary = (
+                        location
+                        / "bin"
+                        / normalize_ci_python_permissions.EXPECTED_EXECUTABLE_NAME
+                    )
+                    binary.parent.mkdir(parents=True)
+                    binary.write_bytes(b"pinned-python-binary\n")
+                    components = (
+                        tool_cache / "Python",
+                        tool_cache
+                        / "Python"
+                        / normalize_ci_python_permissions.EXPECTED_VERSION,
+                        location,
+                        binary.parent,
+                    )
+                    aliased = components[component_index]
+                    outside = tool_cache / f"outside-{component_index}"
+                    aliased.rename(outside)
+                    aliased.symlink_to(outside, target_is_directory=True)
+
+                    with self.assertRaisesRegex(
+                        ValueError, "must be an existing canonical path"
+                    ):
+                        normalize_ci_python_permissions.normalize_permissions(
+                            runner_tool_cache=tool_cache,
+                            python_location=location,
+                            executable=binary,
+                        )
+
+    def test_writable_foreign_owned_target_is_never_changed(self):
+        foreign_uid = 1 if os.getuid() == 0 else 0
+        before = SimpleNamespace(st_mode=stat.S_IFDIR | 0o775, st_uid=foreign_uid)
+        with mock.patch.object(
+            normalize_ci_python_permissions.os, "chmod"
+        ) as chmod:
+            with self.assertRaisesRegex(
+                ValueError, "writable by another principal"
+            ):
+                normalize_ci_python_permissions._remove_other_write(
+                    Path("/not-opened"),
+                    before,
+                    label="foreign test directory",
+                )
+        chmod.assert_not_called()
 
     def test_hosted_python_normalizer_rejects_path_aliases_and_escape(self):
         with tempfile.TemporaryDirectory() as temporary:
