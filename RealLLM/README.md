@@ -78,8 +78,10 @@ These phase results must be verified, never rerun or rewritten.
 
 The evolving branch exposes only `./corelm beacon verify-tag`. It reads frozen
 Git objects and cannot prepare assets, resolve a pulse, launch inference, or
-write an outcome. The one-shot procedure is exclusively documented in the
-[launch runbook](../docs/BEACON_LAUNCH_RUNBOOK.md).
+write an outcome. The maintained non-normative operator checklist is the
+current-branch [launch runbook](../docs/BEACON_LAUNCH_RUNBOOK.md); the frozen
+protocol, registration, freeze manifest, and tagged commands remain
+authoritative.
 
 ## Verification boundary
 

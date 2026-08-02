@@ -23,3 +23,6 @@ repository-integrity information, not a scientific result.
 The one-shot experiment must still be run only from a clean detached checkout
 of `corelm-beacon-heldout-v1` by following
 [`docs/BEACON_LAUNCH_RUNBOOK.md`](../../docs/BEACON_LAUNCH_RUNBOOK.md).
+That runbook was added after the immutable tag and is a non-normative
+current-branch operator checklist. The tagged protocol, registration, and
+freeze manifest remain authoritative.

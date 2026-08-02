@@ -101,6 +101,10 @@ only after the detached-tag checkout above; it is intentionally different from
 the current default branch's `./corelm macos build` command. The variable
 disables only the application launch check.
 
+The frozen direct-requirements file retains its historical `recorded
+real-model pilot` header. Its bytes and complete lock closure are normative;
+no package may be removed or substituted.
+
 ```sh
 CORELM_SKIP_SMOKE_TEST=1 ./build_local_app.sh
 

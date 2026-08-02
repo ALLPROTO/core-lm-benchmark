@@ -274,6 +274,8 @@ without post-result tuning, and a scientific outcome must complete by
 `PASS` or `FAIL_GATES`; `FAIL_EXECUTION` or an incomplete attempt cannot be
 retried. The exact clean detached-tag, AC-power, `caffeinate`, and publication
 procedure is the [beacon launch runbook](../../docs/BEACON_LAUNCH_RUNBOOK.md).
+That public operator checklist imposes the stricter, non-normative not-before
+time `2026-08-02T18:15:00.000Z`.
 
 ## Cleanup
 

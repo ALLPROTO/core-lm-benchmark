@@ -24,7 +24,8 @@ git -C "$PROJECT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
 [ ! -e "$PROJECT_DIR/real-llm-beacon-results/attempt.json" ] \
     || fail "beacon attempt state is present; this command is regression-only"
 
-"$PROJECT_DIR/platforms/linux/scripts/build-runtime.sh"
+CORELM_RUN_DIR="$RUN_DIR" \
+    "$PROJECT_DIR/platforms/linux/scripts/build-runtime.sh"
 run_parent=$(dirname -- "$RUN_DIR")
 if [ ! -e "$run_parent" ]; then
     /bin/mkdir -p "$run_parent"

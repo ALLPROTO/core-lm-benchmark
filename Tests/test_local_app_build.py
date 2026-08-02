@@ -743,6 +743,45 @@ class LocalAppBuildTests(unittest.TestCase):
         )
         self.assertIn("sys.version_info[:3] == (3, 12, 13)", resolver)
 
+    def test_macos_ci_uses_isolated_owner_local_exact_lock_runtimes(self):
+        workflow = (ROOT / ".github/workflows/verify-macos.yml").read_text(
+            encoding="utf-8"
+        )
+
+        bootstrap_python = (
+            "$HOME/.local/share/corelm/python-3.12.13/bin/python3.12"
+        )
+        self.assertIn("runs-on: macos-15", workflow)
+        self.assertNotIn("actions/setup-python", workflow)
+        self.assertIn("./corelm macos bootstrap", workflow)
+        self.assertIn(bootstrap_python, workflow)
+        self.assertIn(
+            'core_runtime="$HOME/.cache/corelm-ci-core-runtime"', workflow
+        )
+        self.assertIn(
+            'app_runtime="$HOME/.cache/corelm-ci-app-runtime"', workflow
+        )
+        self.assertIn(
+            'PYTHON_BIN="$HOME/.cache/corelm-ci-core-runtime/bin/python"',
+            workflow,
+        )
+        self.assertIn(
+            'CORELM_REAL_LLM_VENV="$HOME/.cache/corelm-ci-app-runtime"',
+            workflow,
+        )
+        self.assertIn(".github/locks/core-macos-arm64-py312.txt", workflow)
+        self.assertIn("RealLLM/requirements.lock", workflow)
+        self.assertEqual(
+            workflow.count("security/verify_locked_environment.py"), 2
+        )
+        self.assertGreaterEqual(
+            workflow.count("security/manage_local_runtime.py"), 4
+        )
+        self.assertIn("corelm-base-distributions.before", workflow)
+        self.assertIn("corelm-base-distributions.after", workflow)
+        self.assertNotIn('"$bootstrap_python" -I -B -m pip install', workflow)
+        self.assertNotIn("sudo ", workflow)
+
     def test_random_user_docs_expose_bootstrap_offline_and_hardware_boundary(
         self,
     ):

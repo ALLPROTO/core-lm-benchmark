@@ -3,9 +3,14 @@ set -eu
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
 PYTHON_REQUEST=${CORELM_LINUX_PYTHON:-python3.12}
+RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime"}
+HF_CACHE=${CORELM_LINUX_HF_HOME:-"$HOME/.cache/corelm/linux/model-assets"}
+RUN_ROOT=${CORELM_LINUX_RUN_ROOT:-"$HOME/.cache/corelm/linux/runs"}
+RUN_TARGET=${CORELM_RUN_DIR:-"$RUN_ROOT"}
 SKIP_MEMORY_CHECK=0
 MINIMUM_AVAILABLE_KIB=8388608
 MINIMUM_FREE_KIB=6291456
+SAFETY_SCRIPT="$PROJECT_DIR/platforms/linux/scripts/runtime_safety.py"
 
 fail() {
     printf 'LINUX DOCTOR FAIL: %s\n' "$*" >&2
@@ -16,7 +21,8 @@ usage() {
     cat <<'EOF'
 Usage: ./corelm linux doctor [--skip-memory-check]
 
-CORELM_LINUX_PYTHON may name an exact Python 3.12.13 executable.
+CORELM_LINUX_PYTHON may name an exact Python 3.12.13 executable. Runtime,
+model-cache, and run paths must be absolute, canonical, private, and disjoint.
 EOF
 }
 
@@ -48,7 +54,7 @@ version=$("$PYTHON_BIN" -I -B -c \
 "$PYTHON_BIN" -I -B -m venv --help >/dev/null 2>&1 \
     || fail "the Python venv module is unavailable"
 
-for utility in git sha256sum timeout; do
+for utility in git sha256sum timeout mktemp; do
     command -v "$utility" >/dev/null 2>&1 \
         || fail "required utility is missing: $utility"
 done
@@ -62,13 +68,17 @@ if [ "$SKIP_MEMORY_CHECK" = 0 ]; then
         || fail "at least 8 GiB available memory is required"
 fi
 
-free_kib=$(df -Pk "$PROJECT_DIR" | /usr/bin/awk 'NR == 2 {print $4}')
-case "$free_kib" in
-    ''|*[!0-9]*) fail "cannot determine free disk space" ;;
-esac
-[ "$free_kib" -ge "$MINIMUM_FREE_KIB" ] \
-    || fail "at least 6 GiB free disk space is required"
+"$PYTHON_BIN" -I -B "$SAFETY_SCRIPT" validate-paths \
+    --project "$PROJECT_DIR" \
+    --runtime "$RUNTIME_DIR" \
+    --cache "$HF_CACHE" \
+    --run "$RUN_TARGET" \
+    --minimum-free-kib "$MINIMUM_FREE_KIB" >/dev/null \
+    || fail "runtime, cache, run, or target-volume validation failed"
 
 printf '%s\n' \
     "LINUX DOCTOR PASS: Linux x86_64, Python $version" \
-    "Resolved Python: $PYTHON_BIN"
+    "Resolved Python: $PYTHON_BIN" \
+    "Validated runtime target: $RUNTIME_DIR" \
+    "Validated model-cache target: $HF_CACHE" \
+    "Validated run target: $RUN_TARGET"

@@ -28,6 +28,16 @@ CORELM_RUN_DIR=/absolute/private/corelm-run \
   ./corelm linux run
 ```
 
+The three destinations must be canonical, private, and non-overlapping. The
+doctor checks free space on every filesystem that will actually hold them,
+rather than only checking the source checkout. A new runtime is installed into
+a private sibling staging directory and published with one rename only after
+its packages, ownership marker, Python 3.12.13 prefix, and exact lock closure
+pass verification. An interrupted or failed first build removes only that
+staging directory. A reused runtime must pass the same owner, mode, marker,
+base-prefix, Python-version, and package checks; an incomplete or foreign
+directory is never repaired in place.
+
 The build uses the hash-complete Linux dependency closure and the official
 PyTorch CPU-only wheel lock. Installation retains `--require-hashes`,
 `--only-binary=:all:`, and `--no-deps`. Model and validation assets are checked

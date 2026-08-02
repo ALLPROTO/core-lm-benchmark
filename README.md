@@ -138,6 +138,8 @@ immutable release
 [`corelm-beacon-heldout-v1`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-beacon-heldout-v1).
 Its tag commit is `0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44`, and the exact
 NIST pulse is `2026-08-02T18:00:00.000Z`. It still has no result.
+The public operator checklist adds a stricter, non-normative not-before time
+of `2026-08-02T18:15:00.000Z`.
 
 That one-shot must be executed only from a clean detached checkout of the
 immutable tag, never from the evolving default branch. Follow the

@@ -29,6 +29,9 @@ are internal platform entrypoints; ordinary users should invoke them through
 The macOS runtime, wheelhouse, model assets, and proof runtimes live only under
 `~/.cache/corelm/macos/`. They do not share writable paths with Linux or the
 immutable beacon checkout.
+These current-platform cache paths must not be substituted for the historical
+`~/.cache/corelm-app-runtime` and `~/.cache/corelm-model-assets` paths used by
+the detached beacon tag.
 
 See [Build and verify](BUILD_AND_VERIFY.md) for the complete fresh-clone,
 offline, safety, and troubleshooting workflow.
