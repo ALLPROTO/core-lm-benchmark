@@ -83,6 +83,28 @@ class PublicationArchiveTests(unittest.TestCase):
         self.assertTrue(component["purl"].endswith(f"@{release_tag}"))
         self.assertEqual(sbom["dependencies"][0]["ref"], component["bom-ref"])
 
+    def test_current_publication_readmes_close_beacon_without_overclaim(self):
+        evidence_commit = "85c2add1799652a818873a04310b75821728da11"
+        for relative in (
+            "real-llm-beacon-results/README.md",
+            "publication/README.md",
+            "publication/reproducibility/README.md",
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            normalized = " ".join(text.split())
+            self.assertIn(evidence_commit, text)
+            self.assertIn("terminal **PASS**", text)
+            self.assertIn("suite is consumed", normalized.lower())
+            self.assertNotIn("suite has no result yet", normalized.lower())
+            self.assertNotIn(
+                "target pulse has not produced a checked-in result",
+                normalized.lower(),
+            )
+            self.assertNotIn(
+                "exactly one recorded execution is permitted",
+                normalized.lower(),
+            )
+
     def _phase_paths(self, root: Path) -> dict[str, Path]:
         return {
             "selectionAttempt": root / "selection.attempt.json",
