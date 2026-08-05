@@ -213,25 +213,31 @@ three same-machine runs are not three independent experiments. Neither a local
 nor an external repeat on these blocks creates a new blind, holdout, or
 generalization result.
 
-## Prospective beacon-selected experiment
+## Closed beacon-selected experiment
 
 The archive includes the preregistered beacon protocol, frozen registration,
 audited public-result ledger, strict schemas, NIST certificate fixture, one-shot
-runner, regression runner, and independent verifier.
+runner, regression runner, independent verifier, and the current evidence/CI
+report. The raw attempt artifacts remain canonical at evidence commit
+`85c2add1799652a818873a04310b75821728da11`, tag and release
+`corelm-beacon-heldout-v1-evidence`; they are not reconstructed inside this
+current-source archive.
 `RealLLM/BEACON_HELDOUT_PROTOCOL.md` is the normative operator guide. The
 protocol source and hashes are publicly frozen under tag and GitHub Release
 `corelm-beacon-heldout-v1`; the authoritative freeze manifest enumerates 26
-normative paths. The registered target pulse has not produced a checked-in
-result, so this archive makes no new generalization claim.
+normative paths. The one recorded attempt selected blocks 512--543 and
+published terminal **PASS**. It covers one pinned Qwen revision and one
+WikiText-2 window only, so this archive makes no arbitrary-model or
+corpus-wide generalization claim.
 
 The required public commits, lightweight tag, and non-draft, non-prerelease
 immutable protocol Release were published before the target pulse. That freeze
-is a prerequisite, not a result. After the NIST pulse deterministically selects
-one preregistered window, exactly one recorded execution is permitted. A later
-regression is allowed only after terminal `PASS` or `FAIL_GATES`;
-`FAIL_EXECUTION` or an incomplete attempt cannot be retried. Parameters and
-gates may not be adjusted after observing the outcome. Blocks 64–71 remain a
-public application-regression fixture and cannot support this claim.
+was a prerequisite, not the result itself. The later NIST pulse selected the
+preregistered window and the single recorded execution completed at
+`2026-08-02T18:18:20Z`. The suite is consumed; no later execution can become a
+second scientific attempt. Regression-only runs cannot change the outcome, and
+parameters or gates may not be adjusted after observing it. Blocks 64–71
+remain a public application-regression fixture and cannot support this claim.
 
 ## Evidence chain
 

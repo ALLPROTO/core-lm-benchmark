@@ -37,16 +37,21 @@ and cache-error aggregates. Blocks 64–71 have been exercised repeatedly, so
 these runs are repeatability checks, not independent experiments or new blind,
 holdout, or generalization evidence.
 
-A separate selected-window protocol has now published its commit, hashes,
+A separate selected-window protocol published its commit, hashes,
 parameters, gates, audited eligible pool, and deterministic future-public-
 beacon selection rule under tag and GitHub Release
 `corelm-beacon-heldout-v1`. Its release summary names four key normative
 artifacts; the authoritative `RealLLM/beacon_freeze.json` enumerates and hashes
-the complete 26-path normative source set. The freeze is complete, but the
-registered target pulse has not produced a checked-in result. The protocol
-permits one run without post-result tuning. A later regression is allowed only
-after `PASS` or `FAIL_GATES`; `FAIL_EXECUTION` and an incomplete attempt forbid
-retry. No beacon result is part of the current publication package.
+the complete 26-path normative source set. The freeze preceded the target
+pulse; the single recorded execution later selected blocks 512--543 and
+published terminal **PASS** at evidence commit
+`85c2add1799652a818873a04310b75821728da11`, tag and release
+`corelm-beacon-heldout-v1-evidence`. The suite is consumed. This result covers
+one pinned Qwen revision and one WikiText-2 window, not arbitrary-model or
+corpus-wide generalization. Raw beacon evidence assets are not duplicated in
+the current paper package; their immutable evidence ref remains canonical, and
+the reproducibility archive includes the evidence/CI report and exact
+identities.
 
 ## Generate and preview
 
