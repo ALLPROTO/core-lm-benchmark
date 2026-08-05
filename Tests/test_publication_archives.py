@@ -329,6 +329,11 @@ class PublicationArchiveTests(unittest.TestCase):
                     "security/run_process_group_tests.sh",
                     archived_source_paths,
                 )
+                self.assertIn("signing/allowed_signers", archived_source_paths)
+                self.assertIn(
+                    "signing/corelm-codec-signing.pub",
+                    archived_source_paths,
+                )
                 provenance_member = bundle.extractfile(
                     f"{prefix}/PROVENANCE.json"
                 )
@@ -431,6 +436,8 @@ class PublicationArchiveTests(unittest.TestCase):
                     "app-real-llm-evidence/app-run-receipt.json",
                     "app-real-llm-evidence/validation-064-071.json",
                     "publication/arxiv-v5/submission_metadata.md",
+                    "signing/allowed_signers",
+                    "signing/corelm-codec-signing.pub",
                 ):
                     self.assertIn(f"{prefix}/{relative}", names)
                 for relative in archives.V5_ARXIV_SOURCE_FILES:

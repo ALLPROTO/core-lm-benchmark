@@ -7,6 +7,7 @@ import io
 import json
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -731,6 +732,11 @@ class BeaconProtocolTests(unittest.TestCase):
                 runner,
                 "validate_registration_and_ledger",
                 return_value=(registration, {}),
+            ),
+            mock.patch.object(
+                runner,
+                "_utc_now",
+                return_value=datetime(2026, 8, 2, 18, 16, tzinfo=timezone.utc),
             ),
             mock.patch.object(runner, "_require_time_window"),
             mock.patch.object(runner, "_require_artifacts_absent"),

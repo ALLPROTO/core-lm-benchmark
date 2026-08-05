@@ -90,7 +90,10 @@ an exact future NIST beacon pulse. The selected input may be run once without
 post-result tuning; every subsequent run is regression-only. The suite is
 frozen at tag commit `0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44` and was
 published as the immutable `corelm-beacon-heldout-v1` release at
-`2026-08-01T01:18:09Z`, before the registered pulse. It still has no result.
+`2026-08-01T01:18:09Z`, before the registered pulse. Its single terminal
+**PASS** was published at evidence commit
+`85c2add1799652a818873a04310b75821728da11` after completing at
+`2026-08-02T18:18:20Z`.
 The target is `2026-08-02T18:00:00.000Z` and the completion deadline is
 `2026-08-04T18:00:00.000Z`. Validation blocks 64–71 are excluded by their
 prior repeated use. The non-normative operator procedure is recorded in the
