@@ -1,4 +1,12 @@
-# Beacon held-out launch and publication runbook
+# Archived beacon held-out launch and publication runbook
+
+> **ARCHIVED — DO NOT EXECUTE.** The first and only normative attempt completed
+> with terminal **PASS** and consumed this suite. Every launch, attempt,
+> evidence-creation, push, tag, and release command below is retained only as a
+> historical record of the published procedure. It must not be used to create
+> or publish another scientific attempt. A future experiment requires a new
+> suite identity, pulse, preregistration, and deadline. See the
+> [evidence and CI report](BEACON_EVIDENCE_REPORT.md).
 
 This is the public, non-normative operator checklist for the already frozen
 `corelm-beacon-heldout-v1` experiment. If this checklist and a frozen artifact
@@ -40,9 +48,9 @@ time is in effect. Use UTC as the authority. A scientific `PASS` or
 `FAIL_GATES` must be written no later than 20:00 on 4 August 2026 in
 Europe/Prague. The runner enforces the UTC timestamps.
 
-The frozen protocol permits execution as soon as the target pulse exists. As
-a stricter, non-normative operator rule publicly announced before reveal, the
-one-shot will not be invoked before 20:15 Prague (`18:15Z`). This does not
+The frozen protocol permitted execution as soon as the target pulse existed.
+As a stricter, non-normative operator rule publicly announced before reveal,
+the one-shot was not invoked before 20:15 Prague (`18:15Z`). This did not
 change the frozen 18:00 pulse or earliest start. The fixed delay reduces the
 observed beacon-publication-lag risk without fetching or polling NIST before
 the attempt marker; it cannot guarantee future endpoint availability.
@@ -51,9 +59,9 @@ the attempt marker; it cannot guarantee future endpoint availability.
 
 Only one build is allowed to create the scientific record:
 
-| Build | Role in this experiment | May invoke the one-shot runner? |
+| Build | Role in this experiment | Historical one-shot permission |
 |---|---|---|
-| Clean detached `corelm-beacon-heldout-v1` checkout on Apple silicon, exact locked Python runtime, MPS device | Frozen normative build | **Yes, exactly once** |
+| Clean detached `corelm-beacon-heldout-v1` checkout on Apple silicon, exact locked Python runtime, MPS device | Frozen normative build | **Consumed by the single recorded attempt** |
 | Current macOS application build | Packaging, UI, and regression validation only | No |
 | Current Linux CPU build | Cross-platform packaging and regression validation only | No; the frozen experiment requires Apple MPS |
 
@@ -66,14 +74,14 @@ failure in a regression-only build cannot change the frozen scientific result.
 The frozen tag's historical `Verify` run had a macOS-app failure after a
 temporary SwiftPM `.build` directory disappeared; its Python-core and
 supply-chain jobs passed. This is a known packaging-CI limitation, not a beacon
-result. The evidence commit will trigger fresh branch and tag workflows; their
-actual statuses must be reported without changing the evidence.
+result. The evidence commit triggered fresh branch and tag workflows; their
+actual statuses are recorded without changing the evidence.
 
-Before the one-shot, commit and merge this non-normative runbook and the manual
-`Audit Immutable Beacon Evidence` workflow to `main`, then record the exact
-control commit and fresh macOS/Linux CI statuses. This does not modify the
-frozen tag; it ensures the read-only post-publication audit is dispatchable from
-the default branch before evidence exists.
+Before the one-shot, maintainers committed and merged this non-normative
+runbook and the manual `Audit Immutable Beacon Evidence` workflow to `main`,
+then recorded the exact control commit and fresh macOS/Linux CI statuses. That
+did not modify the frozen tag; it made the read-only post-publication audit
+dispatchable from the default branch before evidence existed.
 
 ## Rules that do not change after reveal
 

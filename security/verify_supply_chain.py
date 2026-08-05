@@ -457,6 +457,94 @@ def matching_secret(data: bytes) -> str | None:
     return None
 
 
+def reachable_message_errors() -> list[str]:
+    """Scan every reachable commit and directly referenced annotated tag."""
+
+    errors: list[str] = []
+    try:
+        commit_ids = (
+            run("git", "rev-list", "--all")
+            .decode("ascii", errors="strict")
+            .splitlines()
+        )
+    except (subprocess.CalledProcessError, UnicodeDecodeError) as error:
+        detail = (
+            f"git rev-list exited {error.returncode}"
+            if isinstance(error, subprocess.CalledProcessError)
+            else "commit inventory is not ASCII"
+        )
+        return [f"cannot inventory reachable Git commits: {detail}"]
+
+    message_objects: list[tuple[str, str]] = []
+    for object_id in commit_ids:
+        if FULL_SHA.fullmatch(object_id) is None:
+            errors.append("reachable Git commit inventory is malformed")
+            continue
+        message_objects.append(("commit", object_id))
+
+    try:
+        tag_entries = (
+            run(
+                "git",
+                "for-each-ref",
+                "--format=%(objecttype) %(objectname)",
+                "refs/tags",
+            )
+            .decode("ascii", errors="strict")
+            .splitlines()
+        )
+    except (subprocess.CalledProcessError, UnicodeDecodeError) as error:
+        detail = (
+            f"git for-each-ref exited {error.returncode}"
+            if isinstance(error, subprocess.CalledProcessError)
+            else "tag inventory is not ASCII"
+        )
+        errors.append(f"cannot inventory reachable Git tags: {detail}")
+        tag_entries = []
+
+    for entry in tag_entries:
+        fields = entry.split()
+        if len(fields) != 2 or FULL_SHA.fullmatch(fields[1]) is None:
+            errors.append("reachable Git tag inventory is malformed")
+            continue
+        object_type, object_id = fields
+        if object_type == "tag":
+            message_objects.append((object_type, object_id))
+
+    scanned: set[str] = set()
+    for object_type, object_id in message_objects:
+        if object_id in scanned:
+            continue
+        scanned.add(object_id)
+        try:
+            size = int(run("git", "cat-file", "-s", object_id))
+            if size > MAX_SCANNED_BLOB_BYTES:
+                errors.append(
+                    f"reachable Git {object_type} {object_id} exceeds "
+                    "deterministic secret-scan limit"
+                )
+                continue
+            data = run("git", "cat-file", object_type, object_id)
+        except subprocess.CalledProcessError as error:
+            errors.append(
+                f"cannot scan reachable Git {object_type} {object_id}: "
+                f"git cat-file exited {error.returncode}"
+            )
+            continue
+        except ValueError:
+            errors.append(
+                f"cannot scan reachable Git {object_type} {object_id}: "
+                "invalid object size"
+            )
+            continue
+        label = matching_secret(data)
+        if label is not None:
+            errors.append(
+                f"reachable Git {object_type} {object_id}: possible {label}"
+            )
+    return errors
+
+
 def secret_errors() -> list[str]:
     errors: list[str] = []
     tracked = (
@@ -502,6 +590,25 @@ def secret_errors() -> list[str]:
             continue
         scanned.add(object_id)
         try:
+            object_type = (
+                run("git", "cat-file", "-t", object_id)
+                .decode("ascii", errors="strict")
+                .strip()
+            )
+        except (subprocess.CalledProcessError, UnicodeDecodeError) as error:
+            detail = (
+                f"git cat-file exited {error.returncode}"
+                if isinstance(error, subprocess.CalledProcessError)
+                else "object type is not ASCII"
+            )
+            errors.append(
+                f"cannot inspect reachable Git object {object_id} ({path}): "
+                f"{detail}"
+            )
+            continue
+        if object_type != "blob":
+            continue
+        try:
             size = int(run("git", "cat-file", "-s", object_id))
             if size > MAX_SCANNED_BLOB_BYTES:
                 errors.append(
@@ -510,13 +617,24 @@ def secret_errors() -> list[str]:
                 )
                 continue
             data = run("git", "cat-file", "blob", object_id)
-        except (subprocess.CalledProcessError, ValueError):
+        except subprocess.CalledProcessError as error:
+            errors.append(
+                f"cannot scan reachable Git object {object_id} ({path}): "
+                f"git cat-file exited {error.returncode}"
+            )
+            continue
+        except ValueError:
+            errors.append(
+                f"cannot scan reachable Git object {object_id} ({path}): "
+                "invalid object size"
+            )
             continue
         label = matching_secret(data)
         if label is not None:
             errors.append(
                 f"reachable Git object {object_id} ({path}): possible {label}"
             )
+    errors.extend(reachable_message_errors())
     return errors
 
 

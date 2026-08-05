@@ -9,7 +9,7 @@ create another prospective observation.
 | Registered holdout | Prospective result | PASS | Frozen Qwen/WikiText claim on the registered holdout |
 | macOS application | Integration regression | PASS | Native app, MPS worker, containers, and independent replay work together |
 | Linux CPU | Cross-platform regression | PASS | The same registered real-data path executes and verifies on Ubuntu CPU |
-| Beacon-heldout | Preregistered one-shot | Awaiting outcome | No result until the immutable one-shot publishes an outcome |
+| Beacon-heldout | Preregistered one-shot | PASS | One terminal beacon-selected result; no rerun can replace it |
 
 ## Registered prospective holdout
 
@@ -103,7 +103,7 @@ same implementation, and because the input remains public validation blocks
 64–71, even an external repeat would not create a new blind or generalization
 result.
 
-## Frozen next held-out-window experiment
+## Closed beacon-selected held-out experiment
 
 The separate [beacon-selected protocol](../RealLLM/BEACON_HELDOUT_PROTOCOL.md)
 fixes the commit/digest freeze, all parameters and gates, fifteen eligible
@@ -115,13 +115,14 @@ publication time `2026-08-01T01:18:09Z`. Its release body lists four key
 artifacts; the complete normative inventory is the 26 entries in
 `RealLLM/beacon_freeze.json`.
 
-The exact pulse is `2026-08-02T18:00:00.000Z`, and a scientific outcome must
-complete by `2026-08-04T18:00:00.000Z`. The protocol permits one recorded run
-with no post-result tuning. A later regression is allowed only after terminal
-`PASS` or `FAIL_GATES`; an execution failure or incomplete attempt cannot be
-retried. No result from that suite is reported on this page, and blocks 64–71
-are ineligible for it. See the public
-[launch and publication runbook](BEACON_LAUNCH_RUNBOOK.md).
+The exact pulse was `2026-08-02T18:00:00.000Z`. The single recorded attempt
+selected blocks 512–543 and completed at `2026-08-02T18:18:20Z`, before the
+`2026-08-04T18:00:00.000Z` deadline. Its public evidence commit is
+`85c2add1799652a818873a04310b75821728da11`; the result is 2.054324081x
+compression, +0.000159341 nat/token delta NLL, 99.4140625% top-1 agreement,
+and terminal **PASS**. It cannot be rerun as another scientific attempt.
+See the [evidence and CI report](BEACON_EVIDENCE_REPORT.md) and historical
+[launch runbook](BEACON_LAUNCH_RUNBOOK.md).
 
 Historical scientific chronology and exact internal identifiers are kept in
 the [development history](development/HISTORY.md).

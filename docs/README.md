@@ -21,6 +21,9 @@ additional product versions.
 ## Understand the evidence
 
 - [Results](RESULTS.md) — canonical current evidence ledger and interpretation.
+- [Beacon evidence and CI closure](BEACON_EVIDENCE_REPORT.md) — immutable
+  one-shot identities, terminal metrics, independent audit, and red-check
+  explanation.
 - [Architecture](ARCHITECTURE.md) — data flow, module boundaries, and verifier
   chain.
 - [Limitations](LIMITATIONS.md) — exact boundary of every demonstrated claim.

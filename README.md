@@ -133,27 +133,54 @@ windows, canonical BF16 prefill KV cache, teacher-forced replay, and the stated
 devices. They do not claim weight compression, free-running generation
 quality, latency, throughput, arbitrary-model transfer, or state of the art.
 
-## Prospective beacon experiment
+## Closed beacon experiment archive
 
 The separately preregistered selected-window experiment is frozen under the
 immutable release
 [`corelm-beacon-heldout-v1`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-beacon-heldout-v1).
 Its tag commit is `0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44`, and the exact
-NIST pulse is `2026-08-02T18:00:00.000Z`. It still has no result.
+NIST pulse is `2026-08-02T18:00:00.000Z`. Its registered completion deadline
+was `2026-08-04T18:00:00.000Z`. The one recorded attempt completed at
+`2026-08-02T18:18:20Z` and is public at evidence commit
+[`85c2add1799652a818873a04310b75821728da11`](https://github.com/ALLPROTO/core-lm-benchmark/commit/85c2add1799652a818873a04310b75821728da11)
+and release
+[`corelm-beacon-heldout-v1-evidence`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-beacon-heldout-v1-evidence).
 The public operator checklist adds a stricter, non-normative not-before time
 of `2026-08-02T18:15:00.000Z`.
 
-That one-shot must be executed only from a clean detached checkout of the
-immutable tag, never from the evolving default branch. Follow the
-[launch runbook](docs/BEACON_LAUNCH_RUNBOOK.md). A repeat after terminal
-`PASS` or `FAIL_GATES` is regression-only; execution failure or an incomplete
-attempt cannot be retried.
+The terminal scientific verdict is **PASS**: 2.054324081x compression,
++0.000159341 nat/token delta NLL, and 99.4140625% top-1 agreement across 4,096
+predictions. The read-only independent audit
+[`30771472012`](https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/30771472012)
+recomputed the registered selection and verdict without loading a model,
+fetching NIST again, or creating another scientific attempt. The evidence tag
+is lightweight and the evidence commit has no Git signature, so it is not an
+author-signed supply-chain anchor. The historical red macOS jobs were caused
+by a Swift test-fixture path error, while Python-core and supply-chain passed.
+See the [evidence and CI report](docs/BEACON_EVIDENCE_REPORT.md).
+
+The one-shot window is closed and this suite must not be executed or revived.
+The [launch runbook](docs/BEACON_LAUNCH_RUNBOOK.md) is retained as historical
+protocol documentation only. Any future experiment needs a new suite identity,
+new preregistration, and a new deadline; it cannot reuse this tag or pulse.
 
 The evolving branch exposes only a read-only Git-object integrity check:
 
 ```sh
 ./corelm beacon verify-tag
 ```
+
+## Codec source provenance
+
+The exact codec source used by the cross-model development control is bound by
+the SSH-signed annotated tag `corelm-codec-source-2e8d3b-v1`. Verification
+requires no author secret. The tag target predates `signing/`, so its durable
+trust anchor is the byte-identical public key and policy from the signed lab
+tag or future immutable evidence bundle; [`signing/`](signing/README.md) is a
+current-`main` convenience copy. This provenance tag is non-scientific and
+does not replace benchmark or beacon evidence. The end-to-end two-repository
+reproduction guide lives in
+[`core-lm-cross-model-lab/REPRODUCE.md`](https://github.com/ALLPROTO/core-lm-cross-model-lab/blob/main/REPRODUCE.md).
 
 ## Repository map
 
@@ -165,6 +192,7 @@ The evolving branch exposes only a read-only Git-object integrity check:
 - `security/` and `schemas/` — independent validation and contracts.
 - `app-real-llm-evidence/` and `real-llm-v5-*` — registered real-data records.
 - `publication/` — current paper, submission source, and archive tooling.
+- `signing/` — public SSH source-provenance key and offline verification policy.
 - `docs/` — architecture, results, limitations, and maintainer records.
 
 Run the lightweight repository gates with:

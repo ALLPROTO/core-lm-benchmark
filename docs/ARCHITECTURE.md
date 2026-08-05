@@ -119,8 +119,9 @@ architecture path. `RealLLM/BEACON_HELDOUT_PROTOCOL.md` fixes its commit/digest
 freeze, parameters, gates, eligible unreported-window pool, and deterministic
 future-NIST-beacon selection before resolution. That freeze is already public
 and immutable at tag commit
-`0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44`; no result from that path is
-claimed yet.
+`0a9c0dd3ec6eee00d4029e6393e6f9fef96c5c44`. Its one terminal **PASS** is
+published at evidence commit `85c2add1799652a818873a04310b75821728da11`;
+the path is now a closed, read-only evidence contour and cannot be revived.
 
 ```text
 Clean detached frozen tag -> Administrative preflights -> Durable attempt marker

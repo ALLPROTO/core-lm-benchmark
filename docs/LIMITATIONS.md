@@ -46,14 +46,19 @@ does not turn that claim into a general model-compression result.
 12. The separate selected-window protocol has published its commit, digests,
     parameters, gates, audited eligible pool, immutable server-timestamped
     release, and deterministic future-randomness-beacon selection rule under
-    `corelm-beacon-heldout-v1`. That completed freeze is not a result. The exact
-    pulse is `2026-08-02T18:00:00.000Z`; no outcome is claimed here. The protocol
-    allows one prospective recorded run without post-result tuning and labels
-    every permitted later run regression-only. A local marker cannot prove that
-    no private copy ran. The public
-    [launch runbook](BEACON_LAUNCH_RUNBOOK.md) fixes the operator procedure, and
-    the [v1 audit](development/BEACON_V1_AUDIT_AND_V2.md) records the remaining
-    trusted-local limitations and requirements for a stronger v2.
+    `corelm-beacon-heldout-v1`. The freeze by itself was not a result. Its one
+    recorded attempt used the `2026-08-02T18:00:00.000Z` pulse, selected blocks
+    512--543, and published terminal **PASS** at evidence commit
+    `85c2add1799652a818873a04310b75821728da11`. That result covers one pinned
+    Qwen revision and one WikiText-2 window only; it does not establish
+    arbitrary-model or corpus-wide generalization. The suite is consumed and
+    cannot be invoked again as a scientific attempt. A local marker still
+    cannot prove that no private copy ran. The archived
+    [launch runbook](BEACON_LAUNCH_RUNBOOK.md), the
+    [evidence report](BEACON_EVIDENCE_REPORT.md), and the
+    [v1 audit](development/BEACON_V1_AUDIT_AND_V2.md) record the operator
+    procedure, terminal outcome, remaining trusted-local limitations, and
+    requirements for a stronger successor experiment.
 13. Live dependency-advisory results can change after a release. Hash locks,
     SBOM checks, and OSV scanning reduce supply-chain ambiguity but do not prove
     that the operating system, Python distribution, or model files are free of

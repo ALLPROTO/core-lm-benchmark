@@ -16,22 +16,31 @@ class AppRealLLMEvidenceTests(unittest.TestCase):
     def test_recorded_evidence_passes(self):
         verifier.verify(EVIDENCE)
 
-    def test_recorded_evidence_matches_original_app_when_available(self):
-        app = ROOT / "dist" / "CoreLMBenchmark.app"
-        executable = app / "Contents" / "MacOS" / "CoreLMBenchmarkApp"
-        if not executable.is_file():
-            self.skipTest("local packaged app is unavailable")
+    def test_recorded_evidence_binds_archived_app_identity(self):
+        verifier.verify(EVIDENCE)
         receipt = json.loads(
             (EVIDENCE / "app-run-receipt.json").read_text(encoding="utf-8")
         )
-        if (
-            verifier._sha256(executable)
-            != receipt["application"]["executableSHA256"]
-        ):
-            self.skipTest(
-                "local rebuild is not the historical receipt's original app"
-            )
-        verifier.verify(EVIDENCE, app)
+        self.assertEqual(
+            receipt["application"],
+            {
+                "bundleIdentifier": "com.corelm.benchmark",
+                "bundleName": "CoreLMBenchmark.app",
+                "executableSHA256": (
+                    "c5a70cebb8eb59fd098c3218af77f1807e2def9fca526256e9354bc0affdbdae"
+                ),
+                "processIdentifier": 92537,
+                "version": "0.4.0",
+            },
+        )
+        self.assertEqual(
+            receipt["worker"]["runtimeManifestSHA256"],
+            "0663285d633d4a2223cd59193cd2eb2a8ea09cc0bf50791894bfb9c44975d102",
+        )
+        self.assertEqual(
+            receipt["result"]["resultSHA256"],
+            "5b464de8f094a33a90dfdbc2c69ac318bc62a4397b171b5db69ae93d5d39d3c2",
+        )
 
     def test_result_tampering_fails(self):
         with tempfile.TemporaryDirectory() as temporary:
