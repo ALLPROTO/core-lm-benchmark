@@ -180,7 +180,7 @@ struct RealLLMView: View {
 
                     HStack(alignment: .top, spacing: 22) {
                         VStack(alignment: .leading, spacing: 9) {
-                            Text("Scientific gates").font(.headline)
+                            Text("Regression gates").font(.headline)
                             RealLLMGateRow(
                                 title: "Compression ≥ 2×",
                                 passed: aggregate.gates.compression
@@ -254,8 +254,9 @@ struct RealLLMView: View {
                     Text("Result SHA-256: \(result.resultSHA256)")
                         .font(.caption.monospaced())
                         .textSelection(.enabled)
-                    if let url = store.realLLMResultURL {
-                        Text(url.path)
+                    if let url = store.realLLMResultURL,
+                       let label = BenchmarkStore.publicResultLabel(for: url) {
+                        Text("Run: \(label)")
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)

@@ -63,6 +63,27 @@ does not turn that claim into a general model-compression result.
     SBOM checks, and OSV scanning reduce supply-chain ambiguity but do not prove
     that the operating system, Python distribution, or model files are free of
     all vulnerabilities.
+14. The separate cross-model matrix is a public-data diagnostic, not a blind
+    trial. Qwen, GPT-2, and BLOOM pass its aggregate thresholds, while the real
+    Pythia run executes and verifies but fails both behavioral gates. This
+    preserved negative result rules out a universal-transfer claim for the
+    unchanged profile; the three positive cells do not prove model-family or
+    population generalization.
+15. Blind V1 remains an unrun development draft whose registered checkpoint
+    elapsed before a complete exact-commit gate. It cannot be frozen or
+    launched late under the same suite ID. Its schemas, CI, fixtures, asset
+    checks, and development controls are implementation-readiness evidence,
+    not a frozen preregistration or scientific result. No confirmatory-model
+    forward pass or target-pulse attempt may be inferred from green tests; any
+    future blind experiment requires a new suite ID and fully shifted timeline.
+16. A portfolio release's deterministic source archive is an exact
+    `git archive`, not a rewritten privacy-clean export. It therefore preserves a
+    few already-public absolute cache paths in historical result provenance
+    and security-test fixtures. Those legacy strings are not credentials, are
+    not used by the current runtime, and are excluded from the portfolio demo,
+    release metadata, manifests, checksums, and current evidence. Private keys,
+    tokens, credential-like bytes, model weights, and new author-local paths
+    remain release blockers.
 
 The detailed versioned research record is preserved under `docs/development/`
 and in immutable publication tags.

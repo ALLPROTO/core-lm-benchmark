@@ -268,6 +268,60 @@ final class BenchmarkStore: ObservableObject {
         isRunning ? .running : (realLLMResult == nil ? .ready : .complete)
     }
 
+    static func publicResultLabel(for url: URL) -> String? {
+        guard url.isFileURL,
+              url.lastPathComponent == "validation-064-071.json" else {
+            return nil
+        }
+        let runIdentifier = url.deletingLastPathComponent().lastPathComponent
+        guard let uuid = UUID(uuidString: runIdentifier),
+              uuid.uuidString.lowercased() == runIdentifier else {
+            return nil
+        }
+        return "\(runIdentifier)/\(url.lastPathComponent)"
+    }
+
+    static func sanitizedPublicMessage(_ message: String) -> String {
+        var sanitized = message.replacingOccurrences(of: "\u{0}", with: "")
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        if !home.isEmpty {
+            sanitized = sanitized.replacingOccurrences(
+                of: home,
+                with: "<home>"
+            )
+        }
+        for pattern in [
+            #"(?:/Users|/home)/[^/\s]+"#,
+            #"[A-Za-z]:\\Users\\[^\\\s]+"#
+        ] {
+            sanitized = sanitized.replacingOccurrences(
+                of: pattern,
+                with: "<home>",
+                options: .regularExpression
+            )
+        }
+        for pattern in [
+            #"gh[pousr]_[A-Za-z0-9_]{20,}"#,
+            #"github_pat_[A-Za-z0-9_]{20,}"#,
+            #"hf_[A-Za-z0-9]{20,}"#,
+            #"sk-(?:proj-)?[A-Za-z0-9_-]{20,}"#
+        ] {
+            sanitized = sanitized.replacingOccurrences(
+                of: pattern,
+                with: "[REDACTED_CREDENTIAL]",
+                options: .regularExpression
+            )
+        }
+        let hostname = ProcessInfo.processInfo.hostName
+        if hostname.count >= 3 {
+            sanitized = sanitized.replacingOccurrences(
+                of: hostname,
+                with: "<host>"
+            )
+        }
+        return sanitized
+    }
+
     func runRealLLM() {
         guard !isRunning else { return }
         guard !proofChallengeRequested || proofChallengeNonce != nil else {
@@ -1286,16 +1340,18 @@ final class BenchmarkStore: ObservableObject {
                 requireCurrentOwner: false
             )
         }.map(SecurityValidation.sha256Hex) ?? ""
+        let successfulCurrentReceipt = error == nil
+            && realLLMVerified
+            && realLLMResult?.primaryEvidence != nil
+            && aggregate != nil
+        let failureReason = error
+            ?? "Current result did not satisfy the retained-evidence receipt contract."
+        let receiptError: Any = successfulCurrentReceipt
+            ? NSNull() : failureReason
         var receipt: [String: Any] = [
-            "schemaVersion": (
-                realLLMResult?.primaryEvidence == nil
-                    ? (
-                        proofChallengeNonce == nil
-                            ? "corelm-macos-app-real-llm-run-v2"
-                            : "corelm-macos-app-real-llm-run-v3"
-                    )
-                    : "corelm-macos-app-real-llm-run-v4"
-            ),
+            "schemaVersion": successfulCurrentReceipt
+                ? "corelm-macos-app-real-llm-run-v5"
+                : "corelm-macos-app-real-llm-failure-v1",
             "createdAt": ISO8601DateFormatter().string(from: Date()),
             "startedAt": realLLMStartedAt.map {
                 ISO8601DateFormatter().string(from: $0)
@@ -1329,7 +1385,10 @@ final class BenchmarkStore: ObservableObject {
                 "sanitizedChildEnvironment": true,
                 "hfHome": "configured"
             ],
-            "result": [
+            "error": receiptError
+        ]
+        if successfulCurrentReceipt {
+            receipt["result"] = [
                 "path": outputURL.lastPathComponent,
                 "resultFileSHA256": resultFileDigest,
                 "resultSHA256": realLLMResult?.resultSHA256 ?? "",
@@ -1338,27 +1397,35 @@ final class BenchmarkStore: ObservableObject {
                 "deltaNLLNatPerToken":
                     aggregate?.deltaNLLNatPerToken ?? 0,
                 "top1Agreement": aggregate?.top1Agreement ?? 0,
-                "scientificVerdict": aggregate?.pass == true ? "PASS" : "FAIL",
+                "resultRole": "PUBLIC_VALIDATION_REGRESSION",
+                "metricVerdict": aggregate?.pass == true ? "PASS" : "FAIL",
                 "swiftStructuralVerification":
                     realLLMVerified ? "PASS" : "FAIL"
-            ],
-            "error": error ?? NSNull()
-        ]
-        if let primary = realLLMResult?.primaryEvidence {
-            receipt["primaryEvidence"] = [
-                "schemaVersion": primary.schemaVersion,
-                "path": primary.path,
-                "manifestSHA256": primary.manifestSHA256,
-                "manifestBytes": primary.manifestBytes,
-                "containerCount": primary.containerCount,
-                "containerBytes": primary.containerBytes,
-                "blocks": primary.blocks,
-                "predictionTokens": primary.predictionTokens
             ]
-            receipt["buildProvenance"] = [
-                "path": "Resources/build-provenance.json",
-                "sha256": buildProvenanceDigest,
-                "document": buildProvenanceDocument
+            if let primary = realLLMResult?.primaryEvidence {
+                receipt["primaryEvidence"] = [
+                    "schemaVersion": primary.schemaVersion,
+                    "path": primary.path,
+                    "manifestSHA256": primary.manifestSHA256,
+                    "manifestBytes": primary.manifestBytes,
+                    "containerCount": primary.containerCount,
+                    "containerBytes": primary.containerBytes,
+                    "blocks": primary.blocks,
+                    "predictionTokens": primary.predictionTokens
+                ]
+                receipt["buildProvenance"] = [
+                    "path": "Resources/build-provenance.json",
+                    "sha256": buildProvenanceDigest,
+                    "document": buildProvenanceDocument
+                ]
+            }
+        } else {
+            receipt["failure"] = [
+                "intendedResult": outputURL.lastPathComponent,
+                "resultFileSHA256": resultFileDigest,
+                "resultPresent": !resultFileDigest.isEmpty,
+                "swiftStructuralVerification":
+                    realLLMVerified ? "PASS" : "FAIL"
             ]
         }
         if let proofChallengeNonce {
@@ -1522,8 +1589,7 @@ final class BenchmarkStore: ObservableObject {
     }
 
     private func appendLog(_ message: String) {
-        let normalized = message
-            .replacingOccurrences(of: "\u{0}", with: "")
+        let normalized = Self.sanitizedPublicMessage(message)
         let bounded = String(
             normalized.prefix(SecurityValidation.maximumLogEntryCharacters)
         )
@@ -1537,8 +1603,9 @@ final class BenchmarkStore: ObservableObject {
     }
 
     private func setError(_ message: String) {
+        let sanitized = Self.sanitizedPublicMessage(message)
         errorMessage = String(
-            message.prefix(SecurityValidation.maximumLogEntryCharacters)
+            sanitized.prefix(SecurityValidation.maximumLogEntryCharacters)
         )
     }
 
@@ -1732,16 +1799,16 @@ final class BenchmarkStore: ObservableObject {
             errorMessage = "Compression-proof app run timed out."
         }
         let aggregate = realLLMResult?.aggregate
-        let passed = !isRunning
+        let completed = !isRunning
             && errorMessage == nil
             && windowReady
             && realLLMVerified
-            && aggregate?.pass == true
+            && aggregate != nil
             && realLLMResult?.environment.device == "mps"
             && realLLMResult?.protocolInfo.modelRepository
                 == "Qwen/Qwen2.5-0.5B"
         let summary: [String: Any] = [
-            "status": passed ? "PASS" : "FAIL",
+            "status": completed ? "VERIFIED" : "FAIL",
             "executionOrigin": "CoreLMBenchmark.app",
             "bundleIdentifier": Bundle.main.bundleIdentifier ?? "",
             "appProcessIdentifier": ProcessInfo.processInfo.processIdentifier,
@@ -1759,11 +1826,14 @@ final class BenchmarkStore: ObservableObject {
                 aggregate?.compressionRatioVsBF16 ?? 0,
             "deltaNLLNatPerToken": aggregate?.deltaNLLNatPerToken ?? 0,
             "top1Agreement": aggregate?.top1Agreement ?? 0,
-            "scientificVerdict": aggregate?.pass == true ? "PASS" : "FAIL",
+            "resultRole": "PUBLIC_VALIDATION_REGRESSION",
+            "metricVerdict": aggregate?.pass == true ? "PASS" : "FAIL",
             "swiftStructuralVerification":
                 realLLMVerified ? "PASS" : "FAIL",
             "resultSHA256": realLLMResult?.resultSHA256 ?? "",
-            "resultPath": realLLMResultURL?.path ?? "",
+            "resultIdentifier": realLLMResultURL.flatMap {
+                Self.publicResultLabel(for: $0)
+            } ?? "",
             "error": errorMessage ?? ""
         ]
         if let data = try? JSONSerialization.data(
@@ -1772,6 +1842,6 @@ final class BenchmarkStore: ObservableObject {
             print(text)
         }
         fflush(stdout)
-        exit(passed ? EXIT_SUCCESS : EXIT_FAILURE)
+        exit(completed ? EXIT_SUCCESS : EXIT_FAILURE)
     }
 }

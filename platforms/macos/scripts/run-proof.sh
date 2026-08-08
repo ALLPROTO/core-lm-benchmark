@@ -391,9 +391,33 @@ fi
 [ "$replay_status" -eq 0 ] \
     || fail "the independent heavy replay exited with status $replay_status"
 
+metric_verdict=$(
+    run_clean "$RUNTIME_DIR/bin/python" -I -B - \
+        "$run_directory/validation-064-071.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+result = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+aggregates = result.get("aggregates")
+if not isinstance(aggregates, list) or len(aggregates) != 1:
+    raise SystemExit("result does not contain exactly one aggregate")
+passed = aggregates[0].get("pass")
+if not isinstance(passed, bool):
+    raise SystemExit("result aggregate pass field is not Boolean")
+print("PASS" if passed else "FAIL")
+PY
+) || fail "could not read the verified metric verdict"
+
+case "$metric_verdict" in
+    PASS) proof_summary='END-TO-END PROOF PASS' ;;
+    FAIL) proof_summary='END-TO-END PROOF VERIFIED — METRIC FAIL' ;;
+    *) fail "verified metric verdict is malformed" ;;
+esac
+
 printf '%s\n' \
-    'END-TO-END PROOF PASS: the locally built app ran pinned Qwen on MPS,' \
+    "$proof_summary: the locally built app ran pinned Qwen on MPS," \
     'created fresh compressed KV containers, then a separate decoder rebuilt' \
     'both KV caches and reproduced all 1,024 Qwen decisions. Result, source,' \
     'receipt, runtime, and application integrity checks also passed.' \
-    "Fresh proof runtime retained at: $RUNTIME_DIR"
+    "Fresh proof runtime ID: $PROOF_ID"

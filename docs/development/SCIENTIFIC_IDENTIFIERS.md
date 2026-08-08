@@ -12,7 +12,9 @@ documentation.
 | Current app result schema | `corelm-voidtoken-v5-validation-development-v3` | Raw-container and token-metric evidence |
 | Backend/configuration | `voidtoken-v5`, candidate `32` | Frozen measurement identity |
 | Historical challenge receipt | `corelm-macos-app-real-llm-run-v3` | Pre-primary-evidence app/result binding |
-| Current app receipt | `corelm-macos-app-real-llm-run-v4` | App/result/primary-evidence binding |
+| Historical primary-evidence app receipt | `corelm-macos-app-real-llm-run-v4` | Legacy app/result/primary-evidence binding |
+| Current app regression receipt | `corelm-macos-app-real-llm-run-v5` | Explicit public-validation-regression role plus app/result/primary-evidence binding |
+| Current app failure receipt | `corelm-macos-app-real-llm-failure-v1` | Non-evidence diagnostic record; never accepted as a result receipt |
 | Evidence tags | `voidtoken-v5-evidence-v1` | Public scientific chronology |
 | Beacon held-out suite | `qwen2.5-0.5b-kv-voidtoken-v5-beacon-heldout-v1` | Separate one-shot evidence identity |
 | Beacon freeze tag | `corelm-beacon-heldout-v1` | Public pre-reveal protocol anchor |

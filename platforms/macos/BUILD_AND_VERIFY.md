@@ -129,11 +129,20 @@ records descendant process groups for timeout, memory-pressure, and exit
 cleanup. Failure to establish the group is a launch failure, not a degraded
 single-process fallback.
 
-A successful run ends with:
+A fully verified run reports its metric outcome explicitly:
 
 ```text
 END-TO-END PROOF PASS
 ```
+
+or, if the behavioral gates fail while execution and both verifiers complete:
+
+```text
+END-TO-END PROOF VERIFIED — METRIC FAIL
+```
+
+The second state is a preserved negative regression result, not an
+infrastructure error and not permission to rerun until a PASS appears.
 
 The application is located at:
 

@@ -59,13 +59,9 @@ extension SecurityValidation {
             )
         }
         let declared = URL(fileURLWithPath: manifest.pythonDeclaredPath)
-            .standardizedFileURL
         let resolved = URL(fileURLWithPath: manifest.pythonResolvedPath)
-            .standardizedFileURL
-        guard declared.path == manifest.pythonDeclaredPath,
-              resolved.path == manifest.pythonResolvedPath,
-              declared.path.hasPrefix("/"),
-              resolved.path.hasPrefix("/") else {
+        guard validAbsoluteRuntimePath(manifest.pythonDeclaredPath),
+              validAbsoluteRuntimePath(manifest.pythonResolvedPath) else {
             throw SecurityValidationError.invalid(
                 "Python runtime manifest paths are invalid."
             )
@@ -103,11 +99,27 @@ extension SecurityValidation {
             )
         }
 
+        let manifestDeclared = URL(
+            fileURLWithPath: manifest.pythonDeclaredPath
+        ).standardizedFileURL
+        let manifestResolved = URL(
+            fileURLWithPath: manifest.pythonResolvedPath
+        ).standardizedFileURL
         let expectedDeclared = expectedPythonURL.standardizedFileURL
-        let expectedResolved = expectedDeclared
-            .resolvingSymlinksInPath().standardizedFileURL
-        guard manifest.pythonDeclaredPath == expectedDeclared.path,
-              manifest.pythonResolvedPath == expectedResolved.path else {
+        let canonicalManifestDeclared = try canonicalExistingRuntimeURL(
+            manifestDeclared
+        )
+        let canonicalExpectedDeclared = try canonicalExistingRuntimeURL(
+            expectedDeclared
+        )
+        let expectedResolved = canonicalExpectedDeclared
+        let canonicalManifestResolved = try canonicalExistingRuntimeURL(
+            manifestResolved
+        )
+        guard validAbsoluteRuntimePath(manifest.pythonDeclaredPath),
+              validAbsoluteRuntimePath(manifest.pythonResolvedPath),
+              canonicalManifestDeclared.path == canonicalExpectedDeclared.path,
+              canonicalManifestResolved.path == expectedResolved.path else {
             throw SecurityValidationError.invalid(
                 "Python runtime manifest names a different executable "
                     + "(declared \(manifest.pythonDeclaredPath) vs "
@@ -119,10 +131,8 @@ extension SecurityValidation {
 
         let roots = try manifest.roots.map { declared -> URL in
             let root = URL(fileURLWithPath: declared.path)
-                .standardizedFileURL
-            guard root.path == declared.path,
-                  root.path.hasPrefix("/"),
-                  root.path != "/" else {
+            guard validAbsoluteRuntimePath(declared.path),
+                  declared.path != "/" else {
                 throw SecurityValidationError.invalid(
                     "Python runtime manifest contains an unsafe root."
                 )
@@ -130,8 +140,9 @@ extension SecurityValidation {
             try validateRuntimeDirectory(root)
             return root
         }
-        let firstPrefix = roots[0].path + "/"
-        let secondPrefix = roots[1].path + "/"
+        let canonicalRoots = try roots.map(canonicalExistingRuntimeURL)
+        let firstPrefix = canonicalRoots[0].path + "/"
+        let secondPrefix = canonicalRoots[1].path + "/"
         guard !firstPrefix.hasPrefix(secondPrefix),
               !secondPrefix.hasPrefix(firstPrefix) else {
             throw SecurityValidationError.invalid(
@@ -157,7 +168,6 @@ extension SecurityValidation {
             previousKey = entry.key
             let candidate = roots[entry.root]
                 .appendingPathComponent(entry.path)
-                .standardizedFileURL
             let rootPrefix = roots[entry.root].path + "/"
             guard candidate.path.hasPrefix(rootPrefix) else {
                 throw SecurityValidationError.invalid(
@@ -194,7 +204,9 @@ extension SecurityValidation {
                     )
                 }
                 countedBytes = newTotal
-                if candidate.path == expectedResolved.path {
+                if expectedDigest == manifest.pythonExecutableSHA256,
+                   try canonicalExistingRuntimeURL(candidate).path
+                    == expectedResolved.path {
                     executableDigest = digest
                 }
             case "symlink":
@@ -315,6 +327,34 @@ extension SecurityValidation {
             .allSatisfy { component in
                 !component.isEmpty && component != "." && component != ".."
             }
+    }
+
+    private static func validAbsoluteRuntimePath(_ value: String) -> Bool {
+        guard value.hasPrefix("/"), value != "/",
+              !value.hasSuffix("/"), !value.utf8.contains(0) else {
+            return false
+        }
+        let components = value.split(
+            separator: "/",
+            omittingEmptySubsequences: false
+        )
+        return components.first?.isEmpty == true
+            && components.dropFirst().allSatisfy { component in
+                !component.isEmpty && component != "." && component != ".."
+            }
+    }
+
+    private static func canonicalExistingRuntimeURL(_ url: URL) throws -> URL {
+        var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
+        let resolved = url.path.withCString { path in
+            realpath(path, &buffer)
+        }
+        guard resolved != nil else {
+            throw SecurityValidationError.invalid(
+                "Python runtime path cannot be resolved canonically."
+            )
+        }
+        return URL(fileURLWithPath: String(cString: buffer))
     }
 
     private static func validPython312Version(_ value: String) -> Bool {
@@ -440,8 +480,9 @@ extension SecurityValidation {
         at url: URL,
         roots: [URL]
     ) throws {
-        let resolved = url.resolvingSymlinksInPath().standardizedFileURL
-        let contained = roots.contains { root in
+        let resolved = try canonicalExistingRuntimeURL(url)
+        let canonicalRoots = try roots.map(canonicalExistingRuntimeURL)
+        let contained = canonicalRoots.contains { root in
             resolved.path == root.path
                 || resolved.path.hasPrefix(root.path + "/")
         }

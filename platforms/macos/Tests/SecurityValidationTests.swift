@@ -269,6 +269,56 @@ struct SecurityValidationTests {
     }
 
     @Test
+    @MainActor
+    func testPublicResultLabelIsRelativeAndFailsClosed() {
+        let identifier = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        let result = URL(
+            fileURLWithPath:
+                "/Users/private-name/Library/Application Support/"
+                    + "CoreLMBenchmark/real-llm-results/\(identifier)/"
+                    + "validation-064-071.json"
+        )
+        let label = BenchmarkStore.publicResultLabel(for: result)
+        #expect(label == "\(identifier)/validation-064-071.json")
+        #expect(label?.contains("/Users/") == false)
+        #expect(label?.contains("private-name") == false)
+
+        let malformedDirectory = result
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("not-a-run")
+            .appendingPathComponent("validation-064-071.json")
+        #expect(BenchmarkStore.publicResultLabel(for: malformedDirectory) == nil)
+        #expect(
+            BenchmarkStore.publicResultLabel(
+                for: result.deletingLastPathComponent()
+                    .appendingPathComponent("unexpected.json")
+            ) == nil
+        )
+        #expect(
+            BenchmarkStore.publicResultLabel(
+                for: URL(string: "https://example.invalid/result.json")!
+            ) == nil
+        )
+    }
+
+    @Test
+    @MainActor
+    func testPublicLogSanitizerRemovesPathsCredentialsAndNulls() {
+        let token = "gh" + "p_" + String(repeating: "A", count: 30)
+        let raw =
+            "Traceback: /Users/private-name/project/runner.py\u{0} "
+            + "token=\(token)"
+        let sanitized = BenchmarkStore.sanitizedPublicMessage(raw)
+        #expect(sanitized.contains("<home>/project/runner.py"))
+        #expect(sanitized.contains("[REDACTED_CREDENTIAL]"))
+        #expect(!sanitized.contains("/Users/"))
+        #expect(!sanitized.contains("private-name"))
+        #expect(!sanitized.contains(token))
+        #expect(!sanitized.contains("\u{0}"))
+    }
+
+    @Test
     func testRegularFileReaderRejectsSymlink() throws {
         let temporary = FileManager.default.temporaryDirectory
             .appendingPathComponent(
@@ -446,6 +496,20 @@ struct SecurityValidationTests {
         try SecurityValidation.validatePythonRuntimeManifest(
             at: manifestURL,
             expectedPythonURL: declaredPython
+        )
+        let aliasedRuntime = buildDirectory.appendingPathComponent(
+            "corelm-runtime-alias-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        try FileManager.default.createSymbolicLink(
+            at: aliasedRuntime,
+            withDestinationURL: temporary
+        )
+        defer { try? FileManager.default.removeItem(at: aliasedRuntime) }
+        try SecurityValidation.validatePythonRuntimeManifest(
+            at: manifestURL,
+            expectedPythonURL: aliasedRuntime
+                .appendingPathComponent("venv/bin/python")
         )
 
         let unsafeLink = venvBin.appendingPathComponent("python-cache")

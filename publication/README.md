@@ -10,6 +10,8 @@ package.
 - `reproducibility/` - instructions for verifying the real-model evidence.
 - `build_archives.py` - deterministic v5 arXiv and reproducibility archive
   builder.
+- `PORTFOLIO_RELEASE.md` - fail-closed 14-asset portfolio release and public
+  verification contract.
 
 The retired synthetic paper and its 115-run data are deliberately absent from
 the default branch. Their exact historical bytes remain recoverable from the
@@ -52,6 +54,26 @@ corpus-wide generalization. Raw beacon evidence assets are not duplicated in
 the current paper package; their immutable evidence ref remains canonical, and
 the reproducibility archive includes the evidence/CI report and exact
 identities.
+
+## Separate release-tag contours
+
+Two tag families have different contracts and must never be substituted for
+one another:
+
+- `voidtoken-v5-paper-vN` is the lightweight historical paper archive contour.
+  `publication/build_archives.py --release-tag` accepts only this exact family,
+  requires it to equal the one `version` in `CITATION.cff`, verifies that the
+  tag is lightweight, points to clean `HEAD`, and is visible on the canonical
+  public origin.
+- `corelm-portfolio-vN` is the SSH-signed annotated portfolio and independent-
+  replication contour. It is verified by `tools/independent_replication.py`
+  against the pinned signer policy and canonical remote. The archive builder
+  rejects it as the wrong contour.
+
+A paper archive may be linked from a portfolio release, but its provenance
+continues to name its own `voidtoken-v5-paper-vN` tag. A portfolio tag does not
+retroactively sign or rename a historical paper archive, and a lightweight
+paper tag cannot satisfy the independent-replication source gate.
 
 ## Generate and preview
 
@@ -98,15 +120,20 @@ python3 publication/build_archives.py --release-tag "$RELEASE_TAG"
 (cd output && shasum -a 256 -c SHA256SUMS)
 ```
 
-## Create a new publication release
+## Create a new historical paper archive release
 
 Corrections or new publication assets require a new, never-used lightweight
-tag and a separate GitHub Release. Never reuse `voidtoken-v5-paper-v5` or
-`voidtoken-v5-evidence-v1`, and never replace assets attached to an existing
-release. Set `NEW_RELEASE_TAG` explicitly to the new identifier before running:
+`voidtoken-v5-paper-vN` tag and a separate GitHub Release. Never reuse
+`voidtoken-v5-paper-v5` or `voidtoken-v5-evidence-v1`, and never replace assets
+attached to an existing release. First update and test the CFF, manuscript,
+SBOM, and archive identity so the exact `CITATION.cff` version equals the new
+tag. Then set `NEW_RELEASE_TAG` explicitly before running:
 
 ```sh
 : "${NEW_RELEASE_TAG:?set a new, never-used publication tag}"
+printf '%s\n' "$NEW_RELEASE_TAG" \
+  | grep -Eq '^voidtoken-v5-paper-v[1-9][0-9]*$' \
+  || { echo 'publication tag must be voidtoken-v5-paper-vN' >&2; exit 1; }
 git status --short
 if git show-ref --verify --quiet "refs/tags/$NEW_RELEASE_TAG"; then
   echo "local tag already exists: $NEW_RELEASE_TAG" >&2
@@ -129,9 +156,11 @@ python3 publication/build_archives.py --release-tag "$NEW_RELEASE_TAG"
 (cd output && shasum -a 256 -c SHA256SUMS)
 ```
 
-The release preflight rejects a dirty worktree, annotated or non-HEAD tag,
-wrong origin, unpublished tag, untracked input, or bytes that differ from
-`HEAD`. Do not create the new tag until the exact branch commit has passed CI.
+The release preflight rejects a dirty worktree, annotated or non-HEAD paper
+tag, any tag outside `voidtoken-v5-paper-vN` (including
+`corelm-portfolio-vN`), a tag that differs from `CITATION.cff`, wrong origin,
+unpublished tag, untracked input, or bytes that differ from `HEAD`. Do not
+create the new tag until the exact branch commit has passed CI.
 
 ## Before arXiv submission
 

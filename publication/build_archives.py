@@ -27,6 +27,12 @@ OUTPUT = ROOT / "output"
 BEACON_FREEZE_PATH = ROOT / "RealLLM/beacon_freeze.json"
 ARCHIVE_MTIME = 0
 PUBLIC_ORIGIN = "https://github.com/ALLPROTO/core-lm-benchmark"
+HISTORICAL_PAPER_TAG_RE = re.compile(
+    r"^voidtoken-v5-paper-v[1-9][0-9]*$"
+)
+PORTFOLIO_TAG_RE = re.compile(r"^corelm-portfolio-v[1-9][0-9]*$")
+HISTORICAL_PAPER_ARCHIVE_CONTOUR = "HISTORICAL_PAPER_ARCHIVE"
+UNRELEASED_PREVIEW_CONTOUR = "UNRELEASED_PREVIEW"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from security.generate_build_provenance import (  # noqa: E402
@@ -75,6 +81,24 @@ def _normalized_origin(value: str) -> str:
     return value.removesuffix(".git").rstrip("/")
 
 
+def _citation_release_tag() -> str:
+    """Return the one canonical historical-paper identity from CITATION.cff."""
+
+    try:
+        text = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
+    except OSError as error:
+        raise ValueError("CITATION.cff cannot be read") from error
+    matches = re.findall(r'(?m)^version: "([^"]+)"$', text)
+    if len(matches) != 1:
+        raise ValueError("CITATION.cff must contain exactly one quoted version")
+    release_tag = matches[0]
+    if HISTORICAL_PAPER_TAG_RE.fullmatch(release_tag) is None:
+        raise ValueError(
+            "CITATION.cff version is outside the historical paper contour"
+        )
+    return release_tag
+
+
 def _build_context(release_tag: str | None) -> dict[str, object]:
     top = _git("rev-parse", "--show-toplevel", check=False)
     if top.returncode:
@@ -87,6 +111,7 @@ def _build_context(release_tag: str | None) -> dict[str, object]:
             "gitHeadTree": None,
             "releaseTag": None,
             "remoteTagVerified": False,
+            "releaseContour": UNRELEASED_PREVIEW_CONTOUR,
             "trackedFiles": None,
         }
     if Path(top.stdout.strip()).resolve() != ROOT.resolve():
@@ -109,6 +134,7 @@ def _build_context(release_tag: str | None) -> dict[str, object]:
         "gitHeadTree": head_tree,
         "releaseTag": None,
         "remoteTagVerified": False,
+        "releaseContour": UNRELEASED_PREVIEW_CONTOUR,
         "trackedFiles": tracked_files,
     }
     if release_tag is None:
@@ -119,6 +145,23 @@ def _build_context(release_tag: str | None) -> dict[str, object]:
         or "//" in release_tag
     ):
         raise ValueError("release tag contains unsafe or ambiguous characters")
+    if PORTFOLIO_TAG_RE.fullmatch(release_tag):
+        raise ValueError(
+            "portfolio release tag belongs to the SSH-signed replication "
+            "contour; build_archives --release-tag accepts only the separate "
+            "lightweight historical paper contour voidtoken-v5-paper-vN"
+        )
+    if HISTORICAL_PAPER_TAG_RE.fullmatch(release_tag) is None:
+        raise ValueError(
+            "archive release tag is outside the historical paper contour; "
+            "expected voidtoken-v5-paper-vN"
+        )
+    citation_tag = _citation_release_tag()
+    if release_tag != citation_tag:
+        raise ValueError(
+            "paper archive release tag does not match the exact "
+            f"CITATION.cff version {citation_tag}"
+        )
     if not clean:
         raise ValueError(
             "final release archives require a completely clean worktree"
@@ -143,6 +186,7 @@ def _build_context(release_tag: str | None) -> dict[str, object]:
             "buildMode": "clean-public-tag-release",
             "releaseTag": release_tag,
             "remoteTagVerified": True,
+            "releaseContour": HISTORICAL_PAPER_ARCHIVE_CONTOUR,
         }
     )
     return context
@@ -489,6 +533,9 @@ def _v5_provenance_document(
         "gitHeadCommit": build_context["gitHeadCommit"],
         "releaseTag": build_context["releaseTag"],
         "remoteTagVerified": build_context["remoteTagVerified"],
+        "releaseContour": build_context.get(
+            "releaseContour", UNRELEASED_PREVIEW_CONTOUR
+        ),
         "gitObjectsIncluded": False,
         "provenanceScope": (
             "This manifest records the builder's source state and hashes. "
@@ -585,9 +632,14 @@ def build_reproducibility(
             "docs/ARCHITECTURE.md",
             "docs/BEACON_EVIDENCE_REPORT.md",
             "docs/BEACON_LAUNCH_RUNBOOK.md",
+            "docs/DEMO.md",
+            "docs/ENGINEERING_CASE_STUDY.md",
+            "docs/INDEPENDENT_REPLICATION.md",
+            "docs/PORTFOLIO_READINESS.md",
             "docs/README.md",
             "docs/RESULTS.md",
             "docs/LIMITATIONS.md",
+            "docs/independent-replication-attestation.template.json",
             "docs/development/BEACON_V1_AUDIT_AND_V2.md",
             "docs/development/HISTORY.md",
             "docs/development/SCIENTIFIC_IDENTIFIERS.md",
@@ -597,9 +649,11 @@ def build_reproducibility(
             "Tests/test_beacon_publication_audit.py",
             "Tests/test_beacon_protocol.py",
             "Tests/test_build_provenance.py",
+            "Tests/test_independent_replication.py",
             "Tests/test_linux_runtime_hardening.py",
             "Tests/test_local_app_build.py",
             "Tests/test_platform_boundaries.py",
+            "Tests/test_portfolio_release.py",
             "Tests/test_publication_archives.py",
             "Tests/test_real_llm.py",
             "Tests/test_security_supply_chain.py",
@@ -609,6 +663,7 @@ def build_reproducibility(
             "Tests/test_voidtoken_v5_frozen.py",
             "Tests/fixtures/nist-beacon-certificate-528943a5.pem",
             "Tests/fixtures/nist-beacon-chain-2-pulse-1884240.json",
+            "tools/independent_replication.py",
             "schemas/beacon-attempt.schema.json",
             "schemas/beacon-freeze.schema.json",
             "schemas/beacon-outcome.schema.json",
@@ -616,6 +671,8 @@ def build_reproducibility(
             "schemas/beacon-resolution.schema.json",
             "schemas/beacon-window-ledger.schema.json",
             "schemas/real-llm-result.schema.json",
+            "schemas/portfolio-release-input.schema.json",
+            "schemas/portfolio-source-identity.schema.json",
             "schemas/voidtoken-v5-attempt.schema.json",
             "schemas/voidtoken-v5-phase-result.schema.json",
             "RealLLM/__init__.py",
@@ -649,6 +706,8 @@ def build_reproducibility(
             "RealLLM/verify_voidtoken_v5_evidence.py",
             "RealLLM/voidtoken_v5.py",
             "publication/build_archives.py",
+            "publication/build_portfolio_release.py",
+            "publication/PORTFOLIO_RELEASE.md",
             "security/direct-dependencies.cdx.json",
             "security/find_python312.sh",
             "security/generate_app_proof_core.py",
@@ -859,8 +918,10 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--release-tag",
         help=(
-            "Build a final archive only from clean HEAD at this lightweight "
-            "tag after the exact tag is visible on public origin"
+            "Build a final historical paper archive only from clean HEAD at "
+            "a lightweight voidtoken-v5-paper-vN tag after the exact tag is "
+            "visible on public origin; signed corelm-portfolio-vN tags belong "
+            "to the separate replication contour and are rejected"
         ),
     )
     return parser.parse_args()

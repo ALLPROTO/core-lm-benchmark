@@ -55,7 +55,7 @@ A release candidate is not ready until all applicable gates pass:
 8. Model weights, model configuration/tokenizer assets, and dataset files are
    resolved at registered revisions and verified against registered sizes and
    SHA-256 values before model execution.
-9. The sanitized application-run receipt, exact per-layer manifests, scientific
+9. The sanitized application-run receipt, exact per-layer manifests, regression
    result, independent Python verifier, source runner, and—when distributed—
    the packaged app all agree under
    `security/verify_app_run_evidence.py`.

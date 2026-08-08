@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/portfolio-source-identity.schema.json",
+  "title": "Core LM portfolio release source identity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_kind",
+    "author",
+    "claims",
+    "continuous_integration",
+    "demo",
+    "related_sources",
+    "release",
+    "reproduction",
+    "schema_version",
+    "signing",
+    "source"
+  ],
+  "properties": {
+    "artifact_kind": {"const": "corelm_portfolio_release"},
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "orcid"],
+      "properties": {
+        "name": {"const": "Ivan Tyshchenko"},
+        "orcid": {"const": "https://orcid.org/0009-0000-7935-6090"}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["excluded", "supported"],
+      "properties": {
+        "excluded": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "prefixItems": [
+            {"const": "model_weight_compression"},
+            {"const": "universal_llm_generalization"},
+            {"const": "state_of_the_art"},
+            {"const": "production_serving_readiness"},
+            {"const": "independent_human_replication"}
+          ],
+          "items": false
+        },
+        "supported": {
+          "const": "Built and reproducibly evaluated complete-container KV-cache compression on pinned real-model workloads."
+        }
+      }
+    },
+    "continuous_integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "linux_x86_64", "macos_arm64", "validation"],
+      "properties": {
+        "commit": {"$ref": "#/$defs/gitObject"},
+        "linux_x86_64": {"$ref": "#/$defs/ciRun"},
+        "macos_arm64": {"$ref": "#/$defs/ciRun"},
+        "validation": {
+          "const": "SIGNED_OPERATOR_ASSERTION_REQUIRES_LIVE_API_RECHECK"
+        }
+      }
+    },
+    "demo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_sha256",
+        "result_sha256",
+        "synthetic_data",
+        "video_sha256",
+        "workload_classification"
+      ],
+      "properties": {
+        "evidence_sha256": {"$ref": "#/$defs/sha256"},
+        "result_sha256": {"$ref": "#/$defs/sha256"},
+        "synthetic_data": {"const": false},
+        "video_sha256": {"$ref": "#/$defs/sha256"},
+        "workload_classification": {"const": "PUBLIC_VALIDATION_REGRESSION"}
+      }
+    },
+    "related_sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blind_v1_draft", "cross_model_lab"],
+      "properties": {
+        "blind_v1_draft": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit", "lifecycle_state", "pull_request", "tree"],
+          "properties": {
+            "commit": {"$ref": "#/$defs/gitObject"},
+            "lifecycle_state": {"const": "DRAFT_NOT_PREREGISTERED"},
+            "pull_request": {
+              "const": "https://github.com/ALLPROTO/core-lm-cross-model-lab/pull/5"
+            },
+            "tree": {"$ref": "#/$defs/gitObject"}
+          }
+        },
+        "cross_model_lab": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit", "repository", "tree"],
+          "properties": {
+            "commit": {"$ref": "#/$defs/gitObject"},
+            "repository": {
+              "const": "https://github.com/ALLPROTO/core-lm-cross-model-lab"
+            },
+            "tree": {"$ref": "#/$defs/gitObject"}
+          }
+        }
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prerelease", "scientific_status", "tag", "url"],
+      "properties": {
+        "prerelease": {"const": false},
+        "scientific_status": {"const": "NOT_A_BLIND_OR_GENERALIZATION_RESULT"},
+        "tag": {"$ref": "#/$defs/tag"},
+        "url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-portfolio-v[1-9][0-9]*$"
+        }
+      }
+    },
+    "reproduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linux", "macos", "repository_gate"],
+      "properties": {
+        "linux": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "prefixItems": [
+            {"const": "./corelm linux bootstrap"},
+            {"const": "./corelm linux doctor"},
+            {"const": "./corelm linux build"},
+            {"const": "./corelm linux run"}
+          ],
+          "items": false
+        },
+        "macos": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "prefixItems": [
+            {"const": "./corelm macos doctor"},
+            {"const": "./corelm macos proof"}
+          ],
+          "items": false
+        },
+        "repository_gate": {"const": "./corelm verify"}
+      }
+    },
+    "schema_version": {"const": 1},
+    "signing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_signers_sha256",
+        "algorithm",
+        "fingerprint",
+        "public_key_sha256"
+      ],
+      "properties": {
+        "allowed_signers_sha256": {
+          "const": "36fb4a170eee7664be32f2a5d562db209fa4f6f1f24667cf6a3ef0166d155c16"
+        },
+        "algorithm": {"const": "ssh-ed25519"},
+        "fingerprint": {
+          "const": "SHA256:8A4y/GkoFglweSfg3rP21BtWWqIBOeQAUoAJDQM8sMM"
+        },
+        "public_key_sha256": {
+          "const": "9d299ff032927caef3f1355fb55c01f206ebf27ef35bcb5da547f962168b1274"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "default_branch",
+        "repository",
+        "tag_object",
+        "tree",
+        "worktree_state"
+      ],
+      "properties": {
+        "commit": {"$ref": "#/$defs/gitObject"},
+        "default_branch": {"const": "main"},
+        "repository": {"const": "https://github.com/ALLPROTO/core-lm-benchmark"},
+        "tag_object": {"$ref": "#/$defs/gitObject"},
+        "tree": {"$ref": "#/$defs/gitObject"},
+        "worktree_state": {"const": "clean"}
+      }
+    }
+  },
+  "$defs": {
+    "gitObject": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "tag": {
+      "type": "string",
+      "pattern": "^corelm-portfolio-v[1-9][0-9]*$"
+    },
+    "ciRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conclusion", "required", "url"],
+      "properties": {
+        "conclusion": {"const": "success"},
+        "required": {"const": true},
+        "url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/ALLPROTO/core-lm-benchmark/actions/runs/[1-9][0-9]*$"
+        }
+      }
+    }
+  }
+}

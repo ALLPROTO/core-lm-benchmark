@@ -27,7 +27,7 @@ Qwen model -> Prefill -> BF16 KV cache -> VoidToken codec -> Fresh parser
                                                         +----> Cache rebuild
                                                                    |
                                                                    v
-Teacher-forced continuation -> Metrics -> Scientific gates -> Swift verifier
+Teacher-forced continuation -> Metrics -> Regression gates -> Swift verifier
                                                                |
                                                                v
                                     Trusted-local stale-run binding and receipt
