@@ -194,7 +194,7 @@ class BuildProvenanceTests(unittest.TestCase):
 
             path_disclosure = copy.deepcopy(manifest)
             path_disclosure["toolchain"]["swift"]["version"] = (
-                "Swift from /Users/example/private-toolchain"
+                "Swift from /" + "Users/example/private-toolchain"
             )
             path.write_bytes(provenance.canonical_json_bytes(path_disclosure))
             with self.assertRaisesRegex(ValueError, "local path"):
@@ -231,6 +231,29 @@ class BuildProvenanceTests(unittest.TestCase):
             linked.symlink_to(external)
             with self.assertRaisesRegex(ValueError, "symbolic link"):
                 provenance.inspect_source_archive(source, linked)
+
+    def test_developer_tools_identity_distinguishes_clt_from_xcode(self):
+        command_line_tools = copy.deepcopy(FAKE_TOOLCHAIN)
+        provenance.validate_toolchain(command_line_tools)
+
+        xcode = copy.deepcopy(FAKE_TOOLCHAIN)
+        xcode["developerTools"] = {
+            "buildVersion": "16F6",
+            "identifier": "com.apple.dt.Xcode",
+            "kind": "xcode",
+            "version": "16.4",
+        }
+        provenance.validate_toolchain(xcode)
+
+        inconsistent = copy.deepcopy(FAKE_TOOLCHAIN)
+        inconsistent["developerTools"]["buildVersion"] = "16F6"
+        with self.assertRaisesRegex(ValueError, "Command Line Tools identity"):
+            provenance.validate_toolchain(inconsistent)
+
+        inconsistent = copy.deepcopy(xcode)
+        inconsistent["developerTools"]["buildVersion"] = None
+        with self.assertRaisesRegex(ValueError, "Xcode identity"):
+            provenance.validate_toolchain(inconsistent)
 
     def test_packager_and_bundle_verifier_bind_provenance_resource(self):
         package = (ROOT / "platforms/macos/scripts/package-app.sh").read_text(encoding="utf-8")

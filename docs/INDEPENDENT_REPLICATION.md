@@ -69,16 +69,25 @@ release contour from the lightweight historical paper archive tags named
 rejects portfolio tags. Conversely, a lightweight paper tag does not satisfy
 this recorder's signed-source requirement and cannot be used for G10.
 
-## 2. Create the human attestation outside the clone
+## 2. Create the prospective human attestation outside the clone
 
 ```sh
 cp docs/independent-replication-attestation.template.json \
   ../corelm-human-attestation.json
 ```
 
-Replace only `attestedAt` and `publicProfileURL`. Use the same GitHub account
-that will publish the bundle. Read every fixed statement; if any is false, do
-not set it to true and do not claim an independent replication.
+Before starting the recorded command, replace only `committedAt` and
+`publicProfileURL`. Use the same GitHub account that will publish the bundle.
+`committedAt` is a declared pre-run timestamp, not a trusted timestamp or a
+software-verified signature. The fixed declaration is intentionally
+prospective: the operator commits to publish the **first completed attempt**,
+including a metric FAIL, rather than claiming before execution that a run has
+already completed. Read every current identity statement and future
+commitment; if an identity statement is false or a commitment cannot be made,
+do not set it to true and do not claim an independent replication.
+The prospective statement is named `willReportWithoutOutcomeSelection`.
+The former past-tense name `reportedWithoutOutcomeSelection` is invalid and
+the strict validator rejects it.
 
 Do not add an email address, local username, hostname, token, SSH key, home
 path, or free-form notes. The bundle scanner fails closed on common credentials
@@ -197,6 +206,11 @@ attachment against the exact release. Publish the following beside it:
 - the output of the bundle verifier; and
 - a statement that this is a public-validation regression, not a blind result.
 
+The post-run publication by that same account is the human action that reports
+the completed attempt. The pre-run JSON alone is only a declared commitment;
+it is not evidence that execution later happened or that the declarant is
+independent.
+
 The bundle already contains the bounded result/primary-evidence subset needed
 for verification. Do not publish the remaining local cache/run directory
 unless you have audited it separately. Never publish `.ssh`, access tokens,
@@ -210,12 +224,15 @@ G10 is complete only after all items below are visible publicly:
 2. `replication.json.source.commit` is the exact canonical signed portfolio
    release commit, and its tree matches the release.
 3. The submission account matches `human-attestation.json.publicProfileURL`.
-4. The declarant is not the author, an AI agent, or an author-controlled bot.
-5. The environment is a different physical or independently controlled
+4. `human-attestation.json.committedAt` is no later than
+   `replication.json.execution.startedAt`, and the same account publishes the
+   first completed attempt rather than selecting between completed outcomes.
+5. The declarant is not the author, an AI agent, or an author-controlled bot.
+6. The environment is a different physical or independently controlled
    machine and matches the declared platform.
-6. Terminal output, receipt, result digest, raw-file digest manifest, and
+7. Terminal output, receipt, result digest, raw-file digest manifest, and
    product-verifier output are all present—even if the metric verdict is FAIL.
-7. The result is described only as a reproducible public-data regression.
+8. The result is described only as a reproducible public-data regression.
 
 Author self-verification and Codex/agent review remain useful engineering
 checks, but neither may be renamed or counted as independent human

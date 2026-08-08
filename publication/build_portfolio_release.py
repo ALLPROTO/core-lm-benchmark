@@ -18,6 +18,7 @@ from contextlib import contextmanager
 import datetime as dt
 import gzip
 import hashlib
+import io
 import json
 import math
 import os
@@ -29,6 +30,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import uuid
 import zlib
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO, Iterable, Iterator, Mapping, Sequence
@@ -41,6 +43,15 @@ ROOT = Path(__file__).resolve().parents[1]
 # an earlier ambient package.
 sys.path[:] = [entry for entry in sys.path if entry != str(ROOT)]
 sys.path.insert(0, str(ROOT))
+from security.generate_build_provenance import validate_toolchain
+from RealLLM.pinned_assets import PINNED_RELEASE_ASSETS
+from security.proof_reports import (
+    REPLAY_EXECUTION_SCOPE,
+    REPLAY_INTEGRITY_VERDICT,
+    WORKLOAD_CLASSIFICATION,
+)
+
+
 INPUT_SCHEMA = ROOT / "schemas" / "portfolio-release-input.schema.json"
 IDENTITY_SCHEMA = ROOT / "schemas" / "portfolio-source-identity.schema.json"
 CANONICAL_REMOTE = "https://github.com/ALLPROTO/core-lm-benchmark.git"
@@ -58,10 +69,11 @@ EXPECTED_ALLOWED_SIGNERS_SHA256 = (
 )
 EXPECTED_FINGERPRINT = "SHA256:8A4y/GkoFglweSfg3rP21BtWWqIBOeQAUoAJDQM8sMM"
 EXPECTED_SIGNING_PRINCIPAL = "ivantyschenko777@gmail.com"
-EXPECTED_MODEL = "Qwen/Qwen2.5-0.5B"
-EXPECTED_MODEL_REVISION = "060db6499f32faf8b98477b0a26969ef7d8b9987"
-EXPECTED_CORPUS = "Salesforce/wikitext"
-EXPECTED_CORPUS_REVISION = "b08601e04326c79dfdd32d625aee71d232d685c3"
+EXPECTED_MODEL = PINNED_RELEASE_ASSETS["model"]["repository"]
+EXPECTED_MODEL_REVISION = PINNED_RELEASE_ASSETS["model"]["revision"]
+EXPECTED_CORPUS = PINNED_RELEASE_ASSETS["corpus"]["repository"]
+EXPECTED_CORPUS_REVISION = PINNED_RELEASE_ASSETS["corpus"]["revision"]
+MEDIA_CLASSIFICATION = "HUMAN_REVIEWED_PRESENTATION_NOT_MACHINE_EVIDENCE"
 TAG_RE = re.compile(r"^corelm-portfolio-v([1-9][0-9]*)$")
 GIT_OBJECT_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -113,16 +125,21 @@ VERIFIER_PATHS = (
     "RealLLM/codecs.py",
     "RealLLM/develop_voidtoken_v5.py",
     "RealLLM/legacy_voidtoken_adapter.py",
+    "RealLLM/pinned_assets.py",
     "RealLLM/run_voidtoken_v5_frozen.py",
     "RealLLM/verify_voidtoken_v5_development.py",
     "RealLLM/voidtoken_v5.py",
+    "platforms/macos/scripts/run-proof.sh",
     "publication/build_portfolio_release.py",
+    "publication/collect_portfolio_demo.py",
+    "publication/verify_portfolio_github_release.py",
     "schemas/portfolio-release-input.schema.json",
     "schemas/portfolio-source-identity.schema.json",
     "security/generate_app_proof_core.py",
     "security/generate_build_provenance.py",
     "security/generate_direct_sbom.py",
     "security/generate_python_runtime_manifest.py",
+    "security/proof_reports.py",
     "security/verify_app_bundle.sh",
     "security/verify_app_run_evidence.py",
     "security/verify_local_app_run.py",
@@ -132,8 +149,6 @@ VERIFIER_PATHS = (
 LEGACY_PRIVATE_PATH_ALLOWLIST = {
     "RealLLM/verify_voidtoken_v5_development.py": "9645dd4a456a9c7e35c0f91dc613ea4cbad97bea8b0e6d3f6090c9604cd7308b",
     "Tests/test_app_real_llm_evidence.py": "ff0419672b46fea6a77f48ec89c7b60ebab5b71362b52593534391219a100a97",
-    "Tests/test_build_provenance.py": "fcc66c13b9c23fb5d4770f1439088abee260de8c94243b4b0c757be6cec2c69b",
-    "Tests/test_independent_replication.py": "54283ec6d76e56c626d7f1e16aa55d9d98d15825e7a19549b9b46f05d15e1608",
     "Tests/test_local_app_build.py": "ff7c1a4e6b114b68ff59d9032cf27e5cf895f4466c6c75572e73d56dde8d3e05",
     "platforms/macos/Tests/SecurityValidationTests.swift": "953c6a7165c62a77baa1bfc714a6da23d67bda6e8986d0ac758c65c562647050",
     "real-llm-results/aggregate.json": "ebf3bb9558282bf23265989df82a9b18c599654b5bb05d82c4e4d400f1f62265",
@@ -732,12 +747,19 @@ def _validate_demo_provenance(
             "height",
             "codec",
             "audio_codec",
+            "evidence_role",
         },
         "demo video identity",
     )
     poster_identity = _exact_object(
         value["poster"],
-        {"sha256", "width", "height", "frame_timestamp_seconds"},
+        {
+            "sha256",
+            "width",
+            "height",
+            "frame_timestamp_seconds",
+            "evidence_role",
+        },
         "demo poster identity",
     )
     capture = _exact_object(
@@ -750,6 +772,13 @@ def _validate_demo_provenance(
         "silent",
     }:
         raise PortfolioReleaseError("demo must be H.264 with AAC or no audio")
+    if (
+        video_identity["evidence_role"] != MEDIA_CLASSIFICATION
+        or poster_identity["evidence_role"] != MEDIA_CLASSIFICATION
+    ):
+        raise PortfolioReleaseError(
+            "demo media must be classified as human-reviewed presentation"
+        )
     duration = video_identity["duration_seconds"]
     if (
         isinstance(duration, bool)
@@ -795,7 +824,7 @@ def _validate_demo_provenance(
     ):
         _digest(value[key], f"demo {key}")
     if (
-        value["workload_classification"] != "PUBLIC_VALIDATION_REGRESSION"
+        value["workload_classification"] != WORKLOAD_CLASSIFICATION
         or value["synthetic_data"] is not False
     ):
         raise PortfolioReleaseError("demo must be a non-synthetic public regression")
@@ -876,11 +905,14 @@ def _validate_runtime_assets(
     if python["version"] != "3.12.13":
         raise PortfolioReleaseError("recorded demo Python must be exactly 3.12.13")
     _digest(python["executable_sha256"], "Python executable")
-    toolchain = _exact_object(
-        value["toolchain"], {"macos_version", "swift_version", "xcode_version"}, "toolchain identity"
-    )
-    if not all(isinstance(item, str) and item.strip() and not PLACEHOLDER_RE.search(item) for item in toolchain.values()):
-        raise PortfolioReleaseError("toolchain versions must be literal non-empty strings")
+    toolchain = value["toolchain"]
+    try:
+        validate_toolchain(toolchain)
+    except ValueError as error:
+        raise PortfolioReleaseError(
+            "runtime toolchain identity is not canonical"
+        ) from error
+    _reject_placeholders(toolchain, "runtime toolchain identity")
     ffprobe_identity = _exact_object(
         value["ffprobe"], {"executable_sha256", "version"}, "ffprobe identity"
     )
@@ -902,28 +934,48 @@ def _validate_runtime_assets(
     model = _exact_object(
         value["model"], {"repository", "revision", "license", "files"}, "model identity"
     )
-    if (
-        model["repository"] != EXPECTED_MODEL
-        or model["revision"] != EXPECTED_MODEL_REVISION
-        or model["license"] != "Apache-2.0"
-    ):
+    pinned_model = PINNED_RELEASE_ASSETS["model"]
+    if {key: model[key] for key in ("repository", "revision", "license")} != {
+        key: pinned_model[key] for key in ("repository", "revision", "license")
+    }:
         raise PortfolioReleaseError("model repository/revision/license is not pinned")
-    _validate_manifest_rows(
+    model_files = _validate_manifest_rows(
         model["files"], exact_paths=None, label="model files", repository=None, include_size=True
     )
+    expected_model_files = [
+        {
+            "path": asset_path,
+            "sha256": pinned_model["files"][asset_path]["sha256"],
+            "size_bytes": pinned_model["files"][asset_path]["bytes"],
+        }
+        for asset_path in sorted(pinned_model["files"])
+    ]
+    if model_files != expected_model_files:
+        raise PortfolioReleaseError("model file set differs from the seven pinned assets")
     corpus = _exact_object(
         value["corpus"],
-        {"repository", "revision", "path", "sha256", "license", "source_url"},
+        {
+            "repository",
+            "revision",
+            "path",
+            "size_bytes",
+            "sha256",
+            "license",
+            "source_url",
+        },
         "corpus identity",
     )
-    if corpus["repository"] != EXPECTED_CORPUS or corpus["revision"] != EXPECTED_CORPUS_REVISION:
-        raise PortfolioReleaseError("corpus repository/revision is not pinned")
-    _safe_relative(corpus["path"], "corpus path")
-    _digest(corpus["sha256"], "corpus file")
-    if not isinstance(corpus["license"], str) or not corpus["license"].strip():
-        raise PortfolioReleaseError("corpus license must be explicit")
-    if not isinstance(corpus["source_url"], str) or not corpus["source_url"].startswith("https://"):
-        raise PortfolioReleaseError("corpus source URL must be HTTPS")
+    pinned_corpus = PINNED_RELEASE_ASSETS["corpus"]
+    if corpus != {
+        "repository": pinned_corpus["repository"],
+        "revision": pinned_corpus["revision"],
+        "path": pinned_corpus["path"],
+        "size_bytes": pinned_corpus["bytes"],
+        "sha256": pinned_corpus["sha256"],
+        "license": pinned_corpus["license"],
+        "source_url": pinned_corpus["source_url"],
+    }:
+        raise PortfolioReleaseError("corpus asset identity is not the exact validation pin")
     application = _exact_object(value["application"], {"executable_sha256"}, "application identity")
     if _digest(application["executable_sha256"], "application executable") != provenance["application_executable_sha256"]:
         raise PortfolioReleaseError("runtime and demo application hashes differ")
@@ -953,6 +1005,10 @@ def _png_dimensions(path: Path) -> tuple[int, int]:
         if end > len(data):
             raise PortfolioReleaseError("demo poster has a truncated PNG payload")
         payload = data[offset + 8 : offset + 8 + length]
+        if chunk_type in {b"tEXt", b"zTXt", b"iTXt", b"eXIf", b"iCCP"}:
+            raise PortfolioReleaseError(
+                "demo poster contains a forbidden metadata/profile PNG chunk"
+            )
         recorded_crc = struct.unpack(">I", data[offset + 8 + length : end])[0]
         if zlib.crc32(chunk_type + payload) & 0xFFFFFFFF != recorded_crc:
             raise PortfolioReleaseError("demo poster PNG CRC is invalid")
@@ -1117,6 +1173,61 @@ def _ffprobe_version(executable: Path) -> str:
     return lines[0]
 
 
+def _validate_ffprobe_metadata(report: Mapping[str, Any]) -> None:
+    """Reject free-text media tags while permitting codec-container brands."""
+
+    format_value = report.get("format")
+    if not isinstance(format_value, dict):
+        raise PortfolioReleaseError("ffprobe report has no format object")
+    format_tags = format_value.get("tags", {})
+    if not isinstance(format_tags, dict):
+        raise PortfolioReleaseError("ffprobe format tags are malformed")
+    allowed_format = {"major_brand", "minor_version", "compatible_brands"}
+    if not set(format_tags).issubset(allowed_format):
+        raise PortfolioReleaseError("demo video contains free-text format metadata")
+    known_brands = {"isom", "iso2", "avc1", "mp41", "mp42", "qt  ", "M4V ", "dash"}
+    for key, value in format_tags.items():
+        if not isinstance(value, str) or not value:
+            raise PortfolioReleaseError(f"demo video structural tag {key} is unsafe")
+        if key == "minor_version":
+            safe = len(value) <= 10 and value.isascii() and value.isdecimal()
+        elif key == "major_brand":
+            safe = value in known_brands
+        else:
+            safe = (
+                len(value) <= 32
+                and len(value) % 4 == 0
+                and all(
+                    value[offset : offset + 4] in known_brands
+                    for offset in range(0, len(value), 4)
+                )
+            )
+        if not safe:
+            raise PortfolioReleaseError(f"demo video structural tag {key} is unsafe")
+    streams = report.get("streams")
+    if not isinstance(streams, list):
+        raise PortfolioReleaseError("ffprobe report has no stream list")
+    for stream in streams:
+        if not isinstance(stream, dict):
+            raise PortfolioReleaseError("ffprobe stream is malformed")
+        tags = stream.get("tags", {})
+        if not isinstance(tags, dict) or not set(tags).issubset(
+            {"language", "vendor_id"}
+        ):
+            raise PortfolioReleaseError("demo video contains free-text stream metadata")
+        language = tags.get("language")
+        vendor = tags.get("vendor_id")
+        if language is not None and language != "und":
+            raise PortfolioReleaseError("demo video language tag is unsafe")
+        if vendor is not None and (
+            not isinstance(vendor, str)
+            or (
+                vendor not in {"appl", "[0][0][0][0]"}
+            )
+        ):
+            raise PortfolioReleaseError("demo video vendor tag is unsafe")
+
+
 def _validate_video(
     path: Path,
     provenance: Mapping[str, Any],
@@ -1145,7 +1256,10 @@ def _validate_video(
             "-v",
             "error",
             "-show_entries",
-            "format=duration:stream=codec_name,codec_type,width,height",
+            (
+                "format=duration:format_tags:"
+                "stream=codec_name,codec_type,width,height:stream_tags"
+            ),
             "-of",
             "json",
             str(path),
@@ -1161,6 +1275,7 @@ def _validate_video(
         raise PortfolioReleaseError("ffprobe returned malformed JSON") from error
     if not isinstance(report, dict) or not isinstance(report.get("streams"), list):
         raise PortfolioReleaseError("ffprobe report is incomplete")
+    _validate_ffprobe_metadata(report)
     streams = report["streams"]
     videos = [stream for stream in streams if isinstance(stream, dict) and stream.get("codec_type") == "video"]
     audios = [stream for stream in streams if isinstance(stream, dict) and stream.get("codec_type") == "audio"]
@@ -1445,6 +1560,76 @@ def _read_tar_member(
     return data
 
 
+def _canonical_evidence_archive_bytes(archive: tarfile.TarFile) -> bytes:
+    """Reserialize the only accepted evidence-tar byte representation."""
+
+    members = archive.getmembers()
+    names = [member.name for member in members]
+    if names != sorted(names, key=lambda item: item.encode("utf-8")):
+        raise PortfolioReleaseError("demo evidence members are not bytewise sorted")
+    if archive.pax_headers:
+        raise PortfolioReleaseError("demo evidence has noncanonical global PAX metadata")
+    payloads: list[tuple[tarfile.TarInfo, bytes]] = []
+    for member in members:
+        if (
+            not member.isfile()
+            or member.type != tarfile.REGTYPE
+            or member.mode != 0o600
+            or member.mtime != 0
+            or member.uid != 0
+            or member.gid != 0
+            or member.uname != ""
+            or member.gname != ""
+            or member.linkname != ""
+            or member.pax_headers
+            or member.devmajor != 0
+            or member.devminor != 0
+        ):
+            raise PortfolioReleaseError(
+                "demo evidence member metadata is not canonical"
+            )
+        extracted = archive.extractfile(member)
+        if extracted is None:
+            raise PortfolioReleaseError("demo evidence member cannot be canonicalized")
+        data = extracted.read(member.size + 1)
+        if len(data) != member.size:
+            raise PortfolioReleaseError("demo evidence member changed while canonicalizing")
+        payloads.append((member, data))
+    compressed_target = io.BytesIO()
+    with gzip.GzipFile(
+        filename="", mode="wb", compresslevel=9, fileobj=compressed_target, mtime=0
+    ) as compressed:
+        with tarfile.open(
+            fileobj=compressed, mode="w|", format=tarfile.PAX_FORMAT
+        ) as canonical:
+            for observed, data in payloads:
+                entry = tarfile.TarInfo(observed.name)
+                entry.size = len(data)
+                entry.mode = 0o600
+                entry.mtime = 0
+                entry.uid = 0
+                entry.gid = 0
+                entry.uname = ""
+                entry.gname = ""
+                canonical.addfile(entry, io.BytesIO(data))
+    return compressed_target.getvalue()
+
+
+def _bounded_archive_source_bytes(
+    path: Path, captured_source: BinaryIO | None
+) -> bytes:
+    if captured_source is None:
+        _require_regular_file(path, MAX_EVIDENCE_BYTES)
+        payload = path.read_bytes()
+    else:
+        captured_source.seek(0)
+        payload = captured_source.read(MAX_EVIDENCE_BYTES + 1)
+        captured_source.seek(0)
+    if not payload or len(payload) > MAX_EVIDENCE_BYTES:
+        raise PortfolioReleaseError("demo evidence compressed bytes exceed the bound")
+    return payload
+
+
 def _json_from_bytes(data: bytes, label: str, *, canonical: bool) -> Any:
     if data.startswith(b"\xef\xbb\xbf"):
         raise PortfolioReleaseError(f"{label} has a forbidden UTF-8 BOM")
@@ -1483,17 +1668,20 @@ def _validate_evidence_report(
         "synthetic_data",
     }
     if kind == "fresh_model_replay":
-        keys.update({"fresh", "model"})
+        keys.update({"execution_scope", "model", "replay"})
     report = _exact_object(value, keys, f"{kind} report")
+    expected_verdict = (
+        REPLAY_INTEGRITY_VERDICT if kind == "fresh_model_replay" else "PASS"
+    )
     if (
         report["schema_version"] != 1
         or report["report_kind"] != kind
-        or report["verdict"] != "PASS"
+        or report["verdict"] != expected_verdict
         or report["metric_verdict"] != metric_verdict
         or report["source"] != source
         or report["receipt_sha256"] != receipt_sha256
         or report["result_sha256"] != result_sha256
-        or report["workload_classification"] != "PUBLIC_VALIDATION_REGRESSION"
+        or report["workload_classification"] != WORKLOAD_CLASSIFICATION
         or report["synthetic_data"] is not False
     ):
         raise PortfolioReleaseError(f"{kind} report does not bind the demo proof")
@@ -1501,12 +1689,60 @@ def _validate_evidence_report(
         model = _exact_object(
             report["model"], {"repository", "revision"}, "model replay identity"
         )
+        replay = _exact_object(
+            report["replay"],
+            {
+                "decisions",
+                "lossAbsoluteTolerance",
+                "lossRelativeTolerance",
+                "maximumBaselineLossDifference",
+                "maximumCandidateLossDifference",
+                "maximumAllowedBaselineDifference",
+                "maximumAllowedCandidateDifference",
+                "primaryManifestSHA256",
+                "tokenMetricsSHA256",
+                "perDecisionEvidenceSHA256",
+            },
+            "model replay summary",
+        )
         if (
-            report["fresh"] is not True
+            report["execution_scope"] != REPLAY_EXECUTION_SCOPE
             or model["repository"] != EXPECTED_MODEL
             or model["revision"] != EXPECTED_MODEL_REVISION
+            or replay["decisions"] != 1_024
+            or replay["lossAbsoluteTolerance"] != 2e-5
+            or replay["lossRelativeTolerance"] != 2e-6
         ):
-            raise PortfolioReleaseError("fresh model replay identity is not exact")
+            raise PortfolioReleaseError("recorded model replay identity is not exact")
+        for key in (
+            "maximumBaselineLossDifference",
+            "maximumCandidateLossDifference",
+            "maximumAllowedBaselineDifference",
+            "maximumAllowedCandidateDifference",
+        ):
+            observed = replay[key]
+            if (
+                isinstance(observed, bool)
+                or not isinstance(observed, (int, float))
+                or not math.isfinite(float(observed))
+                or observed < 0
+            ):
+                raise PortfolioReleaseError("recorded model replay summary is invalid")
+        if (
+            replay["maximumBaselineLossDifference"]
+            > replay["maximumAllowedBaselineDifference"]
+            or replay["maximumCandidateLossDifference"]
+            > replay["maximumAllowedCandidateDifference"]
+        ):
+            raise PortfolioReleaseError(
+                "author-recorded heavy replay exceeds the retained tolerance envelope"
+            )
+        for key in (
+            "primaryManifestSHA256",
+            "tokenMetricsSHA256",
+            "perDecisionEvidenceSHA256",
+        ):
+            _digest(replay[key], f"model replay {key}")
 
 
 def _load_product_evidence_verifiers() -> tuple[Any, Any, Any]:
@@ -1521,8 +1757,88 @@ def _load_product_evidence_verifiers() -> tuple[Any, Any, Any]:
     return canonical_provenance_bytes, validate_build_manifest, _verify_result_and_receipt
 
 
+def _validate_evidence_toolchain_binding(
+    build_document: Mapping[str, Any],
+    expected_toolchain: Mapping[str, Any] | None,
+) -> None:
+    if expected_toolchain is None:
+        return
+    observed = build_document.get("toolchain")
+    if _canonical_json(observed) != _canonical_json(expected_toolchain):
+        raise PortfolioReleaseError(
+            "runtime assets toolchain differs from demo build provenance"
+        )
+
+
+def _validate_public_runtime_provenance(
+    value: Any,
+    receipt: Mapping[str, Any],
+    result: Mapping[str, Any],
+    expected_python: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    runtime = _exact_object(
+        value,
+        {"schema_version", "source_manifest", "python"},
+        "public runtime provenance",
+    )
+    if runtime["schema_version"] != 1:
+        raise PortfolioReleaseError("public runtime provenance version is unsupported")
+    source_manifest = _exact_object(
+        runtime["source_manifest"],
+        {
+            "schema_version",
+            "sha256",
+            "file_count",
+            "symlink_count",
+            "total_bytes",
+            "entries_sha256",
+        },
+        "source Python runtime manifest",
+    )
+    if source_manifest["schema_version"] != "corelm-python-runtime-manifest-v1":
+        raise PortfolioReleaseError("source Python runtime schema is unsupported")
+    for key in ("sha256", "entries_sha256"):
+        _digest(source_manifest[key], f"source Python runtime {key}")
+    for key, minimum in (
+        ("file_count", 1),
+        ("symlink_count", 0),
+        ("total_bytes", 1),
+    ):
+        observed = source_manifest[key]
+        if type(observed) is not int or observed < minimum:
+            raise PortfolioReleaseError("source Python runtime totals are invalid")
+    python = _exact_object(
+        runtime["python"], {"version", "executable_sha256"}, "runtime Python"
+    )
+    if python["version"] != "3.12.13":
+        raise PortfolioReleaseError("recorded demo Python must be exactly 3.12.13")
+    _digest(python["executable_sha256"], "runtime Python executable")
+    worker = receipt.get("worker")
+    environment = result.get("environment")
+    if (
+        not isinstance(worker, dict)
+        or not isinstance(environment, dict)
+        or source_manifest["sha256"] != worker.get("runtimeManifestSHA256")
+        or python["executable_sha256"] != worker.get("pythonExecutableSHA256")
+        or python["version"] != environment.get("python")
+    ):
+        raise PortfolioReleaseError(
+            "runtime provenance, receipt worker, and result Python identities differ"
+        )
+    if expected_python is not None and _canonical_json(python) != _canonical_json(
+        expected_python
+    ):
+        raise PortfolioReleaseError(
+            "runtime-assets Python differs from extracted runtime provenance"
+        )
+    return runtime
+
+
 def _extract_and_verify_product_evidence(
-    archive: tarfile.TarFile, source: Mapping[str, str]
+    archive: tarfile.TarFile,
+    source: Mapping[str, str],
+    expected_toolchain: Mapping[str, Any] | None = None,
+    expected_python: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     (
         canonical_provenance_bytes,
@@ -1531,10 +1847,22 @@ def _extract_and_verify_product_evidence(
     ) = _load_product_evidence_verifiers()
     with tempfile.TemporaryDirectory(prefix="corelm-portfolio-evidence-") as temporary:
         root = Path(temporary)
+        run_root = root / str(uuid.uuid4())
+        run_root.mkdir(mode=0o700)
         try:
             for member in archive.getmembers():
                 pure = _safe_tar_name(member.name, "demo evidence archive")
-                destination = root.joinpath(*pure.parts)
+                if pure.parts[0] == "run":
+                    destination = run_root.joinpath(*pure.parts[1:])
+                elif pure.parts[0] == "reports":
+                    destination = run_root / "proof-reports"
+                    destination = destination.joinpath(*pure.parts[1:])
+                elif pure.parts == ("logs", "terminal.log"):
+                    destination = run_root / "proof-reports" / "terminal.log"
+                else:
+                    raise PortfolioReleaseError(
+                        "demo evidence extraction topology is not canonical"
+                    )
                 if member.isdir():
                     destination.mkdir(mode=0o700, parents=True, exist_ok=True)
                     continue
@@ -1548,8 +1876,8 @@ def _extract_and_verify_product_evidence(
                 destination.chmod(0o600)
         except (OSError, tarfile.TarError) as error:
             raise PortfolioReleaseError("demo evidence cannot be safely materialized") from error
-        receipt_path = root / "run" / "app-run-receipt.json"
-        result_path = root / "run" / "validation-064-071.json"
+        receipt_path = run_root / "app-run-receipt.json"
+        result_path = run_root / "validation-064-071.json"
         receipt = _read_json(receipt_path)
         if not isinstance(receipt, dict):
             raise PortfolioReleaseError("demo receipt is malformed")
@@ -1574,18 +1902,39 @@ def _extract_and_verify_product_evidence(
             expected_build_bytes = canonical_provenance_bytes(build_document)
         except (TypeError, ValueError) as error:
             raise PortfolioReleaseError("demo build provenance is invalid") from error
-        build_path = root / "run" / "build-provenance.json"
+        build_path = run_root / "build-provenance.json"
         if build_path.read_bytes() != expected_build_bytes:
             raise PortfolioReleaseError("standalone build provenance differs from the receipt")
+        _validate_evidence_toolchain_binding(
+            build_document,
+            expected_toolchain,
+        )
         build_source = build_document["source"]
         if build_source.get("commit") != source["commit"] or build_source.get("tree") != source["tree"]:
             raise PortfolioReleaseError("demo build provenance does not bind release source")
-        runtime_path = root / "run" / "runtime-provenance.json"
-        runtime_value = _read_json(runtime_path)
+        runtime_path = run_root / "runtime-provenance.json"
+        runtime_value = _read_canonical_json(runtime_path)
         _reject_placeholders(runtime_value, "runtime provenance")
-        worker = receipt.get("worker")
-        if not isinstance(worker, dict) or _sha256(runtime_path) != worker.get("runtimeManifestSHA256"):
-            raise PortfolioReleaseError("runtime provenance differs from the receipt")
+        _validate_public_runtime_provenance(
+            runtime_value, receipt, verified_result, expected_python
+        )
+        try:
+            from security.proof_reports import verify_report
+
+            verify_report(
+                run_root / "proof-reports" / "structural-verifier.json",
+                run_root,
+                "structural_verifier",
+            )
+            verify_report(
+                run_root / "proof-reports" / "fresh-model-replay.json",
+                run_root,
+                "fresh_model_replay",
+            )
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            raise PortfolioReleaseError(
+                "tracked proof-report verifier rejected retained evidence"
+            ) from error
         return verified_result
 
 
@@ -1595,8 +1944,11 @@ def _validate_evidence_archive(
     provenance: Mapping[str, Any],
     source: Mapping[str, str],
     captured_source: BinaryIO | None = None,
+    expected_toolchain: Mapping[str, Any] | None = None,
+    expected_python: Mapping[str, Any] | None = None,
 ) -> None:
     try:
+        compressed_bytes = _bounded_archive_source_bytes(path, captured_source)
         opener = (
             _open_bounded_tar_stream(
                 captured_source, label="demo evidence archive"
@@ -1615,6 +1967,10 @@ def _validate_evidence_archive(
                 source_commit=None,
                 source_prefix=None,
             )
+            if _canonical_evidence_archive_bytes(archive) != compressed_bytes:
+                raise PortfolioReleaseError(
+                    "demo evidence is not the deterministic canonical tar.gz bytes"
+                )
             regular = {member.name for member in archive.getmembers() if member.isfile()}
             directories = {member.name.rstrip("/") for member in archive.getmembers() if member.isdir()}
             if not EVIDENCE_REQUIRED_FILES.issubset(regular):
@@ -1683,18 +2039,19 @@ def _validate_evidence_archive(
                     metric_verdict=metric_verdict,
                 )
             log = _read_tar_member(archive, "logs/terminal.log", MAX_TEXT_BYTES)
-            try:
-                terminal = log.decode("utf-8")
-            except UnicodeDecodeError as error:
-                raise PortfolioReleaseError("demo terminal log is not UTF-8") from error
-            expected_outcome = (
-                "END-TO-END PROOF PASS"
+            expected_terminal = (
+                b"END-TO-END PROOF PASS\n"
                 if metric_verdict == "PASS"
-                else "END-TO-END PROOF VERIFIED — METRIC FAIL"
+                else "END-TO-END PROOF VERIFIED — METRIC FAIL\n".encode("utf-8")
             )
-            if terminal.count(expected_outcome) != 1 or "rerun-to-pass" in terminal.lower():
-                raise PortfolioReleaseError("demo terminal outcome is missing or selection-tainted")
-            _extract_and_verify_product_evidence(archive, source)
+            if log != expected_terminal:
+                raise PortfolioReleaseError("demo terminal bytes are not the exact outcome")
+            _extract_and_verify_product_evidence(
+                archive,
+                source,
+                expected_toolchain=expected_toolchain,
+                expected_python=expected_python,
+            )
     except (OSError, tarfile.TarError) as error:
         raise PortfolioReleaseError("demo evidence archive cannot be inspected") from error
 
@@ -2016,12 +2373,12 @@ def _source_identity(
             "result_sha256": provenance["result_sha256"],
             "synthetic_data": False,
             "video_sha256": provenance["video"]["sha256"],
-            "workload_classification": "PUBLIC_VALIDATION_REGRESSION",
+            "workload_classification": WORKLOAD_CLASSIFICATION,
         },
         "related_sources": {
             "blind_v1_draft": {
                 "commit": related["blind_v1_draft"]["commit"],
-                "lifecycle_state": "DRAFT_NOT_PREREGISTERED",
+                "lifecycle_state": "CHECKPOINT_MISSED_TERMINAL_DRAFT",
                 "pull_request": BLIND_PULL_REQUEST,
                 "tree": related["blind_v1_draft"]["tree"],
             },
@@ -2876,7 +3233,7 @@ def _verify_release_snapshot(
             "result_sha256": provenance["result_sha256"],
             "synthetic_data": False,
             "video_sha256": provenance["video"]["sha256"],
-            "workload_classification": "PUBLIC_VALIDATION_REGRESSION",
+            "workload_classification": WORKLOAD_CLASSIFICATION,
         }:
             raise PortfolioReleaseError("source identity and demo provenance differ")
         width, height = _png_dimensions(poster_path)
@@ -2897,6 +3254,8 @@ def _verify_release_snapshot(
             provenance=provenance,
             source=identity["source"],
             captured_source=captured_archives[evidence_name],
+            expected_toolchain=runtime["toolchain"],
+            expected_python=runtime["python"],
         )
         source_name = f"{tag}-source.tar.gz"
         source_archive = root / source_name
@@ -3013,6 +3372,8 @@ def build_release(
         assets["demo_evidence"],
         provenance=provenance,
         source={"commit": commit, "tree": tree},
+        expected_toolchain=runtime["toolchain"],
+        expected_python=runtime["python"],
     )
     if not output.is_absolute():
         raise PortfolioReleaseError("output directory path must be absolute")

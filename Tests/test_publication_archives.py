@@ -56,24 +56,24 @@ class PublicationArchiveTests(unittest.TestCase):
                     pass
             self.assertEqual(outside_file.read_bytes(), b"preserve me")
 
-    def test_publication_release_identifier_is_synchronized(self):
+    def test_current_software_and_historical_paper_identities_are_separate(self):
         citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertRegex(release_tag, r"^voidtoken-v5-paper-v[1-9][0-9]*$")
+        self.assertEqual(release_tag, "corelm-portfolio-v1")
 
         for relative in (
             "publication/README.md",
             "publication/reproducibility/README.md",
         ):
             text = (ROOT / relative).read_text(encoding="utf-8")
-            self.assertIn(f"RELEASE_TAG={release_tag}", text)
+            self.assertIn(f"RELEASE_TAG={PAPER_TEST_TAG}", text)
 
         manuscript = (
             ROOT / "publication/arxiv-v5/main.tex"
         ).read_text(encoding="utf-8")
-        self.assertIn(rf"\path{{{release_tag}}}", manuscript)
+        self.assertIn(rf"\path{{{PAPER_TEST_TAG}}}", manuscript)
 
         sbom = json.loads(
             (
@@ -84,6 +84,9 @@ class PublicationArchiveTests(unittest.TestCase):
         self.assertEqual(component["version"], release_tag)
         self.assertTrue(component["purl"].endswith(f"@{release_tag}"))
         self.assertEqual(sbom["dependencies"][0]["ref"], component["bom-ref"])
+
+        with self.assertRaisesRegex(ValueError, "outside the historical paper contour"):
+            archives._citation_release_tag()
 
     def test_current_publication_readmes_close_beacon_without_overclaim(self):
         evidence_commit = "85c2add1799652a818873a04310b75821728da11"
@@ -234,6 +237,9 @@ class PublicationArchiveTests(unittest.TestCase):
         responses = self._base_release_responses(dirty=True)
         with (
             patch.object(archives, "_git", side_effect=self._fake_git(responses)),
+            patch.object(
+                archives, "_citation_release_tag", return_value=PAPER_TEST_TAG
+            ),
             self.assertRaisesRegex(ValueError, "clean worktree"),
         ):
             archives._build_context(PAPER_TEST_TAG)
@@ -258,6 +264,9 @@ class PublicationArchiveTests(unittest.TestCase):
         responses = self._base_release_responses()
         with (
             patch.object(archives, "_git", side_effect=self._fake_git(responses)),
+            patch.object(
+                archives, "_citation_release_tag", return_value=PAPER_TEST_TAG
+            ),
             self.assertRaisesRegex(ValueError, "CITATION.cff version"),
         ):
             archives._build_context(MISMATCHED_PAPER_TEST_TAG)
@@ -269,6 +278,9 @@ class PublicationArchiveTests(unittest.TestCase):
         )
         with (
             patch.object(archives, "_git", side_effect=self._fake_git(responses)),
+            patch.object(
+                archives, "_citation_release_tag", return_value=PAPER_TEST_TAG
+            ),
             self.assertRaisesRegex(ValueError, "lightweight"),
         ):
             archives._build_context(PAPER_TEST_TAG)
@@ -286,8 +298,11 @@ class PublicationArchiveTests(unittest.TestCase):
         responses[
             ("ls-remote", "--exit-code", "origin", reference)
         ] = _completed(f"{'a' * 40}\t{reference}\n")
-        with patch.object(
-            archives, "_git", side_effect=self._fake_git(responses)
+        with (
+            patch.object(archives, "_git", side_effect=self._fake_git(responses)),
+            patch.object(
+                archives, "_citation_release_tag", return_value=PAPER_TEST_TAG
+            ),
         ):
             context = archives._build_context(PAPER_TEST_TAG)
         self.assertEqual(context["buildMode"], "clean-public-tag-release")
@@ -306,6 +321,9 @@ class PublicationArchiveTests(unittest.TestCase):
                 archives,
                 "_git",
                 side_effect=self._fake_git(wrong_origin),
+            ),
+            patch.object(
+                archives, "_citation_release_tag", return_value=PAPER_TEST_TAG
             ),
             self.assertRaisesRegex(ValueError, "origin"),
         ):
@@ -326,7 +344,8 @@ class PublicationArchiveTests(unittest.TestCase):
             self.assertIn("corelm-portfolio-vN", document)
         self.assertIn("lightweight historical paper", publication)
         self.assertIn("SSH-signed annotated portfolio", publication)
-        self.assertIn("requires it to equal", publication)
+        self.assertIn("historical `CITATION.cff` names the same paper tag", publication)
+        self.assertIn("current default branch", publication)
         self.assertIn("differs from `CITATION.cff`", publication)
         self.assertIn("must not be passed to", replication)
         self.assertIn("SSH-signed annotated", release_process)
@@ -474,11 +493,13 @@ class PublicationArchiveTests(unittest.TestCase):
                     "platforms/macos/App/Sources/SecurityValidation.swift",
                     "platforms/macos/Tests/SecurityValidationTests.swift",
                     "Tests/test_platform_boundaries.py",
+                    "Tests/test_portfolio_demo_collector.py",
                     "Tests/test_portfolio_release.py",
                     "security/generate_python_runtime_manifest.py",
                     "security/generate_build_provenance.py",
                     "security/find_python312.sh",
                     "security/manage_local_runtime.py",
+                    "security/proof_reports.py",
                     "security/validate_proof_challenge.sh",
                     "security/verify_app_run_evidence.py",
                     "security/verify_primary_evidence.py",
@@ -522,6 +543,8 @@ class PublicationArchiveTests(unittest.TestCase):
                     "signing/corelm-codec-signing.pub",
                     "tools/independent_replication.py",
                     "publication/build_portfolio_release.py",
+                    "publication/collect_portfolio_demo.py",
+                    "RealLLM/pinned_assets.py",
                     "publication/PORTFOLIO_RELEASE.md",
                 ):
                     self.assertIn(f"{prefix}/{relative}", names)

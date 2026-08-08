@@ -31,6 +31,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from security.verify_primary_evidence import (  # noqa: E402
     verify_primary_evidence,
 )
+from security.proof_reports import verify_report, write_report  # noqa: E402
 
 
 MODEL_REPOSITORY = "Qwen/Qwen2.5-0.5B"
@@ -701,7 +702,22 @@ def main() -> int:
         type=Path,
         default=Path.home() / ".cache" / "corelm-model-assets",
     )
+    parser.add_argument(
+        "--structural-report",
+        type=Path,
+        help="canonical structural report created by verify_local_app_run.py",
+    )
+    parser.add_argument(
+        "--report",
+        type=Path,
+        help=(
+            "exclusively create the canonical fresh-model-replay report "
+            "inside RUN/proof-reports after all 1,024 decisions replay"
+        ),
+    )
     arguments = parser.parse_args()
+    if (arguments.report is None) != (arguments.structural_report is None):
+        parser.error("--report and --structural-report must be supplied together")
     for name in (
         "HF_ENDPOINT",
         "HF_INFERENCE_ENDPOINT",
@@ -728,9 +744,29 @@ def main() -> int:
     }.items():
         os.environ[name] = value
     try:
+        if arguments.structural_report is not None:
+            verify_report(
+                arguments.structural_report,
+                arguments.run_directory,
+                "structural_verifier",
+            )
         summary = verify_primary_replay(
             arguments.run_directory, arguments.hf_home
         )
+        if arguments.report is not None:
+            # Recheck the structural binding after the heavyweight replay so
+            # a concurrent mutation cannot be converted into a fresh report.
+            verify_report(
+                arguments.structural_report,
+                arguments.run_directory,
+                "structural_verifier",
+            )
+            write_report(
+                arguments.report,
+                arguments.run_directory,
+                "fresh_model_replay",
+                replay_summary=summary,
+            )
     except (
         OSError,
         ValueError,

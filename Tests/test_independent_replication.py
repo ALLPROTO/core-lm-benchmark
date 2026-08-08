@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def attestation(profile: str = "https://github.com/external-reviewer"):
     return {
-        "attestedAt": "2026-08-05T12:00:00Z",
+        "committedAt": "2026-08-05T12:00:00Z",
         "declaration": replication.DECLARATION,
         "publicProfileURL": profile,
         "schemaVersion": replication.ATTESTATION_SCHEMA,
@@ -26,7 +26,7 @@ def attestation(profile: str = "https://github.com/external-reviewer"):
             "humanOperated": True,
             "notAIAgent": True,
             "notProjectAuthor": True,
-            "reportedWithoutOutcomeSelection": True,
+            "willReportWithoutOutcomeSelection": True,
             "sourceUnmodifiedBeforeRun": True,
         },
     }
@@ -205,6 +205,34 @@ class IndependentReplicationTests(unittest.TestCase):
         false_statement["statements"]["humanOperated"] = False
         with self.assertRaises(replication.ReplicationError):
             replication._validate_attestation(false_statement)
+        template = json.loads(
+            (
+                ROOT
+                / "docs/independent-replication-attestation.template.json"
+            ).read_text(encoding="utf-8")
+        )
+        self.assertEqual(template["schemaVersion"], replication.ATTESTATION_SCHEMA)
+        self.assertEqual(template["declaration"], replication.DECLARATION)
+        self.assertIn("committedAt", template)
+        template["committedAt"] = "2026-08-05T12:00:00Z"
+        template["publicProfileURL"] = "https://github.com/external-reviewer"
+        replication._validate_attestation(template)
+        self.assertIn("I commit to run", replication.DECLARATION)
+        self.assertIn(
+            "publish the first completed attempt", replication.DECLARATION
+        )
+        self.assertNotIn("I ran", replication.DECLARATION)
+        self.assertNotIn("report this completed attempt", replication.DECLARATION)
+        legacy = attestation()
+        legacy["attestedAt"] = legacy.pop("committedAt")
+        with self.assertRaises(replication.ReplicationError):
+            replication._validate_attestation(legacy)
+        legacy = attestation()
+        legacy["statements"]["reportedWithoutOutcomeSelection"] = legacy[
+            "statements"
+        ].pop("willReportWithoutOutcomeSelection")
+        with self.assertRaises(replication.ReplicationError):
+            replication._validate_attestation(legacy)
 
     def test_terminal_sanitizer_removes_local_identity_and_credentials(self):
         token = "gh" + "p_" + ("A" * 30)
@@ -250,7 +278,7 @@ class IndependentReplicationTests(unittest.TestCase):
             replication.ReplicationError, "private home path"
         ):
             replication._assert_public_bytes(
-                b"/Users/private-person/project", "fixture"
+                b"/" + b"Users/private-person/project", "fixture"
             )
         marker = b"-----BEGIN " + b"RSA PRIVATE KEY-----"
         with self.assertRaisesRegex(
@@ -684,6 +712,9 @@ class IndependentReplicationTests(unittest.TestCase):
             "blind/generalization result",
             "tools/independent_replication.py record",
             "tools/independent_replication.py verify",
+            "prospective",
+            "first completed attempt",
+            "committedAt",
         ):
             self.assertIn(required, documentation)
         self.assertNotIn(str(Path.home()), documentation)

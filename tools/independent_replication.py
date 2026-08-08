@@ -32,7 +32,7 @@ from typing import Any, Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE_SCHEMA = "corelm-independent-replication-bundle-v1"
-ATTESTATION_SCHEMA = "corelm-independent-human-attestation-v1"
+ATTESTATION_SCHEMA = "corelm-independent-human-pre-run-attestation-v1"
 ENVIRONMENT_SCHEMA = "corelm-independent-replication-environment-v1"
 RUN_FILES_SCHEMA = "corelm-independent-replication-run-files-v1"
 EXPECTED_PYTHON = (3, 12, 13)
@@ -139,10 +139,11 @@ BUNDLE_TOP_ENTRIES = {
     "SHA256SUMS",
 }
 DECLARATION = (
-    "I am a human independent of the Core LM author and AI agents. I ran the "
-    "documented command on the declared machine from a fresh public clone, "
-    "made no source changes before execution, and report this completed "
-    "attempt without selecting or altering its metric outcome."
+    "I am a human independent of the Core LM author and AI agents. I commit "
+    "to run the documented command on a different independently controlled "
+    "machine from a fresh public clone, make no source changes before "
+    "execution, and publish the first completed attempt without selecting or "
+    "altering its metric outcome."
 )
 
 
@@ -288,7 +289,7 @@ def _validate_attestation(value: Any) -> dict[str, Any]:
         {
             "schemaVersion",
             "publicProfileURL",
-            "attestedAt",
+            "committedAt",
             "declaration",
             "statements",
         },
@@ -303,7 +304,7 @@ def _validate_attestation(value: Any) -> dict[str, Any]:
         raise ReplicationError("the project author's account is not independent")
     if "replace" in match.group(1).casefold():
         raise ReplicationError("the profile placeholder must be replaced")
-    _timestamp(document["attestedAt"], "attestedAt")
+    _timestamp(document["committedAt"], "committedAt")
     if document["declaration"] != DECLARATION:
         raise ReplicationError("the human declaration is not exact")
     statements = _exact_object(
@@ -315,7 +316,7 @@ def _validate_attestation(value: Any) -> dict[str, Any]:
             "freshPublicClone",
             "differentIndependentlyControlledMachine",
             "sourceUnmodifiedBeforeRun",
-            "reportedWithoutOutcomeSelection",
+            "willReportWithoutOutcomeSelection",
         },
         "human attestation statements",
     )
@@ -1650,8 +1651,8 @@ def verify_bundle(directory: Path) -> dict[str, Any]:
         if section.get("path") != filename or _digest(section.get("sha256"), filename) != _sha256(root / filename):
             raise ReplicationError(f"replication binding differs for {filename}")
     attestation = _validate_attestation(_read_json(root / "human-attestation.json"))
-    if _timestamp(attestation["attestedAt"], "attestedAt") > started:
-        raise ReplicationError("human attestation postdates execution start")
+    if _timestamp(attestation["committedAt"], "committedAt") > started:
+        raise ReplicationError("human pre-run commitment postdates execution start")
     if human_ref["publicProfileURL"] != attestation["publicProfileURL"]:
         raise ReplicationError("attestation profile binding differs")
     if human_ref["softwareAssessment"] != "DECLARED_ONLY_NOT_VERIFIED_BY_SOFTWARE":
@@ -2145,11 +2146,13 @@ def record(arguments: argparse.Namespace) -> int:
         run_directory = run_root / secrets.token_hex(16)
         extra["CORELM_RUN_DIR"] = str(run_directory)
     started_at = _utc_now()
-    if _timestamp(attestation["attestedAt"], "attestedAt") > _timestamp(
+    if _timestamp(attestation["committedAt"], "committedAt") > _timestamp(
         started_at, "startedAt"
     ):
         shutil.rmtree(temporary, ignore_errors=True)
-        raise ReplicationError("human attestation must be signed before execution")
+        raise ReplicationError(
+            "human pre-run commitment must be timestamped before execution"
+        )
     try:
         exit_code, terminal_redactions = _capture(
             COMMANDS[arguments.platform],

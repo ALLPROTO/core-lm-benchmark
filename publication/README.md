@@ -1,17 +1,19 @@
 # Core LM publication package
 
-This directory contains the current real-model paper and its reproducibility
-package.
+This directory preserves the historical real-model paper and its
+reproducibility package alongside the current portfolio release tooling.
 
 ## Contents
 
-- `arxiv-v5/` - current prospective real-model VoidToken v5 paper source.
-- `corelm_voidtoken_v5.pdf` - visually inspected current v5 PDF.
+- `arxiv-v5/` - historical prospective real-model VoidToken v5 paper source.
+- `corelm_voidtoken_v5.pdf` - visually inspected historical v5 PDF.
 - `reproducibility/` - instructions for verifying the real-model evidence.
 - `build_archives.py` - deterministic v5 arXiv and reproducibility archive
   builder.
 - `PORTFOLIO_RELEASE.md` - fail-closed 14-asset portfolio release and public
   verification contract.
+- `verify_portfolio_github_release.py` - network-free exact GitHub request
+  generator and saved public-API/14-asset receipt verifier.
 
 The retired synthetic paper and its 115-run data are deliberately absent from
 the default branch. Their exact historical bytes remain recoverable from the
@@ -61,10 +63,11 @@ Two tag families have different contracts and must never be substituted for
 one another:
 
 - `voidtoken-v5-paper-vN` is the lightweight historical paper archive contour.
-  `publication/build_archives.py --release-tag` accepts only this exact family,
-  requires it to equal the one `version` in `CITATION.cff`, verifies that the
-  tag is lightweight, points to clean `HEAD`, and is visible on the canonical
-  public origin.
+  `publication/build_archives.py --release-tag` accepts only this exact family
+  from a checkout whose historical `CITATION.cff` names the same paper tag,
+  verifies that the tag is lightweight, points to clean `HEAD`, and is visible
+  on the canonical public origin. The current default branch instead names the
+  stable `corelm-portfolio-v1` software identity.
 - `corelm-portfolio-vN` is the SSH-signed annotated portfolio and independent-
   replication contour. It is verified by `tools/independent_replication.py`
   against the pinned signer policy and canonical remote. The archive builder
@@ -101,6 +104,11 @@ The current archive names are:
 A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
 
+On the default branch that preview includes the current
+`corelm-portfolio-v1` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
+not a byte claim about the historical paper-v5 package. Exact paper-v5
+reproduction requires the detached tag below.
+
 ## Reproduce the existing tagged package
 
 Use a separate clean clone or worktree at the already published
@@ -125,9 +133,11 @@ python3 publication/build_archives.py --release-tag "$RELEASE_TAG"
 Corrections or new publication assets require a new, never-used lightweight
 `voidtoken-v5-paper-vN` tag and a separate GitHub Release. Never reuse
 `voidtoken-v5-paper-v5` or `voidtoken-v5-evidence-v1`, and never replace assets
-attached to an existing release. First update and test the CFF, manuscript,
-SBOM, and archive identity so the exact `CITATION.cff` version equals the new
-tag. Then set `NEW_RELEASE_TAG` explicitly before running:
+attached to an existing release. Use a dedicated paper-release commit, then
+update and test its CFF, manuscript, SBOM, and archive identity so that
+commit's exact `CITATION.cff` version equals the new tag. Do not treat the
+default branch's portfolio CFF as paper metadata. Then set `NEW_RELEASE_TAG`
+explicitly before running:
 
 ```sh
 : "${NEW_RELEASE_TAG:?set a new, never-used publication tag}"

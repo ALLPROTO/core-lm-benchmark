@@ -12,9 +12,11 @@ attempt marker, or change a frozen result in place. GitHub's per-release
 `immutable` API flag is a separate platform property and must be checked rather
 than inferred from this preservation policy.
 
-The existing publication snapshot uses `voidtoken-v5-paper-v5`. Its CFF
-version, manuscript reference, SBOM component, archive provenance, and
-canonical asset names are synchronized by tests. Check GitHub's live
+The existing publication snapshot uses `voidtoken-v5-paper-v5`. At that
+immutable tag, its CFF version, manuscript reference, SBOM component, archive
+provenance, and canonical asset names are synchronized. The current default
+branch instead uses the `corelm-portfolio-v1` software CFF/SBOM identity.
+Check GitHub's live
 `immutable` API field before making a platform-immutability statement; do not
 derive it from the project policy alone. Regardless of that field, do not
 modify the existing snapshot: publish corrections under a new unique tag and
@@ -42,8 +44,8 @@ packager for the other.
 
 1. create a new, never-used **lightweight** `voidtoken-v5-paper-vN` tag only
    after CI is green;
-2. require that tag to equal the exact `version` in `CITATION.cff` and the
-   paper SBOM/manuscript identity;
+2. require that tag to equal the exact `version` in `CITATION.cff` at the
+   dedicated paper-release commit and the paper SBOM/manuscript identity;
 3. wait for tag-triggered CI;
 4. run `publication/build_archives.py --release-tag ...` from the publicly
    visible tag and verify checksums.
@@ -56,7 +58,27 @@ packager for the other.
    and checksum signatures to bind that same tag/commit/tree;
 3. follow `publication/PORTFOLIO_RELEASE.md` and independently verify the
    fourteen final assets before upload;
-4. never pass a portfolio tag to `publication/build_archives.py`.
+4. generate the exact seven-field GitHub request with
+   `publication/verify_portfolio_github_release.py prepare`, publish without
+   replacing names, then download all assets and five API views logged out;
+5. run the full offline artifact verifier and
+   `publication/verify_portfolio_github_release.py verify`, retaining the
+   canonical receipt outside the same release; and
+6. never pass a portfolio tag to `publication/build_archives.py`.
+
+The receipt records the live response's `immutable` boolean; it does not
+require that value to be true and does not convert project preservation policy
+into a GitHub platform claim. Its API files are saved snapshots, so the
+operator must separately preserve the logged-out fetch commands and confirm
+the public page. Caller-selected `ffprobe` hash/version are invocation evidence
+only, not a release trust root.
+
+After that snapshot, `verify-successor` may approve one signed documentation-
+only child commit if C0 is API-immutable, the tag still names C0, the public
+diff contains only modified `README.md` plus added
+`docs/media/corelm-result.png`, the PNG equals the released poster, and README
+contains only the two exact tagged release-media URLs. The portfolio tag stays
+on C0; C1 is presentation only and cannot replace or redefine evidence.
 
 Historical paper publication commands and arXiv submission steps remain in
 `publication/README.md`, `publication/reproducibility/README.md`, and the

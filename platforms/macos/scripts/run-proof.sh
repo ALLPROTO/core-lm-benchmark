@@ -341,13 +341,23 @@ fi
     exit 1
 }
 
+REPORTS_DIRECTORY="$run_directory/proof-reports"
+STRUCTURAL_REPORT="$REPORTS_DIRECTORY/structural-verifier.json"
+REPLAY_REPORT="$REPORTS_DIRECTORY/fresh-model-replay.json"
+TERMINAL_REPORT="$REPORTS_DIRECTORY/terminal.log"
+[ ! -e "$REPORTS_DIRECTORY" ] && [ ! -L "$REPORTS_DIRECTORY" ] \
+    || fail "fresh proof report directory already exists"
+/bin/mkdir -m 700 "$REPORTS_DIRECTORY" \
+    || fail "could not create the private proof report directory"
+
 run_clean "$PROJECT_DIR/security/verify_app_bundle.sh" "$APP_PATH"
 run_clean "$RUNTIME_DIR/bin/python" -I -B -X \
     "pycache_prefix=$VERIFY_CACHE" \
     "$PROJECT_DIR/security/verify_local_app_run.py" \
     --run-directory "$run_directory" \
     --app "$APP_PATH" \
-    --challenge "$challenge"
+    --challenge "$challenge" \
+    --report "$STRUCTURAL_REPORT"
 
 printf '%s\n' \
     'Replaying all retained containers through pinned Qwen independently.'
@@ -363,7 +373,9 @@ printf '%s\n' \
     "pycache_prefix=$VERIFY_CACHE" \
     "$PROJECT_DIR/security/verify_primary_replay.py" \
     "$run_directory" \
-    --hf-home "$HOME/.cache/corelm/macos/model-assets" &
+    --hf-home "$HOME/.cache/corelm/macos/model-assets" \
+    --structural-report "$STRUCTURAL_REPORT" \
+    --report "$REPLAY_REPORT" &
 APP_PID=$!
 timeout_watchdog &
 TIMEOUT_WATCHDOG_PID=$!
@@ -414,6 +426,18 @@ case "$metric_verdict" in
     FAIL) proof_summary='END-TO-END PROOF VERIFIED — METRIC FAIL' ;;
     *) fail "verified metric verdict is malformed" ;;
 esac
+
+(
+    umask 077
+    set -C
+    printf '%s\n' "$proof_summary" >"$TERMINAL_REPORT"
+) || fail "could not retain the canonical terminal proof outcome"
+[ -f "$TERMINAL_REPORT" ] && [ ! -L "$TERMINAL_REPORT" ] \
+    || fail "canonical terminal proof outcome is not a regular file"
+terminal_mode=$(/usr/bin/stat -f '%Lp' "$TERMINAL_REPORT" 2>/dev/null) \
+    || fail "could not inspect the canonical terminal proof outcome"
+[ "$terminal_mode" = 600 ] \
+    || fail "canonical terminal proof outcome is not owner-only"
 
 printf '%s\n' \
     "$proof_summary: the locally built app ran pinned Qwen on MPS," \

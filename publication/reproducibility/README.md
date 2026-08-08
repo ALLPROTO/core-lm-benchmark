@@ -386,6 +386,10 @@ state, and hashes of included evidence files. It is descriptive metadata, not
 a replacement for Git history. The distribution-side `SHA256SUMS` verifies the
 v5 arXiv source archive, reproducibility archive, and rendered paper PDF.
 
+A default-branch preview carries the current `corelm-portfolio-v1` software
+CFF/SBOM identity and records `UNRELEASED_PREVIEW`; it is not the historical
+paper-v5 release. Exact paper-v5 bytes must be built from the detached tag.
+
 To reproduce the already published `voidtoken-v5-paper-v5` package, maintainers
 use a full clean repository clone at that existing public tag. They do not
 create or push it again:

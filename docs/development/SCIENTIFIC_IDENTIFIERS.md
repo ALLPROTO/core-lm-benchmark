@@ -20,6 +20,7 @@ documentation.
 | Beacon freeze tag | `corelm-beacon-heldout-v1` | Public pre-reveal protocol anchor |
 | Beacon artifacts | `corelm-beacon-attempt-v1`, `corelm-beacon-resolution-v1`, `corelm-beacon-outcome-v1` | Irreversible state and result compatibility |
 | Publication tag | `voidtoken-v5-paper-v5` | Immutable archive provenance |
+| Portfolio software tag | `corelm-portfolio-v1` | Current signed engineering release and clean-clone identity |
 | Bundle metadata | `CFBundleShortVersionString`, `CFBundleVersion` | macOS identity and receipt field |
 | Dependency versions | Python, Swift, Torch, Transformers, NumPy | Runtime reproducibility |
 

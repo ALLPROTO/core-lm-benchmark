@@ -61,7 +61,7 @@
           "properties": {
             "commit": {"$ref": "#/$defs/gitObject"},
             "tree": {"$ref": "#/$defs/gitObject"},
-            "lifecycle_state": {"const": "DRAFT_NOT_PREREGISTERED"},
+            "lifecycle_state": {"const": "CHECKPOINT_MISSED_TERMINAL_DRAFT"},
             "pull_request": {
               "const": "https://github.com/ALLPROTO/core-lm-cross-model-lab/pull/5"
             }

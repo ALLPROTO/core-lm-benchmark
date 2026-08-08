@@ -102,7 +102,7 @@ class PortfolioReleaseTests(unittest.TestCase):
                 "blind_v1_draft": {
                     "commit": BLIND_COMMIT,
                     "tree": BLIND_TREE,
-                    "lifecycle_state": "DRAFT_NOT_PREREGISTERED",
+                    "lifecycle_state": "CHECKPOINT_MISSED_TERMINAL_DRAFT",
                     "pull_request": "https://github.com/ALLPROTO/core-lm-cross-model-lab/pull/5",
                 },
             },
@@ -121,7 +121,12 @@ class PortfolioReleaseTests(unittest.TestCase):
         if comment is not None:
             keywords["pax_headers"] = {"comment": comment}
         with tarfile.open(fileobj=raw, mode="w", **keywords) as archive:
-            for name, payload in members:
+            ordered = (
+                sorted(members, key=lambda item: item[0].encode("utf-8"))
+                if comment is None
+                else members
+            )
+            for name, payload in ordered:
                 entry = tarfile.TarInfo(name)
                 if payload is None:
                     entry.type = tarfile.DIRTYPE
@@ -131,7 +136,11 @@ class PortfolioReleaseTests(unittest.TestCase):
                     archive.addfile(entry)
                     continue
                 entry.size = len(payload)
-                entry.mode = 0o664
+                entry.mode = 0o600 if comment is None else 0o664
+                entry.uid = 0
+                entry.gid = 0
+                entry.uname = ""
+                entry.gname = ""
                 entry.mtime = 0
                 archive.addfile(entry, io.BytesIO(payload))
         target = io.BytesIO()
@@ -139,11 +148,31 @@ class PortfolioReleaseTests(unittest.TestCase):
             compressed.write(raw.getvalue())
         return target.getvalue()
 
-    def _evidence(self, *, nested_directories=False):
-        runtime = _canonical({"schema_version": 1, "runtime": "fixture"})
+    def _evidence(self, *, nested_directories=False, build_document=None):
+        if build_document is None:
+            build_document = {}
+        runtime_manifest_sha256 = "9" * 64
+        runtime = _canonical(
+            {
+                "schema_version": 1,
+                "source_manifest": {
+                    "schema_version": "corelm-python-runtime-manifest-v1",
+                    "sha256": runtime_manifest_sha256,
+                    "file_count": 10,
+                    "symlink_count": 1,
+                    "total_bytes": 1000,
+                    "entries_sha256": "8" * 64,
+                },
+                "python": {
+                    "version": "3.12.13",
+                    "executable_sha256": "a" * 64,
+                },
+            }
+        )
         result = _canonical(
             {
                 "aggregates": [{"pass": True}],
+                "environment": {"python": "3.12.13"},
                 "resultSHA256": "d" * 64,
                 "schemaVersion": "corelm-voidtoken-v5-validation-development-v3",
             }
@@ -152,7 +181,7 @@ class PortfolioReleaseTests(unittest.TestCase):
         receipt = _canonical(
             {
                 "application": {"executableSHA256": "7" * 64},
-                "buildProvenance": {"document": {}},
+                "buildProvenance": {"document": build_document},
                 "challengeNonce": "e" * 64,
                 "error": None,
                 "result": {
@@ -165,7 +194,8 @@ class PortfolioReleaseTests(unittest.TestCase):
                 },
                 "schemaVersion": "corelm-macos-app-real-llm-run-v5",
                 "worker": {
-                    "runtimeManifestSHA256": hashlib.sha256(runtime).hexdigest()
+                    "pythonExecutableSHA256": "a" * 64,
+                    "runtimeManifestSHA256": runtime_manifest_sha256,
                 },
             }
         )
@@ -177,23 +207,38 @@ class PortfolioReleaseTests(unittest.TestCase):
             "source": {"commit": COMMIT, "tree": TREE},
             "receipt_sha256": receipt_digest,
             "result_sha256": result_digest,
-            "workload_classification": "PUBLIC_VALIDATION_REGRESSION",
+            "workload_classification": "AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION",
             "synthetic_data": False,
         }
         structural = {**base_report, "report_kind": "structural_verifier"}
         replay = {
             **base_report,
             "report_kind": "fresh_model_replay",
-            "fresh": True,
+            "verdict": "AUTHOR_RECORDED_HEAVY_REPLAY_INTEGRITY_PASS",
+            "execution_scope": (
+                "AUTHOR_RECORDED_NOT_INDEPENDENTLY_REEXECUTED_BY_RELEASE_VERIFIER"
+            ),
             "model": {
                 "repository": portfolio.EXPECTED_MODEL,
                 "revision": portfolio.EXPECTED_MODEL_REVISION,
+            },
+            "replay": {
+                "decisions": 1024,
+                "lossAbsoluteTolerance": 2e-5,
+                "lossRelativeTolerance": 2e-6,
+                "maximumBaselineLossDifference": 1e-7,
+                "maximumCandidateLossDifference": 2e-7,
+                "maximumAllowedBaselineDifference": 2e-5,
+                "maximumAllowedCandidateDifference": 2e-5,
+                "primaryManifestSHA256": "1" * 64,
+                "tokenMetricsSHA256": "2" * 64,
+                "perDecisionEvidenceSHA256": "3" * 64,
             },
         }
         members = [
             ("run/app-run-receipt.json", receipt),
             ("run/validation-064-071.json", result),
-            ("run/build-provenance.json", b"{}\n"),
+            ("run/build-provenance.json", _canonical(build_document)),
             ("run/runtime-provenance.json", runtime),
             ("run/primary-evidence/manifest.json", b"{}\n"),
             ("reports/structural-verifier.json", _canonical(structural)),
@@ -298,19 +343,21 @@ class PortfolioReleaseTests(unittest.TestCase):
                 "height": 720,
                 "codec": "h264",
                 "audio_codec": "silent",
+                "evidence_role": portfolio.MEDIA_CLASSIFICATION,
             },
             "poster": {
                 "sha256": _sha256(poster),
                 "width": 1280,
                 "height": 720,
                 "frame_timestamp_seconds": 4.0,
+                "evidence_role": portfolio.MEDIA_CLASSIFICATION,
             },
             "capture": {"platform": "macOS", "architecture": "arm64"},
             "application_executable_sha256": "7" * 64,
             "result_sha256": hashlib.sha256(result).hexdigest(),
             "receipt_sha256": hashlib.sha256(receipt).hexdigest(),
             "evidence_sha256": _sha256(evidence),
-            "workload_classification": "PUBLIC_VALIDATION_REGRESSION",
+            "workload_classification": "AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION",
             "synthetic_data": False,
         }
 
@@ -322,9 +369,32 @@ class PortfolioReleaseTests(unittest.TestCase):
             "platform": {"system": "macOS", "architecture": "arm64"},
             "python": {"version": "3.12.13", "executable_sha256": "a" * 64},
             "toolchain": {
-                "macos_version": "15.6",
-                "swift_version": "6.1.2",
-                "xcode_version": "16.4",
+                "developerTools": {
+                    "buildVersion": None,
+                    "identifier": "com.apple.pkg.CLTools_Executables",
+                    "kind": "command-line-tools",
+                    "version": "26.6.0.0.1781586589",
+                },
+                "macOS": {
+                    "architecture": "arm64",
+                    "buildVersion": "25D125",
+                    "productName": "macOS",
+                    "productVersion": "26.3",
+                },
+                "sdk": {
+                    "buildVersion": "25F70",
+                    "canonicalName": "macosx",
+                    "version": "26.5",
+                },
+                "swift": {
+                    "compiler": "swift-frontend",
+                    "compilerSHA256": "e" * 64,
+                    "target": "arm64-apple-macosx26.0",
+                    "version": (
+                        "Apple Swift version 6.3.3 "
+                        "(swiftlang-6.3.3.1.3)"
+                    ),
+                },
             },
             "ffprobe": {
                 "executable_sha256": hashlib.sha256(FFPROBE_BYTES).hexdigest(),
@@ -335,24 +405,28 @@ class PortfolioReleaseTests(unittest.TestCase):
                 for path in portfolio.LOCKFILE_PATHS
             ],
             "model": {
-                "repository": portfolio.EXPECTED_MODEL,
-                "revision": portfolio.EXPECTED_MODEL_REVISION,
-                "license": "Apache-2.0",
+                "repository": portfolio.PINNED_RELEASE_ASSETS["model"]["repository"],
+                "revision": portfolio.PINNED_RELEASE_ASSETS["model"]["revision"],
+                "license": portfolio.PINNED_RELEASE_ASSETS["model"]["license"],
                 "files": [
                     {
-                        "path": "model.safetensors.index.json",
-                        "sha256": "b" * 64,
-                        "size_bytes": 1234,
+                        "path": path,
+                        "sha256": asset["sha256"],
+                        "size_bytes": asset["bytes"],
                     }
+                    for path, asset in sorted(
+                        portfolio.PINNED_RELEASE_ASSETS["model"]["files"].items()
+                    )
                 ],
             },
             "corpus": {
-                "repository": portfolio.EXPECTED_CORPUS,
-                "revision": portfolio.EXPECTED_CORPUS_REVISION,
-                "path": "wikitext/test-00000-of-00001.parquet",
-                "sha256": "c" * 64,
-                "license": "Creative Commons Attribution-ShareAlike 4.0",
-                "source_url": "https://huggingface.co/datasets/Salesforce/wikitext",
+                "repository": portfolio.PINNED_RELEASE_ASSETS["corpus"]["repository"],
+                "revision": portfolio.PINNED_RELEASE_ASSETS["corpus"]["revision"],
+                "path": portfolio.PINNED_RELEASE_ASSETS["corpus"]["path"],
+                "size_bytes": portfolio.PINNED_RELEASE_ASSETS["corpus"]["bytes"],
+                "sha256": portfolio.PINNED_RELEASE_ASSETS["corpus"]["sha256"],
+                "license": portfolio.PINNED_RELEASE_ASSETS["corpus"]["license"],
+                "source_url": portfolio.PINNED_RELEASE_ASSETS["corpus"]["source_url"],
             },
             "application": {
                 "executable_sha256": provenance["application_executable_sha256"]
@@ -433,6 +507,16 @@ class PortfolioReleaseTests(unittest.TestCase):
                 release_input, portfolio.INPUT_SCHEMA, "release input"
             )
 
+    def test_release_input_rejects_pre_terminal_blind_v1_lifecycle(self):
+        release_input = self._release_input()
+        release_input["related_sources"]["blind_v1_draft"][
+            "lifecycle_state"
+        ] = "DRAFT_NOT_PREREGISTERED"
+        with self.assertRaisesRegex(portfolio.PortfolioReleaseError, "schema failure"):
+            portfolio._validate_schema(
+                release_input, portfolio.INPUT_SCHEMA, "release input"
+            )
+
     def test_canonical_json_rejects_unknown_encoding_and_placeholder(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "input.json"
@@ -444,6 +528,176 @@ class PortfolioReleaseTests(unittest.TestCase):
             path.write_bytes(_canonical(value))
             with self.assertRaisesRegex(portfolio.PortfolioReleaseError, "placeholder"):
                 portfolio._read_canonical_json(path)
+
+    def test_runtime_toolchain_supports_clt_and_xcode_without_fabrication(self):
+        provenance = {
+            "application_executable_sha256": "7" * 64,
+            "receipt_sha256": "8" * 64,
+            "result_sha256": "9" * 64,
+            "evidence_sha256": "a" * 64,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "runtime.json"
+            runtime = self._runtime(provenance)
+            path.write_bytes(_canonical(runtime))
+            observed = portfolio._validate_runtime_assets(
+                path,
+                tag=TAG,
+                commit=COMMIT,
+                tree=TREE,
+                provenance=provenance,
+                repository=None,
+            )
+            self.assertEqual(
+                observed["toolchain"]["developerTools"]["kind"],
+                "command-line-tools",
+            )
+            self.assertIsNone(
+                observed["toolchain"]["developerTools"]["buildVersion"]
+            )
+            self.assertNotIn("xcode_version", observed["toolchain"])
+
+            xcode = self._runtime(provenance)
+            xcode["toolchain"]["developerTools"] = {
+                "buildVersion": "16F6",
+                "identifier": "com.apple.dt.Xcode",
+                "kind": "xcode",
+                "version": "16.4",
+            }
+            path.write_bytes(_canonical(xcode))
+            portfolio._validate_runtime_assets(
+                path,
+                tag=TAG,
+                commit=COMMIT,
+                tree=TREE,
+                provenance=provenance,
+                repository=None,
+            )
+
+            fabricated = self._runtime(provenance)
+            fabricated["toolchain"]["developerTools"]["buildVersion"] = "16F6"
+            path.write_bytes(_canonical(fabricated))
+            with self.assertRaisesRegex(
+                portfolio.PortfolioReleaseError,
+                "runtime toolchain identity is not canonical",
+            ):
+                portfolio._validate_runtime_assets(
+                    path,
+                    tag=TAG,
+                    commit=COMMIT,
+                    tree=TREE,
+                    provenance=provenance,
+                    repository=None,
+                )
+
+    def test_runtime_assets_require_exact_seven_model_and_validation_assets(self):
+        provenance = {
+            "application_executable_sha256": "7" * 64,
+            "receipt_sha256": "8" * 64,
+            "result_sha256": "9" * 64,
+            "evidence_sha256": "a" * 64,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "runtime.json"
+            mutations = []
+            omitted = self._runtime(provenance)
+            omitted["model"]["files"].pop()
+            mutations.append(("omitted", omitted))
+            extra = self._runtime(provenance)
+            extra["model"]["files"].append(
+                {"path": "extra.json", "sha256": "f" * 64, "size_bytes": 1}
+            )
+            extra["model"]["files"].sort(key=lambda row: row["path"])
+            mutations.append(("extra", extra))
+            mutated = self._runtime(provenance)
+            mutated["model"]["files"][0]["size_bytes"] += 1
+            mutations.append(("mutated", mutated))
+            corpus = self._runtime(provenance)
+            corpus["corpus"]["path"] = "wikitext-2-raw-v1/test-00000-of-00001.parquet"
+            mutations.append(("corpus", corpus))
+            for label, runtime in mutations:
+                with self.subTest(label=label):
+                    path.write_bytes(_canonical(runtime))
+                    with self.assertRaises(portfolio.PortfolioReleaseError):
+                        portfolio._validate_runtime_assets(
+                            path,
+                            tag=TAG,
+                            commit=COMMIT,
+                            tree=TREE,
+                            provenance=provenance,
+                            repository=None,
+                        )
+
+    def test_release_asset_identity_matches_frozen_benchmark_constants(self):
+        from RealLLM import benchmark_real_llm as benchmark
+
+        pinned = portfolio.PINNED_RELEASE_ASSETS
+        self.assertEqual(pinned["model"]["repository"], benchmark.MODEL_REPOSITORY)
+        self.assertEqual(pinned["model"]["revision"], benchmark.MODEL_REVISION)
+        expected_model_files = {
+            "model.safetensors": {
+                "bytes": benchmark.MODEL_WEIGHTS_BYTES,
+                "sha256": benchmark.MODEL_WEIGHTS_SHA256,
+            },
+            **benchmark.MODEL_ASSET_FILES,
+        }
+        self.assertEqual(pinned["model"]["files"], expected_model_files)
+        validation = benchmark.DATASET_FILES["validation"]
+        self.assertEqual(
+            {
+                key: pinned["corpus"][key]
+                for key in ("repository", "revision", "path", "bytes", "sha256")
+            },
+            {
+                "repository": benchmark.DATASET_REPOSITORY,
+                "revision": benchmark.DATASET_REVISION,
+                "path": validation["path"],
+                "bytes": validation["bytes"],
+                "sha256": validation["sha256"],
+            },
+        )
+
+    def test_runtime_python_is_cross_bound_to_receipt_result_and_assets(self):
+        runtime = {
+            "schema_version": 1,
+            "source_manifest": {
+                "schema_version": "corelm-python-runtime-manifest-v1",
+                "sha256": "1" * 64,
+                "file_count": 2,
+                "symlink_count": 0,
+                "total_bytes": 20,
+                "entries_sha256": "2" * 64,
+            },
+            "python": {
+                "version": "3.12.13",
+                "executable_sha256": "3" * 64,
+            },
+        }
+        receipt = {
+            "worker": {
+                "runtimeManifestSHA256": "1" * 64,
+                "pythonExecutableSHA256": "3" * 64,
+            }
+        }
+        result = {"environment": {"python": "3.12.13"}}
+        portfolio._validate_public_runtime_provenance(
+            runtime, receipt, result, runtime["python"]
+        )
+        wrong_assets = dict(runtime["python"])
+        wrong_assets["executable_sha256"] = "4" * 64
+        with self.assertRaisesRegex(
+            portfolio.PortfolioReleaseError, "runtime-assets Python differs"
+        ):
+            portfolio._validate_public_runtime_provenance(
+                runtime, receipt, result, wrong_assets
+            )
+        wrong_result = {"environment": {"python": "3.12.12"}}
+        with self.assertRaisesRegex(
+            portfolio.PortfolioReleaseError, "Python identities differ"
+        ):
+            portfolio._validate_public_runtime_provenance(
+                runtime, receipt, wrong_result, runtime["python"]
+            )
 
     def test_citation_rejects_duplicate_yaml_keys(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -588,7 +842,13 @@ class PortfolioReleaseTests(unittest.TestCase):
                 replacements.append(path.name)
 
             def validate_evidence(
-                path, *, provenance, source, captured_source=None
+                path,
+                *,
+                provenance,
+                source,
+                captured_source=None,
+                expected_toolchain=None,
+                expected_python=None,
             ):
                 self.assertIsNotNone(captured_source)
                 with self.assertRaises(OSError):
@@ -599,6 +859,8 @@ class PortfolioReleaseTests(unittest.TestCase):
                     provenance=provenance,
                     source=source,
                     captured_source=captured_source,
+                    expected_toolchain=expected_toolchain,
+                    expected_python=expected_python,
                 )
 
             def validate_source_tree(
@@ -858,6 +1120,60 @@ class PortfolioReleaseTests(unittest.TestCase):
                     source={"commit": COMMIT, "tree": TREE},
                 )
 
+    def test_evidence_requires_exact_terminal_and_canonical_gzip_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            video = root / "video.mp4"
+            video.write_bytes(self._mp4())
+            poster = root / "poster.png"
+            poster.write_bytes(self._png())
+            canonical = root / "canonical.tar.gz"
+            canonical.write_bytes(self._evidence())
+            with tarfile.open(canonical, "r:gz") as archive:
+                members = [
+                    (member.name, archive.extractfile(member).read())
+                    for member in archive.getmembers()
+                    if member.isfile()
+                ]
+            changed_terminal = [
+                (
+                    name,
+                    b"prefix\nEND-TO-END PROOF PASS\n"
+                    if name == "logs/terminal.log"
+                    else payload,
+                )
+                for name, payload in members
+            ]
+            terminal_archive = root / "terminal.tar.gz"
+            terminal_archive.write_bytes(self._tar_gzip(changed_terminal))
+            provenance = self._provenance(video, poster, terminal_archive)
+            with self.assertRaisesRegex(
+                portfolio.PortfolioReleaseError, "exact outcome"
+            ):
+                portfolio._validate_evidence_archive(
+                    terminal_archive,
+                    provenance=provenance,
+                    source={"commit": COMMIT, "tree": TREE},
+                )
+
+            noncanonical = root / "noncanonical.tar.gz"
+            payload = gzip.decompress(canonical.read_bytes())
+            target = io.BytesIO()
+            with gzip.GzipFile(
+                filename="", mode="wb", compresslevel=1, fileobj=target, mtime=0
+            ) as compressed:
+                compressed.write(payload)
+            noncanonical.write_bytes(target.getvalue())
+            provenance = self._provenance(video, poster, noncanonical)
+            with self.assertRaisesRegex(
+                portfolio.PortfolioReleaseError, "canonical tar.gz bytes"
+            ):
+                portfolio._validate_evidence_archive(
+                    noncanonical,
+                    provenance=provenance,
+                    source={"commit": COMMIT, "tree": TREE},
+                )
+
             raw = io.BytesIO()
             with tarfile.open(fileobj=raw, mode="w:gz") as archive:
                 link = tarfile.TarInfo("run/link")
@@ -887,7 +1203,7 @@ class PortfolioReleaseTests(unittest.TestCase):
                     source={"commit": COMMIT, "tree": TREE},
                 )
 
-    def test_evidence_archive_allows_nested_primary_evidence_directories_only(self):
+    def test_evidence_archive_rejects_explicit_directory_members(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             video = root / "video.mp4"
@@ -897,8 +1213,8 @@ class PortfolioReleaseTests(unittest.TestCase):
             evidence = root / "evidence.tar.gz"
             evidence.write_bytes(self._evidence(nested_directories=True))
             provenance = self._provenance(video, poster, evidence)
-            with patch.object(
-                portfolio, "_extract_and_verify_product_evidence", return_value={}
+            with self.assertRaisesRegex(
+                portfolio.PortfolioReleaseError, "metadata is not canonical"
             ):
                 portfolio._validate_evidence_archive(
                     evidence,
@@ -911,6 +1227,62 @@ class PortfolioReleaseTests(unittest.TestCase):
                 )
             )
             self.assertFalse(portfolio._evidence_directory_allowed("run/unbound"))
+
+    def test_evidence_build_toolchain_must_equal_runtime_assets(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            video = root / "video.mp4"
+            video.write_bytes(self._mp4())
+            poster = root / "poster.png"
+            poster.write_bytes(self._png())
+            placeholder = root / "placeholder.tar.gz"
+            placeholder.write_bytes(self._evidence())
+            placeholder_provenance = self._provenance(
+                video, poster, placeholder
+            )
+            runtime_toolchain = self._runtime(placeholder_provenance)["toolchain"]
+            build_toolchain = json.loads(json.dumps(runtime_toolchain))
+            build_toolchain["developerTools"]["version"] = "26.5.0.0.1"
+            build_document = {
+                "schemaVersion": "corelm-build-provenance-v1",
+                "source": {
+                    "archiveManifestSHA256": None,
+                    "commit": COMMIT,
+                    "dirty": False,
+                    "exactTag": TAG,
+                    "mode": "git",
+                    "remote": portfolio.CANONICAL_REMOTE,
+                    "tree": TREE,
+                },
+                "toolchain": build_toolchain,
+            }
+            evidence = root / "evidence.tar.gz"
+            evidence.write_bytes(
+                self._evidence(build_document=build_document)
+            )
+            provenance = self._provenance(video, poster, evidence)
+            canonical, validate, _product_verifier = (
+                portfolio._load_product_evidence_verifiers()
+            )
+            with patch.object(
+                portfolio,
+                "_load_product_evidence_verifiers",
+                return_value=(
+                    canonical,
+                    validate,
+                    lambda *_args, **_kwargs: {"aggregates": [{"pass": True}]},
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    portfolio.PortfolioReleaseError,
+                    "toolchain differs from demo build provenance",
+                ):
+                    portfolio._validate_evidence_archive(
+                        evidence,
+                        provenance=provenance,
+                        source={"commit": COMMIT, "tree": TREE},
+                        expected_toolchain=runtime_toolchain,
+                    )
 
     def test_isolated_tool_loads_tracked_product_verifiers(self):
         program = (
@@ -1092,6 +1464,44 @@ class PortfolioReleaseTests(unittest.TestCase):
             )
             with self.assertRaises(portfolio.PortfolioReleaseError):
                 portfolio._png_dimensions(truncated_png)
+
+            def chunk(kind, payload):
+                return (
+                    struct.pack(">I", len(payload))
+                    + kind
+                    + payload
+                    + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF)
+                )
+
+            clean = self._png()
+            metadata_png = root / "metadata.png"
+            metadata_png.write_bytes(clean[:33] + chunk(b"tEXt", b"Author\x00private") + clean[33:])
+            with self.assertRaisesRegex(
+                portfolio.PortfolioReleaseError, "forbidden metadata"
+            ):
+                portfolio._png_dimensions(metadata_png)
+
+    def test_video_free_text_metadata_is_rejected(self):
+        base = {
+            "format": {"duration": "20.0"},
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "h264",
+                    "width": 1280,
+                    "height": 720,
+                }
+            ],
+        }
+        portfolio._validate_ffprobe_metadata(base)
+        tagged = json.loads(json.dumps(base))
+        tagged["format"]["tags"] = {
+            "comment": (b"/" + b"Users/private/demo").decode("ascii")
+        }
+        with self.assertRaisesRegex(
+            portfolio.PortfolioReleaseError, "free-text format metadata"
+        ):
+            portfolio._validate_ffprobe_metadata(tagged)
 
     def test_public_video_verification_requires_ffprobe(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -1,16 +1,19 @@
 # Reproducible macOS demo capture
 
-This runbook produces the screenshot and the public demo required by portfolio
-gate G03. The media is evidence only when it was recorded from the clean public
-commit shown in the recording and the commands below finish successfully. This
-document by itself is not demo evidence.
+This runbook produces the screenshot and public demo required by portfolio gate
+G03. The video and poster are
+`HUMAN_REVIEWED_PRESENTATION_NOT_MACHINE_EVIDENCE`: they help a person inspect
+the UI, but no machine claim binds pixels to the recorded computation. The
+retained receipt, result, raw-token/container evidence, canonical verifier
+reports, and hashes are the machine-verifiable record.
 
 The run is a repeatability check on the already-public WikiText validation
-blocks 64–71. Call it a **public-validation regression**. It is not a blind,
+blocks 64–71. Call the selected run an
+**author-selected public-validation regression**. It is not a blind,
 held-out, beacon, generalization, or state-of-the-art result. Do not run a
 beacon command, open a frozen holdout, or reuse beacon evidence for this demo.
 
-## What the finished media must prove
+## What the finished media must show
 
 The final video must be at most 90 seconds and show all of these facts from one
 fresh run:
@@ -32,19 +35,31 @@ both sides belong to the same challenge-bound run.
 
 ## 1. Prepare a clean, exact source checkout
 
-Use a new Terminal window on an Apple-Silicon Mac. These commands intentionally
-detach the checkout at the current public `main` commit, so a later branch move
-cannot change the build while it is being recorded:
+Use a new Terminal window on an Apple-Silicon Mac. These commands require the
+local `main`, its `origin/main`, and the already-signed portfolio tag to name
+one exact commit/tree. Do not fetch or pull again during the recording:
 
 ```zsh
 set -euo pipefail
 PROMPT='demo% '
 RPROMPT=''
 umask 077
+DEMO_TAG=corelm-portfolio-v1
+printf '%s\n' "$DEMO_TAG" | /usr/bin/grep -Eq \
+  '^corelm-portfolio-v[1-9][0-9]*$'
 git clone https://github.com/ALLPROTO/core-lm-benchmark.git core-lm-demo-source
 cd core-lm-demo-source
 git fetch --no-tags origin main
-git switch --detach "$(git rev-parse origin/main)"
+git fetch --no-tags origin \
+  "refs/tags/$DEMO_TAG:refs/tags/$DEMO_TAG"
+git switch main
+git merge --ff-only origin/main
+test "$(git rev-parse HEAD^{commit})" = \
+  "$(git rev-parse "$DEMO_TAG^{commit}")"
+
+git -c gpg.format=ssh \
+  -c gpg.ssh.allowedSignersFile="$PWD/signing/allowed_signers" \
+  verify-tag "$DEMO_TAG"
 
 DEMO_COMMIT="$(git rev-parse HEAD^{commit})"
 DEMO_TREE="$(git rev-parse HEAD^{tree})"
@@ -52,6 +67,7 @@ DEMO_REMOTE="$(git remote get-url origin)"
 test "$DEMO_REMOTE" = "https://github.com/ALLPROTO/core-lm-benchmark.git"
 test -z "$(git status --porcelain=v1 --untracked-files=all)"
 test "$DEMO_COMMIT" = "$(git rev-parse origin/main^{commit})"
+test "$(git tag --points-at HEAD)" = "$DEMO_TAG"
 
 DEMO_CAPTURE_DIR="$HOME/Desktop/corelm-demo-capture"
 test ! -e "$DEMO_CAPTURE_DIR"
@@ -59,15 +75,18 @@ mkdir -m 700 "$DEMO_CAPTURE_DIR"
 
 {
   printf 'repository: %s\n' "$DEMO_REMOTE"
+  printf 'tag: %s\n' "$DEMO_TAG"
   printf 'commit: %s\n' "$DEMO_COMMIT"
   printf 'tree: %s\n' "$DEMO_TREE"
   printf '%s\n' 'worktree: CLEAN'
-  printf '%s\n' 'claim: PUBLIC_VALIDATION_REGRESSION'
+  printf '%s\n' 'claim: AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION'
 } | tee "$DEMO_CAPTURE_DIR/source-identity.txt"
 ```
 
-If any `test` fails, stop. Do not enable `CORELM_ALLOW_DIRTY_SOURCE`, edit the
-clone, or record from another checkout.
+Set `DEMO_TAG` to the already-created current signed portfolio tag. If any
+`test` or `verify-tag` fails, stop. Do not enable `CORELM_ALLOW_DIRTY_SOURCE`,
+edit the clone, or record from another checkout. The tag must exist before the
+proof because the embedded build provenance records its exact name.
 
 Clear the Terminal, print only the path-free identity card, and record it for
 ten seconds. Select only the Terminal content region:
@@ -90,7 +109,7 @@ then repeat the doctor. Give Terminal (or the Screenshot application) Screen &
 System Audio Recording permission before the real run; testing that permission
 must not involve a model invocation.
 
-## 2. Run the real application proof once
+## 2. Create one selected real application proof
 
 Generate the non-secret freshness challenge in the same shell. Keep the private
 operator log outside the repository; it contains local runtime paths and is not
@@ -115,6 +134,18 @@ executed and verified metric FAIL ends with
 recording unchanged. A timeout, memory stop, or verifier failure is an
 infrastructure failure; do not edit, rerun selectively, or present any FAIL as
 a PASS. In particular, do not rerun a verified metric FAIL to obtain a PASS.
+The collector cannot prove that this was the first historical attempt or that
+no other run exists; it deliberately classifies the supplied run as
+`AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION`.
+On either honest terminal outcome, the proof run also retains canonical
+`proof-reports/structural-verifier.json`,
+`proof-reports/fresh-model-replay.json`, and `proof-reports/terminal.log`.
+The replay report is created only after the author-side heavy verifier reruns
+all 1,024 pinned-Qwen decisions. Publication verification binds that recorded
+report to the retained primary-manifest, token-metrics, and canonical
+per-decision digests and recomputes its tolerance envelope. It labels the
+outcome `AUTHOR_RECORDED_HEAVY_REPLAY_INTEGRITY_PASS`; the release verifier does
+not claim that it independently executed Qwen a second time.
 
 While the proof is running, record the live segment only after the application
 window appears. In a second Terminal window use the same fixed capture
@@ -179,6 +210,16 @@ test ! -L "$DEMO_RUNTIME"
 DEMO_PYTHON="$DEMO_RUNTIME/bin/python"
 test -x "$DEMO_PYTHON"
 
+DEMO_RUN_ID="$(/usr/bin/sed -n \
+  's/^Verified run ID: //p' \
+  "$DEMO_CAPTURE_DIR/proof-private.log")"
+test "${#DEMO_RUN_ID}" -eq 36
+printf '%s\n' "$DEMO_RUN_ID" | /usr/bin/grep -Eq \
+  '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+DEMO_RUN_DIR="$HOME/Library/Application Support/CoreLMBenchmark/real-llm-results/$DEMO_RUN_ID"
+test -d "$DEMO_RUN_DIR"
+test ! -L "$DEMO_RUN_DIR"
+
 clear
 printf '%s\n' \
   'TIME CUT — setup, inference, and heavy replay omitted from the video.' \
@@ -186,6 +227,7 @@ printf '%s\n' \
   'CLAIM — public-validation regression; not blind/generalization.'
 
 "$DEMO_PYTHON" -I -B security/verify_local_app_run.py \
+  --run-directory "$DEMO_RUN_DIR" \
   --app dist/CoreLMBenchmark.app \
   --challenge "$DEMO_CHALLENGE" \
   | tee "$DEMO_CAPTURE_DIR/verifier.txt"
@@ -259,7 +301,7 @@ shell history, home-directory paths, email, or tokens.
 
 | Time | Required picture and narration/caption |
 |---:|---|
-| 0–10 s | Public remote, exact commit/tree, `worktree: CLEAN`, and `PUBLIC_VALIDATION_REGRESSION`. |
+| 0–10 s | Public remote, exact commit/tree, `worktree: CLEAN`, and `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION`. |
 | 10–30 s | Native app during the same run: architecture list, orange states, real Qwen/MPS label, progress, live log. |
 | 30–34 s | Visible card: `TIME CUT — setup, inference, and replay omitted; SAME RUN`. |
 | 34–64 s | Reopened app: completed states, four metrics, workload counts, charts, regression gates, preserved metric verdict, result SHA and relative run ID. |
@@ -333,6 +375,14 @@ if /usr/bin/grep -Eq '/Users/|/home/' "$DEMO_CAPTURE_DIR/SHA256SUMS"; then
 fi
 ```
 
+Filesystem extended attributes are not embedded-container metadata. Before the
+collector, use the same local FFmpeg installation as the recorded `ffprobe` to
+produce a metadata-free delivery copy and derive the poster from its stated
+timestamp. Clear format and stream titles, comments, creation time, encoder,
+and handler names explicitly. The collector rejects PNG `tEXt`, `zTXt`,
+`iTXt`, `eXIf`, and `iCCP` chunks and free-text video/stream tags; it fails if
+the export still contains them. Do not weaken that gate for an editor's output.
+
 Also search manually for the account name, legal/private email addresses,
 hostnames, Wi-Fi names, calendar events, notification text, API tokens, SSH
 material, and browser tabs. The public name “Ivan Tyshchenko”, public ORCID,
@@ -344,6 +394,64 @@ reviewed video as the canonical signed release asset (preferred over adding a
 large movie to Git), record its SHA-256 in the release notes, and link that one
 asset from the first screen of `README.md`. Keep `proof-private.log` local; it
 is an operator aid, not a release asset.
+
+## 6. Collect one bounded release input set
+
+After the frame-by-frame privacy review, run the tracked offline collector.
+It does not execute a model and does not infer a result. It accepts only the
+explicit author-selected app-run UUID parsed above, first copies every run
+input into a private stable snapshot, recomputes the structural evidence, checks
+the two machine reports, preserves either metric PASS or verified metric FAIL,
+and rejects missing, synthetic, private-path, or selection-tainted evidence.
+
+Set every value explicitly. The two Actions URLs must be distinct successful
+runs for `DEMO_COMMIT`; live API checking remains a separate release-operator
+gate. The poster timestamp must name the actual frame represented by the PNG.
+
+```zsh
+: "${DEMO_TAG:?set the exact signed portfolio tag}"
+: "${DEMO_RUN_DIR:?derive the exact app run above}"
+: "${DEMO_PYTHON:?derive the retained proof Python above}"
+: "${DEMO_POSTER_TIMESTAMP_SECONDS:?inspect the exported video timeline}"
+: "${DEMO_RELEASE_DATE:?use YYYY-MM-DD matching CITATION.cff}"
+: "${DEMO_LINUX_CI_URL:?set the exact successful Actions run URL}"
+: "${DEMO_MACOS_CI_URL:?set the distinct successful Actions run URL}"
+
+CROSS_MODEL_LAB=/absolute/core-lm-cross-model-lab
+FFPROBE=/absolute/path/to/ffprobe
+DEMO_OUTPUT="$HOME/Desktop/corelm-portfolio-inputs-$DEMO_TAG"
+test -d "$CROSS_MODEL_LAB"
+test -x "$FFPROBE"
+test ! -e "$DEMO_OUTPUT"
+
+"$DEMO_PYTHON" -I -B publication/collect_portfolio_demo.py \
+  --repository "$(pwd -P)" \
+  --cross-model-lab "$CROSS_MODEL_LAB" \
+  --run-directory "$DEMO_RUN_DIR" \
+  --app "$(pwd -P)/dist/CoreLMBenchmark.app" \
+  --video "$DEMO_CAPTURE_DIR/corelm-demo-85s.mov" \
+  --poster "$DEMO_CAPTURE_DIR/corelm-result.png" \
+  --poster-frame-timestamp-seconds "$DEMO_POSTER_TIMESTAMP_SECONDS" \
+  --ffprobe "$FFPROBE" \
+  --tag "$DEMO_TAG" \
+  --release-date "$DEMO_RELEASE_DATE" \
+  --linux-ci-url "$DEMO_LINUX_CI_URL" \
+  --macos-ci-url "$DEMO_MACOS_CI_URL" \
+  --output "$DEMO_OUTPUT"
+```
+
+Success produces the copied video and PNG, canonical
+`demo-provenance.json`, canonical `runtime-assets.json`, deterministic
+`demo-evidence.tar.gz`, and `release-input.private.json`. The latter contains
+local absolute paths solely for the offline release builder: never publish it.
+The evidence tar uses one byte-canonical gzip/tar representation: sorted
+regular files, mode `0600`, zero uid/gid/mtime, and empty owner names. Public
+verification deterministically reserializes it and requires byte equality. Its
+public runtime projection binds the private runtime-manifest digest, aggregate
+structure, entry-list digest, Python version, and executable hash without
+publishing local runtime roots.
+The collector records the exact local ffprobe executable hash and version as a
+decoder identity; that is not a claim about upstream FFmpeg source signing.
 
 ## Acceptance record
 

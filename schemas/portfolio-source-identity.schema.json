@@ -80,7 +80,7 @@
         "result_sha256": {"$ref": "#/$defs/sha256"},
         "synthetic_data": {"const": false},
         "video_sha256": {"$ref": "#/$defs/sha256"},
-        "workload_classification": {"const": "PUBLIC_VALIDATION_REGRESSION"}
+        "workload_classification": {"const": "AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION"}
       }
     },
     "related_sources": {
@@ -94,7 +94,7 @@
           "required": ["commit", "lifecycle_state", "pull_request", "tree"],
           "properties": {
             "commit": {"$ref": "#/$defs/gitObject"},
-            "lifecycle_state": {"const": "DRAFT_NOT_PREREGISTERED"},
+            "lifecycle_state": {"const": "CHECKPOINT_MISSED_TERMINAL_DRAFT"},
             "pull_request": {
               "const": "https://github.com/ALLPROTO/core-lm-cross-model-lab/pull/5"
             },

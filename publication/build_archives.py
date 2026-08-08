@@ -82,7 +82,7 @@ def _normalized_origin(value: str) -> str:
 
 
 def _citation_release_tag() -> str:
-    """Return the one canonical historical-paper identity from CITATION.cff."""
+    """Return the historical-paper identity from this exact tag checkout."""
 
     try:
         text = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
@@ -653,6 +653,9 @@ def build_reproducibility(
             "Tests/test_linux_runtime_hardening.py",
             "Tests/test_local_app_build.py",
             "Tests/test_platform_boundaries.py",
+            "Tests/test_paper_v5_release_receipt.py",
+            "Tests/test_portfolio_demo_collector.py",
+            "Tests/test_portfolio_github_release.py",
             "Tests/test_portfolio_release.py",
             "Tests/test_publication_archives.py",
             "Tests/test_real_llm.py",
@@ -687,6 +690,7 @@ def build_reproducibility(
             "RealLLM/app_proof_core.py",
             "RealLLM/app_proof_runner.py",
             "RealLLM/benchmark_real_llm.py",
+            "RealLLM/pinned_assets.py",
             "RealLLM/codecs.py",
             "RealLLM/develop_voidtoken_v5.py",
             "RealLLM/legacy_voidtoken_adapter.py",
@@ -707,6 +711,11 @@ def build_reproducibility(
             "RealLLM/voidtoken_v5.py",
             "publication/build_archives.py",
             "publication/build_portfolio_release.py",
+            "publication/collect_portfolio_demo.py",
+            "publication/receipts/voidtoken-v5-paper-v5.github-release-attestation.json",
+            "publication/receipts/voidtoken-v5-paper-v5.release-receipt.json",
+            "publication/verify_paper_v5_release.py",
+            "publication/verify_portfolio_github_release.py",
             "publication/PORTFOLIO_RELEASE.md",
             "security/direct-dependencies.cdx.json",
             "security/find_python312.sh",
@@ -717,6 +726,7 @@ def build_reproducibility(
             "security/manage_local_runtime.py",
             "security/osv_direct_audit.py",
             "security/proof_process_groups.sh",
+            "security/proof_reports.py",
             "security/run_process_group_tests.sh",
             "security/run_swift_security_tests.sh",
             "security/validate_proof_challenge.sh",

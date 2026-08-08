@@ -558,6 +558,60 @@ def _validate_optional_tool_value(value: Any, label: str) -> Optional[str]:
     return _safe_text(value, label, maximum=4096)
 
 
+def validate_toolchain(value: Any) -> None:
+    """Validate the canonical Apple toolchain identity shared by release data."""
+
+    if not isinstance(value, dict) or set(value) != TOOLCHAIN_KEYS:
+        raise ValueError("build provenance toolchain fields are not exact")
+    macos = value.get("macOS")
+    if not isinstance(macos, dict) or set(macos) != MACOS_KEYS:
+        raise ValueError("macOS toolchain identity fields are not exact")
+    for key in MACOS_KEYS:
+        _safe_text(macos.get(key), f"macOS {key}")
+    swift = value.get("swift")
+    if not isinstance(swift, dict) or set(swift) != SWIFT_KEYS:
+        raise ValueError("Swift toolchain identity fields are not exact")
+    for key in ("compiler", "target", "version"):
+        _safe_text(swift.get(key), f"Swift {key}")
+    if "/" in swift["compiler"] or "\\" in swift["compiler"]:
+        raise ValueError("Swift compiler identity must be a basename")
+    if re.fullmatch(r"[0-9a-f]{64}", str(swift.get("compilerSHA256"))) is None:
+        raise ValueError("Swift compiler digest is malformed")
+    sdk = value.get("sdk")
+    if not isinstance(sdk, dict) or set(sdk) != SDK_KEYS:
+        raise ValueError("SDK identity fields are not exact")
+    if sdk.get("canonicalName") != "macosx":
+        raise ValueError("SDK canonical name is unsupported")
+    for key in ("version", "buildVersion"):
+        _safe_text(sdk.get(key), f"SDK {key}")
+    developer_tools = value.get("developerTools")
+    if (
+        not isinstance(developer_tools, dict)
+        or set(developer_tools) != DEVELOPER_TOOLS_KEYS
+    ):
+        raise ValueError("developer-tools identity fields are not exact")
+    kind = developer_tools.get("kind")
+    if kind not in {"command-line-tools", "xcode"}:
+        raise ValueError("developer-tools kind is unsupported")
+    for key in ("identifier", "version"):
+        _safe_text(developer_tools.get(key), f"developer tools {key}")
+    build_version = _validate_optional_tool_value(
+        developer_tools.get("buildVersion"), "developer tools buildVersion"
+    )
+    if kind == "command-line-tools":
+        if (
+            developer_tools["identifier"]
+            != "com.apple.pkg.CLTools_Executables"
+            or build_version is not None
+        ):
+            raise ValueError("Command Line Tools identity is inconsistent")
+    elif (
+        developer_tools["identifier"] != "com.apple.dt.Xcode"
+        or build_version is None
+    ):
+        raise ValueError("Xcode identity is inconsistent")
+
+
 def validate_build_manifest(value: Any) -> None:
     if not isinstance(value, dict) or set(value) != BUILD_KEYS:
         raise ValueError("build provenance fields are not exact")
@@ -597,43 +651,7 @@ def validate_build_manifest(value: Any) -> None:
     ):
         raise ValueError("archive provenance has no valid manifest digest")
 
-    toolchain = value.get("toolchain")
-    if not isinstance(toolchain, dict) or set(toolchain) != TOOLCHAIN_KEYS:
-        raise ValueError("build provenance toolchain fields are not exact")
-    macos = toolchain.get("macOS")
-    if not isinstance(macos, dict) or set(macos) != MACOS_KEYS:
-        raise ValueError("macOS toolchain identity fields are not exact")
-    for key in MACOS_KEYS:
-        _safe_text(macos.get(key), f"macOS {key}")
-    swift = toolchain.get("swift")
-    if not isinstance(swift, dict) or set(swift) != SWIFT_KEYS:
-        raise ValueError("Swift toolchain identity fields are not exact")
-    for key in ("compiler", "target", "version"):
-        _safe_text(swift.get(key), f"Swift {key}")
-    if "/" in swift["compiler"] or "\\" in swift["compiler"]:
-        raise ValueError("Swift compiler identity must be a basename")
-    if re.fullmatch(r"[0-9a-f]{64}", str(swift.get("compilerSHA256"))) is None:
-        raise ValueError("Swift compiler digest is malformed")
-    sdk = toolchain.get("sdk")
-    if not isinstance(sdk, dict) or set(sdk) != SDK_KEYS:
-        raise ValueError("SDK identity fields are not exact")
-    if sdk.get("canonicalName") != "macosx":
-        raise ValueError("SDK canonical name is unsupported")
-    for key in ("version", "buildVersion"):
-        _safe_text(sdk.get(key), f"SDK {key}")
-    developer_tools = toolchain.get("developerTools")
-    if (
-        not isinstance(developer_tools, dict)
-        or set(developer_tools) != DEVELOPER_TOOLS_KEYS
-    ):
-        raise ValueError("developer-tools identity fields are not exact")
-    if developer_tools.get("kind") not in {"command-line-tools", "xcode"}:
-        raise ValueError("developer-tools kind is unsupported")
-    for key in ("identifier", "version"):
-        _safe_text(developer_tools.get(key), f"developer tools {key}")
-    _validate_optional_tool_value(
-        developer_tools.get("buildVersion"), "developer tools buildVersion"
-    )
+    validate_toolchain(value.get("toolchain"))
 
 
 def verify_build_manifest(path: Path) -> Dict[str, Any]:

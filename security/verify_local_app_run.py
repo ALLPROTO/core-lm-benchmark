@@ -15,6 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from security.verify_app_run_evidence import verify_fresh_run  # noqa: E402
+from security.proof_reports import write_report  # noqa: E402
 
 
 DEFAULT_RESULTS_ROOT = (
@@ -97,6 +98,14 @@ def parse_arguments() -> argparse.Namespace:
             "./corelm macos proof; required for a freshness claim"
         ),
     )
+    parser.add_argument(
+        "--report",
+        type=Path,
+        help=(
+            "exclusively create the canonical structural-verifier report "
+            "inside RUN/proof-reports; requires --run-directory and --challenge"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -115,6 +124,16 @@ def main() -> int:
             require_metric_pass=False,
         )
         aggregate = result["aggregates"][0]
+        if arguments.report is not None:
+            if arguments.run_directory is None or arguments.challenge is None:
+                raise ValueError(
+                    "--report requires explicit --run-directory and --challenge"
+                )
+            write_report(
+                arguments.report,
+                run_directory,
+                "structural_verifier",
+            )
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
         print(f"LOCAL APP RUN FAIL: {error}", file=sys.stderr)
         return 1

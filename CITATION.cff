@@ -6,21 +6,22 @@ authors:
   - family-names: "Tyshchenko"
     given-names: "Ivan"
     orcid: "https://orcid.org/0009-0000-7935-6090"
-version: "voidtoken-v5-paper-v5"
-date-released: 2026-07-31
+version: "corelm-portfolio-v1"
+date-released: 2026-08-08
 license: MIT
 repository-code: "https://github.com/ALLPROTO/core-lm-benchmark"
 url: "https://github.com/ALLPROTO/core-lm-benchmark"
 abstract: >-
-  An open-source native macOS compression proof with an independent Python
-  evidence core. The artifact builds locally, measures a pinned Qwen2.5-0.5B
-  prefill KV cache, verifies complete-container storage and quality, and
-  preserves the registered development and prospective evidence chronology.
+  An open-source macOS and Linux benchmark for complete-container KV-cache
+  compression. The artifact builds locally, evaluates pinned real-Qwen
+  workloads, retains raw and per-token evidence, and verifies results through
+  separate structural and heavyweight replay paths. Blind V1 is preserved as
+  a retired, unrun draft and is not a result of this software release.
 keywords:
   - state trajectory compression
   - KV-cache compression
   - language-model inference
-  - prospective evaluation
+  - reproducible evaluation
   - reproducible benchmark
 preferred-citation:
   type: article
