@@ -58,6 +58,7 @@ RESULT_NAME = "validation-064-071.json"
 RECEIPT_NAME = "app-run-receipt.json"
 BUILD_PROVENANCE_NAME = "build-provenance.json"
 RUNTIME_PROVENANCE_NAME = "runtime-provenance.json"
+PYTHON_CACHE_DIRECTORY_NAME = "python-cache"
 MAX_TERMINAL_BYTES = 4096
 
 
@@ -324,6 +325,73 @@ def _stable_identity(status: os.stat_result) -> tuple[int, int, int, int, int]:
     )
 
 
+def _stable_directory_identity(
+    status: os.stat_result,
+) -> tuple[int, int, int, int, int, int, int, int, int]:
+    return (
+        status.st_dev,
+        status.st_ino,
+        status.st_mode,
+        status.st_nlink,
+        status.st_uid,
+        status.st_gid,
+        status.st_size,
+        status.st_mtime_ns,
+        status.st_ctime_ns,
+    )
+
+
+def _open_empty_python_cache(path: Path) -> tuple[int, tuple[int, ...]]:
+    """Hold the app-created, non-evidence bytecode cache while sealing."""
+
+    try:
+        before = path.lstat()
+    except OSError as error:
+        raise CollectionError("proof python-cache directory is missing") from error
+    if (
+        not stat.S_ISDIR(before.st_mode)
+        or stat.S_ISLNK(before.st_mode)
+        or before.st_uid != os.getuid()
+        or stat.S_IMODE(before.st_mode) != 0o700
+    ):
+        raise CollectionError(
+            "proof python-cache must be an owner-only non-symlink directory"
+        )
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as error:
+        raise CollectionError("proof python-cache cannot be opened safely") from error
+    try:
+        opened = os.fstat(descriptor)
+        identity = _stable_directory_identity(opened)
+        if identity != _stable_directory_identity(before):
+            raise CollectionError("proof python-cache changed before sealing")
+        if os.listdir(descriptor):
+            raise CollectionError("proof python-cache must be empty")
+        return descriptor, identity
+    except Exception:
+        os.close(descriptor)
+        raise
+
+
+def _recheck_empty_python_cache(
+    path: Path, descriptor: int, identity: tuple[int, ...]
+) -> None:
+    try:
+        opened = os.fstat(descriptor)
+        current = path.lstat()
+    except OSError as error:
+        raise CollectionError("proof python-cache changed while sealing") from error
+    if (
+        _stable_directory_identity(opened) != identity
+        or _stable_directory_identity(current) != identity
+        or os.listdir(descriptor)
+    ):
+        raise CollectionError("proof python-cache changed while sealing")
+
+
 def _copy_snapshot_file(
     source: Path, destination: Path, maximum_bytes: int
 ) -> int:
@@ -393,63 +461,72 @@ def _snapshot_run(live_run: Path, snapshot_parent: Path) -> Path:
         RESULT_NAME,
         "primary-evidence",
         REPORT_DIRECTORY_NAME,
+        PYTHON_CACHE_DIRECTORY_NAME,
     }
     if {entry.name for entry in run.iterdir()} != expected_topology:
         raise CollectionError("completed proof directory has missing or extra top-level inputs")
-    snapshot = snapshot_parent / run.name
-    snapshot.mkdir(mode=0o700)
-    total_bytes = _copy_snapshot_file(
-        run / RECEIPT_NAME, snapshot / RECEIPT_NAME, portfolio.MAX_JSON_BYTES
-    )
-    total_bytes += _copy_snapshot_file(
-        run / RESULT_NAME, snapshot / RESULT_NAME, portfolio.MAX_JSON_BYTES
-    )
-    total_files = 2
-    for directory_name in ("primary-evidence", REPORT_DIRECTORY_NAME):
-        source_root = run / directory_name
-        if source_root.is_symlink() or not source_root.is_dir():
-            raise CollectionError(f"proof {directory_name} directory is unsafe")
-        source_root_status = source_root.stat()
-        if (
-            source_root_status.st_uid != os.getuid()
-            or source_root_status.st_mode & 0o022
-        ):
-            raise CollectionError(f"proof {directory_name} directory is not private")
-        target_root = snapshot / directory_name
-        target_root.mkdir(mode=0o700)
-        before_paths = sorted([
-            item.relative_to(source_root).as_posix()
-            for item in source_root.rglob("*")
-        ], key=lambda item: item.encode("utf-8"))
-        for relative in sorted(before_paths, key=lambda item: item.encode("utf-8")):
-            source = source_root.joinpath(*PurePosixPath(relative).parts)
-            target = target_root.joinpath(*PurePosixPath(relative).parts)
-            status = source.lstat()
-            if stat.S_ISDIR(status.st_mode) and not stat.S_ISLNK(status.st_mode):
-                if status.st_uid != os.getuid() or status.st_mode & 0o022:
-                    raise CollectionError(
-                        f"proof {directory_name} contains a writable directory"
-                    )
-                target.mkdir(mode=0o700)
-                continue
-            target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            total_bytes += _copy_snapshot_file(
-                source, target, portfolio.MAX_TAR_EXPANDED_BYTES
-            )
-            if total_bytes > portfolio.MAX_TAR_EXPANDED_BYTES:
-                raise CollectionError("completed proof exceeds the sealed byte bound")
-            total_files += 1
-            if total_files > portfolio.MAX_TAR_MEMBERS:
-                raise CollectionError("completed proof has too many retained inputs")
-        after_paths = sorted([
-            item.relative_to(source_root).as_posix()
-            for item in source_root.rglob("*")
-        ], key=lambda item: item.encode("utf-8"))
-        if before_paths != after_paths:
-            raise CollectionError(f"proof {directory_name} topology changed while sealing")
-    if {entry.name for entry in run.iterdir()} != expected_topology:
-        raise CollectionError("completed proof topology changed while sealing")
-    return snapshot
+    cache_path = run / PYTHON_CACHE_DIRECTORY_NAME
+    cache_descriptor, cache_identity = _open_empty_python_cache(cache_path)
+    try:
+        snapshot = snapshot_parent / run.name
+        snapshot.mkdir(mode=0o700)
+        total_bytes = _copy_snapshot_file(
+            run / RECEIPT_NAME, snapshot / RECEIPT_NAME, portfolio.MAX_JSON_BYTES
+        )
+        total_bytes += _copy_snapshot_file(
+            run / RESULT_NAME, snapshot / RESULT_NAME, portfolio.MAX_JSON_BYTES
+        )
+        total_files = 2
+        for directory_name in ("primary-evidence", REPORT_DIRECTORY_NAME):
+            source_root = run / directory_name
+            if source_root.is_symlink() or not source_root.is_dir():
+                raise CollectionError(f"proof {directory_name} directory is unsafe")
+            source_root_status = source_root.stat()
+            if (
+                source_root_status.st_uid != os.getuid()
+                or source_root_status.st_mode & 0o022
+            ):
+                raise CollectionError(f"proof {directory_name} directory is not private")
+            target_root = snapshot / directory_name
+            target_root.mkdir(mode=0o700)
+            before_paths = sorted([
+                item.relative_to(source_root).as_posix()
+                for item in source_root.rglob("*")
+            ], key=lambda item: item.encode("utf-8"))
+            for relative in sorted(before_paths, key=lambda item: item.encode("utf-8")):
+                source = source_root.joinpath(*PurePosixPath(relative).parts)
+                target = target_root.joinpath(*PurePosixPath(relative).parts)
+                status = source.lstat()
+                if stat.S_ISDIR(status.st_mode) and not stat.S_ISLNK(status.st_mode):
+                    if status.st_uid != os.getuid() or status.st_mode & 0o022:
+                        raise CollectionError(
+                            f"proof {directory_name} contains a writable directory"
+                        )
+                    target.mkdir(mode=0o700)
+                    continue
+                target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                total_bytes += _copy_snapshot_file(
+                    source, target, portfolio.MAX_TAR_EXPANDED_BYTES
+                )
+                if total_bytes > portfolio.MAX_TAR_EXPANDED_BYTES:
+                    raise CollectionError("completed proof exceeds the sealed byte bound")
+                total_files += 1
+                if total_files > portfolio.MAX_TAR_MEMBERS:
+                    raise CollectionError("completed proof has too many retained inputs")
+            after_paths = sorted([
+                item.relative_to(source_root).as_posix()
+                for item in source_root.rglob("*")
+            ], key=lambda item: item.encode("utf-8"))
+            if before_paths != after_paths:
+                raise CollectionError(f"proof {directory_name} topology changed while sealing")
+        if {entry.name for entry in run.iterdir()} != expected_topology:
+            raise CollectionError("completed proof topology changed while sealing")
+        _recheck_empty_python_cache(
+            cache_path, cache_descriptor, cache_identity
+        )
+        return snapshot
+    finally:
+        os.close(cache_descriptor)
 
 
 def _public_runtime_provenance(

@@ -18,14 +18,14 @@ from publication import build_portfolio_release as portfolio  # noqa: E402
 from publication import verify_portfolio_github_release as github_release  # noqa: E402
 
 
-TAG = "corelm-portfolio-v1"
+TAG = "corelm-portfolio-v2"
 COMMIT = "1" * 40
 TREE = "2" * 40
 TAG_OBJECT = "3" * 40
 C1_COMMIT = "7" * 40
 C1_TREE = "8" * 40
 EXPECTED_TITLE = (
-    "Core LM Portfolio v1 — reproducible real-model KV-cache benchmark"
+    "Core LM Portfolio v2 — reproducible real-model KV-cache benchmark"
 )
 FAKE_SIGNATURE = (
     "-----BEGIN SSH SIGNATURE-----\n"
@@ -161,7 +161,7 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             "immutable": False,
             "name": request["name"],
             "prerelease": False,
-            "published_at": "2026-08-08T12:34:56Z",
+            "published_at": "2026-08-09T12:34:56Z",
             "tag_name": TAG,
             "target_commitish": "main",
         }
@@ -417,7 +417,7 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             (
                 "published",
                 lambda latest: latest.__setitem__(
-                    "published_at", "2026-08-08T12:34:57Z"
+                    "published_at", "2026-08-09T12:34:57Z"
                 ),
             ),
             (

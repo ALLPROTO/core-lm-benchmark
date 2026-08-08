@@ -15,7 +15,7 @@ than inferred from this preservation policy.
 The existing publication snapshot uses `voidtoken-v5-paper-v5`. At that
 immutable tag, its CFF version, manuscript reference, SBOM component, archive
 provenance, and canonical asset names are synchronized. The current default
-branch instead uses the `corelm-portfolio-v1` software CFF/SBOM identity.
+branch instead uses the `corelm-portfolio-v2` software CFF/SBOM identity.
 Check GitHub's live
 `immutable` API field before making a platform-immutability statement; do not
 derive it from the project policy alone. Regardless of that field, do not
@@ -79,6 +79,24 @@ diff contains only modified `README.md` plus added
 `docs/media/corelm-result.png`, the PNG equals the released poster, and README
 contains only the two exact tagged release-media URLs. The portfolio tag stays
 on C0; C1 is presentation only and cannot replace or redefine evidence.
+
+Code or packaging corrections discovered after C0 cannot be smuggled into that
+presentation-only C1. If the existing release is preserved first, land such
+corrections as a separately signed linear C2 after C1 and rerun exact-commit
+CI. If a correction is required in the release source itself, mint a new
+`corelm-portfolio-vN` identity and record a new tagged regression proof; never
+move the old tag or rebind its proof to successor bytes.
+
+The signed `corelm-portfolio-v1` source has two known collector portability
+defects: its app-created empty `python-cache/` conflicts with the frozen live-run
+topology, and its evidence verifier observes macOS temporary paths through the
+`/var` alias instead of the canonical `/private/var` path. A local v1 collection
+may retain an operator record, temporarily exclude and then restore only the
+proven-empty owner-only cache, set a canonical `TMPDIR`, and run the frozen
+collector; neither workaround changes evidence bytes or permits a model rerun.
+Those workarounds do not make v1 generally reproducible. A workaround-free
+portfolio publication and CV-ready claim therefore require the corrected
+successor source under a new signed tag plus a new tagged regression proof.
 
 Historical paper publication commands and arXiv submission steps remain in
 `publication/README.md`, `publication/reproducibility/README.md`, and the

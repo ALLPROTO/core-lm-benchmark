@@ -61,7 +61,7 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v1")
+        self.assertEqual(release_tag, "corelm-portfolio-v2")
 
         for relative in (
             "publication/README.md",
@@ -250,7 +250,7 @@ class PublicationArchiveTests(unittest.TestCase):
             patch.object(archives, "_git", side_effect=self._fake_git(responses)),
             self.assertRaisesRegex(ValueError, "SSH-signed replication contour"),
         ):
-            archives._build_context("corelm-portfolio-v1")
+            archives._build_context("corelm-portfolio-v2")
 
     def test_release_preflight_rejects_arbitrary_lightweight_tag_name(self):
         responses = self._base_release_responses()
@@ -350,6 +350,10 @@ class PublicationArchiveTests(unittest.TestCase):
         self.assertIn("must not be passed to", replication)
         self.assertIn("SSH-signed annotated", release_process)
         self.assertIn("never pass a portfolio tag", release_process)
+        self.assertIn("presentation-only C1", release_process)
+        self.assertIn("signed linear C2", release_process)
+        self.assertIn("new tagged regression proof", release_process)
+        self.assertIn("canonical `TMPDIR`", release_process)
 
     def test_release_source_must_be_tracked(self):
         context = {

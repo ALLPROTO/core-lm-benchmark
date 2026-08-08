@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import os
+from contextlib import nullcontext
 import shutil
 import struct
 import subprocess
@@ -21,7 +22,7 @@ sys.path.insert(0, str(ROOT))
 from publication import build_portfolio_release as portfolio  # noqa: E402
 
 
-TAG = "corelm-portfolio-v1"
+TAG = "corelm-portfolio-v2"
 COMMIT = "1" * 40
 TAG_OBJECT = "0" * 40
 LAB_COMMIT = "3" * 40
@@ -81,7 +82,7 @@ class PortfolioReleaseTests(unittest.TestCase):
         return {
             "schema_version": 1,
             "tag": TAG,
-            "release_date": "2026-08-08",
+            "release_date": "2026-08-09",
             "source": {"commit": COMMIT, "tag_object": TAG_OBJECT, "tree": TREE},
             "continuous_integration": {
                 "linux_x86_64": {
@@ -590,6 +591,75 @@ class PortfolioReleaseTests(unittest.TestCase):
                     repository=None,
                 )
 
+    def test_product_evidence_resolves_symlinked_temporary_root(self):
+        from security import proof_reports
+
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary).resolve(strict=True)
+            real_temporary = base / "canonical-temporary"
+            real_temporary.mkdir(mode=0o700)
+            alias = base / "temporary-alias"
+            alias.symlink_to(real_temporary, target_is_directory=True)
+            build_document = {"source": {"commit": COMMIT, "tree": TREE}}
+            observed_kinds = []
+            verified_result = {"environment": {"python": "3.12.13"}}
+
+            def verify_report(path, run, kind):
+                self.assertEqual(
+                    proof_reports.validated_run_directory(run), run
+                )
+                self.assertTrue(path.is_file())
+                observed_kinds.append(kind)
+                return {}
+
+            verifiers = (
+                lambda value: _canonical(value),
+                lambda value: None,
+                lambda *args, **kwargs: verified_result,
+            )
+            with (
+                tarfile.open(
+                    fileobj=io.BytesIO(
+                        self._evidence(build_document=build_document)
+                    ),
+                    mode="r:gz",
+                ) as archive,
+                patch.object(
+                    portfolio.tempfile,
+                    "TemporaryDirectory",
+                    return_value=nullcontext(str(alias)),
+                ),
+                patch.object(
+                    portfolio,
+                    "_load_product_evidence_verifiers",
+                    return_value=verifiers,
+                ),
+                patch.object(
+                    portfolio,
+                    "_validate_evidence_toolchain_binding",
+                    return_value=None,
+                ),
+                patch.object(
+                    portfolio,
+                    "_validate_public_runtime_provenance",
+                    return_value=None,
+                ),
+                patch.object(
+                    proof_reports,
+                    "verify_report",
+                    side_effect=verify_report,
+                ),
+            ):
+                observed = portfolio._extract_and_verify_product_evidence(
+                    archive,
+                    {"commit": COMMIT, "tree": TREE},
+                )
+            self.assertIs(observed, verified_result)
+            self.assertEqual(
+                observed_kinds,
+                ["structural_verifier", "fresh_model_replay"],
+            )
+
     def test_runtime_assets_require_exact_seven_model_and_validation_assets(self):
         provenance = {
             "application_executable_sha256": "7" * 64,
@@ -704,9 +774,9 @@ class PortfolioReleaseTests(unittest.TestCase):
             root = Path(temporary)
             (root / "CITATION.cff").write_text(
                 "cff-version: 1.2.0\n"
-                "version: corelm-portfolio-v1\n"
-                "version: corelm-portfolio-v1\n"
-                "date-released: 2026-08-08\n"
+                "version: corelm-portfolio-v2\n"
+                "version: corelm-portfolio-v2\n"
+                "date-released: 2026-08-09\n"
                 "license: MIT\n"
                 "repository-code: https://github.com/ALLPROTO/core-lm-benchmark\n"
                 "url: https://github.com/ALLPROTO/core-lm-benchmark\n"
@@ -717,7 +787,7 @@ class PortfolioReleaseTests(unittest.TestCase):
                 encoding="utf-8",
             )
             with self.assertRaises(portfolio.PortfolioReleaseError):
-                portfolio._validate_citation(root, TAG, "2026-08-08")
+                portfolio._validate_citation(root, TAG, "2026-08-09")
 
     def test_asset_contract_is_exact_and_checksum_is_sorted_over_twelve(self):
         names = portfolio.asset_names(TAG)

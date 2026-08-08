@@ -1846,7 +1846,7 @@ def _extract_and_verify_product_evidence(
         _verify_result_and_receipt,
     ) = _load_product_evidence_verifiers()
     with tempfile.TemporaryDirectory(prefix="corelm-portfolio-evidence-") as temporary:
-        root = Path(temporary)
+        root = Path(temporary).resolve(strict=True)
         run_root = root / str(uuid.uuid4())
         run_root.mkdir(mode=0o700)
         try:

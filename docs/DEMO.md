@@ -44,7 +44,7 @@ set -euo pipefail
 PROMPT='demo% '
 RPROMPT=''
 umask 077
-DEMO_TAG=corelm-portfolio-v1
+DEMO_TAG=corelm-portfolio-v2
 printf '%s\n' "$DEMO_TAG" | /usr/bin/grep -Eq \
   '^corelm-portfolio-v[1-9][0-9]*$'
 git clone https://github.com/ALLPROTO/core-lm-benchmark.git core-lm-demo-source
@@ -178,7 +178,7 @@ DEMO_CAPTURE_DIR="$HOME/Desktop/corelm-demo-capture"
 /usr/sbin/screencapture -i -Jvideo -V30 -k \
   "$DEMO_CAPTURE_DIR/04-result.mov"
 /usr/sbin/screencapture -i -w \
-  "$DEMO_CAPTURE_DIR/corelm-result.png"
+  "$DEMO_CAPTURE_DIR/corelm-result-raw.png"
 ```
 
 Show the completed architecture states, all four metric cards, model and
@@ -327,17 +327,65 @@ notification windows before capture. Inspect every frame in QuickTime. If a
 private value appears, discard the media and record it again; do not cover
 metrics, verdicts, hashes, or failure messages with a blur or overlay.
 
+Filesystem extended attributes are not embedded-container metadata. Before the
+collector, use one exact local FFmpeg installation to produce the silent H.264
+delivery copy and derive the public poster from its declared timeline. The
+`bitexact` flags suppress the muxer encoder tag and `empty_hdlr_name` suppresses
+the otherwise automatic stream handler name. Do not omit either gate or weaken
+the collector for an editor's output:
+
+```zsh
+: "${DEMO_POSTER_TIMESTAMP_SECONDS:?choose the reviewed result frame}"
+RAW_DEMO_VIDEO="$DEMO_CAPTURE_DIR/corelm-demo-85s.mov"
+RAW_DEMO_SCREENSHOT="$DEMO_CAPTURE_DIR/corelm-result-raw.png"
+DEMO_VIDEO="$DEMO_CAPTURE_DIR/corelm-demo-85s-public.mp4"
+DEMO_SCREENSHOT="$DEMO_CAPTURE_DIR/corelm-result.png"
+FFMPEG=/absolute/same-install/bin/ffmpeg
+FFPROBE=/absolute/same-install/bin/ffprobe
+
+test -f "$RAW_DEMO_VIDEO"
+test -f "$RAW_DEMO_SCREENSHOT"
+test -x "$FFMPEG"
+test -x "$FFPROBE"
+test "$(/usr/bin/dirname "$FFMPEG")" = \
+  "$(/usr/bin/dirname "$FFPROBE")"
+test ! -e "$DEMO_VIDEO"
+test ! -e "$DEMO_SCREENSHOT"
+
+"$FFMPEG" -nostdin -hide_banner -loglevel error \
+  -i "$RAW_DEMO_VIDEO" \
+  -an -map 0:v:0 \
+  -c:v h264_videotoolbox -b:v 8M -pix_fmt yuv420p \
+  -fflags +bitexact -flags:v +bitexact \
+  -map_metadata -1 \
+  -metadata title= -metadata comment= -metadata creation_time= \
+  -metadata encoder= -metadata:s:v:0 title= \
+  -metadata:s:v:0 encoder= \
+  -empty_hdlr_name 1 -movflags +faststart \
+  "$DEMO_VIDEO"
+
+"$FFMPEG" -nostdin -hide_banner -loglevel error \
+  -i "$DEMO_VIDEO" -ss "$DEMO_POSTER_TIMESTAMP_SECONDS" \
+  -frames:v 1 -map_metadata -1 "$DEMO_SCREENSHOT"
+```
+
+The collector rejects PNG `tEXt`, `zTXt`, `iTXt`, `eXIf`, and `iCCP` chunks
+and all free-text video/stream tags. The FFmpeg and ffprobe executables are
+caller-selected invocation evidence rather than an upstream trust root; their
+resolved hashes and exact version lines are recorded and cross-checked.
+
 The following checks are additive. They cannot detect private text rendered
 inside video frames, so manual frame-by-frame review remains mandatory.
 
 ```zsh
-DEMO_VIDEO="$DEMO_CAPTURE_DIR/corelm-demo-85s.mov"
-DEMO_SCREENSHOT="$DEMO_CAPTURE_DIR/corelm-result.png"
 test -f "$DEMO_VIDEO"
 test -f "$DEMO_SCREENSHOT"
 
 /usr/bin/xattr -c "$DEMO_VIDEO" "$DEMO_SCREENSHOT"
-DEMO_DURATION="$(/usr/bin/mdls -raw -name kMDItemDurationSeconds "$DEMO_VIDEO")"
+DEMO_DURATION="$(
+  "$FFPROBE" -v error -show_entries format=duration \
+    -of default=noprint_wrappers=1:nokey=1 "$DEMO_VIDEO"
+)"
 /usr/bin/awk -v duration="$DEMO_DURATION" \
   'BEGIN { exit !(duration > 0 && duration <= 90) }'
 
@@ -375,14 +423,6 @@ if /usr/bin/grep -Eq '/Users/|/home/' "$DEMO_CAPTURE_DIR/SHA256SUMS"; then
 fi
 ```
 
-Filesystem extended attributes are not embedded-container metadata. Before the
-collector, use the same local FFmpeg installation as the recorded `ffprobe` to
-produce a metadata-free delivery copy and derive the poster from its stated
-timestamp. Clear format and stream titles, comments, creation time, encoder,
-and handler names explicitly. The collector rejects PNG `tEXt`, `zTXt`,
-`iTXt`, `eXIf`, and `iCCP` chunks and free-text video/stream tags; it fails if
-the export still contains them. Do not weaken that gate for an editor's output.
-
 Also search manually for the account name, legal/private email addresses,
 hostnames, Wi-Fi names, calendar events, notification text, API tokens, SSH
 material, and browser tabs. The public name “Ivan Tyshchenko”, public ORCID,
@@ -403,6 +443,13 @@ explicit author-selected app-run UUID parsed above, first copies every run
 input into a private stable snapshot, recomputes the structural evidence, checks
 the two machine reports, preserves either metric PASS or verified metric FAIL,
 and rejects missing, synthetic, private-path, or selection-tainted evidence.
+The live app run must also contain its exact transient `python-cache/`
+directory. The collector opens that directory without following links, requires
+the current owner and mode `0700`, proves it is empty before and after sealing,
+and deliberately excludes it from both the snapshot and public evidence. A
+missing, nonempty, replaced, linked, or permission-weakened cache fails closed.
+Temporary extraction roots are resolved to canonical paths internally, including
+on macOS systems where `/var` resolves through `/private/var`.
 
 Set every value explicitly. The two Actions URLs must be distinct successful
 runs for `DEMO_COMMIT`; live API checking remains a separate release-operator
@@ -419,9 +466,13 @@ gate. The poster timestamp must name the actual frame represented by the PNG.
 
 CROSS_MODEL_LAB=/absolute/core-lm-cross-model-lab
 FFPROBE=/absolute/path/to/ffprobe
+DEMO_VIDEO="$DEMO_CAPTURE_DIR/corelm-demo-85s-public.mp4"
+DEMO_SCREENSHOT="$DEMO_CAPTURE_DIR/corelm-result.png"
 DEMO_OUTPUT="$HOME/Desktop/corelm-portfolio-inputs-$DEMO_TAG"
 test -d "$CROSS_MODEL_LAB"
 test -x "$FFPROBE"
+test -f "$DEMO_VIDEO"
+test -f "$DEMO_SCREENSHOT"
 test ! -e "$DEMO_OUTPUT"
 
 "$DEMO_PYTHON" -I -B publication/collect_portfolio_demo.py \
@@ -429,8 +480,8 @@ test ! -e "$DEMO_OUTPUT"
   --cross-model-lab "$CROSS_MODEL_LAB" \
   --run-directory "$DEMO_RUN_DIR" \
   --app "$(pwd -P)/dist/CoreLMBenchmark.app" \
-  --video "$DEMO_CAPTURE_DIR/corelm-demo-85s.mov" \
-  --poster "$DEMO_CAPTURE_DIR/corelm-result.png" \
+  --video "$DEMO_VIDEO" \
+  --poster "$DEMO_SCREENSHOT" \
   --poster-frame-timestamp-seconds "$DEMO_POSTER_TIMESTAMP_SECONDS" \
   --ffprobe "$FFPROBE" \
   --tag "$DEMO_TAG" \

@@ -176,6 +176,13 @@ stable snapshot; later changes to the original run cannot alter the collected
 bytes. This classification makes no global first-attempt or no-rerun claim.
 Never publish `release-input.private.json`, because its local asset paths are
 input-only.
+The live run has one additional non-evidence entry: the app-created
+`python-cache/`. It is mandatory, must be an empty owner-controlled mode-`0700`
+directory, is held open and rechecked throughout sealing, and is never copied
+into the snapshot or evidence archive. Any contents, link, replacement, missing
+directory, or unsafe mode fail closed. Temporary evidence extraction uses the
+canonical resolved directory, so the macOS `/var` to `/private/var` alias cannot
+invalidate an otherwise canonical extracted run.
 
 ## Build locally
 
@@ -261,9 +268,9 @@ checkout and the already verified fourteen-asset directory, generate the
 request into a new absolute path:
 
 ```sh
-TAG=corelm-portfolio-v1
-ASSET_DIR=/absolute/corelm-portfolio-v1-assets
-CREATE_REQUEST=/absolute/corelm-portfolio-v1-create-release.json
+TAG=corelm-portfolio-v2
+ASSET_DIR=/absolute/corelm-portfolio-v2-assets
+CREATE_REQUEST=/absolute/corelm-portfolio-v2-create-release.json
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
 "$PORTFOLIO_PYTHON" -I -B \
@@ -277,9 +284,9 @@ The canonical request has exactly these seven keys and values:
 
 ```json
 {
-  "tag_name": "corelm-portfolio-v1",
+  "tag_name": "corelm-portfolio-v2",
   "target_commitish": "main",
-  "name": "Core LM Portfolio v1 — reproducible real-model KV-cache benchmark",
+  "name": "Core LM Portfolio v2 — reproducible real-model KV-cache benchmark",
   "body": "generated exactly from the signed source identity and SHA256SUMS digest",
   "draft": false,
   "prerelease": false,
@@ -322,8 +329,8 @@ Fetch five API views and all fourteen assets without a GitHub token, cookie,
 the exact commit and tag-object SHA come from the signed source identity:
 
 ```sh
-TAG=corelm-portfolio-v1
-ASSET_DIR=/absolute/corelm-portfolio-v1-assets
+TAG=corelm-portfolio-v2
+ASSET_DIR=/absolute/corelm-portfolio-v2-assets
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
 PUBLIC_AUDIT=/absolute/new-public-audit
@@ -405,7 +412,7 @@ and exact first version line written to the receipt; that identity describes
 the invocation and is not a release-signing, GitHub, or CI trust root.
 
 ```sh
-RECEIPT="$RECEIPT_DIRECTORY/corelm-portfolio-v1-github-release-receipt.json"
+RECEIPT="$RECEIPT_DIRECTORY/corelm-portfolio-v2-github-release-receipt.json"
 "$PORTFOLIO_PYTHON" -I -B \
   publication/verify_portfolio_github_release.py verify \
   --assets "$DOWNLOADED" \

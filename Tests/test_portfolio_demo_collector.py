@@ -221,6 +221,8 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
             (primary / "manifest.json").write_bytes(b"manifest\n")
             reports = live / "proof-reports"
             reports.mkdir(mode=0o700)
+            python_cache = live / "python-cache"
+            python_cache.mkdir(mode=0o700)
             for name in (
                 "structural-verifier.json",
                 "fresh-model-replay.json",
@@ -238,11 +240,101 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
                 (snapshot / "validation-064-071.json").read_bytes(), b"result\n"
             )
             self.assertEqual(snapshot.stat().st_mode & 0o777, 0o700)
+            self.assertFalse((snapshot / "python-cache").exists())
             (live / "extra.log").write_bytes(b"extra\n")
             with self.assertRaisesRegex(
                 collector.CollectionError, "missing or extra top-level"
             ):
                 collector._snapshot_run(live, root / "second-sealed")
+            (live / "extra.log").unlink()
+
+            (python_cache / "unexpected.pyc").write_bytes(b"not evidence\n")
+            with self.assertRaisesRegex(
+                collector.CollectionError, "python-cache must be empty"
+            ):
+                collector._snapshot_run(live, root / "nonempty-sealed")
+            (python_cache / "unexpected.pyc").unlink()
+
+            python_cache.chmod(0o750)
+            with self.assertRaisesRegex(
+                collector.CollectionError, "owner-only non-symlink directory"
+            ):
+                collector._snapshot_run(live, root / "mode-sealed")
+            python_cache.chmod(0o700)
+
+            python_cache.rmdir()
+            with self.assertRaisesRegex(
+                collector.CollectionError, "missing or extra top-level"
+            ):
+                collector._snapshot_run(live, root / "missing-cache-sealed")
+            python_cache.symlink_to(primary, target_is_directory=True)
+            with self.assertRaisesRegex(
+                collector.CollectionError, "owner-only non-symlink directory"
+            ):
+                collector._snapshot_run(live, root / "symlink-cache-sealed")
+            python_cache.unlink()
+            python_cache.write_bytes(b"not a directory\n")
+            python_cache.chmod(0o600)
+            with self.assertRaisesRegex(
+                collector.CollectionError, "owner-only non-symlink directory"
+            ):
+                collector._snapshot_run(live, root / "file-cache-sealed")
+            python_cache.unlink()
+            python_cache.mkdir(mode=0o700)
+
+            original_copy = collector._copy_snapshot_file
+            mutated = False
+
+            def mutate_cache(source, destination, maximum_bytes):
+                nonlocal mutated
+                copied = original_copy(source, destination, maximum_bytes)
+                if not mutated:
+                    (python_cache / "late.pyc").write_bytes(b"late mutation\n")
+                    mutated = True
+                return copied
+
+            mutated_parent = root / "mutated-cache-sealed"
+            mutated_parent.mkdir(mode=0o700)
+            with (
+                patch.object(
+                    collector,
+                    "_copy_snapshot_file",
+                    side_effect=mutate_cache,
+                ),
+                self.assertRaisesRegex(
+                    collector.CollectionError, "python-cache changed while sealing"
+                ),
+            ):
+                collector._snapshot_run(live, mutated_parent)
+            (python_cache / "late.pyc").unlink()
+
+            replacement = root / "replaced-python-cache"
+            replaced = False
+
+            def replace_cache(source, destination, maximum_bytes):
+                nonlocal replaced
+                copied = original_copy(source, destination, maximum_bytes)
+                if not replaced:
+                    python_cache.rename(replacement)
+                    python_cache.mkdir(mode=0o700)
+                    replaced = True
+                return copied
+
+            replaced_parent = root / "replaced-cache-sealed"
+            replaced_parent.mkdir(mode=0o700)
+            with (
+                patch.object(
+                    collector,
+                    "_copy_snapshot_file",
+                    side_effect=replace_cache,
+                ),
+                self.assertRaisesRegex(
+                    collector.CollectionError, "python-cache changed while sealing"
+                ),
+            ):
+                collector._snapshot_run(live, replaced_parent)
+            python_cache.rmdir()
+            replacement.rename(python_cache)
 
     def test_runtime_manifest_tracks_the_collector_and_report_generator(self):
         self.assertIn(
@@ -331,6 +423,26 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
         self.assertIn('--structural-report "$STRUCTURAL_REPORT"', proof)
         self.assertIn("END-TO-END PROOF VERIFIED — METRIC FAIL", proof)
         self.assertNotIn("rerun-to-pass", proof)
+
+    def test_demo_runbook_exports_metadata_free_public_media(self):
+        runbook = (ROOT / "docs" / "DEMO.md").read_text(encoding="utf-8")
+        for required in (
+            'RAW_DEMO_SCREENSHOT="$DEMO_CAPTURE_DIR/corelm-result-raw.png"',
+            'DEMO_VIDEO="$DEMO_CAPTURE_DIR/corelm-demo-85s-public.mp4"',
+            '-fflags +bitexact -flags:v +bitexact',
+            '-map_metadata -1',
+            '-empty_hdlr_name 1 -movflags +faststart',
+            '--video "$DEMO_VIDEO"',
+            '--poster "$DEMO_SCREENSHOT"',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, runbook)
+        self.assertNotIn(
+            '--video "$DEMO_CAPTURE_DIR/corelm-demo-85s.mov"', runbook
+        )
+        self.assertNotIn(
+            '--poster "$DEMO_CAPTURE_DIR/corelm-result-raw.png"', runbook
+        )
 
 
 if __name__ == "__main__":

@@ -67,7 +67,7 @@ one another:
   from a checkout whose historical `CITATION.cff` names the same paper tag,
   verifies that the tag is lightweight, points to clean `HEAD`, and is visible
   on the canonical public origin. The current default branch instead names the
-  stable `corelm-portfolio-v1` software identity.
+  current `corelm-portfolio-v2` software identity.
 - `corelm-portfolio-vN` is the SSH-signed annotated portfolio and independent-
   replication contour. It is verified by `tools/independent_replication.py`
   against the pinned signer policy and canonical remote. The archive builder
@@ -105,7 +105,7 @@ A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
 
 On the default branch that preview includes the current
-`corelm-portfolio-v1` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
+`corelm-portfolio-v2` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
 not a byte claim about the historical paper-v5 package. Exact paper-v5
 reproduction requires the detached tag below.
 
