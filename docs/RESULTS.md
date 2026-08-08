@@ -9,7 +9,9 @@ create another prospective observation.
 | Registered holdout | Prospective result | PASS | Frozen Qwen/WikiText claim on the registered holdout |
 | macOS application | Integration regression | PASS | Native app, MPS worker, containers, and independent replay work together |
 | Linux CPU | Cross-platform regression | PASS | The same registered real-data path executes and verifies on Ubuntu CPU |
+| Cross-model matrix | Public-data diagnostic | 3 PASS / 1 preserved FAIL | The unchanged profile is not universally transferable across the observed models |
 | Beacon-heldout | Preregistered one-shot | PASS | One terminal beacon-selected result; no rerun can replace it |
+| Blind V1 | Expired-schedule draft | NOT RUN / RETIRED | Development record only; no frozen design or scientific result |
 
 ## Registered prospective holdout
 
@@ -51,7 +53,7 @@ The application always uses fixed, public validation blocks 64–71. Because
 those blocks have been exercised repeatedly, this is an application-regression
 fixture, not a blind sample, holdout, or new evidence of generalization. Three
 same-machine executions bound to a trusted-local challenge from the unchanged
-app bundle reproduced the same scientific content and container geometry. They
+app bundle reproduced the same metric content and container geometry. They
 are three repeatability checks of one fixed workflow, not three independent
 experiments.
 Expected runtime timestamps and timing measurements differed.
@@ -73,6 +75,42 @@ and produced complete raw evidence. CPU and Apple MPS values are not required
 to be bit-identical. This is environmental repeatability, not another
 scientific holdout. Exact provenance and the disclosed setup-only attempts are
 recorded in the [Linux run report](../platforms/linux/RECORDED_RUN_2026-08-01.md).
+
+## Cross-model public-data diagnostic
+
+The separate
+[`core-lm-cross-model-lab`](https://github.com/ALLPROTO/core-lm-cross-model-lab)
+ran one unchanged Qwen-derived codec profile on four pinned real pretrained
+models. Each Linux cell used real WikiText-2 validation blocks 64–71, 1,024
+teacher-forced decisions, and 192 complete containers. Successful execution
+and evidence verification did not force a metric PASS.
+
+| Model | Complete-container ratio | Delta NLL | Top-1 agreement | Diagnostic |
+|---|---:|---:|---:|:---:|
+| Qwen2.5-0.5B | 2.052385545x | +0.000002146 | 99.6094% | PASS |
+| GPT-2 Medium | 2.054564234x | -0.000204623 | 99.9023% | PASS |
+| Pythia-410M-deduped | 2.059581758x | +0.270073175 | 74.9023% | **FAIL** |
+| BLOOM-560M | 2.066423786x | -0.000506163 | 99.0234% | PASS |
+
+The Pythia job completed and its retained evidence verified correctly; its
+behavioral metrics failed. The cell is neither dropped nor averaged away. The
+matrix supports only limited transfer on these fixed public regressions and
+directly refutes a universal-transfer claim for the unchanged profile. Exact
+run identities and artifact digests are recorded in the lab's
+[`RESULTS.md`](https://github.com/ALLPROTO/core-lm-cross-model-lab/blob/main/RESULTS.md).
+
+## Blind V1 status
+
+Blind V1 exists only as an open
+[development-draft PR](https://github.com/ALLPROTO/core-lm-cross-model-lab/pull/5).
+Its `2026-08-08T12:00:00Z` checkpoint elapsed before a complete exact-commit
+gate, so V1 is permanently not frozen, not preregistered, and not run; it must
+not be launched late. Its tests, schemas, CI, fixtures, asset checks, and
+development controls are readiness evidence, not compression or
+generalization evidence. No confirmatory-model forward pass, future-corpus
+selection, target NIST pulse request, scientific attempt, or scientific result
+is represented by this row. A future blind experiment requires a new suite ID
+and a fully shifted timeline.
 
 ## What macOS integration PASS means
 

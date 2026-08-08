@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/portfolio-release-input.schema.json",
+  "title": "Core LM portfolio release builder input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tag",
+    "release_date",
+    "source",
+    "continuous_integration",
+    "related_sources",
+    "local_assets"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tag": {"$ref": "#/$defs/tag"},
+    "release_date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "tag_object", "tree"],
+      "properties": {
+        "commit": {"$ref": "#/$defs/gitObject"},
+        "tag_object": {"$ref": "#/$defs/gitObject"},
+        "tree": {"$ref": "#/$defs/gitObject"}
+      }
+    },
+    "continuous_integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linux_x86_64", "macos_arm64"],
+      "properties": {
+        "linux_x86_64": {"$ref": "#/$defs/ciRun"},
+        "macos_arm64": {"$ref": "#/$defs/ciRun"}
+      }
+    },
+    "related_sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cross_model_lab", "blind_v1_draft"],
+      "properties": {
+        "cross_model_lab": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit", "tree"],
+          "properties": {
+            "commit": {"$ref": "#/$defs/gitObject"},
+            "tree": {"$ref": "#/$defs/gitObject"}
+          }
+        },
+        "blind_v1_draft": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit", "tree", "lifecycle_state", "pull_request"],
+          "properties": {
+            "commit": {"$ref": "#/$defs/gitObject"},
+            "tree": {"$ref": "#/$defs/gitObject"},
+            "lifecycle_state": {"const": "DRAFT_NOT_PREREGISTERED"},
+            "pull_request": {
+              "const": "https://github.com/ALLPROTO/core-lm-cross-model-lab/pull/5"
+            }
+          }
+        }
+      }
+    },
+    "local_assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "demo_video",
+        "demo_poster",
+        "demo_provenance",
+        "demo_evidence",
+        "runtime_assets"
+      ],
+      "properties": {
+        "demo_video": {"$ref": "#/$defs/absolutePath"},
+        "demo_poster": {"$ref": "#/$defs/absolutePath"},
+        "demo_provenance": {"$ref": "#/$defs/absolutePath"},
+        "demo_evidence": {"$ref": "#/$defs/absolutePath"},
+        "runtime_assets": {"$ref": "#/$defs/absolutePath"}
+      }
+    }
+  },
+  "$defs": {
+    "gitObject": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "tag": {
+      "type": "string",
+      "pattern": "^corelm-portfolio-v[1-9][0-9]*$"
+    },
+    "absolutePath": {
+      "type": "string",
+      "minLength": 2,
+      "pattern": "^/[^\\u0000\\r\\n]+$"
+    },
+    "ciRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "conclusion", "required", "url"],
+      "properties": {
+        "commit": {"$ref": "#/$defs/gitObject"},
+        "conclusion": {"const": "success"},
+        "required": {"const": true},
+        "url": {
+          "type": "string",
+          "pattern": "^https://github\\.com/ALLPROTO/core-lm-benchmark/actions/runs/[1-9][0-9]*$"
+        }
+      }
+    }
+  }
+}

@@ -11,6 +11,11 @@ additional product versions.
   native SwiftUI/MPS proof.
 - [Complete macOS walkthrough](../platforms/macos/BUILD_AND_VERIFY.md) — fresh
   clone, offline preparation, safety limits, and troubleshooting.
+- [Reproducible demo capture](DEMO.md) — clean-source real-model recording,
+  ≤90-second storyboard, verifier, provenance, and privacy checks.
+- [Independent clean-clone replication](INDEPENDENT_REPLICATION.md) —
+  privacy-safe human attestation, exact source/environment capture, terminal
+  log, receipt/result bindings, and verifier report for portfolio gate G10.
 - [Linux CPU regression](../platforms/linux/README.md) — real-Qwen command-line
   build and verification.
 - [Recorded Linux run](../platforms/linux/RECORDED_RUN_2026-08-01.md) — public
@@ -26,6 +31,11 @@ additional product versions.
   explanation.
 - [Architecture](ARCHITECTURE.md) — data flow, module boundaries, and verifier
   chain.
+- [Engineering case study](ENGINEERING_CASE_STUDY.md) — codec, real-model
+  replay, verifier separation, failure semantics, supply-chain threat model,
+  and the AI-assisted ownership boundary.
+- [Portfolio readiness boundary](PORTFOLIO_READINESS.md) — the twelve public
+  gates for `CV_READY`, kept separate from future scientific completion.
 - [Limitations](LIMITATIONS.md) — exact boundary of every demonstrated claim.
 - [Security policy](../SECURITY.md) — runtime, assets, process isolation, and
   supply-chain trust boundaries.

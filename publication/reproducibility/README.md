@@ -127,20 +127,58 @@ The connected one-command proof runs the Python and Swift gates, the visible
 real-Qwen application, the fast independent verifier, and the heavyweight
 independent replay:
 
-```sh
-./corelm macos proof
+```zsh
+set -euo pipefail
+PROOF_LOG="$(mktemp "${TMPDIR:-/tmp}/corelm-proof-operator.XXXXXX")"
+chmod 600 "$PROOF_LOG"
+trap 'rm -f "$PROOF_LOG"' EXIT
+./corelm macos proof 2>&1 | tee "$PROOF_LOG"
 ```
 
 The automated proof creates and retains a fresh runtime with hash-locked
-packages and an exact signed runtime manifest (roughly 1 GB plus caches), then
-prints its path. It supplies a random challenge to the app and requires that
-exact nonce in the receipt. This is only a trusted-local stale-run binding: it
-guards against accidentally selecting an older local result, not cryptographic
-remote freshness. The owner-local ad-hoc receipt has no independently trusted
-signature and a malicious local user could edit it. Another observer may
-instead provide exactly 64 lowercase hexadecimal characters in
-`CORELM_PROOF_CHALLENGE`; the value is propagated unchanged under the same
-trust boundary.
+packages and an exact signed runtime manifest (roughly 1 GB plus caches). Its
+public output contains only `Fresh proof runtime ID: <lowercase-uuid>`, never a
+home-directory path. Parse and validate that identifier before reconstructing
+the private cache path locally:
+
+```zsh
+PROOF_ID="$(/usr/bin/sed -n \
+  's/^Fresh proof runtime ID: //p' "$PROOF_LOG")"
+test "${#PROOF_ID}" -eq 36
+printf '%s\n' "$PROOF_ID" | /usr/bin/grep -Eq \
+  '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+
+PROOF_RUNTIME="$HOME/.cache/corelm/macos/proof-runtimes/$PROOF_ID"
+case "$PROOF_RUNTIME" in
+  "$HOME/.cache/corelm/macos/proof-runtimes/"*) ;;
+  *) printf '%s\n' 'unexpected proof runtime path' >&2; exit 1 ;;
+esac
+test -d "$PROOF_RUNTIME"
+test ! -L "$PROOF_RUNTIME"
+test -x "$PROOF_RUNTIME/bin/python"
+
+PROOF_OUTCOME="$(/usr/bin/sed -n \
+  -e '/^END-TO-END PROOF PASS:/p' \
+  -e '/^END-TO-END PROOF VERIFIED — METRIC FAIL:/p' \
+  "$PROOF_LOG")"
+case "$PROOF_OUTCOME" in
+  'END-TO-END PROOF PASS:'*) ;;
+  'END-TO-END PROOF VERIFIED — METRIC FAIL:'*) ;;
+  *) printf '%s\n' 'unexpected proof outcome' >&2; exit 1 ;;
+esac
+```
+
+Both outcomes represent a fully executed proof with verified retained
+evidence. The second preserves a failed metric gate and must not be rerun merely
+to obtain PASS. A timeout, memory stop, verifier error, or missing outcome is an
+infrastructure failure. The proof supplies a random challenge to the app and
+requires that exact nonce in the receipt. This is only a trusted-local stale-run
+binding: it guards against accidentally selecting an older local result, not
+cryptographic remote freshness. The owner-local ad-hoc receipt has no
+independently trusted signature and a malicious local user could edit it.
+Another observer may instead provide exactly 64 lowercase hexadecimal
+characters in `CORELM_PROOF_CHALLENGE`; the value is propagated unchanged under
+the same trust boundary.
 
 The receipt embeds canonical build provenance. A Git build requires a clean
 tree and binds the public remote, commit, tree, and exact tag when present; an

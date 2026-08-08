@@ -3,11 +3,34 @@
 [![Linux](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-linux.yml/badge.svg)](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-linux.yml)
 [![macOS](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-macos.yml/badge.svg)](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-macos.yml)
 
-Core LM Benchmark is an open-source, real-data benchmark for inspecting a
-KV-cache compression result end to end. It loads a pinned Qwen model, evaluates
-registered WikiText input, creates complete compressed cache containers,
-fresh-parses them, replays the cache through the model, and independently
-verifies the result.
+Core LM Benchmark is a source-built macOS/Linux benchmark for complete,
+serialized **KV-cache compression—not model-weight compression**. It loads a
+pinned pretrained Qwen model on real registered WikiText input, creates and
+fresh-parses compressed cache containers, continues the model from the rebuilt
+cache, retains raw evidence, and verifies the result through separate code.
+
+What a reviewer can inspect:
+
+- a [native SwiftUI application](platforms/macos/README.md) running real Qwen
+  on Apple MPS;
+- a [Linux CPU path](platforms/linux/README.md) that retains containers and
+  per-token evidence;
+- [producer, parser, Swift verifier, standard-library verifier, and fresh
+  real-model replay boundaries](docs/ARCHITECTURE.md); and
+- a [cross-model diagnostic](https://github.com/ALLPROTO/core-lm-cross-model-lab)
+  that preserves a real Pythia behavioral **FAIL** instead of hiding it.
+
+Current measurements are fixed-public-data engineering regressions. They are
+not weight compression, a blind/generalization result, or a state-of-the-art
+claim. The unrun
+[Blind V1 draft](https://github.com/ALLPROTO/core-lm-cross-model-lab/pull/5)
+missed its registered checkpoint and is retained only as a transparent
+development record; it cannot be frozen or launched late. Any future blind
+experiment requires a new suite ID and a fully shifted timeline. See the
+[engineering case study](docs/ENGINEERING_CASE_STUDY.md) for a five-part code
+tour and ownership boundary. The measurable
+[portfolio readiness boundary](docs/PORTFOLIO_READINESS.md) is tracked
+separately from future scientific completion.
 
 The repository has two active platform targets and one read-only compatibility
 contour:
@@ -210,6 +233,7 @@ environment with `PYTHON_BIN=/absolute/path/to/python`.
 - [Documentation index](docs/README.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Build and verify on macOS](platforms/macos/BUILD_AND_VERIFY.md)
+- [Independent clean-clone replication](docs/INDEPENDENT_REPLICATION.md)
 - [Recorded real Qwen run on Linux](platforms/linux/RECORDED_RUN_2026-08-01.md)
 - [Results](docs/RESULTS.md)
 - [Limitations](docs/LIMITATIONS.md)

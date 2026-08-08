@@ -125,6 +125,32 @@ def _close(left: Any, right: Any) -> bool:
     )
 
 
+def _validate_result_receipt_contract(
+    receipt_schema: Any, value: Any
+) -> tuple[dict[str, Any], Any]:
+    result_receipt_keys = {
+        "compressionRatioVsBF16",
+        "deltaNLLNatPerToken",
+        "path",
+        "resultFileSHA256",
+        "resultSHA256",
+        "swiftStructuralVerification",
+        "top1Agreement",
+    }
+    if receipt_schema == "corelm-macos-app-real-llm-run-v5":
+        result_receipt_keys.update({"metricVerdict", "resultRole"})
+    else:
+        result_receipt_keys.add("scientificVerdict")
+    result_receipt = _require_exact_keys(
+        value, result_receipt_keys, "result receipt"
+    )
+    if receipt_schema == "corelm-macos-app-real-llm-run-v5":
+        if result_receipt["resultRole"] != "PUBLIC_VALIDATION_REGRESSION":
+            raise ValueError("current receipt misclassifies the result role")
+        return result_receipt, result_receipt["metricVerdict"]
+    return result_receipt, result_receipt["scientificVerdict"]
+
+
 def _timestamp(value: Any, label: str) -> datetime:
     if not isinstance(value, str):
         raise ValueError(f"{label} is not a timestamp")
@@ -220,6 +246,7 @@ def _verify_result_and_receipt(
     *,
     portable_macos_environment: bool,
     expected_challenge_nonce: str | None,
+    require_metric_pass: bool = True,
 ) -> dict[str, Any]:
     if app_bundle is not None:
         if app_bundle.is_symlink() or not app_bundle.is_dir():
@@ -260,7 +287,10 @@ def _verify_result_and_receipt(
     }
     if "challengeNonce" in receipt:
         receipt_keys.add("challengeNonce")
-    if receipt_schema == "corelm-macos-app-real-llm-run-v4":
+    if receipt_schema in {
+        "corelm-macos-app-real-llm-run-v4",
+        "corelm-macos-app-real-llm-run-v5",
+    }:
         receipt_keys.add("primaryEvidence")
         receipt_keys.add("buildProvenance")
     _require_exact_keys(
@@ -272,6 +302,7 @@ def _verify_result_and_receipt(
         "corelm-macos-app-real-llm-run-v2",
         "corelm-macos-app-real-llm-run-v3",
         "corelm-macos-app-real-llm-run-v4",
+        "corelm-macos-app-real-llm-run-v5",
     }:
         raise ValueError("receipt schema version is unsupported")
     if not portable_macos_environment and receipt_schema != (
@@ -281,7 +312,11 @@ def _verify_result_and_receipt(
     if expected_challenge_nonce is not None:
         _require_sha256(expected_challenge_nonce, "expected challenge nonce")
         if (
-            receipt_schema != "corelm-macos-app-real-llm-run-v4"
+            receipt_schema
+            not in {
+                "corelm-macos-app-real-llm-run-v4",
+                "corelm-macos-app-real-llm-run-v5",
+            }
             or receipt.get("challengeNonce") != expected_challenge_nonce
         ):
             raise ValueError("receipt does not contain the proof challenge")
@@ -289,11 +324,14 @@ def _verify_result_and_receipt(
         _require_sha256(receipt.get("challengeNonce"), "receipt challenge")
     if receipt["error"] is not None:
         raise ValueError("receipt records an application error")
-    if receipt_schema == "corelm-macos-app-real-llm-run-v4":
+    if receipt_schema in {
+        "corelm-macos-app-real-llm-run-v4",
+        "corelm-macos-app-real-llm-run-v5",
+    }:
         if result.get("schemaVersion") != (
             "corelm-voidtoken-v5-validation-development-v3"
         ):
-            raise ValueError("v4 receipt requires retained primary evidence")
+            raise ValueError("current receipt requires retained primary evidence")
         primary = _require_exact_keys(
             receipt["primaryEvidence"],
             {
@@ -319,7 +357,7 @@ def _verify_result_and_receipt(
     elif result.get("schemaVersion") == (
         "corelm-voidtoken-v5-validation-development-v3"
     ):
-        raise ValueError("primary evidence result requires a v4 receipt")
+        raise ValueError("primary evidence result requires a v4 or v5 receipt")
     started_at = _timestamp(receipt["startedAt"], "receipt startedAt")
     result_created_at = _timestamp(result.get("createdAt"), "result createdAt")
     receipt_created_at = _timestamp(receipt["createdAt"], "receipt createdAt")
@@ -417,29 +455,23 @@ def _verify_result_and_receipt(
     }:
         raise ValueError("application protocol receipt is inconsistent")
 
-    result_receipt = _require_exact_keys(
-        receipt["result"],
-        {
-            "compressionRatioVsBF16",
-            "deltaNLLNatPerToken",
-            "path",
-            "resultFileSHA256",
-            "resultSHA256",
-            "scientificVerdict",
-            "swiftStructuralVerification",
-            "top1Agreement",
-        },
-        "result receipt",
+    result_receipt, metric_verdict = _validate_result_receipt_contract(
+        receipt_schema, receipt["result"]
     )
     aggregate = result.get("aggregates")
     if not isinstance(aggregate, list) or len(aggregate) != 1:
         raise ValueError("result must contain exactly one aggregate")
     aggregate_item = aggregate[0]
+    aggregate_pass = aggregate_item.get("pass")
+    if not isinstance(aggregate_pass, bool):
+        raise ValueError("result metric verdict is not Boolean")
+    expected_metric_verdict = "PASS" if aggregate_pass else "FAIL"
     if (
         result_receipt["path"] != result_path.name
         or result_receipt["resultFileSHA256"] != _sha256(result_path)
         or result_receipt["resultSHA256"] != result.get("resultSHA256")
-        or result_receipt["scientificVerdict"] != "PASS"
+        or metric_verdict != expected_metric_verdict
+        or (require_metric_pass and not aggregate_pass)
         or result_receipt["swiftStructuralVerification"] != "PASS"
         or not _close(
             result_receipt["compressionRatioVsBF16"],
@@ -533,6 +565,7 @@ def verify_fresh_run(
     app_bundle: Path,
     *,
     challenge_nonce: str | None = None,
+    require_metric_pass: bool = False,
 ) -> dict[str, Any]:
     run = run_directory.resolve()
     if run_directory.is_symlink() or not run.is_dir():
@@ -545,6 +578,7 @@ def verify_fresh_run(
         app_bundle,
         portable_macos_environment=True,
         expected_challenge_nonce=challenge_nonce,
+        require_metric_pass=require_metric_pass,
     )
 
 

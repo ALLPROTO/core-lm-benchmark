@@ -13,6 +13,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+PAPER_TEST_TAG = "voidtoken-v5-paper-v5"
+MISMATCHED_PAPER_TEST_TAG = "voidtoken-v5-paper-v9"
 
 import publication.build_archives as archives  # noqa: E402
 from security import generate_build_provenance as build_provenance  # noqa: E402
@@ -234,22 +236,46 @@ class PublicationArchiveTests(unittest.TestCase):
             patch.object(archives, "_git", side_effect=self._fake_git(responses)),
             self.assertRaisesRegex(ValueError, "clean worktree"),
         ):
+            archives._build_context(PAPER_TEST_TAG)
+
+    def test_release_preflight_rejects_portfolio_tag_as_wrong_contour(self):
+        responses = self._base_release_responses()
+        with (
+            patch.object(archives, "_git", side_effect=self._fake_git(responses)),
+            self.assertRaisesRegex(ValueError, "SSH-signed replication contour"),
+        ):
+            archives._build_context("corelm-portfolio-v1")
+
+    def test_release_preflight_rejects_arbitrary_lightweight_tag_name(self):
+        responses = self._base_release_responses()
+        with (
+            patch.object(archives, "_git", side_effect=self._fake_git(responses)),
+            self.assertRaisesRegex(ValueError, "historical paper contour"),
+        ):
             archives._build_context("v0.4.0")
+
+    def test_release_preflight_rejects_tag_that_disagrees_with_citation(self):
+        responses = self._base_release_responses()
+        with (
+            patch.object(archives, "_git", side_effect=self._fake_git(responses)),
+            self.assertRaisesRegex(ValueError, "CITATION.cff version"),
+        ):
+            archives._build_context(MISMATCHED_PAPER_TEST_TAG)
 
     def test_release_preflight_rejects_annotated_tag(self):
         responses = self._base_release_responses()
-        responses[("cat-file", "-t", "refs/tags/v0.4.0")] = _completed(
+        responses[("cat-file", "-t", f"refs/tags/{PAPER_TEST_TAG}")] = _completed(
             "tag\n"
         )
         with (
             patch.object(archives, "_git", side_effect=self._fake_git(responses)),
             self.assertRaisesRegex(ValueError, "lightweight"),
         ):
-            archives._build_context("v0.4.0")
+            archives._build_context(PAPER_TEST_TAG)
 
     def test_release_preflight_checks_origin_and_remote_tag(self):
         responses = self._base_release_responses()
-        reference = "refs/tags/v0.4.0"
+        reference = f"refs/tags/{PAPER_TEST_TAG}"
         responses[("cat-file", "-t", reference)] = _completed("commit\n")
         responses[
             ("rev-parse", "--verify", f"{reference}^{{commit}}")
@@ -263,9 +289,13 @@ class PublicationArchiveTests(unittest.TestCase):
         with patch.object(
             archives, "_git", side_effect=self._fake_git(responses)
         ):
-            context = archives._build_context("v0.4.0")
+            context = archives._build_context(PAPER_TEST_TAG)
         self.assertEqual(context["buildMode"], "clean-public-tag-release")
         self.assertTrue(context["remoteTagVerified"])
+        self.assertEqual(
+            context["releaseContour"],
+            archives.HISTORICAL_PAPER_ARCHIVE_CONTOUR,
+        )
 
         wrong_origin = dict(responses)
         wrong_origin[("remote", "get-url", "origin")] = _completed(
@@ -279,11 +309,32 @@ class PublicationArchiveTests(unittest.TestCase):
             ),
             self.assertRaisesRegex(ValueError, "origin"),
         ):
-            archives._build_context("v0.4.0")
+            archives._build_context(PAPER_TEST_TAG)
+
+    def test_release_documentation_separates_paper_and_portfolio_tags(self):
+        publication = (ROOT / "publication/README.md").read_text(
+            encoding="utf-8"
+        )
+        replication = (ROOT / "docs/INDEPENDENT_REPLICATION.md").read_text(
+            encoding="utf-8"
+        )
+        release_process = (
+            ROOT / "docs/development/RELEASE_PROCESS.md"
+        ).read_text(encoding="utf-8")
+        for document in (publication, replication, release_process):
+            self.assertIn("voidtoken-v5-paper-vN", document)
+            self.assertIn("corelm-portfolio-vN", document)
+        self.assertIn("lightweight historical paper", publication)
+        self.assertIn("SSH-signed annotated portfolio", publication)
+        self.assertIn("requires it to equal", publication)
+        self.assertIn("differs from `CITATION.cff`", publication)
+        self.assertIn("must not be passed to", replication)
+        self.assertIn("SSH-signed annotated", release_process)
+        self.assertIn("never pass a portfolio tag", release_process)
 
     def test_release_source_must_be_tracked(self):
         context = {
-            "releaseTag": "v0.4.0",
+            "releaseTag": PAPER_TEST_TAG,
             "trackedFiles": set(),
         }
         with self.assertRaisesRegex(ValueError, "not tracked"):
@@ -406,8 +457,13 @@ class PublicationArchiveTests(unittest.TestCase):
                     "RealLLM/requirements.lock",
                     "RealLLM/prepare_app_assets.py",
                     "docs/README.md",
+                    "docs/DEMO.md",
+                    "docs/ENGINEERING_CASE_STUDY.md",
+                    "docs/INDEPENDENT_REPLICATION.md",
+                    "docs/PORTFOLIO_READINESS.md",
                     "docs/RESULTS.md",
                     "docs/LIMITATIONS.md",
+                    "docs/independent-replication-attestation.template.json",
                     "docs/development/BEACON_V1_AUDIT_AND_V2.md",
                     "docs/development/HISTORY.md",
                     "docs/development/SCIENTIFIC_IDENTIFIERS.md",
@@ -418,6 +474,7 @@ class PublicationArchiveTests(unittest.TestCase):
                     "platforms/macos/App/Sources/SecurityValidation.swift",
                     "platforms/macos/Tests/SecurityValidationTests.swift",
                     "Tests/test_platform_boundaries.py",
+                    "Tests/test_portfolio_release.py",
                     "security/generate_python_runtime_manifest.py",
                     "security/generate_build_provenance.py",
                     "security/find_python312.sh",
@@ -431,6 +488,7 @@ class PublicationArchiveTests(unittest.TestCase):
                     "security/verify_supply_chain.py",
                     "security/verify_app_bundle.sh",
                     "Tests/test_build_provenance.py",
+                    "Tests/test_independent_replication.py",
                     "Tests/test_beacon_protocol.py",
                     "Tests/test_linux_runtime_hardening.py",
                     "Tests/test_swift_security_gate.py",
@@ -442,6 +500,8 @@ class PublicationArchiveTests(unittest.TestCase):
                     "schemas/beacon-registration.schema.json",
                     "schemas/beacon-resolution.schema.json",
                     "schemas/beacon-window-ledger.schema.json",
+                    "schemas/portfolio-release-input.schema.json",
+                    "schemas/portfolio-source-identity.schema.json",
                     "RealLLM/BEACON_HELDOUT_PROTOCOL.md",
                     "RealLLM/beacon_evaluation.py",
                     "RealLLM/beacon_protocol.py",
@@ -460,6 +520,9 @@ class PublicationArchiveTests(unittest.TestCase):
                     "publication/arxiv-v5/submission_metadata.md",
                     "signing/allowed_signers",
                     "signing/corelm-codec-signing.pub",
+                    "tools/independent_replication.py",
+                    "publication/build_portfolio_release.py",
+                    "publication/PORTFOLIO_RELEASE.md",
                 ):
                     self.assertIn(f"{prefix}/{relative}", names)
                 for relative in archives.V5_ARXIV_SOURCE_FILES:

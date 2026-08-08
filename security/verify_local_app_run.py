@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import uuid
 from pathlib import Path
 
 
@@ -24,6 +25,16 @@ DEFAULT_RESULTS_ROOT = (
     / "real-llm-results"
 )
 DEFAULT_APP = PROJECT_ROOT / "dist" / "CoreLMBenchmark.app"
+
+
+def public_run_identifier(run_directory: Path) -> str | None:
+    """Return only an app-created canonical UUID, never a local path."""
+    name = run_directory.name
+    try:
+        parsed = uuid.UUID(name)
+    except (ValueError, AttributeError):
+        return None
+    return name if str(parsed) == name else None
 
 
 def latest_complete_run(results_root: Path) -> Path:
@@ -54,7 +65,7 @@ def latest_complete_run(results_root: Path) -> Path:
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "parse retained raw containers, recompute token-level scientific "
+            "parse retained raw containers, recompute token-level regression "
             "gates for a CoreLMBenchmark.app result, then bind its receipt "
             "and primary evidence to the exact source and local app"
         )
@@ -101,16 +112,25 @@ def main() -> int:
             run_directory,
             arguments.app,
             challenge_nonce=arguments.challenge,
+            require_metric_pass=False,
         )
         aggregate = result["aggregates"][0]
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
         print(f"LOCAL APP RUN FAIL: {error}", file=sys.stderr)
         return 1
-    prefix = (
-        "FRESH LOCAL APP PROOF PASS"
-        if arguments.challenge is not None
-        else "LOCAL APP RUN CONSISTENCY PASS"
-    )
+    metric_verdict = "PASS" if aggregate["pass"] else "FAIL"
+    if arguments.challenge is not None:
+        prefix = (
+            "FRESH LOCAL APP PROOF PASS"
+            if metric_verdict == "PASS"
+            else "FRESH LOCAL APP PROOF VERIFIED — METRIC FAIL"
+        )
+    else:
+        prefix = (
+            "LOCAL APP RUN CONSISTENCY PASS"
+            if metric_verdict == "PASS"
+            else "LOCAL APP RUN VERIFIED — METRIC FAIL"
+        )
     print(
         f"{prefix}: "
         f"{aggregate['compressionRatioVsBF16']:.6f}x compression, "
@@ -120,7 +140,11 @@ def main() -> int:
         "source/build provenance, runtime identity, runner source, and app "
         "executable agree."
     )
-    print(f"Verified run: {run_directory.resolve()}")
+    run_identifier = public_run_identifier(run_directory)
+    print(
+        "Verified run ID: "
+        + (run_identifier if run_identifier is not None else "<redacted>")
+    )
     return 0
 
 

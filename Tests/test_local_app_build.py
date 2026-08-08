@@ -361,10 +361,17 @@ class LocalAppBuildTests(unittest.TestCase):
         application = (
             MACOS_APP / "Sources" / "CoreLMBenchmarkApp.swift"
         ).read_text(encoding="utf-8")
+        local_verifier = (
+            ROOT / "security" / "verify_local_app_run.py"
+        ).read_text(encoding="utf-8")
 
         self.assertIn('Label("Compression Proof"', content)
         self.assertIn('Button("Run Compression Proof")', content)
         self.assertIn('"VoidToken Codec"', content)
+        self.assertIn('Text("Regression gates")', content)
+        self.assertNotIn('Text("Scientific gates")', content)
+        self.assertIn("BenchmarkStore.publicResultLabel(for: url)", content)
+        self.assertNotIn("Text(url.path)", content)
         for stale in (
             "Development Run",
             "Compression Comparison",
@@ -386,8 +393,21 @@ class LocalAppBuildTests(unittest.TestCase):
             'format: "Qwen v5 ',
             "The app result does not use frozen candidate 32.",
             "The result configuration is not the frozen VoidToken v5 candidate.",
+            '"scientificVerdict"',
         ):
             self.assertNotIn(stale, store)
+        self.assertIn('"corelm-macos-app-real-llm-run-v5"', store)
+        self.assertIn('"corelm-macos-app-real-llm-failure-v1"', store)
+        self.assertNotIn('"corelm-macos-app-real-llm-run-v2"', store)
+        self.assertNotIn('"corelm-macos-app-real-llm-run-v3"', store)
+        self.assertIn('"resultRole": "PUBLIC_VALIDATION_REGRESSION"', store)
+        self.assertIn('"metricVerdict"', store)
+        self.assertIn("let completed = !isRunning", store)
+        self.assertIn("exit(completed ? EXIT_SUCCESS : EXIT_FAILURE)", store)
+        self.assertIn('"resultIdentifier"', store)
+        self.assertNotIn('"resultPath"', store)
+        self.assertIn("token-level regression", local_verifier)
+        self.assertNotIn("token-level scientific", local_verifier)
         self.assertNotIn('Button("Open Development Result…")', application)
 
         models = (MACOS_APP / "Sources" / "Models.swift").read_text(
@@ -611,6 +631,22 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertEqual(plist["CFBundleShortVersionString"], "1.0.0")
         self.assertEqual(plist["CFBundleVersion"], "6")
 
+    def test_results_ledger_preserves_negative_and_unrun_boundaries(self):
+        results = (ROOT / "docs" / "RESULTS.md").read_text(encoding="utf-8")
+        self.assertIn("Pythia-410M-deduped", results)
+        self.assertIn("+0.270073175", results)
+        self.assertIn("74.9023%", results)
+        self.assertIn("The cell is neither dropped nor averaged away", results)
+        self.assertIn("Blind V1 status", results)
+        self.assertIn("not frozen, not preregistered, and not run", results)
+        self.assertIn("readiness evidence, not", results)
+        for unsupported_claim in (
+            "proved generalization",
+            "independently reviewed",
+            "state of the art",
+        ):
+            self.assertNotIn(unsupported_claim, results.lower())
+
     def test_packager_has_no_author_specific_default_python_digest(self):
         source = (MACOS_SCRIPTS / "package-app.sh").read_text(encoding="utf-8")
         self.assertNotIn(
@@ -667,6 +703,7 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertIn('pycache_prefix=$VERIFY_CACHE', proof)
         self.assertIn("security/verify_primary_replay.py", proof)
         self.assertIn("independent heavy replay", proof)
+        self.assertIn("END-TO-END PROOF VERIFIED — METRIC FAIL", proof)
         self.assertGreaterEqual(proof.count("/usr/bin/env -i"), 3)
         self.assertIn(
             'run_clean "$PROJECT_DIR/security/verify_app_bundle.sh"',
@@ -690,6 +727,63 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertIn("CORELM_REAL_LLM_VENV", tests)
         self.assertIn("CORELM_LINUX_RUNTIME", tests)
         self.assertIn("Python 3.12.13 is required", tests)
+
+    def test_demo_runtime_contract_is_path_free_and_preserves_metric_fail(self):
+        proof = (MACOS_SCRIPTS / "run-proof.sh").read_text(encoding="utf-8")
+        demo = (ROOT / "docs" / "DEMO.md").read_text(encoding="utf-8")
+        reproducer = (
+            ROOT / "publication" / "reproducibility" / "README.md"
+        ).read_text(encoding="utf-8")
+        uuid_pattern = (
+            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+            "[0-9a-f]{4}-[0-9a-f]{12}$"
+        )
+
+        self.assertIn('"Fresh proof runtime ID: $PROOF_ID"', proof)
+        self.assertNotIn("Fresh proof runtime retained at:", proof)
+        self.assertNotIn("Fresh proof runtime retained under", proof)
+        for document in (demo, reproducer):
+            self.assertIn("s/^Fresh proof runtime ID: //p", document)
+            self.assertIn(uuid_pattern, document)
+            self.assertIn("END-TO-END PROOF PASS", document)
+            self.assertIn(
+                "END-TO-END PROOF VERIFIED — METRIC FAIL",
+                document,
+            )
+        self.assertIn(
+            'DEMO_RUNTIME="$HOME/.cache/corelm/macos/'
+            'proof-runtimes/$DEMO_PROOF_ID"',
+            demo,
+        )
+        self.assertIn(
+            'PROOF_RUNTIME="$HOME/.cache/corelm/macos/'
+            'proof-runtimes/$PROOF_ID"',
+            reproducer,
+        )
+        self.assertIn("FRESH LOCAL APP PROOF PASS:", demo)
+        self.assertIn(
+            "FRESH LOCAL APP PROOF VERIFIED — METRIC FAIL:",
+            demo,
+        )
+        self.assertIn(
+            "Do not rerun a verified metric FAIL in pursuit",
+            demo,
+        )
+        self.assertIn(
+            "must not be rerun merely\nto obtain PASS",
+            reproducer,
+        )
+        self.assertIn('cd "$DEMO_CAPTURE_DIR"', demo)
+        self.assertIn('"$(/usr/bin/basename "$DEMO_VIDEO")"', demo)
+        self.assertIn('"$(/usr/bin/basename "$DEMO_SCREENSHOT")"', demo)
+        checksum_block = demo.split(
+            '  /usr/bin/shasum -a 256 \\\n', 1
+        )[1].split(") | tee", 1)[0]
+        self.assertNotIn("$DEMO_CAPTURE_DIR/", checksum_block)
+        self.assertIn(
+            "checksum manifest contains a home path",
+            demo,
+        )
 
     def test_doctor_and_build_enforce_random_mac_prerequisites(self):
         doctor = (MACOS_SCRIPTS / "doctor.sh").read_text(encoding="utf-8")
@@ -1299,6 +1393,27 @@ class LocalAppBuildTests(unittest.TestCase):
                 verify_local_app_run.latest_complete_run(root),
                 complete.resolve(),
             )
+
+    def test_public_run_identifier_never_discloses_a_local_path(self):
+        identifier = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        run = Path("/Users/private-name/results") / identifier
+        self.assertEqual(
+            verify_local_app_run.public_run_identifier(run),
+            identifier,
+        )
+        self.assertIsNone(
+            verify_local_app_run.public_run_identifier(
+                Path("/Users/private-name/results/not-a-run")
+            )
+        )
+        self.assertIsNone(
+            verify_local_app_run.public_run_identifier(
+                Path(
+                    "/Users/private-name/results/"
+                    "F47AC10B-58CC-4372-A567-0E02B2C3D479"
+                )
+            )
+        )
 
 
 if __name__ == "__main__":

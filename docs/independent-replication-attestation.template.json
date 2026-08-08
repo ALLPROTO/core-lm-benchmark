@@ -1,0 +1,15 @@
+{
+  "attestedAt": "YYYY-MM-DDTHH:MM:SSZ",
+  "declaration": "I am a human independent of the Core LM author and AI agents. I ran the documented command on the declared machine from a fresh public clone, made no source changes before execution, and report this completed attempt without selecting or altering its metric outcome.",
+  "publicProfileURL": "https://github.com/REPLACE-WITH-YOUR-ACCOUNT",
+  "schemaVersion": "corelm-independent-human-attestation-v1",
+  "statements": {
+    "differentIndependentlyControlledMachine": true,
+    "freshPublicClone": true,
+    "humanOperated": true,
+    "notAIAgent": true,
+    "notProjectAuthor": true,
+    "reportedWithoutOutcomeSelection": true,
+    "sourceUnmodifiedBeforeRun": true
+  }
+}

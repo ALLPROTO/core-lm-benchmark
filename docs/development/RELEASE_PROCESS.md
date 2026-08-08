@@ -22,9 +22,9 @@ release instead. The beacon protocol uses the separate
 `corelm-beacon-heldout-v1` release channel and is not superseded by whichever
 release GitHub labels “Latest.”
 
-## Candidate checks
+## Common candidate checks
 
-Before creating any new release:
+Before creating any new release, complete the shared checks:
 
 1. work from a clean branch and preserve all historical evidence;
 2. run the Python and Swift suites;
@@ -33,14 +33,35 @@ Before creating any new release:
 4. verify workflow policy, dependency locks, SBOM, secret history, and OSV;
 5. build the application and run a fresh challenge-bound proof;
 6. verify deterministic archives twice;
-7. push the exact commit and wait for branch and pull-request CI;
-8. create a new, never-used lightweight tag only after CI is green;
-9. wait for tag-triggered CI;
-10. build final archives from the publicly visible tag and verify checksums.
+7. push the exact commit and wait for branch and pull-request CI.
 
-Detailed publication commands and arXiv submission steps remain in
+Then choose exactly one release contour. Do not reuse one contour's tag or
+packager for the other.
+
+### Historical paper archive
+
+1. create a new, never-used **lightweight** `voidtoken-v5-paper-vN` tag only
+   after CI is green;
+2. require that tag to equal the exact `version` in `CITATION.cff` and the
+   paper SBOM/manuscript identity;
+3. wait for tag-triggered CI;
+4. run `publication/build_archives.py --release-tag ...` from the publicly
+   visible tag and verify checksums.
+
+### Portfolio engineering release
+
+1. use a new, never-used **SSH-signed annotated** `corelm-portfolio-vN` tag
+   only after exact-commit Linux and macOS CI are green;
+2. require the portfolio CFF, SBOM, source identity, demo evidence, public key,
+   and checksum signatures to bind that same tag/commit/tree;
+3. follow `publication/PORTFOLIO_RELEASE.md` and independently verify the
+   fourteen final assets before upload;
+4. never pass a portfolio tag to `publication/build_archives.py`.
+
+Historical paper publication commands and arXiv submission steps remain in
 `publication/README.md`, `publication/reproducibility/README.md`, and the
-submission checklist. Those documents intentionally retain versioned names.
+submission checklist. The portfolio release has a separate signed-asset
+workflow because its tag and trust contract are intentionally different.
 
 ## Final and development output
 
