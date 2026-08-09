@@ -39,7 +39,7 @@ CV_READY = G01 AND G02 AND G03 AND G04 AND G05 AND G06
 | G11 Engineering ownership | A public code tour covers codec format, model replay, verifier separation, failure-state semantics, and the supply-chain threat model; AI assistance is disclosed. |
 | G12 Stable release | One obvious signed current portfolio release binds source identity, checksums, public key, SBOM, reproduce command, release notes, and demo. Historical releases are clearly archival. |
 
-The `corelm-portfolio-v7` `corelm-automated-presentation-v2` product-media path
+The `corelm-portfolio-v8` `corelm-automated-presentation-v2` product-media path
 may satisfy G03 with a deterministic, single-window automation receipt
 classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. Its signed result, raw evidence,
@@ -48,7 +48,7 @@ agent audit never satisfy G10. Later passive viewing by a CV recipient does
 not satisfy it either; that gate still requires the specified non-author,
 non-agent clean-clone publication.
 
-V7 is a new identity rather than a relabel of any failed candidate. V3
+V8 is a new identity rather than a relabel of any failed candidate. V3
 remains frozen at its first tag-push assertion failure. V4 remains frozen at a
 pre-model FFprobe frame-PTS field-validation failure that occurred before
 `AttemptLog.reserve`; no V4 model attempt was invoked or consumed. V5 passed
@@ -64,7 +64,21 @@ zero maximum loss error. Its durable automation state nevertheless ended
 executable differed from the proof-rebuilt verified app, before same-run result
 capture, media sealing, or collection. None of the V3/V4/V5/V6 tags or
 workflows are rerun or moved, and none of those candidates' bytes can satisfy
-a V7 gate.
+a later gate.
+
+The signed `corelm-portfolio-v7` tag and first-attempt tag CI are also frozen.
+The three V7 runner invocations all stopped strictly before
+`AttemptLog.reserve`: two failed the >=50% available-memory admission after the
+parallel Swift preflight build left less than 50% available memory, and one
+transient pre-marker public tag-CI admission failure had an unretained nested
+cause; the exact same 8-response validation subsequently passed. The durable state and
+session remained absent after all three; no proof or model attempt was
+consumed. V7 is never moved, rerun, or relabelled. The distinct V8
+single-job/low-peak-memory pre-marker build scheduling avoids the V7
+parallel-build admission pressure without weakening the 50% available-memory
+threshold. Receipts bind the exact produced app SHA; this does not claim
+byte-deterministic executable builds across scratch roots or weaken any
+evidence or G10 boundary.
 
 No gate can be replaced by a large test count, an author-controlled agent
 review, an uncommitted local run, or a future promise.

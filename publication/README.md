@@ -67,7 +67,7 @@ one another:
   from a checkout whose historical `CITATION.cff` names the same paper tag,
   verifies that the tag is lightweight, points to clean `HEAD`, and is visible
   on the canonical public origin. The current default branch instead names the
-  current `corelm-portfolio-v7` software identity.
+  current `corelm-portfolio-v8` software identity.
 - `corelm-portfolio-vN` is the SSH-signed annotated portfolio and source-
   verification contour. Its signed-source identity is verified against the
   pinned signer policy and canonical remote; the separate
@@ -106,11 +106,11 @@ A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
 
 On the default branch that preview includes the current
-`corelm-portfolio-v7` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
+`corelm-portfolio-v8` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
 not a byte claim about the historical paper-v5 package. Exact paper-v5
 reproduction requires the detached tag below.
 
-The V7 portfolio media path is governed by
+The V8 portfolio media path is governed by
 `corelm-automated-presentation-v2` and is classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. It requires no human review or
 manual edit to accept generated media, but it does not verify pixel semantics
@@ -118,7 +118,7 @@ and does not make the video or poster scientific machine evidence. Gate G10
 remains **OPEN** until a non-author, non-agent person publishes the required
 clean-clone replication.
 
-V7 is distinct from the preserved V3, V4, V5, and V6 failures. V3 failed its
+V8 is distinct from the preserved V3, V4, V5, and V6 failures. V3 failed its
 first tag-push assertion. V4 passed tag CI but stopped in pre-model FFprobe
 frame-PTS field validation before `AttemptLog.reserve`, so no V4 model attempt was
 invoked or consumed. V5 also passed first-attempt tag CI. Its first local
@@ -132,8 +132,21 @@ passed first-attempt tag CI, and its one scientific proof honestly passed at
 with zero maximum loss error. Its durable state then ended `ATTEMPT_FAILED`
 after `REPLAY_VERIFIED` because the preflight-built explanatory-window
 executable differed from the proof-rebuilt verified app, before same-run result
-capture, media sealing, or collection. None of the failed candidates is rerun,
-moved, reused, or relabelled as V7.
+capture, media sealing, or collection. None of those failed candidates is
+rerun, moved, reused, or relabelled as a later identity.
+
+The signed `corelm-portfolio-v7` tag and first-attempt tag CI are also frozen.
+The three V7 runner invocations all stopped strictly before
+`AttemptLog.reserve`: two failed the >=50% available-memory admission after the
+parallel Swift preflight build left less than 50% available memory, and one
+transient pre-marker public tag-CI admission failure had an unretained nested
+cause; the exact same 8-response validation subsequently passed. The durable state and
+session remained absent after all three; no proof or model attempt was
+consumed. V7 is never moved, rerun, or relabelled. V8 uses
+single-job/low-peak-memory pre-marker build scheduling to avoid the V7
+parallel-build admission pressure without weakening the 50% available-memory
+threshold. Receipts bind the exact produced app SHA; this does not claim
+byte-deterministic executable builds across scratch roots.
 
 ## Reproduce the existing tagged package
 

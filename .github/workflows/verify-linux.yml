@@ -24,10 +24,10 @@ jobs:
       - name: Require exact portfolio tag-push ref
         run: |
           set -eu
-          expected_tag=corelm-portfolio-v7
-          expected_citation_line='version: "corelm-portfolio-v7"'
+          expected_tag=corelm-portfolio-v8
+          expected_citation_line='version: "corelm-portfolio-v8"'
           if [ "$GITHUB_REF_NAME" != "$expected_tag" ]; then
-            echo "Not the V7 portfolio tag; exact tag assertion is not applicable."
+            echo "Not the V8 portfolio tag; exact tag assertion is not applicable."
             exit 0
           fi
           tag_ref="refs/tags/$expected_tag"
@@ -79,10 +79,10 @@ jobs:
       - name: Require exact portfolio tag-push ref
         run: |
           set -eu
-          expected_tag=corelm-portfolio-v7
-          expected_citation_line='version: "corelm-portfolio-v7"'
+          expected_tag=corelm-portfolio-v8
+          expected_citation_line='version: "corelm-portfolio-v8"'
           if [ "$GITHUB_REF_NAME" != "$expected_tag" ]; then
-            echo "Not the V7 portfolio tag; exact tag assertion is not applicable."
+            echo "Not the V8 portfolio tag; exact tag assertion is not applicable."
             exit 0
           fi
           tag_ref="refs/tags/$expected_tag"

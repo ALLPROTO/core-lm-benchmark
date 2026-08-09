@@ -1,6 +1,6 @@
 # Automation-only macOS portfolio demo
 
-This is the current V7 product-media contour for portfolio gate G03 under
+This is the current V8 product-media contour for portfolio gate G03 under
 `corelm-automated-presentation-v2`. It has no interactive window selection,
 editor, manual trim, chosen poster frame, or human-review acceptance step. Its
 exact classification is:
@@ -39,15 +39,31 @@ with zero maximum loss error. Its durable state then ended `ATTEMPT_FAILED`
 after `REPLAY_VERIFIED`: the preflight-built explanatory-window executable
 differed from the proof-rebuilt verified app. This was before
 same-run result capture, media sealing, or collection. Never rerun or move V6,
-and never relabel its proof or partial media as V7. V7 is the distinct corrected
-identity with post-proof presentation contract
+and never relabel its proof or partial media as V7, V8, or any later identity.
+
+The signed `corelm-portfolio-v7` candidate is also immutable. Its exact source
+commit is `8d53e43208f76141a01bb2c0914459fbc101e7d5`, tree
+`ea82aa490c008d8560a6d44a70407d8d5e33bdbc`, and annotated tag object
+`2c82497617173e3dfd965502860082ab5bf98130`. Its first tag CI was green on
+attempt one: Linux run `31328178519` and macOS run `31328178525`. The three V7
+runner invocations all stopped strictly before `AttemptLog.reserve`. Two failed
+the >=50% available-memory admission after the parallel Swift preflight build
+left less than 50% available memory; one transient pre-marker public tag-CI
+admission failure had an unretained nested cause, while the exact same
+8-response validation subsequently passed. The durable state and session remained absent
+after all three; no proof or model attempt was consumed. Never rerun, move, or
+relabel V7. V8 is the distinct successor. Its single-job/low-peak-memory
+pre-marker build scheduling avoids the V7 parallel-build admission pressure
+without weakening the 50% available-memory threshold. Receipts bind the exact
+produced app SHA; this does not claim byte-deterministic executable builds
+across scratch roots. V8 retains presentation contract
 `corelm-automated-presentation-v2`.
 
 ## Fixed source and one-attempt boundary
 
 The command accepts only a clean canonical checkout whose `main`,
 `origin/main`, and already-created SSH-signed annotated
-`corelm-portfolio-v7` tag all resolve to the same commit/tree. The signed tag
+`corelm-portfolio-v8` tag all resolve to the same commit/tree. The signed tag
 and its first-attempt Linux/macOS Actions must already be green.
 
 Before model execution the command checks power, the offline doctor, pinned
@@ -63,7 +79,7 @@ than one pinned-Qwen model execution.
 `CORELM_OFFLINE=1` applies to the model, corpus, app proof, replay, and media
 pipeline. Before reserving the attempt, the runner makes the sole bounded
 online exception: eight anonymous, direct, no-proxy/no-redirect GitHub API
-requests that prove the exact public V7 tag/main and first-attempt Linux/macOS
+requests that prove the exact public V8 tag/main and first-attempt Linux/macOS
 tag CI. Failure remains pre-marker and safely retryable. Exact response bytes,
 the recomputed public receipt, and hard-pinned local tag-trust receipt are
 retained for collector and release verification; they record admission-time
@@ -91,10 +107,10 @@ providing both `ffmpeg` and `ffprobe`.
 ```sh
 set -eu
 
-DEMO_TAG=corelm-portfolio-v7
+DEMO_TAG=corelm-portfolio-v8
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v7-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v8-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -173,7 +189,7 @@ WINDOW_HELPER="$DEMO_SESSION/find-proof-window"
 TAG_CI_RECEIPT="$DEMO_SESSION/tag-ci-receipt.json"
 LOCAL_TAG_TRUST_RECEIPT="$DEMO_SESSION/local-tag-trust-receipt.json"
 TAG_CI_BUNDLE="$DEMO_SESSION/tag-ci-bundle"
-INPUTS=/absolute/absent/corelm-portfolio-v7-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v8-inputs
 PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 
 publication/run_portfolio_python.sh \

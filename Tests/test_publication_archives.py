@@ -35,7 +35,7 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
-    def test_current_portfolio_schemas_pin_automation_only_v7_contract(self):
+    def test_current_portfolio_schemas_pin_automation_only_v8_contract(self):
         release_input = json.loads(
             (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
                 encoding="utf-8"
@@ -167,7 +167,7 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v7")
+        self.assertEqual(release_tag, "corelm-portfolio-v8")
         self.assertRegex(citation, r"(?m)^date-released: 2026-08-09$")
 
         for relative in (
@@ -232,7 +232,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v5", text)
-                self.assertIn("corelm-portfolio-v7", text)
+                self.assertIn("corelm-portfolio-v8", text)
                 self.assertIn("HTTP 403", normalized)
                 self.assertIn("AttemptLog.reserve", text)
                 self.assertRegex(normalized, r"(?:signed 32-bit|above `2\^31`)")
@@ -258,7 +258,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v6", text)
-                self.assertIn("corelm-portfolio-v7", text)
+                self.assertIn("corelm-portfolio-v8", text)
                 self.assertIn("first-attempt tag CI", normalized)
                 self.assertIn("2.052384x", normalized)
                 self.assertIn("-0.00000846", normalized)
@@ -273,6 +273,62 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("media sealing", normalized)
                 self.assertIn("collection", normalized)
                 self.assertIn("never", normalized.lower())
+
+    def test_v7_pre_marker_history_and_v8_single_job_fix_are_preserved(self):
+        historical_documents = (
+            "docs/DEMO.md",
+            "docs/ENGINEERING_CASE_STUDY.md",
+            "docs/LIMITATIONS.md",
+            "docs/PORTFOLIO_READINESS.md",
+            "docs/development/RELEASE_PROCESS.md",
+            "docs/development/SCIENTIFIC_IDENTIFIERS.md",
+            "publication/PORTFOLIO_RELEASE.md",
+            "publication/README.md",
+            "publication/reproducibility/README.md",
+        )
+        for relative in historical_documents:
+            with self.subTest(document=relative):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                normalized = " ".join(text.split())
+                self.assertIn("corelm-portfolio-v7", text)
+                self.assertIn("corelm-portfolio-v8", text)
+                self.assertIn("three V7 runner invocations", normalized)
+                self.assertIn("two", normalized.lower())
+                self.assertIn("50%", normalized)
+                self.assertIn("parallel Swift", normalized)
+                self.assertIn(
+                    "transient pre-marker public tag-CI admission failure",
+                    normalized,
+                )
+                self.assertIn("8-response validation subsequently passed", normalized)
+                self.assertIn("AttemptLog.reserve", text)
+                self.assertIn("durable state and session remained absent", normalized)
+                self.assertIn("no proof or model attempt was consumed", normalized)
+                self.assertIn(
+                    "single-job/low-peak-memory pre-marker build scheduling",
+                    normalized,
+                )
+                self.assertIn("without weakening the 50%", normalized)
+                self.assertIn("exact produced app SHA", normalized)
+                self.assertIn("does not claim byte-deterministic", normalized)
+                self.assertIn("never", normalized.lower())
+
+        exact_documents = (
+            "docs/DEMO.md",
+            "docs/development/RELEASE_PROCESS.md",
+            "publication/PORTFOLIO_RELEASE.md",
+        )
+        for relative in exact_documents:
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(exact_identity_document=relative):
+                for identity in (
+                    "8d53e43208f76141a01bb2c0914459fbc101e7d5",
+                    "ea82aa490c008d8560a6d44a70407d8d5e33bdbc",
+                    "2c82497617173e3dfd965502860082ab5bf98130",
+                    "31328178519",
+                    "31328178525",
+                ):
+                    self.assertIn(identity, text)
 
     def test_current_publication_readmes_close_beacon_without_overclaim(self):
         evidence_commit = "85c2add1799652a818873a04310b75821728da11"

@@ -15,7 +15,7 @@ than inferred from this preservation policy.
 The existing publication snapshot uses `voidtoken-v5-paper-v5`. At that
 immutable tag, its CFF version, manuscript reference, SBOM component, archive
 provenance, and canonical asset names are synchronized. The current default
-branch instead uses the `corelm-portfolio-v7` software CFF/SBOM identity and
+branch instead uses the `corelm-portfolio-v8` software CFF/SBOM identity and
 the `corelm-automated-presentation-v2` automation contract.
 Check GitHub's live
 `immutable` API field before making a platform-immutability statement; do not
@@ -67,7 +67,7 @@ packager for the other.
    canonical receipt outside the same release; and
 6. never pass a portfolio tag to `publication/build_archives.py`.
 
-For V7, post-proof recording, deterministic poster extraction, media assembly,
+For V8, post-proof recording, deterministic poster extraction, media assembly,
 metadata checks, and evidence collection must complete through the tracked
 automation contract without a required human review or manual-edit acceptance
 step. Both media assets are classified
@@ -110,9 +110,27 @@ with zero maximum loss error. Its durable state then ended `ATTEMPT_FAILED`
 after `REPLAY_VERIFIED`: the preflight-built explanatory-window executable
 differed from the proof-rebuilt verified app. Same-run result capture, media
 sealing, and collection never occurred. Never rerun the V6 contour, move or
-replace its tag, or relabel its proof or partial media as V7. V7 corrects the
-presentation ordering under `corelm-automated-presentation-v2` and requires its
-own signed commit, tag, first-attempt tag CI, and proof.
+replace its tag, or relabel its proof or partial media as a later identity.
+
+The signed annotated `corelm-portfolio-v7` tag is a fifth preserved failed
+release candidate. Its exact source commit is
+`8d53e43208f76141a01bb2c0914459fbc101e7d5`, tree
+`ea82aa490c008d8560a6d44a70407d8d5e33bdbc`, and tag object
+`2c82497617173e3dfd965502860082ab5bf98130`. Its first tag CI passed on attempt
+one in Linux run `31328178519` and macOS run `31328178525`. The three V7 runner
+invocations all stopped strictly before `AttemptLog.reserve`: two failed the
+>=50% available-memory admission after the parallel Swift preflight build left
+less than 50% available memory, and one transient pre-marker public tag-CI
+admission failure had an unretained nested cause; the exact same 8-response
+validation subsequently passed. The durable state and session remained absent after all
+three; no proof or model attempt was consumed. Never rerun the V7 contour, move
+or replace its tag, or relabel it as V8. The distinct V8
+single-job/low-peak-memory pre-marker build scheduling avoids the V7
+parallel-build admission pressure without weakening the 50% available-memory
+threshold. Receipts bind the exact produced app SHA; this does not claim
+byte-deterministic executable builds across scratch roots. V8 retains
+`corelm-automated-presentation-v2` and requires its own signed commit, tag,
+first-attempt tag CI, and proof.
 
 This contour leaves independent-replication gate G10 **OPEN**. An author-run
 automation, including an agent-run audit, cannot satisfy it. Only a later

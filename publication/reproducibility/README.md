@@ -386,11 +386,11 @@ state, and hashes of included evidence files. It is descriptive metadata, not
 a replacement for Git history. The distribution-side `SHA256SUMS` verifies the
 v5 arXiv source archive, reproducibility archive, and rendered paper PDF.
 
-A default-branch preview carries the current `corelm-portfolio-v7` software
+A default-branch preview carries the current `corelm-portfolio-v8` software
 CFF/SBOM identity and records `UNRELEASED_PREVIEW`; it is not the historical
 paper-v5 release. Exact paper-v5 bytes must be built from the detached tag.
 
-The V7 portfolio's `corelm-automated-presentation-v2` path records and checks a
+The V8 portfolio's `corelm-automated-presentation-v2` path records and checks a
 post-proof model-free explanatory window plus the exact same-run result without
 a required human acceptance or manual edit. Its video and poster are explicitly
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`: they aid inspection but do not
@@ -399,7 +399,7 @@ semantics are not claimed to be verified. Independent-replication gate G10
 remains **OPEN** until a non-author, non-agent person publishes a clean-clone
 replication.
 
-The current V7 identity does not replace the failed V3, V4, V5, or V6
+The current V8 identity does not replace the failed V3, V4, V5, or V6
 candidates.
 V3 remains at its first tag-push assertion failure. V4 remains at a pre-model
 FFprobe frame-PTS field-validation failure before `AttemptLog.reserve`; no V4
@@ -415,7 +415,20 @@ with zero maximum loss error. Its durable state then ended `ATTEMPT_FAILED`
 after `REPLAY_VERIFIED` because the preflight-built explanatory-window
 executable differed from the proof-rebuilt verified app, before same-run result
 capture, media sealing, or collection. Their tags and first-attempt records are
-never moved, rerun, or relabelled as V7.
+never moved, rerun, or relabelled as a later identity.
+
+The signed `corelm-portfolio-v7` tag and first-attempt tag CI are likewise
+historical. The three V7 runner invocations all stopped strictly before
+`AttemptLog.reserve`: two failed the >=50% available-memory admission after the
+parallel Swift preflight build left less than 50% available memory, and one
+transient pre-marker public tag-CI admission failure had an unretained nested
+cause; the exact same 8-response validation subsequently passed. The durable state and
+session remained absent after all three; no proof or model attempt was
+consumed. V7 is never moved, rerun, or relabelled. V8 uses
+single-job/low-peak-memory pre-marker build scheduling to avoid the V7
+parallel-build admission pressure without weakening the 50% available-memory
+threshold. Receipts bind the exact produced app SHA; this does not claim
+byte-deterministic executable builds across scratch roots.
 
 To reproduce the already published `voidtoken-v5-paper-v5` package, maintainers
 use a full clean repository clone at that existing public tag. They do not

@@ -110,7 +110,7 @@ orchestrator in
 does not print end-to-end PASS until the app, structural verifier, and heavy
 model replay have all returned successfully.
 
-The `corelm-portfolio-v7` `corelm-automated-presentation-v2` contour is also
+The `corelm-portfolio-v8` `corelm-automated-presentation-v2` contour is also
 automation-only: after proof and replay it records a fixed model-free
 explanatory overview from the exact verified proof app, reopens the exact
 retained run, derives the poster at a fixed timestamp,
@@ -121,7 +121,7 @@ support remains in signed result/evidence bytes and the heavy replay. The
 capture-safe view and metadata scans reduce disclosure risk but do not prove
 that no private glyph exists.
 
-This V7 contour does not rewrite the failed V4 candidate. V4 stopped during
+This V8 contour does not rewrite the failed V4 candidate. V4 stopped during
 pre-model tool admission when its FFprobe frame-PTS field validator rejected
 n8.1.2's `duration_time`/SEI output grammar, before the durable attempt marker
 and before any model invocation; no V4 model attempt was consumed. V5 then
@@ -137,8 +137,22 @@ honest scientific proof PASS:
 state ended `ATTEMPT_FAILED` after `REPLAY_VERIFIED` because the preflight-built
 explanatory-window executable differed from the proof-rebuilt verified app,
 before same-run result capture, media sealing, or collection. V3 through V6 are
-never moved, rerun, or relabelled as V7. The earlier V3 tag-push assertion
-failure remains immutable for the same record-preservation reason.
+never moved, rerun, or relabelled as a later identity. The earlier V3 tag-push
+assertion failure remains immutable for the same record-preservation reason.
+
+The signed `corelm-portfolio-v7` tag and its first-attempt tag CI are likewise
+frozen. The three V7 runner invocations all stopped strictly before
+`AttemptLog.reserve`: two failed the >=50% available-memory admission after the
+parallel Swift preflight build left less than 50% available memory, and one
+transient pre-marker public tag-CI admission failure had an unretained nested
+cause; the exact same 8-response validation subsequently passed. The durable state and
+session remained absent after all three; no proof or model attempt was
+consumed. V7 is never moved, rerun, or relabelled. The distinct V8
+single-job/low-peak-memory pre-marker build scheduling avoids the V7
+parallel-build admission pressure without weakening the 50% available-memory
+threshold. Receipts bind the exact produced app SHA; this does not claim
+byte-deterministic executable builds across scratch roots. Presentation
+contract v2 remains unchanged.
 
 This is **implementation/process separation**, not independent scientific
 review. The project is currently author-operated and

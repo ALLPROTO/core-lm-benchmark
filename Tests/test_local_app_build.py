@@ -4,6 +4,7 @@ import hashlib
 import io
 import os
 import plistlib
+import shlex
 import shutil
 import subprocess
 import sys
@@ -800,6 +801,66 @@ class LocalAppBuildTests(unittest.TestCase):
             source,
         )
         self.assertIn("CORELM_REAL_LLM_PYTHON_SHA256", source)
+
+    def test_packager_swift_build_is_exactly_one_job_and_gate_stays_strict(self):
+        package = (MACOS_SCRIPTS / "package-app.sh").read_text(encoding="utf-8")
+        runner = (
+            MACOS_SCRIPTS / "run-automated-portfolio-demo.py"
+        ).read_text(encoding="utf-8")
+        marker = "/usr/bin/xcrun --sdk macosx swift build"
+        expected_argv = [
+            "/usr/bin/env",
+            "-i",
+            "HOME=$HOME",
+            "TMPDIR=$BUILD_TMP_DIR",
+            "PATH=$PATH",
+            "LANG=C",
+            "LC_ALL=C",
+            "/usr/bin/xcrun",
+            "--sdk",
+            "macosx",
+            "swift",
+            "build",
+            "--jobs",
+            "1",
+            "-c",
+            "$BUILD_CONFIG",
+            "--scratch-path",
+            "$SWIFT_BUILD_DIR",
+        ]
+
+        def exact_build_argv(source):
+            if source.count(marker) != 1:
+                raise AssertionError("Swift build invocation count is not exact")
+            marker_offset = source.index(marker)
+            start = source.rfind("/usr/bin/env -i \\", 0, marker_offset)
+            end = source.find("\n\n/usr/bin/env -i \\", marker_offset)
+            if start < 0 or end < 0:
+                raise AssertionError("Swift build env-i boundary is not exact")
+            block = source[start:end]
+            argv = shlex.split(block.replace("\\\n", " "))
+            if argv != expected_argv:
+                raise AssertionError("Swift build argv is not exact")
+            return argv
+
+        self.assertEqual(exact_build_argv(package), expected_argv)
+        self.assertIn("BUILD_CONFIG=${BUILD_CONFIG:-release}", package)
+        for label, mutation in (
+            ("omitted", package.replace("    --jobs 1 -c ", "    -c ", 1)),
+            ("two", package.replace("--jobs 1", "--jobs 2", 1)),
+            ("eight", package.replace("--jobs 1", "--jobs 8", 1)),
+        ):
+            with self.subTest(label=label), self.assertRaises(AssertionError):
+                exact_build_argv(mutation)
+
+        self.assertNotIn("CORELM_SKIP_MEMORY_CHECK", package)
+        self.assertNotIn("--skip-memory-check", package)
+        self.assertIn("MINIMUM_AVAILABLE_MEMORY_PERCENT = 50", runner)
+        orchestrate = runner[runner.index("def orchestrate(") :]
+        self.assertLess(
+            orchestrate.rindex("_pre_marker_resources"),
+            orchestrate.index("AttemptLog.reserve"),
+        )
 
     def test_local_workflow_shell_scripts_parse(self):
         for path in (

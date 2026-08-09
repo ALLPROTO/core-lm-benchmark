@@ -84,7 +84,7 @@ does not turn that claim into a general model-compression result.
     release metadata, manifests, checksums, and current evidence. Private keys,
     tokens, credential-like bytes, model weights, and new author-local paths
     remain release blockers.
-17. `corelm-portfolio-v7` demo pixels are an automatically captured product
+17. `corelm-portfolio-v8` demo pixels are an automatically captured product
     presentation, not metric evidence or independent review. Single-window
     isolation, a
     capture-safe allowlisted view, metadata/byte scans, fixed-frame replay, and
@@ -112,7 +112,20 @@ does not turn that claim into a general model-compression result.
     `ATTEMPT_FAILED` after `REPLAY_VERIFIED` because the preflight-built
     explanatory-window executable differed from the proof-rebuilt verified app.
     This happened before same-run result capture, media sealing, or collection.
-    V6 is never rerun, moved, reused, or relabelled as V7.
+    V6 is never rerun, moved, reused, or relabelled as a later identity.
+21. `corelm-portfolio-v7` is a preserved pre-attempt host-admission failure,
+    not a model run. Its tag and first-attempt tag CI passed. The three V7 runner
+    invocations all stopped strictly before `AttemptLog.reserve`: two failed the
+    >=50% available-memory admission after the parallel Swift preflight build
+    left less than 50% available memory, and one transient pre-marker public
+    tag-CI admission failure had an unretained nested cause; the exact same 8-response
+    validation subsequently passed. The durable state and session remained
+    absent after all three; no proof or model attempt was consumed. V7 is never
+    rerun, moved, reused, or relabelled. V8 uses single-job/low-peak-memory
+    pre-marker build scheduling to avoid the V7 parallel-build admission
+    pressure without weakening the 50% available-memory threshold. Receipts
+    bind the exact produced app SHA; this does not claim byte-deterministic
+    executable builds across scratch roots.
 
 The detailed versioned research record is preserved under `docs/development/`
 and in immutable publication tags.
