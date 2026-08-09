@@ -377,8 +377,8 @@ def _resolve_tool(path: Path, label: str) -> Path:
 
 def _validate_configuration(arguments: argparse.Namespace) -> Configuration:
     match = TAG_PATTERN.fullmatch(arguments.tag)
-    if match is None or arguments.tag != "corelm-portfolio-v4":
-        raise AutomatedDemoError("tag must be exact corelm-portfolio-v4")
+    if match is None or arguments.tag != "corelm-portfolio-v5":
+        raise AutomatedDemoError("tag must be exact corelm-portfolio-v5")
     if os.environ.get("CORELM_OFFLINE") != "1":
         raise AutomatedDemoError("CORELM_OFFLINE=1 is mandatory")
     wheelhouse_value = os.environ.get("CORELM_WHEELHOUSE", "")
@@ -1266,36 +1266,10 @@ def _raw_frame_identity(
         frames = value["frames"]
     except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as error:
         raise AutomatedDemoError("raw segment frame PTS output is malformed") from error
-    if not isinstance(frames, list) or not frames or len(frames) > 90 * 240:
-        raise AutomatedDemoError("raw segment frame PTS topology is invalid")
-    timestamps: list[float] = []
-    for frame in frames:
-        if not isinstance(frame, dict) or set(frame) != {
-            "best_effort_timestamp_time",
-            "pkt_duration_time",
-            "width",
-            "height",
-        }:
-            raise AutomatedDemoError("raw segment frame PTS fields are not exact")
-        try:
-            timestamp = float(frame["best_effort_timestamp_time"])
-            frame_duration = float(frame["pkt_duration_time"])
-        except (TypeError, ValueError) as error:
-            raise AutomatedDemoError("raw segment frame PTS is nonnumeric") from error
-        if (
-            not math.isfinite(timestamp)
-            or not math.isfinite(frame_duration)
-            or frame_duration <= 0
-            or frame["width"] != width
-            or frame["height"] != height
-        ):
-            raise AutomatedDemoError("raw segment frame PTS is outside topology")
-        timestamps.append(timestamp)
-    if any(right <= left for left, right in zip(timestamps, timestamps[1:])):
-        raise AutomatedDemoError("raw segment frame PTS is not monotonic")
-    return len(frames), hashlib.sha256(
-        _canonical_json({"frames": frames})
-    ).hexdigest()
+    try:
+        return automated_media.frame_pts_identity(frames, width=width, height=height)
+    except automated_media.AutomatedMediaError as error:
+        raise AutomatedDemoError("raw segment frame PTS identity is invalid") from error
 
 
 def _capture_segment(
@@ -1858,7 +1832,7 @@ def _frame_probe_argv(video: Path, ffprobe: Path) -> tuple[str, ...]:
         "v:0",
         "-show_frames",
         "-show_entries",
-        "frame=best_effort_timestamp_time,pkt_duration_time,width,height",
+        "frame=best_effort_timestamp_time,duration_time,width,height",
         "-of",
         "json",
         str(video),
@@ -1878,37 +1852,12 @@ def _frame_identity(video: Path, ffprobe: Path) -> tuple[int, str]:
         frames = report["frames"]
     except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as error:
         raise AutomatedDemoError("frame PTS output is malformed") from error
-    if not isinstance(frames, list) or not frames:
-        raise AutomatedDemoError("frame PTS output is empty")
-    timestamps: list[float] = []
-    for frame in frames:
-        if not isinstance(frame, dict) or set(frame) != {
-            "best_effort_timestamp_time",
-            "pkt_duration_time",
-            "width",
-            "height",
-        }:
-            raise AutomatedDemoError("frame PTS entry fields are not exact")
-        try:
-            timestamp = float(frame["best_effort_timestamp_time"])
-            duration = float(frame["pkt_duration_time"])
-        except (TypeError, ValueError) as error:
-            raise AutomatedDemoError("frame PTS entry is nonnumeric") from error
-        if (
-            not math.isfinite(timestamp)
-            or not math.isfinite(duration)
-            or duration <= 0
-            or frame["width"] != OUTPUT_WIDTH
-            or frame["height"] != OUTPUT_HEIGHT
-        ):
-            raise AutomatedDemoError("frame PTS entry is outside the fixed pipeline")
-        timestamps.append(timestamp)
-    if any(right <= left for left, right in zip(timestamps, timestamps[1:])):
-        raise AutomatedDemoError("frame PTS sequence is not exact and monotonic")
-    return (
-        len(frames),
-        hashlib.sha256(_canonical_json({"frames": frames})).hexdigest(),
-    )
+    try:
+        return automated_media.frame_pts_identity(
+            frames, width=OUTPUT_WIDTH, height=OUTPUT_HEIGHT
+        )
+    except automated_media.AutomatedMediaError as error:
+        raise AutomatedDemoError("frame PTS identity is invalid") from error
 
 
 def _framemd5_argv(video: Path, ffmpeg: Path) -> tuple[str, ...]:

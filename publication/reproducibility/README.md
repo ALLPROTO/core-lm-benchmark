@@ -386,11 +386,11 @@ state, and hashes of included evidence files. It is descriptive metadata, not
 a replacement for Git history. The distribution-side `SHA256SUMS` verifies the
 v5 arXiv source archive, reproducibility archive, and rendered paper PDF.
 
-A default-branch preview carries the current `corelm-portfolio-v4` software
+A default-branch preview carries the current `corelm-portfolio-v5` software
 CFF/SBOM identity and records `UNRELEASED_PREVIEW`; it is not the historical
 paper-v5 release. Exact paper-v5 bytes must be built from the detached tag.
 
-The V4 portfolio's `corelm-automated-presentation-v1` path records and checks
+The V5 portfolio's `corelm-automated-presentation-v1` path records and checks
 the single application window without a required human acceptance or manual
 edit. Its video and poster are explicitly
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`: they aid inspection but do not
@@ -398,6 +398,12 @@ replace the receipt, result, raw containers, or replay reports, and pixel
 semantics are not claimed to be verified. Independent-replication gate G10
 remains **OPEN** until a non-author, non-agent person publishes a clean-clone
 replication.
+
+The current V5 identity does not replace the failed V3 or V4 candidates. V3
+remains at its first tag-push assertion failure. V4 remains at a pre-model
+FFprobe frame-PTS field-validation failure before `AttemptLog.reserve`; no V4 model
+attempt was invoked or consumed. Their tags and first-attempt records are
+never moved, rerun, or relabelled as V5.
 
 To reproduce the already published `voidtoken-v5-paper-v5` package, maintainers
 use a full clean repository clone at that existing public tag. They do not

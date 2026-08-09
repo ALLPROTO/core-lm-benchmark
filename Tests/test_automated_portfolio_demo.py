@@ -55,7 +55,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
         wheelhouse.mkdir(mode=0o700)
         output = root / "output"
         return demo.Configuration(
-            tag="corelm-portfolio-v4",
+            tag="corelm-portfolio-v5",
             output=output,
             ffmpeg=Path("/fixture/ffmpeg"),
             ffprobe=Path("/fixture/ffprobe"),
@@ -148,7 +148,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 "macos",
                 "portfolio-demo",
                 "--tag",
-                "corelm-portfolio-v4",
+                "corelm-portfolio-v5",
             )
             accepted = subprocess.run(
                 command,
@@ -229,8 +229,8 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             self.assertEqual(invocation_log.read_text(encoding="utf-8"), "invoked\n")
 
     def test_configuration_rejects_future_tag_without_running_preflight(self):
-        arguments = mock.Mock(tag="corelm-portfolio-v5")
-        with self.assertRaisesRegex(demo.AutomatedDemoError, "exact corelm-portfolio-v4"):
+        arguments = mock.Mock(tag="corelm-portfolio-v6")
+        with self.assertRaisesRegex(demo.AutomatedDemoError, "exact corelm-portfolio-v5"):
             demo._validate_configuration(arguments)
 
     def test_preflight_is_nonprompting_and_precedes_attempt_and_proof(self):
@@ -924,6 +924,63 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
         with self.assertRaisesRegex(demo.AutomatedDemoError, "not canonical"):
             demo._parse_window(pretty, 700)
 
+    def test_runner_raw_and_final_pts_use_one_n812_projection(self):
+        frames = [
+            {
+                "best_effort_timestamp_time": "0.000000",
+                "duration_time": "0.016667",
+                "width": 1280,
+                "height": 720,
+                "side_data_list": [
+                    {
+                        "side_data_type": (
+                            "H.26[45] User Data Unregistered SEI message"
+                        )
+                    }
+                ],
+            },
+            {
+                "best_effort_timestamp_time": "0.016667",
+                "duration_time": "0.016667",
+                "width": 1280,
+                "height": 720,
+            },
+        ]
+        completed = subprocess.CompletedProcess(
+            [], 0, json.dumps({"frames": frames}).encode("utf-8"), b""
+        )
+        expected = demo.automated_media.frame_pts_identity(
+            frames, width=1280, height=720
+        )
+        with mock.patch.object(demo, "_run", return_value=completed):
+            raw = demo._raw_frame_identity(
+                Path("/fixture/raw.mov"),
+                Path("/fixture/ffprobe"),
+                width=1280,
+                height=720,
+            )
+            final = demo._frame_identity(
+                Path("/fixture/final.mp4"), Path("/fixture/ffprobe")
+            )
+        self.assertEqual(raw, expected)
+        self.assertEqual(final, expected)
+
+        legacy = json.loads(json.dumps(frames))
+        legacy[0]["pkt_duration_time"] = legacy[0].pop("duration_time")
+        rejected = subprocess.CompletedProcess(
+            [], 0, json.dumps({"frames": legacy}).encode("utf-8"), b""
+        )
+        with mock.patch.object(demo, "_run", return_value=rejected):
+            with self.assertRaisesRegex(
+                demo.AutomatedDemoError, "raw segment frame PTS identity is invalid"
+            ):
+                demo._raw_frame_identity(
+                    Path("/fixture/raw.mov"),
+                    Path("/fixture/ffprobe"),
+                    width=1280,
+                    height=720,
+                )
+
     def test_fixed_pipeline_and_canonical_automation_report(self):
         filter_value = demo._fixed_filter()
         self.assertIn("trim=duration=12", filter_value)
@@ -966,7 +1023,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 "v:0",
                 "-show_frames",
                 "-show_entries",
-                "frame=best_effort_timestamp_time,pkt_duration_time,width,height",
+                "frame=best_effort_timestamp_time,duration_time,width,height",
                 "-of",
                 "json",
                 "/private/final.mp4",
@@ -988,7 +1045,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             ),
         )
 
-        source = demo.SourceIdentity("corelm-portfolio-v4", "1" * 40, "2" * 40)
+        source = demo.SourceIdentity("corelm-portfolio-v5", "1" * 40, "2" * 40)
         proof = demo.ProofIdentity(
             Path("/private/run"),
             "12345678-1234-4234-8234-123456789abc",

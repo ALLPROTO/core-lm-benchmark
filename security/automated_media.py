@@ -37,6 +37,7 @@ OUTPUT_HEIGHT = 720
 OUTPUT_FRAME_RATE = 30
 OUTPUT_DURATION_SECONDS = LIVE_SEGMENT_SECONDS + RESULT_SEGMENT_SECONDS
 OUTPUT_FRAME_COUNT = int(OUTPUT_DURATION_SECONDS * OUTPUT_FRAME_RATE)
+MAX_DECODED_FRAME_COUNT = 90 * 240
 MAX_REPORT_BYTES = 1024 * 1024
 MAX_READINESS_BYTES = 16 * 1024
 MAX_ATTEMPT_STATE_BYTES = 256 * 1024
@@ -59,6 +60,13 @@ _TERMINAL_OUTCOMES = {
     "PASS": "END-TO-END PROOF PASS",
     "FAIL": "END-TO-END PROOF VERIFIED — METRIC FAIL",
 }
+_FRAME_PTS_FIELDS = frozenset(
+    {"best_effort_timestamp_time", "duration_time", "width", "height"}
+)
+_FRAME_SIDE_DATA_FIELD = "side_data_list"
+_FRAME_SEI_SIDE_DATA = [
+    {"side_data_type": "H.26[45] User Data Unregistered SEI message"}
+]
 
 
 class AutomatedMediaError(ValueError):
@@ -554,6 +562,66 @@ def _metric_string(value: Any, label: str) -> str:
     ):
         raise AutomatedMediaError(f"{label} is not a fixed six-decimal metric")
     return value
+
+
+def frame_pts_identity(
+    value: Any,
+    *,
+    width: int,
+    height: int,
+) -> tuple[int, str]:
+    """Validate and hash the exact FFprobe n8.1.2 frame-timing projection."""
+
+    expected_width = _positive_int(width, "frame PTS width", maximum=16_384)
+    expected_height = _positive_int(height, "frame PTS height", maximum=16_384)
+    if (
+        not isinstance(value, list)
+        or not value
+        or len(value) > MAX_DECODED_FRAME_COUNT
+    ):
+        raise AutomatedMediaError("frame PTS topology is outside the fixed bound")
+
+    projected: list[dict[str, Any]] = []
+    timestamps: list[float] = []
+    for frame in value:
+        if not isinstance(frame, dict) or set(frame) not in (
+            _FRAME_PTS_FIELDS,
+            _FRAME_PTS_FIELDS | {_FRAME_SIDE_DATA_FIELD},
+        ):
+            raise AutomatedMediaError("frame PTS fields are not exact")
+        if (
+            _FRAME_SIDE_DATA_FIELD in frame
+            and frame[_FRAME_SIDE_DATA_FIELD] != _FRAME_SEI_SIDE_DATA
+        ):
+            raise AutomatedMediaError("frame PTS side data is not the exact bounded SEI")
+
+        timestamp_text = _metric_string(
+            frame["best_effort_timestamp_time"], "frame PTS timestamp"
+        )
+        duration_text = _metric_string(frame["duration_time"], "frame PTS duration")
+        timestamp = float(timestamp_text)
+        duration = float(duration_text)
+        if (
+            duration <= 0
+            or type(frame["width"]) is not int
+            or type(frame["height"]) is not int
+            or frame["width"] != expected_width
+            or frame["height"] != expected_height
+        ):
+            raise AutomatedMediaError("frame PTS entry is outside the exact topology")
+        timestamps.append(timestamp)
+        projected.append(
+            {
+                "best_effort_timestamp_time": timestamp_text,
+                "duration_time": duration_text,
+                "width": expected_width,
+                "height": expected_height,
+            }
+        )
+
+    if any(right <= left for left, right in zip(timestamps, timestamps[1:])):
+        raise AutomatedMediaError("frame PTS sequence is not strictly monotonic")
+    return len(projected), sha256_bytes(canonical_json_bytes({"frames": projected}))
 
 
 def validate_readiness(

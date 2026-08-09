@@ -1030,7 +1030,7 @@ struct SecurityValidationTests {
                 "archiveManifestSHA256": NSNull(),
                 "commit": sourceCommit,
                 "dirty": false,
-                "exactTag": "corelm-portfolio-v4",
+                "exactTag": "corelm-portfolio-v5",
                 "mode": "git",
                 "remote": (
                     "https://github.com/ALLPROTO/"
@@ -1291,7 +1291,7 @@ struct SecurityValidationTests {
             replayReportData: fixture.replayReportData,
             terminalReportData: fixture.terminalReportData
         )
-        #expect(snapshot.sourceTag == "corelm-portfolio-v4")
+        #expect(snapshot.sourceTag == "corelm-portfolio-v5")
         #expect(snapshot.sourceCommit == String(repeating: "1", count: 40))
         #expect(snapshot.sourceTree == String(repeating: "2", count: 40))
         #expect(

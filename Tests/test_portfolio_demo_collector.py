@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import subprocess
@@ -189,6 +190,81 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
                 automated_media.AutomatedMediaError, "owner-only"
             ):
                 automated_media.read_canonical_readiness(target)
+
+    def test_collector_uses_the_shared_n812_frame_pts_projection(self):
+        frames = [
+            {
+                "best_effort_timestamp_time": "0.000000",
+                "duration_time": "0.016667",
+                "width": 1280,
+                "height": 720,
+                "side_data_list": [
+                    {
+                        "side_data_type": (
+                            "H.26[45] User Data Unregistered SEI message"
+                        )
+                    }
+                ],
+            },
+            {
+                "best_effort_timestamp_time": "0.016667",
+                "duration_time": "0.016667",
+                "width": 1280,
+                "height": 720,
+            },
+        ]
+        frame_bytes = json.dumps({"frames": frames}).encode("utf-8")
+        decoded_bytes = b"#format: frame checksums\n0, 0, 0, 1, 1, deadbeef\n"
+        observed_arguments = []
+
+        def fake_run(arguments, **_kwargs):
+            observed_arguments.append(tuple(arguments))
+            stdout = frame_bytes if "-show_frames" in arguments else decoded_bytes
+            return subprocess.CompletedProcess(arguments, 0, stdout, b"")
+
+        expected_count, expected_pts = automated_media.frame_pts_identity(
+            frames, width=1280, height=720
+        )
+        with patch.object(portfolio, "_run", side_effect=fake_run):
+            observed = collector._decoded_video_identity(
+                Path("/fixture/final.mp4"),
+                Path("/fixture/ffmpeg"),
+                Path("/fixture/ffprobe"),
+                width=1280,
+                height=720,
+            )
+        self.assertEqual(observed["frame_count"], expected_count)
+        self.assertEqual(observed["pts_sha256"], expected_pts)
+        self.assertIn(
+            "frame=best_effort_timestamp_time,duration_time,width,height",
+            observed_arguments[0],
+        )
+        self.assertEqual(
+            observed["decoded_frames_sha256"],
+            hashlib.sha256(decoded_bytes).hexdigest(),
+        )
+
+        invalid = json.loads(json.dumps(frames))
+        invalid[0]["side_data_list"].append(
+            {"side_data_type": "H.26[45] User Data Unregistered SEI message"}
+        )
+        invalid_bytes = json.dumps({"frames": invalid}).encode("utf-8")
+
+        def invalid_run(arguments, **_kwargs):
+            stdout = invalid_bytes if "-show_frames" in arguments else decoded_bytes
+            return subprocess.CompletedProcess(arguments, 0, stdout, b"")
+
+        with patch.object(portfolio, "_run", side_effect=invalid_run):
+            with self.assertRaisesRegex(
+                collector.CollectionError, "decoded frame PTS identity is invalid"
+            ):
+                collector._decoded_video_identity(
+                    Path("/fixture/final.mp4"),
+                    Path("/fixture/ffmpeg"),
+                    Path("/fixture/ffprobe"),
+                    width=1280,
+                    height=720,
+                )
 
     def test_fixed_composition_replay_rejects_byte_tamper(self):
         with tempfile.TemporaryDirectory() as temporary:

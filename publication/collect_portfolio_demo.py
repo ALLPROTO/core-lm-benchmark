@@ -401,7 +401,12 @@ def _verify_poster_from_video(
 
 
 def _decoded_video_identity(
-    video: Path, ffmpeg: Path, ffprobe: Path
+    video: Path,
+    ffmpeg: Path,
+    ffprobe: Path,
+    *,
+    width: int,
+    height: int,
 ) -> dict[str, Any]:
     probe = portfolio._run(
         (
@@ -412,7 +417,7 @@ def _decoded_video_identity(
             "v:0",
             "-show_frames",
             "-show_entries",
-            "frame=best_effort_timestamp_time,pkt_duration_time,width,height",
+            "frame=best_effort_timestamp_time,duration_time,width,height",
             "-of",
             "json",
             str(video),
@@ -427,9 +432,12 @@ def _decoded_video_identity(
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise CollectionError("ffprobe frame enumeration is malformed") from error
     frames = parsed.get("frames") if isinstance(parsed, dict) else None
-    if not isinstance(frames, list) or not frames or len(frames) > 90 * 240:
-        raise CollectionError("decoded frame count is outside the automation bound")
-    pts_bytes = automated_media.canonical_json_bytes({"frames": frames})
+    try:
+        frame_count, pts_sha256 = automated_media.frame_pts_identity(
+            frames, width=width, height=height
+        )
+    except automated_media.AutomatedMediaError as error:
+        raise CollectionError("decoded frame PTS identity is invalid") from error
     decoded = portfolio._run(
         (
             str(ffmpeg),
@@ -449,8 +457,8 @@ def _decoded_video_identity(
     if decoded.returncode != 0 or not decoded.stdout:
         raise CollectionError("decoded frame digest replay failed")
     return {
-        "frame_count": len(frames),
-        "pts_sha256": _sha256_bytes(pts_bytes),
+        "frame_count": frame_count,
+        "pts_sha256": pts_sha256,
         "decoded_frames_sha256": _sha256_bytes(decoded.stdout),
     }
 
@@ -500,7 +508,13 @@ def _raw_segment_identity(
         or duration > 90
     ):
         raise CollectionError("retained raw segment topology is invalid")
-    decoded = _decoded_video_identity(path, ffmpeg, ffprobe)
+    decoded = _decoded_video_identity(
+        path,
+        ffmpeg,
+        ffprobe,
+        width=videos[0]["width"],
+        height=videos[0]["height"],
+    )
     return {
         "sha256": portfolio._sha256(path),
         "duration_seconds": duration,
@@ -1474,7 +1488,13 @@ def _collect_snapshot(
                     reject_absolute_paths=True,
                     strict_credentials=True,
                 )
-        decoded_identity = _decoded_video_identity(video, ffmpeg, ffprobe)
+        decoded_identity = _decoded_video_identity(
+            video,
+            ffmpeg,
+            ffprobe,
+            width=video_identity["width"],
+            height=video_identity["height"],
+        )
         if any(
             output_identity[key] != value
             for key, value in decoded_identity.items()

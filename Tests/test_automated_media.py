@@ -10,6 +10,83 @@ from security import verify_portfolio_tag_ci as tag_ci
 
 
 class AutomatedMediaContractTests(unittest.TestCase):
+    def _ffprobe_frames(self):
+        return [
+            {
+                "best_effort_timestamp_time": "0.000000",
+                "duration_time": "0.016667",
+                "width": 2400,
+                "height": 1540,
+                "side_data_list": [
+                    {
+                        "side_data_type": (
+                            "H.26[45] User Data Unregistered SEI message"
+                        )
+                    }
+                ],
+            },
+            {
+                "best_effort_timestamp_time": "0.016667",
+                "duration_time": "0.016667",
+                "width": 2400,
+                "height": 1540,
+            },
+            {
+                "best_effort_timestamp_time": "0.050000",
+                "duration_time": "0.033333",
+                "width": 2400,
+                "height": 1540,
+            },
+        ]
+
+    def test_ffprobe_n812_frame_pts_projection_is_exact_and_side_data_neutral(self):
+        frames = self._ffprobe_frames()
+        self.assertEqual(
+            automated_media.frame_pts_identity(frames, width=2400, height=1540),
+            (
+                3,
+                "f05b183e0a5212fbb531913fe939231d0246425d45269f687e4ea6ca8a07e57b",
+            ),
+        )
+        without_sei = copy.deepcopy(frames)
+        without_sei[0].pop("side_data_list")
+        self.assertEqual(
+            automated_media.frame_pts_identity(without_sei, width=2400, height=1540),
+            automated_media.frame_pts_identity(frames, width=2400, height=1540),
+        )
+
+    def test_frame_pts_projection_rejects_legacy_fields_and_nonexact_topology(self):
+        frames = self._ffprobe_frames()
+        legacy = copy.deepcopy(frames)
+        legacy[0]["pkt_duration_time"] = legacy[0].pop("duration_time")
+        extra = copy.deepcopy(frames)
+        extra[1]["unexpected"] = True
+        malformed_sei = copy.deepcopy(frames)
+        malformed_sei[0]["side_data_list"] = [
+            {"side_data_type": "H.264 User Data Unregistered SEI message"}
+        ]
+        zero_duration = copy.deepcopy(frames)
+        zero_duration[1]["duration_time"] = "0.000000"
+        nonmonotonic = copy.deepcopy(frames)
+        nonmonotonic[2]["best_effort_timestamp_time"] = "0.016667"
+        wrong_dimensions = copy.deepcopy(frames)
+        wrong_dimensions[2]["width"] = 2399
+        numeric_timestamp = copy.deepcopy(frames)
+        numeric_timestamp[0]["best_effort_timestamp_time"] = 0.0
+        for invalid in (
+            legacy,
+            extra,
+            malformed_sei,
+            zero_duration,
+            nonmonotonic,
+            wrong_dimensions,
+            numeric_timestamp,
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(
+                automated_media.AutomatedMediaError
+            ):
+                automated_media.frame_pts_identity(invalid, width=2400, height=1540)
+
     def _segment(self, role, owner_pid, window_id, duration, digest):
         return {
             "role": role,
@@ -59,7 +136,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
             "machine_evidence": False,
             "pixel_semantics_verified": False,
             "source": {
-                "tag": "corelm-portfolio-v4",
+                "tag": "corelm-portfolio-v5",
                 "commit": "1" * 40,
                 "tree": "2" * 40,
             },
@@ -179,7 +256,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
         return b"".join(automated_media.canonical_json_bytes(event) for event in events)
 
     def _tag_ci_receipt(self):
-        tag = "corelm-portfolio-v4"
+        tag = "corelm-portfolio-v5"
         commit = "1" * 40
         tree = "2" * 40
         workflows = []
@@ -354,8 +431,8 @@ class AutomatedMediaContractTests(unittest.TestCase):
             with self.assertRaises(automated_media.AutomatedMediaError):
                 automated_media.validate_attempt_state_bytes(tampered, report=report)
         wrong_tag_state = state.replace(
-            b'"tag":"corelm-portfolio-v4"',
             b'"tag":"corelm-portfolio-v5"',
+            b'"tag":"corelm-portfolio-v6"',
         )
         wrong_tag_report = copy.deepcopy(report)
         wrong_tag_report["attempt"]["state_log_sha256"] = hashlib.sha256(
@@ -377,7 +454,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
             automated_media.validate_tag_ci_receipt_bytes(
                 payload,
                 expected={"repository": "ALLPROTO/core-lm-benchmark",
-                          "tag": "corelm-portfolio-v4", "commit": "1" * 40,
+                          "tag": "corelm-portfolio-v5", "commit": "1" * 40,
                           "tree": "2" * 40},
             ),
             receipt,
