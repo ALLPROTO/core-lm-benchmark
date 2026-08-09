@@ -386,11 +386,11 @@ state, and hashes of included evidence files. It is descriptive metadata, not
 a replacement for Git history. The distribution-side `SHA256SUMS` verifies the
 v5 arXiv source archive, reproducibility archive, and rendered paper PDF.
 
-A default-branch preview carries the current `corelm-portfolio-v3` software
+A default-branch preview carries the current `corelm-portfolio-v4` software
 CFF/SBOM identity and records `UNRELEASED_PREVIEW`; it is not the historical
 paper-v5 release. Exact paper-v5 bytes must be built from the detached tag.
 
-The V3 portfolio's `corelm-automated-presentation-v1` path records and checks
+The V4 portfolio's `corelm-automated-presentation-v1` path records and checks
 the single application window without a required human acceptance or manual
 edit. Its video and poster are explicitly
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`: they aid inspection but do not

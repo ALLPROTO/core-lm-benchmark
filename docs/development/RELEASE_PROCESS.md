@@ -15,7 +15,7 @@ than inferred from this preservation policy.
 The existing publication snapshot uses `voidtoken-v5-paper-v5`. At that
 immutable tag, its CFF version, manuscript reference, SBOM component, archive
 provenance, and canonical asset names are synchronized. The current default
-branch instead uses the `corelm-portfolio-v3` software CFF/SBOM identity and
+branch instead uses the `corelm-portfolio-v4` software CFF/SBOM identity and
 the `corelm-automated-presentation-v1` automation contract.
 Check GitHub's live
 `immutable` API field before making a platform-immutability statement; do not
@@ -67,7 +67,7 @@ packager for the other.
    canonical receipt outside the same release; and
 6. never pass a portfolio tag to `publication/build_archives.py`.
 
-For V3, recording, deterministic poster extraction, media assembly, metadata
+For V4, recording, deterministic poster extraction, media assembly, metadata
 checks, and evidence collection must complete through the tracked automation
 contract without a required human review or manual-edit acceptance step. Both
 media assets are classified
@@ -77,6 +77,13 @@ automation receipt must state `human_reviewed:false`, `manual_edits:false`,
 `machine_evidence:false`, and `pixel_semantics_verified:false`. These fields
 describe the accepted artifact path, not a claim that nobody subsequently
 viewed the files.
+
+The signed annotated `corelm-portfolio-v3` tag is a preserved failed release
+candidate. Its first tag-push Linux and macOS workflows terminated at the exact
+tag-ref assertion because the workflow searched for literal backslashes around
+the CFF version. That first-attempt admission is irreversibly failed: do not
+rerun it, move or replace the tag, or relabel V3 bytes as V4. V4 corrects the
+assertion and requires a new signed commit, tag, first-attempt tag CI, and proof.
 
 This contour leaves independent-replication gate G10 **OPEN**. An author-run
 automation, including an agent-run audit, cannot satisfy it. Only a later

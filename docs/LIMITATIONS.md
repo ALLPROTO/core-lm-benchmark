@@ -84,7 +84,7 @@ does not turn that claim into a general model-compression result.
     release metadata, manifests, checksums, and current evidence. Private keys,
     tokens, credential-like bytes, model weights, and new author-local paths
     remain release blockers.
-17. V3 demo pixels are an automatically captured product presentation, not
+17. V4 demo pixels are an automatically captured product presentation, not
     metric evidence or independent review. Single-window isolation, a
     capture-safe allowlisted view, metadata/byte scans, fixed-frame replay, and
     decoded-frame hashes are checked automatically, but semantic pixel privacy

@@ -39,7 +39,7 @@ CV_READY = G01 AND G02 AND G03 AND G04 AND G05 AND G06
 | G11 Engineering ownership | A public code tour covers codec format, model replay, verifier separation, failure-state semantics, and the supply-chain threat model; AI assistance is disclosed. |
 | G12 Stable release | One obvious signed current portfolio release binds source identity, checksums, public key, SBOM, reproduce command, release notes, and demo. Historical releases are clearly archival. |
 
-The V3 product-media path may satisfy G03 with a deterministic, single-window
+The V4 product-media path may satisfy G03 with a deterministic, single-window
 automation receipt classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. Its signed result, raw evidence,
 and replay reports—not the pixels—support the metrics. Automated capture and

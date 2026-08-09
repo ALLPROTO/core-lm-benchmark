@@ -25,7 +25,7 @@ from security import verify_portfolio_tag_ci as tag_ci  # noqa: E402
 from Tests import test_portfolio_tag_ci as tag_ci_fixture  # noqa: E402
 
 
-TAG = "corelm-portfolio-v3"
+TAG = "corelm-portfolio-v4"
 COMMIT = "1" * 40
 TAG_OBJECT = "0" * 40
 LAB_COMMIT = "3" * 40
@@ -1096,8 +1096,8 @@ class PortfolioReleaseTests(unittest.TestCase):
             root = Path(temporary)
             (root / "CITATION.cff").write_text(
                 "cff-version: 1.2.0\n"
-                "version: corelm-portfolio-v3\n"
-                "version: corelm-portfolio-v3\n"
+                "version: corelm-portfolio-v4\n"
+                "version: corelm-portfolio-v4\n"
                 "date-released: 2026-08-09\n"
                 "license: MIT\n"
                 "repository-code: https://github.com/ALLPROTO/core-lm-benchmark\n"

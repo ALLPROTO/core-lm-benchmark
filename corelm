@@ -151,7 +151,7 @@ case "$platform:$command" in
         case "${1:-}" in
             -h|--help)
                 printf '%s\n' \
-                    'usage: ./corelm macos portfolio-demo --tag corelm-portfolio-v3 --output DIRECTORY --ffmpeg ABSOLUTE_PATH --ffprobe ABSOLUTE_PATH'
+                    'usage: ./corelm macos portfolio-demo --tag corelm-portfolio-v4 --output DIRECTORY --ffmpeg ABSOLUTE_PATH --ffprobe ABSOLUTE_PATH'
                 exit 0
                 ;;
             *) strict_portfolio_python_bootstrap ;;

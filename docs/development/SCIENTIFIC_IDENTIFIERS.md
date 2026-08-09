@@ -20,7 +20,7 @@ documentation.
 | Beacon freeze tag | `corelm-beacon-heldout-v1` | Public pre-reveal protocol anchor |
 | Beacon artifacts | `corelm-beacon-attempt-v1`, `corelm-beacon-resolution-v1`, `corelm-beacon-outcome-v1` | Irreversible state and result compatibility |
 | Publication tag | `voidtoken-v5-paper-v5` | Immutable archive provenance |
-| Portfolio software tag | `corelm-portfolio-v3` | Automation-only engineering release identity; signing and public status are verified separately |
+| Portfolio software tag | `corelm-portfolio-v4` | Automation-only engineering release identity; signing and public status are verified separately |
 | Automated presentation contract | `corelm-automated-presentation-v1` | Deterministic single-window capture, assembly, and validation with no required human acceptance step |
 | Portfolio media classification | `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE` | Author-controlled presentation bytes; scientific evidence remains the receipt, result, retained containers, and replay reports |
 | Bundle metadata | `CFBundleShortVersionString`, `CFBundleVersion` | macOS identity and receipt field |
@@ -34,12 +34,16 @@ The upstream model identifier `Qwen/Qwen2.5-0.5B` must also remain visible. It
 identifies the exact model family being measured and is not application
 branding.
 
-The V3 automation contour does not close independent-replication gate G10.
+The V4 automation contour does not close independent-replication gate G10.
 That gate remains **OPEN** until a non-author, non-agent person completes and
 publishes the specified clean-clone replication. Automated capture and
 verification remove a required human acceptance step from media production;
 they do not turn pixels into machine evidence or create an independent human
 replication.
+
+`corelm-portfolio-v3` remains an immutable historical failed candidate: its
+first tag-push admission failed before the substantive gates. It is not the
+current software identity and is never rerun, moved, or reused as evidence.
 
 ## User-facing rule
 

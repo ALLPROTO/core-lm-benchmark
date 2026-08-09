@@ -23,17 +23,22 @@ jobs:
           persist-credentials: false
       - name: Require exact portfolio tag-push ref
         run: |
-          if [ "$GITHUB_REF_NAME" != corelm-portfolio-v3 ]; then
-            echo "Not the V3 portfolio tag; exact tag assertion is not applicable."
+          set -eu
+          expected_tag=corelm-portfolio-v4
+          expected_citation_line='version: "corelm-portfolio-v4"'
+          if [ "$GITHUB_REF_NAME" != "$expected_tag" ]; then
+            echo "Not the V4 portfolio tag; exact tag assertion is not applicable."
             exit 0
           fi
+          tag_ref="refs/tags/$expected_tag"
           test "$GITHUB_EVENT_NAME" = push
           test "$GITHUB_REF_TYPE" = tag
-          test "$GITHUB_REF" = "refs/tags/$GITHUB_REF_NAME"
-          test "$GITHUB_REF_NAME" = corelm-portfolio-v3
-          test "$(grep -Fxc 'version: \"corelm-portfolio-v3\"' CITATION.cff)" -eq 1
-          test "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME")" = tag
-          test "$(git rev-parse "refs/tags/$GITHUB_REF_NAME^{commit}")" = "$GITHUB_SHA"
+          test "$GITHUB_REF" = "$tag_ref"
+          test "$GITHUB_REF_NAME" = "$expected_tag"
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$(grep -Fxc -- "$expected_citation_line" CITATION.cff)" -eq 1
+          test "$(git cat-file -t "$tag_ref")" = tag
+          test "$(git rev-parse "$tag_ref^{commit}")" = "$GITHUB_SHA"
           test "$(git rev-parse HEAD^{commit})" = "$GITHUB_SHA"
       - name: Bootstrap pinned owner-local Python 3.12.13
         run: |

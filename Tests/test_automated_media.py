@@ -59,7 +59,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
             "machine_evidence": False,
             "pixel_semantics_verified": False,
             "source": {
-                "tag": "corelm-portfolio-v3",
+                "tag": "corelm-portfolio-v4",
                 "commit": "1" * 40,
                 "tree": "2" * 40,
             },
@@ -179,7 +179,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
         return b"".join(automated_media.canonical_json_bytes(event) for event in events)
 
     def _tag_ci_receipt(self):
-        tag = "corelm-portfolio-v3"
+        tag = "corelm-portfolio-v4"
         commit = "1" * 40
         tree = "2" * 40
         workflows = []
@@ -354,8 +354,8 @@ class AutomatedMediaContractTests(unittest.TestCase):
             with self.assertRaises(automated_media.AutomatedMediaError):
                 automated_media.validate_attempt_state_bytes(tampered, report=report)
         wrong_tag_state = state.replace(
-            b'"tag":"corelm-portfolio-v3"',
             b'"tag":"corelm-portfolio-v4"',
+            b'"tag":"corelm-portfolio-v5"',
         )
         wrong_tag_report = copy.deepcopy(report)
         wrong_tag_report["attempt"]["state_log_sha256"] = hashlib.sha256(
@@ -377,7 +377,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
             automated_media.validate_tag_ci_receipt_bytes(
                 payload,
                 expected={"repository": "ALLPROTO/core-lm-benchmark",
-                          "tag": "corelm-portfolio-v3", "commit": "1" * 40,
+                          "tag": "corelm-portfolio-v4", "commit": "1" * 40,
                           "tree": "2" * 40},
             ),
             receipt,

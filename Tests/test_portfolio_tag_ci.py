@@ -2,6 +2,7 @@ import copy
 import hashlib
 import io
 import json
+import os
 import stat
 import subprocess
 import tempfile
@@ -14,11 +15,31 @@ from security import verify_portfolio_tag_ci as tag_ci
 
 
 REPOSITORY = "ALLPROTO/core-lm-benchmark"
-TAG = "corelm-portfolio-v3"
+TAG = "corelm-portfolio-v4"
 TAG_OBJECT = "a" * 40
 COMMIT = "b" * 40
 TREE = "c" * 40
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _workflow_tag_ref_blocks(relative):
+    lines = (ROOT / relative).read_text(encoding="utf-8").splitlines()
+    current_job = None
+    blocks = []
+    for index, line in enumerate(lines):
+        if line.startswith("  ") and not line.startswith("    ") and line.endswith(":"):
+            current_job = line.strip()[:-1]
+        if line != f"      - name: {tag_ci.TAG_REF_ASSERTION_STEP}":
+            continue
+        if current_job is None or lines[index + 1] != "        run: |":
+            raise AssertionError("tag-ref assertion step has an unexpected YAML shape")
+        body = []
+        cursor = index + 2
+        while cursor < len(lines) and lines[cursor].startswith("          "):
+            body.append(lines[cursor][10:])
+            cursor += 1
+        blocks.append((current_job, "\n".join(body) + "\n"))
+    return blocks
 
 
 def _json(value):
@@ -186,51 +207,152 @@ def _fixture_documents():
 
 
 class PortfolioTagWorkflowSourceTests(unittest.TestCase):
-    def test_exact_tag_ref_assertion_is_v3_tag_only_in_every_required_job(self):
-        for relative, expected_count in (
-            (".github/workflows/verify-linux.yml", 2),
-            (".github/workflows/verify-macos.yml", 1),
+    def test_exact_tag_ref_assertion_is_v4_tag_only_in_every_required_job(self):
+        for relative, expected_jobs in (
+            (
+                ".github/workflows/verify-linux.yml",
+                {"supply-chain", "python-and-publication"},
+            ),
+            (".github/workflows/verify-macos.yml", {"native-application"}),
         ):
             with self.subTest(workflow=relative):
                 source = (ROOT / relative).read_text(encoding="utf-8")
+                blocks = _workflow_tag_ref_blocks(relative)
                 self.assertEqual(
-                    source.count(f"- name: {tag_ci.TAG_REF_ASSERTION_STEP}"),
-                    expected_count,
+                    {job for job, _body in blocks}, expected_jobs
+                )
+                self.assertEqual(len(blocks), len(expected_jobs))
+                self.assertEqual(
+                    source.count("expected_tag=corelm-portfolio-v4"),
+                    len(expected_jobs),
                 )
                 self.assertEqual(
                     source.count(
-                        'if [ "$GITHUB_REF_NAME" != corelm-portfolio-v3 ]; then'
+                        "expected_citation_line='version: \"corelm-portfolio-v4\"'"
                     ),
-                    expected_count,
-                )
-                self.assertEqual(
-                    source.count('test "$GITHUB_EVENT_NAME" = push'),
-                    expected_count,
-                )
-                self.assertEqual(
-                    source.count('test "$GITHUB_REF_TYPE" = tag'), expected_count
+                    len(expected_jobs),
                 )
                 self.assertEqual(
                     source.count(
-                        'test "$GITHUB_REF" = "refs/tags/$GITHUB_REF_NAME"'
+                        'if [ "$GITHUB_REF_NAME" != "$expected_tag" ]; then'
                     ),
-                    expected_count,
-                )
-                self.assertEqual(
-                    source.count(
-                        'test "$GITHUB_REF_NAME" = corelm-portfolio-v3'
-                    ),
-                    expected_count,
+                    len(expected_jobs),
                 )
                 for command in (
-                    "grep -Fxc 'version: \\\"corelm-portfolio-v3\\\"' CITATION.cff",
-                    'git cat-file -t "refs/tags/$GITHUB_REF_NAME"',
-                    'git rev-parse "refs/tags/$GITHUB_REF_NAME^{commit}"',
+                    'test "$GITHUB_EVENT_NAME" = push',
+                    'test "$GITHUB_REF_TYPE" = tag',
+                    'test "$GITHUB_REF" = "$tag_ref"',
+                    'test "$GITHUB_REF_NAME" = "$expected_tag"',
+                    'test "$GITHUB_RUN_ATTEMPT" = 1',
+                    'grep -Fxc -- "$expected_citation_line" CITATION.cff',
+                    'git cat-file -t "$tag_ref"',
+                    'git rev-parse "$tag_ref^{commit}"',
                     "git rev-parse HEAD^{commit}",
                 ):
                     with self.subTest(workflow=relative, command=command):
-                        self.assertEqual(source.count(command), expected_count)
+                        self.assertEqual(source.count(command), len(expected_jobs))
+                self.assertNotIn('version: \\\"corelm-portfolio-v4\\\"', source)
                 self.assertNotIn("if: ${{", source)
+
+    def test_each_tag_ref_assertion_executes_fail_closed(self):
+        blocks = (
+            _workflow_tag_ref_blocks(".github/workflows/verify-linux.yml")
+            + _workflow_tag_ref_blocks(".github/workflows/verify-macos.yml")
+        )
+        self.assertEqual(len(blocks), 3)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(
+                ["git", "config", "user.name", "Fixture"], cwd=root, check=True
+            )
+            subprocess.run(
+                ["git", "config", "user.email", "fixture@example.invalid"],
+                cwd=root,
+                check=True,
+            )
+            citation = root / "CITATION.cff"
+            citation.write_text('version: "corelm-portfolio-v4"\n', encoding="utf-8")
+            subprocess.run(["git", "add", "CITATION.cff"], cwd=root, check=True)
+            subprocess.run(
+                ["git", "commit", "-q", "-m", "fixture"], cwd=root, check=True
+            )
+            subprocess.run(
+                ["git", "tag", "-a", TAG, "-m", "fixture tag"],
+                cwd=root,
+                check=True,
+            )
+            commit = subprocess.run(
+                ["git", "rev-parse", "HEAD^{commit}"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+
+            def execute(body, **overrides):
+                environment = os.environ.copy()
+                environment.update(
+                    {
+                        "GITHUB_EVENT_NAME": "push",
+                        "GITHUB_REF_TYPE": "tag",
+                        "GITHUB_REF": f"refs/tags/{TAG}",
+                        "GITHUB_REF_NAME": TAG,
+                        "GITHUB_RUN_ATTEMPT": "1",
+                        "GITHUB_SHA": commit,
+                    }
+                )
+                environment.update(overrides)
+                return subprocess.run(
+                    ["/bin/sh", "-c", body],
+                    cwd=root,
+                    env=environment,
+                    capture_output=True,
+                    check=False,
+                    text=True,
+                )
+
+            for job, body in blocks:
+                with self.subTest(job=job, case="exact-tag"):
+                    self.assertEqual(execute(body).returncode, 0)
+                with self.subTest(job=job, case="same-name-branch"):
+                    self.assertNotEqual(
+                        execute(
+                            body,
+                            GITHUB_REF_TYPE="branch",
+                            GITHUB_REF=f"refs/heads/{TAG}",
+                        ).returncode,
+                        0,
+                    )
+                with self.subTest(job=job, case="rerun"):
+                    self.assertNotEqual(
+                        execute(body, GITHUB_RUN_ATTEMPT="2").returncode, 0
+                    )
+                with self.subTest(job=job, case="unrelated-main"):
+                    self.assertEqual(
+                        execute(
+                            body,
+                            GITHUB_REF_TYPE="branch",
+                            GITHUB_REF="refs/heads/main",
+                            GITHUB_REF_NAME="main",
+                        ).returncode,
+                        0,
+                    )
+                for label, text in (
+                    ("escaped-citation", 'version: \\\"corelm-portfolio-v4\\\"\n'),
+                    ("missing-citation", 'version: "different"\n'),
+                    (
+                        "duplicate-citation",
+                        'version: "corelm-portfolio-v4"\n'
+                        'version: "corelm-portfolio-v4"\n',
+                    ),
+                ):
+                    citation.write_text(text, encoding="utf-8")
+                    with self.subTest(job=job, case=label):
+                        self.assertNotEqual(execute(body).returncode, 0)
+                citation.write_text(
+                    'version: "corelm-portfolio-v4"\n', encoding="utf-8"
+                )
 
 
 def _fixture_responses():
@@ -458,10 +580,10 @@ class SavedTagCIAdmissionTests(unittest.TestCase):
                 expected_commit=COMMIT,
                 expected_tree=TREE,
             )
-        with self.assertRaisesRegex(tag_ci.TagCIAdmissionError, "active V3 contour"):
+        with self.assertRaisesRegex(tag_ci.TagCIAdmissionError, "active V4 contour"):
             tag_ci.validate_saved_tag_ci(
                 _fixture_responses(),
-                expected_tag="corelm-portfolio-v4",
+                expected_tag="corelm-portfolio-v5",
                 expected_commit=COMMIT,
                 expected_tree=TREE,
             )

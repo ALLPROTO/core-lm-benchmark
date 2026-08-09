@@ -110,7 +110,7 @@ orchestrator in
 does not print end-to-end PASS until the app, structural verifier, and heavy
 model replay have all returned successfully.
 
-The V3 presentation contour is also automation-only: it discovers and records
+The V4 presentation contour is also automation-only: it discovers and records
 only the exact application window, reopens the exact retained run, derives the
 poster at a fixed timestamp, and emits a canonical receipt binding the media to
 the tag, source tree, challenge, result, evidence, and tool hashes. That receipt
