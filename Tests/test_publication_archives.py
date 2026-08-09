@@ -35,7 +35,7 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
-    def test_current_portfolio_schemas_pin_automation_only_v9_contract(self):
+    def test_current_portfolio_schemas_pin_automation_only_v10_contract(self):
         release_input = json.loads(
             (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
                 encoding="utf-8"
@@ -167,7 +167,7 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v9")
+        self.assertEqual(release_tag, "corelm-portfolio-v10")
         self.assertRegex(citation, r"(?m)^date-released: 2026-08-09$")
 
         for relative in (
@@ -232,7 +232,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v5", text)
-                self.assertIn("corelm-portfolio-v9", text)
+                self.assertIn("corelm-portfolio-v10", text)
                 self.assertIn("HTTP 403", normalized)
                 self.assertIn("AttemptLog.reserve", text)
                 self.assertRegex(normalized, r"(?:signed 32-bit|above `2\^31`)")
@@ -258,7 +258,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v6", text)
-                self.assertIn("corelm-portfolio-v9", text)
+                self.assertIn("corelm-portfolio-v10", text)
                 self.assertIn("first-attempt tag CI", normalized)
                 self.assertIn("2.052384x", normalized)
                 self.assertIn("-0.00000846", normalized)
@@ -274,7 +274,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("collection", normalized)
                 self.assertIn("never", normalized.lower())
 
-    def test_v7_and_v8_pre_marker_history_and_v9_thread_pin_are_preserved(self):
+    def test_v7_v8_v9_history_and_v10_sleep_assertion_are_preserved(self):
         historical_documents = (
             "docs/DEMO.md",
             "docs/ENGINEERING_CASE_STUDY.md",
@@ -293,6 +293,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("corelm-portfolio-v7", text)
                 self.assertIn("corelm-portfolio-v8", text)
                 self.assertIn("corelm-portfolio-v9", text)
+                self.assertIn("corelm-portfolio-v10", text)
                 self.assertIn("three V7 runner invocations", normalized)
                 self.assertIn("two", normalized.lower())
                 self.assertIn("50%", normalized)
@@ -350,6 +351,63 @@ class PublicationArchiveTests(unittest.TestCase):
                     "64c9d84ddd8aa04b01459447b7c9f3f16f8f6db3",
                 ):
                     self.assertIn(identity, text)
+                for identity in (
+                    "33d99db9a8cb239732910d96fc18dcaa43b78e3e",
+                    "8fb25db8c54fc248e3b6c1b119fc06fb06be300f",
+                    "ac69a22fef383f78634cda5e7256bca37e914acf",
+                    "31335135716",
+                    "31335135699",
+                    "57a75c79-f37f-44b0-adc0-ba0762d200b0",
+                    "eff033376bb6cc026c11c8a421da3a8834d78b1a4a7ab34580304c86d0646fce",
+                    "5814eac71b5d2fb9ecd940a2aef09bfec9722a6d86a85a95ec230f7334c5514a",
+                ):
+                    self.assertIn(identity, text)
+                self.assertIn("Exactly one V9 attempt was consumed", normalized)
+                self.assertIn("Proof and replay passed", normalized)
+                for metric in (
+                    "2.0523837550538349x",
+                    "-8.4598101111055257e-06",
+                    "0.9951171875",
+                    "1,024/1,024",
+                    "maximum errors 0",
+                ):
+                    self.assertIn(metric, normalized)
+                self.assertIn(
+                    "ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → "
+                    "REPLAY_VERIFIED PASS → POST_PROOF_PRESENTATION_SURFACE_READY "
+                    "→ ATTEMPT_FAILED",
+                    normalized,
+                )
+                self.assertIn(
+                    "The exact terminal PTY line was `AUTOMATED PORTFOLIO DEMO "
+                    "FAIL: post-proof presentation capture failed: raw capture "
+                    "segment duration/topology is invalid`",
+                    normalized,
+                )
+                self.assertIn("partial MOV SHA-256", normalized)
+                self.assertIn("one frame, 0.028333 seconds, 2400x1540", normalized)
+                for cause in (
+                    "display off at 23:00:00",
+                    "idle sleep at 23:00:30",
+                    "DarkWake at 23:01:36",
+                    "maintenance sleep at 23:01:42",
+                    "human wake at 23:09:18",
+                    "finalization at 23:09:19",
+                    "app remained alive",
+                    "launcher lacked a display/system-sleep assertion",
+                ):
+                    self.assertIn(cause, normalized)
+                self.assertIn(
+                    "No result capture/readiness asset, final media, automation "
+                    "receipt, or release was produced",
+                    normalized,
+                )
+                self.assertIn("/usr/bin/caffeinate -dis", text)
+                self.assertIn("full sterile runner lifetime", normalized)
+                for forbidden_option in ("`-u`", "`-t`", "`-w`"):
+                    self.assertIn(forbidden_option, text)
+                self.assertIn("unavailable wrapper fails before the attempt marker", normalized)
+                self.assertIn("corelm-automated-presentation-v2", text)
 
         exact_documents = (
             "docs/DEMO.md",

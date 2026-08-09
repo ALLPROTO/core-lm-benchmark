@@ -229,7 +229,7 @@ LEGACY_PRIVATE_PATH_ALLOWLIST = {
     "RealLLM/verify_voidtoken_v5_development.py": "9645dd4a456a9c7e35c0f91dc613ea4cbad97bea8b0e6d3f6090c9604cd7308b",
     "Tests/test_app_real_llm_evidence.py": "ff0419672b46fea6a77f48ec89c7b60ebab5b71362b52593534391219a100a97",
     "Tests/test_local_app_build.py": "ea69d5eee3b6553374717880699cc8b1711deeed3adb683f6565b0fce3d7b5de",
-    "platforms/macos/Tests/SecurityValidationTests.swift": "1b9accf25078fdedd377f6e5a9b07db93cbeecb6757eec00c458714484cbb73a",
+    "platforms/macos/Tests/SecurityValidationTests.swift": "3be9d23b271b9d6b67845581c3496929d3ea654e998b8192505e1763eae3fb8e",
     "real-llm-results/aggregate.json": "ebf3bb9558282bf23265989df82a9b18c599654b5bb05d82c4e4d400f1f62265",
     "real-llm-v5-development/validation-000-007.json": "f8c900246c8dafe50ffea309ce86793822cf6fb93e438e3f16b7450bd1f9f224",
     "real-llm-v5-development/validation-008-015.json": "04ef609cf32f0828de70e6adc47eefc717b6c7c67240035d856f047450860d34",

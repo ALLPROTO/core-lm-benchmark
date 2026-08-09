@@ -15,7 +15,7 @@ from security import verify_portfolio_tag_ci as tag_ci
 
 
 REPOSITORY = "ALLPROTO/core-lm-benchmark"
-TAG = "corelm-portfolio-v9"
+TAG = "corelm-portfolio-v10"
 TAG_OBJECT = "a" * 40
 COMMIT = "b" * 40
 TREE = "c" * 40
@@ -222,7 +222,7 @@ def _fixture_documents():
 
 
 class PortfolioTagWorkflowSourceTests(unittest.TestCase):
-    def test_exact_tag_ref_assertion_is_v9_tag_only_in_every_required_job(self):
+    def test_exact_tag_ref_assertion_is_v10_tag_only_in_every_required_job(self):
         for relative, expected_jobs in (
             (
                 ".github/workflows/verify-linux.yml",
@@ -238,12 +238,12 @@ class PortfolioTagWorkflowSourceTests(unittest.TestCase):
                 )
                 self.assertEqual(len(blocks), len(expected_jobs))
                 self.assertEqual(
-                    source.count("expected_tag=corelm-portfolio-v9"),
+                    source.count("expected_tag=corelm-portfolio-v10"),
                     len(expected_jobs),
                 )
                 self.assertEqual(
                     source.count(
-                        "expected_citation_line='version: \"corelm-portfolio-v9\"'"
+                        "expected_citation_line='version: \"corelm-portfolio-v10\"'"
                     ),
                     len(expected_jobs),
                 )
@@ -266,7 +266,7 @@ class PortfolioTagWorkflowSourceTests(unittest.TestCase):
                 ):
                     with self.subTest(workflow=relative, command=command):
                         self.assertEqual(source.count(command), len(expected_jobs))
-                self.assertNotIn('version: \\\"corelm-portfolio-v9\\\"', source)
+                self.assertNotIn('version: \\\"corelm-portfolio-v10\\\"', source)
                 self.assertNotIn("if: ${{", source)
 
     def test_each_tag_ref_assertion_executes_fail_closed(self):
@@ -287,7 +287,7 @@ class PortfolioTagWorkflowSourceTests(unittest.TestCase):
                 check=True,
             )
             citation = root / "CITATION.cff"
-            citation.write_text('version: "corelm-portfolio-v9"\n', encoding="utf-8")
+            citation.write_text('version: "corelm-portfolio-v10"\n', encoding="utf-8")
             subprocess.run(["git", "add", "CITATION.cff"], cwd=root, check=True)
             subprocess.run(
                 ["git", "commit", "-q", "-m", "fixture"], cwd=root, check=True
@@ -354,19 +354,19 @@ class PortfolioTagWorkflowSourceTests(unittest.TestCase):
                         0,
                     )
                 for label, text in (
-                    ("escaped-citation", 'version: \\\"corelm-portfolio-v9\\\"\n'),
+                    ("escaped-citation", 'version: \\\"corelm-portfolio-v10\\\"\n'),
                     ("missing-citation", 'version: "different"\n'),
                     (
                         "duplicate-citation",
-                        'version: "corelm-portfolio-v9"\n'
-                        'version: "corelm-portfolio-v9"\n',
+                        'version: "corelm-portfolio-v10"\n'
+                        'version: "corelm-portfolio-v10"\n',
                     ),
                 ):
                     citation.write_text(text, encoding="utf-8")
                     with self.subTest(job=job, case=label):
                         self.assertNotEqual(execute(body).returncode, 0)
                 citation.write_text(
-                    'version: "corelm-portfolio-v9"\n', encoding="utf-8"
+                    'version: "corelm-portfolio-v10"\n', encoding="utf-8"
                 )
 
 
@@ -618,10 +618,10 @@ class SavedTagCIAdmissionTests(unittest.TestCase):
                 expected_commit=COMMIT,
                 expected_tree=TREE,
             )
-        with self.assertRaisesRegex(tag_ci.TagCIAdmissionError, "active V9 contour"):
+        with self.assertRaisesRegex(tag_ci.TagCIAdmissionError, "active V10 contour"):
             tag_ci.validate_saved_tag_ci(
                 _fixture_responses(),
-                expected_tag="corelm-portfolio-v10",
+                expected_tag="corelm-portfolio-v11",
                 expected_commit=COMMIT,
                 expected_tree=TREE,
             )

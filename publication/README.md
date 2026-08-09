@@ -67,7 +67,7 @@ one another:
   from a checkout whose historical `CITATION.cff` names the same paper tag,
   verifies that the tag is lightweight, points to clean `HEAD`, and is visible
   on the canonical public origin. The current default branch instead names the
-  current `corelm-portfolio-v9` software identity.
+  current `corelm-portfolio-v10` software identity.
 - `corelm-portfolio-vN` is the SSH-signed annotated portfolio and source-
   verification contour. Its signed-source identity is verified against the
   pinned signer policy and canonical remote; the separate
@@ -106,11 +106,11 @@ A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
 
 On the default branch that preview includes the current
-`corelm-portfolio-v9` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
+`corelm-portfolio-v10` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
 not a byte claim about the historical paper-v5 package. Exact paper-v5
 reproduction requires the detached tag below.
 
-The V9 portfolio media path is governed by
+The V10 portfolio media path is governed by
 `corelm-automated-presentation-v2` and is classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. It requires no human review or
 manual edit to accept generated media, but it does not verify pixel semantics
@@ -118,7 +118,7 @@ and does not make the video or poster scientific machine evidence. Gate G10
 remains **OPEN** until a non-author, non-agent person publishes the required
 clean-clone replication.
 
-V9 is distinct from the preserved V3, V4, V5, and V6 failures. V3 failed its
+V10 is distinct from the preserved V3, V4, V5, and V6 failures. V3 failed its
 first tag-push assertion. V4 passed tag CI but stopped in pre-model FFprobe
 frame-PTS field validation before `AttemptLog.reserve`, so no V4 model attempt was
 invoked or consumed. V5 also passed first-attempt tag CI. Its first local
@@ -161,6 +161,33 @@ reused, or relabelled. V9 adds the exact Swift frontend `-num-threads 1` pin
 without weakening the 50% available-memory threshold. Receipts bind the exact
 produced app SHA; this does not claim byte-deterministic executable builds
 across scratch roots.
+
+The signed `corelm-portfolio-v9` candidate is frozen at exact source commit
+`33d99db9a8cb239732910d96fc18dcaa43b78e3e`, tree
+`8fb25db8c54fc248e3b6c1b119fc06fb06be300f`, and annotated tag object
+`ac69a22fef383f78634cda5e7256bca37e914acf`. Its first tag CI was green on
+attempt one: Linux run `31335135716` and macOS run `31335135699`. Exactly one
+V9 attempt was consumed, UUID `57a75c79-f37f-44b0-adc0-ba0762d200b0`.
+Proof and replay passed at 2.0523837550538349x compression, delta NLL
+-8.4598101111055257e-06, top-1 agreement 0.9951171875, and 1,024/1,024 replay
+decisions with maximum errors 0. Its exact durable state order was
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → ATTEMPT_FAILED`, with state SHA-256
+`eff033376bb6cc026c11c8a421da3a8834d78b1a4a7ab34580304c86d0646fce`.
+The exact terminal PTY line was `AUTOMATED PORTFOLIO DEMO FAIL: post-proof
+presentation capture failed: raw capture segment duration/topology is invalid`.
+The partial MOV SHA-256 was
+`5814eac71b5d2fb9ecd940a2aef09bfec9722a6d86a85a95ec230f7334c5514a`:
+one frame, 0.028333 seconds, 2400x1540. The proven cause timeline was display
+off at 23:00:00, idle sleep at 23:00:30, capture beginning during DarkWake at
+23:01:36, maintenance sleep at 23:01:42, human wake at 23:09:18, and file
+finalization at 23:09:19. The app remained alive; the launcher lacked a
+display/system-sleep assertion. No result capture/readiness asset, final media,
+automation receipt, or release was produced. V9 is never moved, rerun, reused, or
+relabelled. V10 wraps the full sterile runner lifetime with exact
+`/usr/bin/caffeinate -dis`; `-u`, `-t`, and `-w` are forbidden, and an
+unavailable wrapper fails before the attempt marker. Presentation contract v2
+remains unchanged.
 
 ## Reproduce the existing tagged package
 

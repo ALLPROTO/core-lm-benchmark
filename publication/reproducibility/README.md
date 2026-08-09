@@ -386,11 +386,11 @@ state, and hashes of included evidence files. It is descriptive metadata, not
 a replacement for Git history. The distribution-side `SHA256SUMS` verifies the
 v5 arXiv source archive, reproducibility archive, and rendered paper PDF.
 
-A default-branch preview carries the current `corelm-portfolio-v9` software
+A default-branch preview carries the current `corelm-portfolio-v10` software
 CFF/SBOM identity and records `UNRELEASED_PREVIEW`; it is not the historical
 paper-v5 release. Exact paper-v5 bytes must be built from the detached tag.
 
-The V9 portfolio's `corelm-automated-presentation-v2` path records and checks a
+The V10 portfolio's `corelm-automated-presentation-v2` path records and checks a
 post-proof model-free explanatory window plus the exact same-run result without
 a required human acceptance or manual edit. Its video and poster are explicitly
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`: they aid inspection but do not
@@ -399,7 +399,7 @@ semantics are not claimed to be verified. Independent-replication gate G10
 remains **OPEN** until a non-author, non-agent person publishes a clean-clone
 replication.
 
-The current V9 identity does not replace the failed V3, V4, V5, or V6
+The current V10 identity does not replace the failed V3, V4, V5, or V6
 candidates.
 V3 remains at its first tag-push assertion failure. V4 remains at a pre-model
 FFprobe frame-PTS field-validation failure before `AttemptLog.reserve`; no V4
@@ -443,6 +443,33 @@ reused, or relabelled. V9 adds the exact Swift frontend `-num-threads 1` pin
 without weakening the 50% available-memory threshold. Receipts bind the exact
 produced app SHA; this does not claim byte-deterministic executable builds
 across scratch roots.
+
+The signed `corelm-portfolio-v9` candidate is frozen at exact source commit
+`33d99db9a8cb239732910d96fc18dcaa43b78e3e`, tree
+`8fb25db8c54fc248e3b6c1b119fc06fb06be300f`, and annotated tag object
+`ac69a22fef383f78634cda5e7256bca37e914acf`. Its first tag CI was green on
+attempt one: Linux run `31335135716` and macOS run `31335135699`. Exactly one
+V9 attempt was consumed, UUID `57a75c79-f37f-44b0-adc0-ba0762d200b0`.
+Proof and replay passed at 2.0523837550538349x compression, delta NLL
+-8.4598101111055257e-06, top-1 agreement 0.9951171875, and 1,024/1,024 replay
+decisions with maximum errors 0. Its exact durable state order was
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → ATTEMPT_FAILED`, with state SHA-256
+`eff033376bb6cc026c11c8a421da3a8834d78b1a4a7ab34580304c86d0646fce`.
+The exact terminal PTY line was `AUTOMATED PORTFOLIO DEMO FAIL: post-proof
+presentation capture failed: raw capture segment duration/topology is invalid`.
+The partial MOV SHA-256 was
+`5814eac71b5d2fb9ecd940a2aef09bfec9722a6d86a85a95ec230f7334c5514a`:
+one frame, 0.028333 seconds, 2400x1540. The proven cause timeline was display
+off at 23:00:00, idle sleep at 23:00:30, capture beginning during DarkWake at
+23:01:36, maintenance sleep at 23:01:42, human wake at 23:09:18, and file
+finalization at 23:09:19. The app remained alive; the launcher lacked a
+display/system-sleep assertion. No result capture/readiness asset, final media,
+automation receipt, or release was produced. V9 is never moved, rerun, reused, or
+relabelled. V10 wraps the full sterile runner lifetime with exact
+`/usr/bin/caffeinate -dis`; `-u`, `-t`, and `-w` are forbidden, and an
+unavailable wrapper fails before the attempt marker. Presentation contract v2
+remains unchanged.
 
 To reproduce the already published `voidtoken-v5-paper-v5` package, maintainers
 use a full clean repository clone at that existing public tag. They do not

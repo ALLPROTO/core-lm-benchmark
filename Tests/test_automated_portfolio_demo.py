@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import stat
 import subprocess
@@ -55,7 +56,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
         wheelhouse.mkdir(mode=0o700)
         output = root / "output"
         return demo.Configuration(
-            tag="corelm-portfolio-v9",
+            tag="corelm-portfolio-v10",
             output=output,
             ffmpeg=Path("/fixture/ffmpeg"),
             ffprobe=Path("/fixture/ffprobe"),
@@ -65,13 +66,47 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
 
     def test_corelm_routes_one_explicit_automated_demo_command(self):
         dispatcher = (ROOT / "corelm").read_text(encoding="utf-8")
+        portfolio_branch = dispatcher[
+            dispatcher.index("    macos:portfolio-demo)") :
+            dispatcher.index("    linux:doctor)")
+        ]
+        exact_launch = (
+            "/usr/bin/caffeinate -dis \\\n"
+            "            /usr/bin/env -i \\\n"
+        )
         self.assertIn("./corelm macos portfolio-demo [options]", dispatcher)
         self.assertIn("macos:portfolio-demo)", dispatcher)
+        self.assertEqual(
+            portfolio_branch.count(
+                '"$PROJECT_DIR/platforms/macos/scripts/'
+                'run-automated-portfolio-demo.py"'
+            ),
+            1,
+        )
+        self.assertEqual(portfolio_branch.count(exact_launch), 1)
+        self.assertEqual(portfolio_branch.count("/usr/bin/caffeinate -"), 1)
+        self.assertEqual(portfolio_branch.count("/usr/bin/env -i"), 1)
+        self.assertLess(
+            portfolio_branch.index("[ ! -f /usr/bin/caffeinate ]"),
+            portfolio_branch.index("strict_portfolio_python_bootstrap"),
+        )
+        self.assertLess(
+            portfolio_branch.index("strict_portfolio_python_bootstrap"),
+            portfolio_branch.index(exact_launch),
+        )
+        self.assertIn("[ -L /usr/bin/caffeinate ]", portfolio_branch)
+        self.assertIn("[ ! -x /usr/bin/caffeinate ]", portfolio_branch)
+        self.assertNotIn("/usr/bin/caffeinate -disu", portfolio_branch)
+        self.assertNotIn("/usr/bin/caffeinate -dist", portfolio_branch)
+        self.assertNotIn("/usr/bin/caffeinate -disw", portfolio_branch)
+        for invalid_flags in ("-di", "-ds", "-is", "-disu", "-dist", "-disw"):
+            with self.subTest(invalid_flags=invalid_flags):
+                invalid = portfolio_branch.replace("-dis", invalid_flags, 1)
+                self.assertNotIn(exact_launch, invalid)
         self.assertIn(
             '"$PROJECT_DIR/platforms/macos/scripts/run-automated-portfolio-demo.py"',
-            dispatcher,
+            portfolio_branch,
         )
-        self.assertIn("/usr/bin/env -i", dispatcher)
         self.assertIn('CORELM_OFFLINE="${CORELM_OFFLINE:-}"', dispatcher)
         self.assertIn('CORELM_WHEELHOUSE="${CORELM_WHEELHOUSE:-}"', dispatcher)
         self.assertNotIn("SSL_CERT_FILE=", dispatcher)
@@ -89,15 +124,51 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             python = runtime / "python"
             python.write_text(
                 "#!/bin/sh\n"
-                f"printf '%s\\n' invoked >> {invocation_log!s}\n"
+                f"printf '%s\\n' invoked >> {shlex.quote(str(invocation_log))}\n"
+                "for argument in \"$@\"; do\n"
+                "    [ \"$argument\" != --fixture-exit-37 ] || exit 37\n"
+                "done\n"
                 "exit 0\n",
                 encoding="utf-8",
             )
             python.chmod(0o700)
+            caffeinate_log = fixture / "caffeinate-argv.log"
+            caffeinate = fixture / "caffeinate"
+            caffeinate_source = (
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$@\" > {shlex.quote(str(caffeinate_log))}\n"
+                "[ \"$1\" = -dis ] || exit 96\n"
+                "shift\n"
+                "exec \"$@\"\n"
+            )
+            caffeinate.write_text(caffeinate_source, encoding="utf-8")
+            caffeinate.chmod(0o700)
             temporary_root = fixture / "tmp"
             temporary_root.mkdir(mode=0o700)
 
-            shutil.copy2(ROOT / "corelm", repository / "corelm")
+            dispatcher = (ROOT / "corelm").read_text(encoding="utf-8")
+            quoted_caffeinate = shlex.quote(str(caffeinate))
+            for original, replacement in (
+                (
+                    "[ ! -f /usr/bin/caffeinate ]",
+                    f"[ ! -f {quoted_caffeinate} ]",
+                ),
+                (
+                    "[ -L /usr/bin/caffeinate ]",
+                    f"[ -L {quoted_caffeinate} ]",
+                ),
+                (
+                    "[ ! -x /usr/bin/caffeinate ]",
+                    f"[ ! -x {quoted_caffeinate} ]",
+                ),
+                (
+                    "/usr/bin/caffeinate -dis \\",
+                    f"{quoted_caffeinate} -dis \\",
+                ),
+            ):
+                self.assertEqual(dispatcher.count(original), 1)
+                dispatcher = dispatcher.replace(original, replacement, 1)
+            (repository / "corelm").write_text(dispatcher, encoding="utf-8")
             (repository / "corelm").chmod(0o755)
             (repository / ".gitignore").write_text(
                 "dist/\n**/__pycache__/\n*.py[cod]\n",
@@ -148,7 +219,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 "macos",
                 "portfolio-demo",
                 "--tag",
-                "corelm-portfolio-v9",
+                "corelm-portfolio-v10",
             )
             accepted = subprocess.run(
                 command,
@@ -162,6 +233,93 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             )
             self.assertEqual(accepted.returncode, 0, accepted.stderr.decode())
             self.assertEqual(invocation_log.read_text(encoding="utf-8"), "invoked\n")
+            caffeinate_argv = caffeinate_log.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(caffeinate_argv[:3], ["-dis", "/usr/bin/env", "-i"])
+            self.assertEqual(caffeinate_argv.count("-dis"), 1)
+            self.assertNotIn("-u", caffeinate_argv)
+            self.assertNotIn("-t", caffeinate_argv)
+            self.assertNotIn("-w", caffeinate_argv)
+            self.assertFalse(tuple(temporary_root.glob("corelm-portfolio-pycache.*")))
+
+            nonzero = subprocess.run(
+                (*command, "--fixture-exit-37"),
+                cwd=repository,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=30,
+            )
+            self.assertEqual(nonzero.returncode, 37, nonzero.stderr.decode())
+            expected_invocations = "invoked\ninvoked\n"
+            self.assertEqual(
+                invocation_log.read_text(encoding="utf-8"), expected_invocations
+            )
+            self.assertFalse(tuple(temporary_root.glob("corelm-portfolio-pycache.*")))
+
+            caffeinate_target = fixture / "caffeinate-target"
+            caffeinate_target.write_text(caffeinate_source, encoding="utf-8")
+            caffeinate_target.chmod(0o700)
+            caffeinate.unlink()
+            caffeinate.symlink_to(caffeinate_target)
+            symlink_rejected = subprocess.run(
+                command,
+                cwd=repository,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=30,
+            )
+            self.assertEqual(symlink_rejected.returncode, 1)
+            self.assertIn(b"regular non-symlink", symlink_rejected.stderr)
+            self.assertEqual(
+                invocation_log.read_text(encoding="utf-8"), expected_invocations
+            )
+            caffeinate.unlink()
+            caffeinate.write_text(caffeinate_source, encoding="utf-8")
+            caffeinate.chmod(0o700)
+
+            caffeinate.chmod(0o600)
+            non_executable_rejected = subprocess.run(
+                command,
+                cwd=repository,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=30,
+            )
+            self.assertEqual(non_executable_rejected.returncode, 1)
+            self.assertIn(b"regular non-symlink", non_executable_rejected.stderr)
+            self.assertEqual(
+                invocation_log.read_text(encoding="utf-8"), expected_invocations
+            )
+            self.assertFalse(tuple(temporary_root.glob("corelm-portfolio-pycache.*")))
+            caffeinate.chmod(0o700)
+
+            caffeinate.unlink()
+            missing_rejected = subprocess.run(
+                command,
+                cwd=repository,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=30,
+            )
+            self.assertEqual(missing_rejected.returncode, 1)
+            self.assertIn(b"regular non-symlink", missing_rejected.stderr)
+            self.assertEqual(
+                invocation_log.read_text(encoding="utf-8"), expected_invocations
+            )
+            self.assertFalse(tuple(temporary_root.glob("corelm-portfolio-pycache.*")))
+            caffeinate.write_text(caffeinate_source, encoding="utf-8")
+            caffeinate.chmod(0o700)
 
             cache = repository / "security/__pycache__"
             cache.mkdir()
@@ -181,7 +339,9 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 b"forbids ignored paths outside the verified app bundle",
                 rejected.stderr,
             )
-            self.assertEqual(invocation_log.read_text(encoding="utf-8"), "invoked\n")
+            self.assertEqual(
+                invocation_log.read_text(encoding="utf-8"), expected_invocations
+            )
 
             (cache / "attack.cpython-312.pyc").unlink()
             cache.rmdir()
@@ -202,7 +362,9 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 b"forbids ignored paths outside the verified app bundle",
                 root_rejected.stderr,
             )
-            self.assertEqual(invocation_log.read_text(encoding="utf-8"), "invoked\n")
+            self.assertEqual(
+                invocation_log.read_text(encoding="utf-8"), expected_invocations
+            )
 
             root_shadow.unlink()
             with (repository / ".git/info/exclude").open(
@@ -226,11 +388,13 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 b"forbids ignored paths outside the verified app bundle",
                 exclude_rejected.stderr,
             )
-            self.assertEqual(invocation_log.read_text(encoding="utf-8"), "invoked\n")
+            self.assertEqual(
+                invocation_log.read_text(encoding="utf-8"), expected_invocations
+            )
 
     def test_configuration_rejects_future_tag_without_running_preflight(self):
-        arguments = mock.Mock(tag="corelm-portfolio-v10")
-        with self.assertRaisesRegex(demo.AutomatedDemoError, "exact corelm-portfolio-v9"):
+        arguments = mock.Mock(tag="corelm-portfolio-v11")
+        with self.assertRaisesRegex(demo.AutomatedDemoError, "exact corelm-portfolio-v10"):
             demo._validate_configuration(arguments)
 
     def test_preflight_is_nonprompting_and_precedes_attempt_and_proof(self):
@@ -1165,7 +1329,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             ),
         )
 
-        source = demo.SourceIdentity("corelm-portfolio-v9", "1" * 40, "2" * 40)
+        source = demo.SourceIdentity("corelm-portfolio-v10", "1" * 40, "2" * 40)
         proof = demo.ProofIdentity(
             Path("/private/run"),
             "12345678-1234-4234-8234-123456789abc",

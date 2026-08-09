@@ -24,10 +24,10 @@ jobs:
       - name: Require exact portfolio tag-push ref
         run: |
           set -eu
-          expected_tag=corelm-portfolio-v9
-          expected_citation_line='version: "corelm-portfolio-v9"'
+          expected_tag=corelm-portfolio-v10
+          expected_citation_line='version: "corelm-portfolio-v10"'
           if [ "$GITHUB_REF_NAME" != "$expected_tag" ]; then
-            echo "Not the V9 portfolio tag; exact tag assertion is not applicable."
+            echo "Not the V10 portfolio tag; exact tag assertion is not applicable."
             exit 0
           fi
           tag_ref="refs/tags/$expected_tag"

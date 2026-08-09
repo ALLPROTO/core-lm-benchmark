@@ -1,6 +1,6 @@
 # Automation-only macOS portfolio demo
 
-This is the current V9 product-media contour for portfolio gate G03 under
+This is the current V10 product-media contour for portfolio gate G03 under
 `corelm-automated-presentation-v2`. It has no interactive window selection,
 editor, manual trim, chosen poster frame, or human-review acceptance step. Its
 exact classification is:
@@ -70,14 +70,41 @@ was invoked or consumed, and no portfolio media was retained. Never move,
 rerun, reuse, or relabel V8. V9 is the distinct successor and adds the exact
 Swift frontend `-num-threads 1` pin without weakening the 50% available-memory
 threshold. Receipts bind the exact produced app SHA; this does not claim
-byte-deterministic executable builds across scratch roots. V9 retains
-presentation contract `corelm-automated-presentation-v2`.
+byte-deterministic executable builds across scratch roots.
+
+The signed `corelm-portfolio-v9` candidate is frozen at exact source commit
+`33d99db9a8cb239732910d96fc18dcaa43b78e3e`, tree
+`8fb25db8c54fc248e3b6c1b119fc06fb06be300f`, and annotated tag object
+`ac69a22fef383f78634cda5e7256bca37e914acf`. Its first tag CI was green on
+attempt one: Linux run `31335135716` and macOS run `31335135699`. Exactly one
+V9 attempt was consumed, UUID `57a75c79-f37f-44b0-adc0-ba0762d200b0`.
+Proof and replay passed at 2.0523837550538349x compression, delta NLL
+-8.4598101111055257e-06, top-1 agreement 0.9951171875, and 1,024/1,024 replay
+decisions with maximum errors 0. Its exact durable state order was
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → ATTEMPT_FAILED`, with state SHA-256
+`eff033376bb6cc026c11c8a421da3a8834d78b1a4a7ab34580304c86d0646fce`.
+The exact terminal PTY line was `AUTOMATED PORTFOLIO DEMO FAIL: post-proof
+presentation capture failed: raw capture segment duration/topology is invalid`.
+The partial MOV SHA-256 was
+`5814eac71b5d2fb9ecd940a2aef09bfec9722a6d86a85a95ec230f7334c5514a`:
+one frame, 0.028333 seconds, 2400x1540. The proven cause timeline was display
+off at 23:00:00, idle sleep at 23:00:30, capture beginning during DarkWake at
+23:01:36, maintenance sleep at 23:01:42, human wake at 23:09:18, and file
+finalization at 23:09:19. The app remained alive; the launcher lacked a
+display/system-sleep assertion. No result capture/readiness asset, final media,
+automation receipt, or release was produced. Never move, rerun, reuse, or
+relabel V9.
+V10 is the distinct successor: exact `/usr/bin/caffeinate -dis` wraps the full
+sterile runner lifetime, `-u`, `-t`, and `-w` are forbidden, and an unavailable
+wrapper fails before the attempt marker. V10 retains presentation contract
+`corelm-automated-presentation-v2`.
 
 ## Fixed source and one-attempt boundary
 
 The command accepts only a clean canonical checkout whose `main`,
 `origin/main`, and already-created SSH-signed annotated
-`corelm-portfolio-v9` tag all resolve to the same commit/tree. The signed tag
+`corelm-portfolio-v10` tag all resolve to the same commit/tree. The signed tag
 and its first-attempt Linux/macOS Actions must already be green.
 
 Before model execution the command checks power, the offline doctor, pinned
@@ -93,7 +120,7 @@ than one pinned-Qwen model execution.
 `CORELM_OFFLINE=1` applies to the model, corpus, app proof, replay, and media
 pipeline. Before reserving the attempt, the runner makes the sole bounded
 online exception: eight anonymous, direct, no-proxy/no-redirect GitHub API
-requests that prove the exact public V9 tag/main and first-attempt Linux/macOS
+requests that prove the exact public V10 tag/main and first-attempt Linux/macOS
 tag CI. Failure remains pre-marker and safely retryable. Exact response bytes,
 the recomputed public receipt, and hard-pinned local tag-trust receipt are
 retained for collector and release verification; they record admission-time
@@ -121,10 +148,10 @@ providing both `ffmpeg` and `ffprobe`.
 ```sh
 set -eu
 
-DEMO_TAG=corelm-portfolio-v9
+DEMO_TAG=corelm-portfolio-v10
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v9-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v10-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -203,7 +230,7 @@ WINDOW_HELPER="$DEMO_SESSION/find-proof-window"
 TAG_CI_RECEIPT="$DEMO_SESSION/tag-ci-receipt.json"
 LOCAL_TAG_TRUST_RECEIPT="$DEMO_SESSION/local-tag-trust-receipt.json"
 TAG_CI_BUNDLE="$DEMO_SESSION/tag-ci-bundle"
-INPUTS=/absolute/absent/corelm-portfolio-v9-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v10-inputs
 PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 
 publication/run_portfolio_python.sh \

@@ -110,7 +110,7 @@ orchestrator in
 does not print end-to-end PASS until the app, structural verifier, and heavy
 model replay have all returned successfully.
 
-The `corelm-portfolio-v9` `corelm-automated-presentation-v2` contour is also
+The `corelm-portfolio-v10` `corelm-automated-presentation-v2` contour is also
 automation-only: after proof and replay it records a fixed model-free
 explanatory overview from the exact verified proof app, reopens the exact
 retained run, derives the poster at a fixed timestamp,
@@ -121,7 +121,7 @@ support remains in signed result/evidence bytes and the heavy replay. The
 capture-safe view and metadata scans reduce disclosure risk but do not prove
 that no private glyph exists.
 
-This V9 contour does not rewrite the failed V4 candidate. V4 stopped during
+This V10 contour does not rewrite the failed V4 candidate. V4 stopped during
 pre-model tool admission when its FFprobe frame-PTS field validator rejected
 n8.1.2's `duration_time`/SEI output grammar, before the durable attempt marker
 and before any model invocation; no V4 model attempt was consumed. V5 then
@@ -165,8 +165,34 @@ was invoked or consumed, and no portfolio media was retained. V8 is never
 moved, rerun, reused, or relabelled. The distinct V9 identity adds the exact
 Swift frontend `-num-threads 1` pin without weakening the 50% available-memory
 threshold. Receipts bind the exact produced app SHA; this does not claim
-byte-deterministic executable builds across scratch roots. Presentation
-contract v2 remains unchanged.
+byte-deterministic executable builds across scratch roots.
+
+The signed `corelm-portfolio-v9` candidate is frozen at exact source commit
+`33d99db9a8cb239732910d96fc18dcaa43b78e3e`, tree
+`8fb25db8c54fc248e3b6c1b119fc06fb06be300f`, and annotated tag object
+`ac69a22fef383f78634cda5e7256bca37e914acf`. Its first tag CI was green on
+attempt one: Linux run `31335135716` and macOS run `31335135699`. Exactly one
+V9 attempt was consumed, UUID `57a75c79-f37f-44b0-adc0-ba0762d200b0`.
+Proof and replay passed at 2.0523837550538349x compression, delta NLL
+-8.4598101111055257e-06, top-1 agreement 0.9951171875, and 1,024/1,024 replay
+decisions with maximum errors 0. Its exact durable state order was
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → ATTEMPT_FAILED`, with state SHA-256
+`eff033376bb6cc026c11c8a421da3a8834d78b1a4a7ab34580304c86d0646fce`.
+The exact terminal PTY line was `AUTOMATED PORTFOLIO DEMO FAIL: post-proof
+presentation capture failed: raw capture segment duration/topology is invalid`.
+The partial MOV SHA-256 was
+`5814eac71b5d2fb9ecd940a2aef09bfec9722a6d86a85a95ec230f7334c5514a`:
+one frame, 0.028333 seconds, 2400x1540. The proven cause timeline was display
+off at 23:00:00, idle sleep at 23:00:30, capture beginning during DarkWake at
+23:01:36, maintenance sleep at 23:01:42, human wake at 23:09:18, and file
+finalization at 23:09:19. The app remained alive; the launcher lacked a
+display/system-sleep assertion. No result capture/readiness asset, final media,
+automation receipt, or release was produced. V9 is never moved, rerun, reused, or
+relabelled. The distinct V10 identity wraps the full sterile runner lifetime
+with exact `/usr/bin/caffeinate -dis`; `-u`, `-t`, and `-w` are forbidden, and
+an unavailable wrapper fails before the attempt marker. Presentation contract
+v2 remains unchanged.
 
 This is **implementation/process separation**, not independent scientific
 review. The project is currently author-operated and

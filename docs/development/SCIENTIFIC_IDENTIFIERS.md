@@ -20,7 +20,7 @@ documentation.
 | Beacon freeze tag | `corelm-beacon-heldout-v1` | Public pre-reveal protocol anchor |
 | Beacon artifacts | `corelm-beacon-attempt-v1`, `corelm-beacon-resolution-v1`, `corelm-beacon-outcome-v1` | Irreversible state and result compatibility |
 | Publication tag | `voidtoken-v5-paper-v5` | Immutable archive provenance |
-| Portfolio software tag | `corelm-portfolio-v9` | Automation-only engineering release identity; signing and public status are verified separately |
+| Portfolio software tag | `corelm-portfolio-v10` | Automation-only engineering release identity; signing and public status are verified separately |
 | Automated presentation contract | `corelm-automated-presentation-v2` | Deterministic post-proof explanatory and exact-result capture, assembly, and validation with no required human acceptance step |
 | Portfolio media classification | `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE` | Author-controlled presentation bytes; scientific evidence remains the receipt, result, retained containers, and replay reports |
 | Bundle metadata | `CFBundleShortVersionString`, `CFBundleVersion` | macOS identity and receipt field |
@@ -34,7 +34,7 @@ The upstream model identifier `Qwen/Qwen2.5-0.5B` must also remain visible. It
 identifies the exact model family being measured and is not application
 branding.
 
-The V9 automation contour does not close independent-replication gate G10.
+The V10 automation contour does not close independent-replication gate G10.
 That gate remains **OPEN** until a non-author, non-agent person completes and
 publishes the specified clean-clone replication. Automated capture and
 verification remove a required human acceptance step from media production;
@@ -93,11 +93,37 @@ PORTFOLIO DEMO FAIL: at least 50% available memory is required`. After cleanup
 the durable state, session, and staging directory were absent.
 `AttemptLog.reserve` was never reached; no proof or model attempt was invoked
 or consumed, and no portfolio media was retained. V8 is never rerun, moved,
-reused, or relabelled. The current portfolio software identity is the distinct
-V9 tag shown in the table. It adds the exact Swift frontend `-num-threads 1`
+reused, or relabelled. The distinct V9 identity added the exact Swift frontend `-num-threads 1`
 pin without weakening the 50% available-memory threshold. Receipts bind the
 exact produced app SHA; this does not claim byte-deterministic executable builds
-across scratch roots. The presentation contract remains v2.
+across scratch roots.
+
+`corelm-portfolio-v9` is the next immutable historical failed candidate. Its
+exact source commit is `33d99db9a8cb239732910d96fc18dcaa43b78e3e`, tree is
+`8fb25db8c54fc248e3b6c1b119fc06fb06be300f`, and annotated tag object is
+`ac69a22fef383f78634cda5e7256bca37e914acf`. First-attempt tag CI was green in
+Linux run `31335135716` and macOS run `31335135699`. Exactly one V9 attempt was
+consumed, UUID `57a75c79-f37f-44b0-adc0-ba0762d200b0`. Proof and replay passed
+at 2.0523837550538349x compression, delta NLL -8.4598101111055257e-06, top-1
+agreement 0.9951171875, and 1,024/1,024 replay decisions with maximum errors 0.
+Its exact durable state order was `ATTEMPT_STARTED → PROOF_INVOKED →
+PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → ATTEMPT_FAILED`, with state SHA-256
+`eff033376bb6cc026c11c8a421da3a8834d78b1a4a7ab34580304c86d0646fce`.
+The exact terminal PTY line was `AUTOMATED PORTFOLIO DEMO FAIL: post-proof
+presentation capture failed: raw capture segment duration/topology is invalid`.
+The partial MOV SHA-256 was
+`5814eac71b5d2fb9ecd940a2aef09bfec9722a6d86a85a95ec230f7334c5514a`:
+one frame, 0.028333 seconds, 2400x1540. The proven cause timeline was display
+off at 23:00:00, idle sleep at 23:00:30, capture beginning during DarkWake at
+23:01:36, maintenance sleep at 23:01:42, human wake at 23:09:18, and file
+finalization at 23:09:19. The app remained alive; the launcher lacked a
+display/system-sleep assertion. No result capture/readiness asset, final media,
+automation receipt, or release was produced. V9 is never rerun, moved, reused, or
+relabelled. The current portfolio software identity is the distinct V10 tag
+shown in the table. Exact `/usr/bin/caffeinate -dis` wraps its full sterile
+runner lifetime; `-u`, `-t`, and `-w` are forbidden, and an unavailable wrapper
+fails before the attempt marker. The presentation contract remains v2.
 
 ## User-facing rule
 

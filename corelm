@@ -151,10 +151,19 @@ case "$platform:$command" in
         case "${1:-}" in
             -h|--help)
                 printf '%s\n' \
-                    'usage: ./corelm macos portfolio-demo --tag corelm-portfolio-v9 --output DIRECTORY --ffmpeg ABSOLUTE_PATH --ffprobe ABSOLUTE_PATH'
+                    'usage: ./corelm macos portfolio-demo --tag corelm-portfolio-v10 --output DIRECTORY --ffmpeg ABSOLUTE_PATH --ffprobe ABSOLUTE_PATH'
                 exit 0
                 ;;
-            *) strict_portfolio_python_bootstrap ;;
+            *)
+                if [ ! -f /usr/bin/caffeinate ] || \
+                    [ -L /usr/bin/caffeinate ] || \
+                    [ ! -x /usr/bin/caffeinate ]; then
+                    printf '%s\n' \
+                        'portfolio demo requires executable regular non-symlink /usr/bin/caffeinate' >&2
+                    exit 1
+                fi
+                strict_portfolio_python_bootstrap
+                ;;
         esac
         automated_python="$HOME/.cache/corelm/macos/runtime/bin/python"
         [ -x "$automated_python" ] || {
@@ -186,7 +195,8 @@ case "$platform:$command" in
         portfolio_pycache=$(CDPATH= cd -- "$portfolio_pycache" && pwd -P)
         /bin/chmod 700 "$portfolio_pycache"
         portfolio_status=0
-        /usr/bin/env -i \
+        /usr/bin/caffeinate -dis \
+            /usr/bin/env -i \
             HOME="$HOME" \
             TMPDIR="$portfolio_tmp_root" \
             PATH=/usr/bin:/bin:/usr/sbin:/sbin \
