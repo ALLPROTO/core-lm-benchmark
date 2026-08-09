@@ -15,7 +15,7 @@ than inferred from this preservation policy.
 The existing publication snapshot uses `voidtoken-v5-paper-v5`. At that
 immutable tag, its CFF version, manuscript reference, SBOM component, archive
 provenance, and canonical asset names are synchronized. The current default
-branch instead uses the `corelm-portfolio-v8` software CFF/SBOM identity and
+branch instead uses the `corelm-portfolio-v9` software CFF/SBOM identity and
 the `corelm-automated-presentation-v2` automation contract.
 Check GitHub's live
 `immutable` API field before making a platform-immutability statement; do not
@@ -67,7 +67,7 @@ packager for the other.
    canonical receipt outside the same release; and
 6. never pass a portfolio tag to `publication/build_archives.py`.
 
-For V8, post-proof recording, deterministic poster extraction, media assembly,
+For V9, post-proof recording, deterministic poster extraction, media assembly,
 metadata checks, and evidence collection must complete through the tracked
 automation contract without a required human review or manual-edit acceptance
 step. Both media assets are classified
@@ -124,11 +124,26 @@ less than 50% available memory, and one transient pre-marker public tag-CI
 admission failure had an unretained nested cause; the exact same 8-response
 validation subsequently passed. The durable state and session remained absent after all
 three; no proof or model attempt was consumed. Never rerun the V7 contour, move
-or replace its tag, or relabel it as V8. The distinct V8
-single-job/low-peak-memory pre-marker build scheduling avoids the V7
-parallel-build admission pressure without weakening the 50% available-memory
-threshold. Receipts bind the exact produced app SHA; this does not claim
-byte-deterministic executable builds across scratch roots. V8 retains
+or replace its tag, or relabel it as a later identity.
+
+The signed annotated `corelm-portfolio-v8` tag is a sixth preserved failed
+release candidate. Its exact source commit is
+`b1fc746e7f8a5bd1bf826d9f5219779d568fa0c4`, tree
+`3c9c5d64530e7c706dc1c9b9cf91d00c81a08a3d`, and tag object
+`64c9d84ddd8aa04b01459447b7c9f3f16f8f6db3`. Exactly one local V8 runner
+invocation occurred. Its first resource admission passed and the release build
+completed with top-level `--jobs 1`, while the observed Swift frontend argv
+retained `-num-threads 8`. That observation does not establish that the
+frontend setting caused the later host-memory result. The second unchanged
+>=50% available-memory admission failed closed with the exact PTY line
+`AUTOMATED PORTFOLIO DEMO FAIL: at least 50% available memory is required`.
+After cleanup the durable state, session, and staging directory were absent.
+`AttemptLog.reserve` was never reached; no proof or model attempt was invoked
+or consumed, and no portfolio media was retained. Never rerun the V8 contour,
+move or replace its tag, or relabel it as V9. The distinct V9 identity adds the
+exact Swift frontend `-num-threads 1` pin without weakening the 50%
+available-memory threshold. Receipts bind the exact produced app SHA; this does
+not claim byte-deterministic executable builds across scratch roots. V9 retains
 `corelm-automated-presentation-v2` and requires its own signed commit, tag,
 first-attempt tag CI, and proof.
 

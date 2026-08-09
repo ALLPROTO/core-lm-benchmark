@@ -67,7 +67,7 @@ one another:
   from a checkout whose historical `CITATION.cff` names the same paper tag,
   verifies that the tag is lightweight, points to clean `HEAD`, and is visible
   on the canonical public origin. The current default branch instead names the
-  current `corelm-portfolio-v8` software identity.
+  current `corelm-portfolio-v9` software identity.
 - `corelm-portfolio-vN` is the SSH-signed annotated portfolio and source-
   verification contour. Its signed-source identity is verified against the
   pinned signer policy and canonical remote; the separate
@@ -106,11 +106,11 @@ A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
 
 On the default branch that preview includes the current
-`corelm-portfolio-v8` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
+`corelm-portfolio-v9` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
 not a byte claim about the historical paper-v5 package. Exact paper-v5
 reproduction requires the detached tag below.
 
-The V8 portfolio media path is governed by
+The V9 portfolio media path is governed by
 `corelm-automated-presentation-v2` and is classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. It requires no human review or
 manual edit to accept generated media, but it does not verify pixel semantics
@@ -118,7 +118,7 @@ and does not make the video or poster scientific machine evidence. Gate G10
 remains **OPEN** until a non-author, non-agent person publishes the required
 clean-clone replication.
 
-V8 is distinct from the preserved V3, V4, V5, and V6 failures. V3 failed its
+V9 is distinct from the preserved V3, V4, V5, and V6 failures. V3 failed its
 first tag-push assertion. V4 passed tag CI but stopped in pre-model FFprobe
 frame-PTS field validation before `AttemptLog.reserve`, so no V4 model attempt was
 invoked or consumed. V5 also passed first-attempt tag CI. Its first local
@@ -142,11 +142,25 @@ parallel Swift preflight build left less than 50% available memory, and one
 transient pre-marker public tag-CI admission failure had an unretained nested
 cause; the exact same 8-response validation subsequently passed. The durable state and
 session remained absent after all three; no proof or model attempt was
-consumed. V7 is never moved, rerun, or relabelled. V8 uses
-single-job/low-peak-memory pre-marker build scheduling to avoid the V7
-parallel-build admission pressure without weakening the 50% available-memory
-threshold. Receipts bind the exact produced app SHA; this does not claim
-byte-deterministic executable builds across scratch roots.
+consumed. V7 is never moved, rerun, or relabelled.
+
+The signed `corelm-portfolio-v8` candidate is frozen at exact source commit
+`b1fc746e7f8a5bd1bf826d9f5219779d568fa0c4`, tree
+`3c9c5d64530e7c706dc1c9b9cf91d00c81a08a3d`, and annotated tag object
+`64c9d84ddd8aa04b01459447b7c9f3f16f8f6db3`. Exactly one local V8 runner
+invocation occurred. Its first resource admission passed and the release build
+completed with top-level `--jobs 1`; the observed Swift frontend argv retained
+`-num-threads 8`. That observation does not establish that the frontend
+setting caused the later host-memory result. The second unchanged >=50%
+available-memory admission failed closed with the exact PTY line `AUTOMATED
+PORTFOLIO DEMO FAIL: at least 50% available memory is required`. After cleanup
+the durable state, session, and staging directory were absent.
+`AttemptLog.reserve` was never reached; no proof or model attempt was invoked
+or consumed, and no portfolio media was retained. V8 is never moved, rerun,
+reused, or relabelled. V9 adds the exact Swift frontend `-num-threads 1` pin
+without weakening the 50% available-memory threshold. Receipts bind the exact
+produced app SHA; this does not claim byte-deterministic executable builds
+across scratch roots.
 
 ## Reproduce the existing tagged package
 

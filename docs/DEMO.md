@@ -1,6 +1,6 @@
 # Automation-only macOS portfolio demo
 
-This is the current V8 product-media contour for portfolio gate G03 under
+This is the current V9 product-media contour for portfolio gate G03 under
 `corelm-automated-presentation-v2`. It has no interactive window selection,
 editor, manual trim, chosen poster frame, or human-review acceptance step. Its
 exact classification is:
@@ -52,18 +52,32 @@ left less than 50% available memory; one transient pre-marker public tag-CI
 admission failure had an unretained nested cause, while the exact same
 8-response validation subsequently passed. The durable state and session remained absent
 after all three; no proof or model attempt was consumed. Never rerun, move, or
-relabel V7. V8 is the distinct successor. Its single-job/low-peak-memory
-pre-marker build scheduling avoids the V7 parallel-build admission pressure
-without weakening the 50% available-memory threshold. Receipts bind the exact
-produced app SHA; this does not claim byte-deterministic executable builds
-across scratch roots. V8 retains presentation contract
-`corelm-automated-presentation-v2`.
+relabel V7.
+
+The signed `corelm-portfolio-v8` candidate is frozen at exact source commit
+`b1fc746e7f8a5bd1bf826d9f5219779d568fa0c4`, tree
+`3c9c5d64530e7c706dc1c9b9cf91d00c81a08a3d`, and annotated tag object
+`64c9d84ddd8aa04b01459447b7c9f3f16f8f6db3`. Exactly one local V8 runner
+invocation occurred. Its first resource admission passed, and the release
+build completed with top-level `--jobs 1`; the observed Swift frontend argv
+nevertheless retained `-num-threads 8`. That observation does not establish
+that the frontend setting caused the later host-memory result. The second
+unchanged >=50% available-memory admission then failed closed with the exact
+PTY line `AUTOMATED PORTFOLIO DEMO FAIL: at least 50% available memory is
+required`. After cleanup the durable state, session, and staging directory
+were absent. `AttemptLog.reserve` was never reached; no proof or model attempt
+was invoked or consumed, and no portfolio media was retained. Never move,
+rerun, reuse, or relabel V8. V9 is the distinct successor and adds the exact
+Swift frontend `-num-threads 1` pin without weakening the 50% available-memory
+threshold. Receipts bind the exact produced app SHA; this does not claim
+byte-deterministic executable builds across scratch roots. V9 retains
+presentation contract `corelm-automated-presentation-v2`.
 
 ## Fixed source and one-attempt boundary
 
 The command accepts only a clean canonical checkout whose `main`,
 `origin/main`, and already-created SSH-signed annotated
-`corelm-portfolio-v8` tag all resolve to the same commit/tree. The signed tag
+`corelm-portfolio-v9` tag all resolve to the same commit/tree. The signed tag
 and its first-attempt Linux/macOS Actions must already be green.
 
 Before model execution the command checks power, the offline doctor, pinned
@@ -79,7 +93,7 @@ than one pinned-Qwen model execution.
 `CORELM_OFFLINE=1` applies to the model, corpus, app proof, replay, and media
 pipeline. Before reserving the attempt, the runner makes the sole bounded
 online exception: eight anonymous, direct, no-proxy/no-redirect GitHub API
-requests that prove the exact public V8 tag/main and first-attempt Linux/macOS
+requests that prove the exact public V9 tag/main and first-attempt Linux/macOS
 tag CI. Failure remains pre-marker and safely retryable. Exact response bytes,
 the recomputed public receipt, and hard-pinned local tag-trust receipt are
 retained for collector and release verification; they record admission-time
@@ -107,10 +121,10 @@ providing both `ffmpeg` and `ffprobe`.
 ```sh
 set -eu
 
-DEMO_TAG=corelm-portfolio-v8
+DEMO_TAG=corelm-portfolio-v9
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v8-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v9-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -189,7 +203,7 @@ WINDOW_HELPER="$DEMO_SESSION/find-proof-window"
 TAG_CI_RECEIPT="$DEMO_SESSION/tag-ci-receipt.json"
 LOCAL_TAG_TRUST_RECEIPT="$DEMO_SESSION/local-tag-trust-receipt.json"
 TAG_CI_BUNDLE="$DEMO_SESSION/tag-ci-bundle"
-INPUTS=/absolute/absent/corelm-portfolio-v8-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v9-inputs
 PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 
 publication/run_portfolio_python.sh \

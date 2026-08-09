@@ -35,7 +35,7 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
-    def test_current_portfolio_schemas_pin_automation_only_v8_contract(self):
+    def test_current_portfolio_schemas_pin_automation_only_v9_contract(self):
         release_input = json.loads(
             (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
                 encoding="utf-8"
@@ -167,7 +167,7 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v8")
+        self.assertEqual(release_tag, "corelm-portfolio-v9")
         self.assertRegex(citation, r"(?m)^date-released: 2026-08-09$")
 
         for relative in (
@@ -232,7 +232,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v5", text)
-                self.assertIn("corelm-portfolio-v8", text)
+                self.assertIn("corelm-portfolio-v9", text)
                 self.assertIn("HTTP 403", normalized)
                 self.assertIn("AttemptLog.reserve", text)
                 self.assertRegex(normalized, r"(?:signed 32-bit|above `2\^31`)")
@@ -258,7 +258,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v6", text)
-                self.assertIn("corelm-portfolio-v8", text)
+                self.assertIn("corelm-portfolio-v9", text)
                 self.assertIn("first-attempt tag CI", normalized)
                 self.assertIn("2.052384x", normalized)
                 self.assertIn("-0.00000846", normalized)
@@ -274,7 +274,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("collection", normalized)
                 self.assertIn("never", normalized.lower())
 
-    def test_v7_pre_marker_history_and_v8_single_job_fix_are_preserved(self):
+    def test_v7_and_v8_pre_marker_history_and_v9_thread_pin_are_preserved(self):
         historical_documents = (
             "docs/DEMO.md",
             "docs/ENGINEERING_CASE_STUDY.md",
@@ -292,6 +292,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v7", text)
                 self.assertIn("corelm-portfolio-v8", text)
+                self.assertIn("corelm-portfolio-v9", text)
                 self.assertIn("three V7 runner invocations", normalized)
                 self.assertIn("two", normalized.lower())
                 self.assertIn("50%", normalized)
@@ -304,14 +305,51 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("AttemptLog.reserve", text)
                 self.assertIn("durable state and session remained absent", normalized)
                 self.assertIn("no proof or model attempt was consumed", normalized)
+                self.assertIn("Exactly one local V8 runner invocation", normalized)
+                self.assertIn("first resource admission passed", normalized)
+                self.assertIn("top-level `--jobs 1`", normalized)
                 self.assertIn(
-                    "single-job/low-peak-memory pre-marker build scheduling",
+                    "observed Swift frontend argv",
                     normalized,
                 )
+                self.assertIn("retained `-num-threads 8`", normalized)
+                self.assertIn(
+                    "does not establish that the frontend setting caused",
+                    normalized,
+                )
+                self.assertIn(
+                    "second unchanged >=50% available-memory admission",
+                    normalized,
+                )
+                self.assertIn(
+                    "AUTOMATED PORTFOLIO DEMO FAIL: at least 50% available "
+                    "memory is required",
+                    normalized,
+                )
+                self.assertIn(
+                    "durable state, session, and staging directory were absent",
+                    normalized,
+                )
+                self.assertRegex(
+                    normalized,
+                    r"AttemptLog\.reserve` was never reached",
+                )
+                self.assertIn(
+                    "no proof or model attempt was invoked or consumed",
+                    normalized,
+                )
+                self.assertIn("no portfolio media was retained", normalized)
+                self.assertIn("`-num-threads 1` pin", normalized)
                 self.assertIn("without weakening the 50%", normalized)
                 self.assertIn("exact produced app SHA", normalized)
                 self.assertIn("does not claim byte-deterministic", normalized)
                 self.assertIn("never", normalized.lower())
+                for identity in (
+                    "b1fc746e7f8a5bd1bf826d9f5219779d568fa0c4",
+                    "3c9c5d64530e7c706dc1c9b9cf91d00c81a08a3d",
+                    "64c9d84ddd8aa04b01459447b7c9f3f16f8f6db3",
+                ):
+                    self.assertIn(identity, text)
 
         exact_documents = (
             "docs/DEMO.md",

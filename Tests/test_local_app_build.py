@@ -823,6 +823,10 @@ class LocalAppBuildTests(unittest.TestCase):
             "build",
             "--jobs",
             "1",
+            "-Xswiftc",
+            "-num-threads",
+            "-Xswiftc",
+            "1",
             "-c",
             "$BUILD_CONFIG",
             "--scratch-path",
@@ -843,12 +847,64 @@ class LocalAppBuildTests(unittest.TestCase):
                 raise AssertionError("Swift build argv is not exact")
             return argv
 
-        self.assertEqual(exact_build_argv(package), expected_argv)
+        observed_argv = exact_build_argv(package)
+        self.assertEqual(observed_argv, expected_argv)
+        self.assertEqual(observed_argv.count("--jobs"), 1)
+        self.assertEqual(observed_argv.count("-Xswiftc"), 2)
+        self.assertEqual(observed_argv.count("-num-threads"), 1)
+        self.assertEqual(
+            observed_argv[12:20],
+            [
+                "--jobs",
+                "1",
+                "-Xswiftc",
+                "-num-threads",
+                "-Xswiftc",
+                "1",
+                "-c",
+                "$BUILD_CONFIG",
+            ],
+        )
         self.assertIn("BUILD_CONFIG=${BUILD_CONFIG:-release}", package)
         for label, mutation in (
-            ("omitted", package.replace("    --jobs 1 -c ", "    -c ", 1)),
+            (
+                "jobs-omitted",
+                package.replace("    --jobs 1 -Xswiftc ", "    -Xswiftc ", 1),
+            ),
             ("two", package.replace("--jobs 1", "--jobs 2", 1)),
             ("eight", package.replace("--jobs 1", "--jobs 8", 1)),
+            (
+                "frontend-threads-omitted",
+                package.replace(
+                    " -Xswiftc -num-threads -Xswiftc 1",
+                    "",
+                    1,
+                ),
+            ),
+            (
+                "frontend-threads-two",
+                package.replace(
+                    "-Xswiftc -num-threads -Xswiftc 1",
+                    "-Xswiftc -num-threads -Xswiftc 2",
+                    1,
+                ),
+            ),
+            (
+                "frontend-threads-override",
+                package.replace(
+                    "-Xswiftc 1 \\\n    -c",
+                    "-Xswiftc 1 -Xswiftc -num-threads -Xswiftc 8 \\\n    -c",
+                    1,
+                ),
+            ),
+            (
+                "frontend-threads-reordered",
+                package.replace(
+                    "--jobs 1 -Xswiftc -num-threads -Xswiftc 1",
+                    "-Xswiftc -num-threads -Xswiftc 1 --jobs 1",
+                    1,
+                ),
+            ),
         ):
             with self.subTest(label=label), self.assertRaises(AssertionError):
                 exact_build_argv(mutation)
@@ -856,6 +912,7 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertNotIn("CORELM_SKIP_MEMORY_CHECK", package)
         self.assertNotIn("--skip-memory-check", package)
         self.assertIn("MINIMUM_AVAILABLE_MEMORY_PERCENT = 50", runner)
+        self.assertEqual(runner.count("_pre_marker_resources(configuration)"), 2)
         orchestrate = runner[runner.index("def orchestrate(") :]
         self.assertLess(
             orchestrate.rindex("_pre_marker_resources"),

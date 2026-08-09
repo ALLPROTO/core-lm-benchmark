@@ -84,7 +84,7 @@ does not turn that claim into a general model-compression result.
     release metadata, manifests, checksums, and current evidence. Private keys,
     tokens, credential-like bytes, model weights, and new author-local paths
     remain release blockers.
-17. `corelm-portfolio-v8` demo pixels are an automatically captured product
+17. `corelm-portfolio-v9` demo pixels are an automatically captured product
     presentation, not metric evidence or independent review. Single-window
     isolation, a
     capture-safe allowlisted view, metadata/byte scans, fixed-frame replay, and
@@ -121,11 +121,25 @@ does not turn that claim into a general model-compression result.
     tag-CI admission failure had an unretained nested cause; the exact same 8-response
     validation subsequently passed. The durable state and session remained
     absent after all three; no proof or model attempt was consumed. V7 is never
-    rerun, moved, reused, or relabelled. V8 uses single-job/low-peak-memory
-    pre-marker build scheduling to avoid the V7 parallel-build admission
-    pressure without weakening the 50% available-memory threshold. Receipts
-    bind the exact produced app SHA; this does not claim byte-deterministic
-    executable builds across scratch roots.
+    rerun, moved, reused, or relabelled.
+22. `corelm-portfolio-v8` is a preserved pre-attempt host-admission failure.
+    Its exact source commit is
+    `b1fc746e7f8a5bd1bf826d9f5219779d568fa0c4`, tree is
+    `3c9c5d64530e7c706dc1c9b9cf91d00c81a08a3d`, and annotated tag object is
+    `64c9d84ddd8aa04b01459447b7c9f3f16f8f6db3`. Exactly one local V8 runner
+    invocation occurred. Its first resource admission passed and the release
+    build completed with top-level `--jobs 1`, while the observed Swift
+    frontend argv retained `-num-threads 8`; that observation does not
+    establish that the frontend setting caused the later host-memory result.
+    The second unchanged >=50% available-memory admission failed closed with
+    the exact PTY line `AUTOMATED PORTFOLIO DEMO FAIL: at least 50% available
+    memory is required`. After cleanup the durable state, session, and staging
+    directory were absent. `AttemptLog.reserve` was never reached; no proof or
+    model attempt was invoked or consumed, and no portfolio media was retained.
+    V8 is never rerun, moved, reused, or relabelled. V9 adds the exact Swift
+    frontend `-num-threads 1` pin without weakening the 50% available-memory
+    threshold. Receipts bind the exact produced app SHA; this does not claim
+    byte-deterministic executable builds across scratch roots.
 
 The detailed versioned research record is preserved under `docs/development/`
 and in immutable publication tags.

@@ -386,11 +386,11 @@ state, and hashes of included evidence files. It is descriptive metadata, not
 a replacement for Git history. The distribution-side `SHA256SUMS` verifies the
 v5 arXiv source archive, reproducibility archive, and rendered paper PDF.
 
-A default-branch preview carries the current `corelm-portfolio-v8` software
+A default-branch preview carries the current `corelm-portfolio-v9` software
 CFF/SBOM identity and records `UNRELEASED_PREVIEW`; it is not the historical
 paper-v5 release. Exact paper-v5 bytes must be built from the detached tag.
 
-The V8 portfolio's `corelm-automated-presentation-v2` path records and checks a
+The V9 portfolio's `corelm-automated-presentation-v2` path records and checks a
 post-proof model-free explanatory window plus the exact same-run result without
 a required human acceptance or manual edit. Its video and poster are explicitly
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`: they aid inspection but do not
@@ -399,7 +399,7 @@ semantics are not claimed to be verified. Independent-replication gate G10
 remains **OPEN** until a non-author, non-agent person publishes a clean-clone
 replication.
 
-The current V8 identity does not replace the failed V3, V4, V5, or V6
+The current V9 identity does not replace the failed V3, V4, V5, or V6
 candidates.
 V3 remains at its first tag-push assertion failure. V4 remains at a pre-model
 FFprobe frame-PTS field-validation failure before `AttemptLog.reserve`; no V4
@@ -424,11 +424,25 @@ parallel Swift preflight build left less than 50% available memory, and one
 transient pre-marker public tag-CI admission failure had an unretained nested
 cause; the exact same 8-response validation subsequently passed. The durable state and
 session remained absent after all three; no proof or model attempt was
-consumed. V7 is never moved, rerun, or relabelled. V8 uses
-single-job/low-peak-memory pre-marker build scheduling to avoid the V7
-parallel-build admission pressure without weakening the 50% available-memory
-threshold. Receipts bind the exact produced app SHA; this does not claim
-byte-deterministic executable builds across scratch roots.
+consumed. V7 is never moved, rerun, or relabelled.
+
+The signed `corelm-portfolio-v8` candidate is frozen at exact source commit
+`b1fc746e7f8a5bd1bf826d9f5219779d568fa0c4`, tree
+`3c9c5d64530e7c706dc1c9b9cf91d00c81a08a3d`, and annotated tag object
+`64c9d84ddd8aa04b01459447b7c9f3f16f8f6db3`. Exactly one local V8 runner
+invocation occurred. Its first resource admission passed and the release build
+completed with top-level `--jobs 1`; the observed Swift frontend argv retained
+`-num-threads 8`. That observation does not establish that the frontend
+setting caused the later host-memory result. The second unchanged >=50%
+available-memory admission failed closed with the exact PTY line `AUTOMATED
+PORTFOLIO DEMO FAIL: at least 50% available memory is required`. After cleanup
+the durable state, session, and staging directory were absent.
+`AttemptLog.reserve` was never reached; no proof or model attempt was invoked
+or consumed, and no portfolio media was retained. V8 is never moved, rerun,
+reused, or relabelled. V9 adds the exact Swift frontend `-num-threads 1` pin
+without weakening the 50% available-memory threshold. Receipts bind the exact
+produced app SHA; this does not claim byte-deterministic executable builds
+across scratch roots.
 
 To reproduce the already published `voidtoken-v5-paper-v5` package, maintainers
 use a full clean repository clone at that existing public tag. They do not

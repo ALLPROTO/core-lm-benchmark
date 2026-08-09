@@ -118,7 +118,8 @@ fi
     LANG=C \
     LC_ALL=C \
     /usr/bin/xcrun --sdk macosx swift build \
-    --jobs 1 -c "$BUILD_CONFIG" --scratch-path "$SWIFT_BUILD_DIR"
+    --jobs 1 -Xswiftc -num-threads -Xswiftc 1 \
+    -c "$BUILD_CONFIG" --scratch-path "$SWIFT_BUILD_DIR"
 
 /usr/bin/env -i \
     HOME="$HOME" \

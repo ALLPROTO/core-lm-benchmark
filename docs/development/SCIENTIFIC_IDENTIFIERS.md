@@ -20,7 +20,7 @@ documentation.
 | Beacon freeze tag | `corelm-beacon-heldout-v1` | Public pre-reveal protocol anchor |
 | Beacon artifacts | `corelm-beacon-attempt-v1`, `corelm-beacon-resolution-v1`, `corelm-beacon-outcome-v1` | Irreversible state and result compatibility |
 | Publication tag | `voidtoken-v5-paper-v5` | Immutable archive provenance |
-| Portfolio software tag | `corelm-portfolio-v8` | Automation-only engineering release identity; signing and public status are verified separately |
+| Portfolio software tag | `corelm-portfolio-v9` | Automation-only engineering release identity; signing and public status are verified separately |
 | Automated presentation contract | `corelm-automated-presentation-v2` | Deterministic post-proof explanatory and exact-result capture, assembly, and validation with no required human acceptance step |
 | Portfolio media classification | `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE` | Author-controlled presentation bytes; scientific evidence remains the receipt, result, retained containers, and replay reports |
 | Bundle metadata | `CFBundleShortVersionString`, `CFBundleVersion` | macOS identity and receipt field |
@@ -34,7 +34,7 @@ The upstream model identifier `Qwen/Qwen2.5-0.5B` must also remain visible. It
 identifies the exact model family being measured and is not application
 branding.
 
-The V8 automation contour does not close independent-replication gate G10.
+The V9 automation contour does not close independent-replication gate G10.
 That gate remains **OPEN** until a non-author, non-agent person completes and
 publishes the specified clean-clone replication. Automated capture and
 verification remove a required human acceptance step from media production;
@@ -78,12 +78,26 @@ than 50% available memory, and one transient pre-marker public tag-CI admission
 failure had an unretained nested cause; the exact same 8-response validation
 subsequently passed. The durable state and session remained absent after all
 three; no proof or model attempt was consumed. V7 is never rerun, moved, reused,
-or relabelled. The current portfolio software identity is the distinct V8 tag
-shown in the table. Its single-job/low-peak-memory pre-marker build scheduling
-avoids the V7 parallel-build admission pressure without weakening the 50%
-available-memory threshold. Receipts bind the exact produced app SHA; this does
-not claim byte-deterministic executable builds across scratch roots. The
-presentation contract remains v2.
+or relabelled.
+
+`corelm-portfolio-v8` is the next immutable historical failed candidate. Its
+exact source commit is `b1fc746e7f8a5bd1bf826d9f5219779d568fa0c4`, tree is
+`3c9c5d64530e7c706dc1c9b9cf91d00c81a08a3d`, and annotated tag object is
+`64c9d84ddd8aa04b01459447b7c9f3f16f8f6db3`. Exactly one local V8 runner
+invocation occurred. Its first resource admission passed and the release build
+completed with top-level `--jobs 1`; the observed Swift frontend argv retained
+`-num-threads 8`. That observation does not establish that the frontend
+setting caused the later host-memory result. The second unchanged >=50%
+available-memory admission failed closed with the exact PTY line `AUTOMATED
+PORTFOLIO DEMO FAIL: at least 50% available memory is required`. After cleanup
+the durable state, session, and staging directory were absent.
+`AttemptLog.reserve` was never reached; no proof or model attempt was invoked
+or consumed, and no portfolio media was retained. V8 is never rerun, moved,
+reused, or relabelled. The current portfolio software identity is the distinct
+V9 tag shown in the table. It adds the exact Swift frontend `-num-threads 1`
+pin without weakening the 50% available-memory threshold. Receipts bind the
+exact produced app SHA; this does not claim byte-deterministic executable builds
+across scratch roots. The presentation contract remains v2.
 
 ## User-facing rule
 

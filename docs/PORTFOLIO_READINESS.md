@@ -39,7 +39,7 @@ CV_READY = G01 AND G02 AND G03 AND G04 AND G05 AND G06
 | G11 Engineering ownership | A public code tour covers codec format, model replay, verifier separation, failure-state semantics, and the supply-chain threat model; AI assistance is disclosed. |
 | G12 Stable release | One obvious signed current portfolio release binds source identity, checksums, public key, SBOM, reproduce command, release notes, and demo. Historical releases are clearly archival. |
 
-The `corelm-portfolio-v8` `corelm-automated-presentation-v2` product-media path
+The `corelm-portfolio-v9` `corelm-automated-presentation-v2` product-media path
 may satisfy G03 with a deterministic, single-window automation receipt
 classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. Its signed result, raw evidence,
@@ -48,7 +48,7 @@ agent audit never satisfy G10. Later passive viewing by a CV recipient does
 not satisfy it either; that gate still requires the specified non-author,
 non-agent clean-clone publication.
 
-V8 is a new identity rather than a relabel of any failed candidate. V3
+V9 is a new identity rather than a relabel of any failed candidate. V3
 remains frozen at its first tag-push assertion failure. V4 remains frozen at a
 pre-model FFprobe frame-PTS field-validation failure that occurred before
 `AttemptLog.reserve`; no V4 model attempt was invoked or consumed. V5 passed
@@ -73,9 +73,23 @@ parallel Swift preflight build left less than 50% available memory, and one
 transient pre-marker public tag-CI admission failure had an unretained nested
 cause; the exact same 8-response validation subsequently passed. The durable state and
 session remained absent after all three; no proof or model attempt was
-consumed. V7 is never moved, rerun, or relabelled. The distinct V8
-single-job/low-peak-memory pre-marker build scheduling avoids the V7
-parallel-build admission pressure without weakening the 50% available-memory
+consumed. V7 is never moved, rerun, or relabelled.
+
+The signed `corelm-portfolio-v8` candidate is frozen at exact source commit
+`b1fc746e7f8a5bd1bf826d9f5219779d568fa0c4`, tree
+`3c9c5d64530e7c706dc1c9b9cf91d00c81a08a3d`, and annotated tag object
+`64c9d84ddd8aa04b01459447b7c9f3f16f8f6db3`. Exactly one local V8 runner
+invocation occurred. Its first resource admission passed, and the release
+build completed with top-level `--jobs 1`; the observed Swift frontend argv
+nevertheless retained `-num-threads 8`. That observation does not establish
+that the frontend setting caused the later host-memory result. The second
+unchanged >=50% available-memory admission then failed closed with the exact
+PTY line `AUTOMATED PORTFOLIO DEMO FAIL: at least 50% available memory is
+required`. After cleanup the durable state, session, and staging directory
+were absent. `AttemptLog.reserve` was never reached; no proof or model attempt
+was invoked or consumed, and no portfolio media was retained. V8 is never
+moved, rerun, reused, or relabelled. The distinct V9 identity adds the exact
+Swift frontend `-num-threads 1` pin without weakening the 50% available-memory
 threshold. Receipts bind the exact produced app SHA; this does not claim
 byte-deterministic executable builds across scratch roots or weaken any
 evidence or G10 boundary.

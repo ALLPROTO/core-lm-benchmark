@@ -67,7 +67,7 @@ direct-dependency CycloneDX 1.5 SBOM is generated twice by
 `security/generate_direct_sbom.py`; it must be byte-identical and retain scope
 `direct-python-dependencies-only`.
 
-This V8 contract does not reopen a failed historical candidate. V3 remains
+This V9 contract does not reopen a failed historical candidate. V3 remains
 frozen at its first tag-push assertion failure. V4 remains frozen after its
 automation stopped in pre-model FFprobe frame-PTS field validation, before
 `AttemptLog.reserve`; no V4 model attempt was invoked or consumed. V5 passed
@@ -97,11 +97,26 @@ less than 50% available memory, and one transient pre-marker public tag-CI
 admission failure had an unretained nested cause; the exact same 8-response validation
 subsequently passed. The durable state and session remained absent after all
 three; no proof or model attempt was consumed. Never rerun or move V7, and never
-relabel it as V8. The distinct V8 single-job/low-peak-memory pre-marker build
-scheduling avoids the V7 parallel-build admission pressure without weakening
-the 50% available-memory threshold. Receipts bind the exact produced app SHA;
-this does not claim byte-deterministic executable builds across scratch roots.
-V8 retains `corelm-automated-presentation-v2`.
+relabel it as a later identity.
+
+The signed `corelm-portfolio-v8` candidate is also frozen. Its exact source
+commit is `b1fc746e7f8a5bd1bf826d9f5219779d568fa0c4`, tree
+`3c9c5d64530e7c706dc1c9b9cf91d00c81a08a3d`, and annotated tag object
+`64c9d84ddd8aa04b01459447b7c9f3f16f8f6db3`. Exactly one local V8 runner
+invocation occurred. Its first resource admission passed and the release build
+completed with top-level `--jobs 1`, while the observed Swift frontend argv
+retained `-num-threads 8`. That observation does not establish that the
+frontend setting caused the later host-memory result. The second unchanged
+>=50% available-memory admission failed closed with the exact PTY line
+`AUTOMATED PORTFOLIO DEMO FAIL: at least 50% available memory is required`.
+After cleanup the durable state, session, and staging directory were absent.
+`AttemptLog.reserve` was never reached; no proof or model attempt was invoked
+or consumed, and no portfolio media was retained. Never rerun or move V8, and
+never relabel it as V9. The distinct V9 identity adds the exact Swift frontend
+`-num-threads 1` pin without weakening the 50% available-memory threshold.
+Receipts bind the exact produced app SHA; this does not claim byte-deterministic
+executable builds across scratch roots. V9 retains
+`corelm-automated-presentation-v2`.
 
 ## Automated public tag-CI admission
 
@@ -153,7 +168,7 @@ lifecycle, the exact automation-only presentation contract, and absolute paths
 to five local automatically collected demo assets. Absolute paths are
 input-only and never enter an output asset.
 
-The canonical V8 demo-provenance object has the exact keys documented by the
+The canonical V9 demo-provenance object has the exact keys documented by the
 builder: source/tag; video hash, duration, dimensions, silent H.264;
 poster hash, dimensions and fixed frame timestamp; both media objects
 classified `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`; macOS arm64
@@ -179,7 +194,7 @@ hash, and proof hashes. The builder verifies tracked lockfile/verifier hashes
 against the clean source.
 
 `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION` is the exact workload enum for
-the public validation range fixed before this V8 execution. It is not a media
+the public validation range fixed before this V9 execution. It is not a media
 selection or human-review state: the tagged proof-driver attempt and its first
 honest terminal outcome are retained once by the owner-local automation state.
 The proof driver also performs the required pinned-Qwen heavy replay; the
@@ -226,7 +241,7 @@ with mode `0600`, zero uid/gid/mtime, and empty owner names.
 ## Run and collect one automated tagged proof
 
 `platforms/macos/scripts/run-automated-portfolio-demo.py` is the only current
-V8 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
+V9 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
 the exact clean, signed tagged checkout. It checks the tag/main/source binding,
 AC power, offline runtime and assets, capture authorization, exact app/window,
 and tool identities before invoking the model. It then reserves one durable
@@ -240,10 +255,10 @@ creates one fixed silent H.264 composition, and derives the poster at exactly
 are never captured.
 
 ```sh
-DEMO_TAG=corelm-portfolio-v8
+DEMO_TAG=corelm-portfolio-v9
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v8-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v9-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -264,7 +279,7 @@ privacy boundary, and durable attempt-state digest. A capture or media failure
 after proof invocation consumes the tag attempt and cannot be retried to seek
 a preferred result.
 
-The exact V8 state order is
+The exact V9 state order is
 `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL → REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`.
 The first composed raw role is exactly `post_proof_presentation`; legacy
 live-role names, paths, and command-line options are not accepted by this
@@ -286,7 +301,7 @@ tag, and local lab checkout:
 PORTFOLIO_PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 LAB=/absolute/clean/core-lm-cross-model-lab
 RUN_DIRECTORY=/absolute/exact/run-directory-from-automation-receipt
-INPUTS=/absolute/absent/corelm-portfolio-v8-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v9-inputs
 
 publication/run_portfolio_python.sh \
   "$PORTFOLIO_PYTHON" collect_portfolio_demo.py \
@@ -415,9 +430,9 @@ checkout and the already verified fourteen-asset directory, generate the
 request into a new absolute path:
 
 ```sh
-TAG=corelm-portfolio-v8
-ASSET_DIR=/absolute/corelm-portfolio-v8-assets
-CREATE_REQUEST=/absolute/corelm-portfolio-v8-create-release.json
+TAG=corelm-portfolio-v9
+ASSET_DIR=/absolute/corelm-portfolio-v9-assets
+CREATE_REQUEST=/absolute/corelm-portfolio-v9-create-release.json
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
 publication/run_portfolio_python.sh \
@@ -431,9 +446,9 @@ The canonical request has exactly these seven keys and values:
 
 ```json
 {
-  "tag_name": "corelm-portfolio-v8",
+  "tag_name": "corelm-portfolio-v9",
   "target_commitish": "main",
-  "name": "Core LM Portfolio v8 — reproducible real-model KV-cache benchmark",
+  "name": "Core LM Portfolio v9 — reproducible real-model KV-cache benchmark",
   "body": "generated exactly from the signed source identity and SHA256SUMS digest",
   "draft": false,
   "prerelease": false,
@@ -478,8 +493,8 @@ Fetch five API views and all fourteen assets without a GitHub token, cookie,
 the exact commit and tag-object SHA come from the signed source identity:
 
 ```sh
-TAG=corelm-portfolio-v8
-ASSET_DIR=/absolute/corelm-portfolio-v8-assets
+TAG=corelm-portfolio-v9
+ASSET_DIR=/absolute/corelm-portfolio-v9-assets
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
 PUBLIC_AUDIT=/absolute/new-public-audit
@@ -561,7 +576,7 @@ and exact first version line written to the receipt; that identity describes
 the invocation and is not a release-signing, GitHub, or CI trust root.
 
 ```sh
-RECEIPT="$RECEIPT_DIRECTORY/corelm-portfolio-v8-github-release-receipt.json"
+RECEIPT="$RECEIPT_DIRECTORY/corelm-portfolio-v9-github-release-receipt.json"
 publication/run_portfolio_python.sh \
   "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py verify \
   --assets "$DOWNLOADED" \
@@ -589,10 +604,10 @@ project rule that tags and assets are never moved or replaced.
 
 The receipt binds the saved-response hashes but cannot prove that the fetch was
 logged out or that GitHub is still in the same state; those are transport and
-time boundaries. The V8 acceptance contour uses the scrubbed logged-out API
+time boundaries. The V9 acceptance contour uses the scrubbed logged-out API
 fetches and verifier receipt and has no browser inspection or human-review
 gate. A later viewer may inspect the public page, but that observation is not
-an input to V8 acceptance and cannot retroactively close independent-
+an input to V9 acceptance and cannot retroactively close independent-
 replication gate G10. Keep the receipt and API files in the operator/design or
 Zenodo evidence bundle. Do not upload them back into the same fourteen-asset
 release, edit its body after verification, or move its tag; doing so would
