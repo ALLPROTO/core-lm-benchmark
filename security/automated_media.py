@@ -19,23 +19,26 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-SCHEMA_VERSION = 1
-REPORT_KIND = "corelm_automated_portfolio_media_v1"
+SCHEMA_VERSION = 2
+ATTEMPT_STATE_SCHEMA_VERSION = 2
+REPORT_KIND = "corelm_automated_portfolio_media_v2"
 VERDICT = "AUTOMATED_CAPTURE_INTEGRITY_PASS"
-AUTOMATION_CONTRACT = "corelm-automated-presentation-v1"
+AUTOMATION_CONTRACT = "corelm-automated-presentation-v2"
 MEDIA_CLASSIFICATION = "AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE"
 CAPTURE_MODE = "MACOS_SINGLE_WINDOW_ID_V1"
 BUNDLE_IDENTIFIER = "com.corelm.benchmark"
 WORKLOAD_CLASSIFICATION = "AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION"
 REPLAY_VERDICT = "AUTHOR_RECORDED_HEAVY_REPLAY_INTEGRITY_PASS"
 POSTER_TIMESTAMP_SECONDS = 15.0
-LIVE_SEGMENT_SECONDS = 12.0
+POST_PROOF_PRESENTATION_SEGMENT_SECONDS = 12.0
 RESULT_SEGMENT_SECONDS = 18.0
 PREFLIGHT_SEGMENT_SECONDS = 1.0
 OUTPUT_WIDTH = 1280
 OUTPUT_HEIGHT = 720
 OUTPUT_FRAME_RATE = 30
-OUTPUT_DURATION_SECONDS = LIVE_SEGMENT_SECONDS + RESULT_SEGMENT_SECONDS
+OUTPUT_DURATION_SECONDS = (
+    POST_PROOF_PRESENTATION_SEGMENT_SECONDS + RESULT_SEGMENT_SECONDS
+)
 OUTPUT_FRAME_COUNT = int(OUTPUT_DURATION_SECONDS * OUTPUT_FRAME_RATE)
 MAX_DECODED_FRAME_COUNT = 90 * 240
 MAX_REPORT_BYTES = 1024 * 1024
@@ -46,11 +49,11 @@ ATTEMPT_EVENT_COUNT = 9
 ATTEMPT_SCOPE = "EXACTLY_ONE_INVOCATION_IN_RETAINED_OWNER_LOCAL_SESSION_ONLY"
 ATTEMPT_SUCCESS_EVENTS = (
     "ATTEMPT_STARTED",
-    "LIVE_SURFACE_READY",
     "PROOF_INVOKED",
-    "LIVE_CAPTURED",
     "PROOF_TERMINAL",
     "REPLAY_VERIFIED",
+    "POST_PROOF_PRESENTATION_SURFACE_READY",
+    "POST_PROOF_PRESENTATION_CAPTURED",
     "SAME_RUN_REOPENED",
     "RESULT_CAPTURED",
     "MEDIA_SEALED_FOR_COLLECTION",
@@ -734,7 +737,7 @@ def _segment(value: Any, role: str) -> dict[str, Any]:
         raise AutomatedMediaError("capture segment is smaller than the fixed safe view")
     expected_duration = {
         "preflight": PREFLIGHT_SEGMENT_SECONDS,
-        "live_presentation": LIVE_SEGMENT_SECONDS,
+        "post_proof_presentation": POST_PROOF_PRESENTATION_SEGMENT_SECONDS,
         "same_run_result": RESULT_SEGMENT_SECONDS,
     }.get(role)
     if expected_duration is None:
@@ -810,16 +813,16 @@ def validate_attempt_state_bytes(
             "tag_ci_receipt_sha256",
             "local_tag_trust_receipt_sha256",
         },
-        {"executable_sha256", "owner_pid", "window_id"},
         {"challenge_sha256"},
-        {"segment_sha256", "window_id"},
         {"metric_verdict", "run_identifier", "terminal_outcome"},
         {"replay_verdict", "run_identifier"},
+        {"executable_sha256", "owner_pid", "window_id"},
+        {"segment_sha256", "window_id"},
         {"result_readiness_sha256", "run_identifier", "window_id"},
         {"segment_sha256", "window_id"},
         {"poster_sha256", "video_sha256"},
     )
-    proof_counts = (0, 0, 1, 1, 1, 1, 1, 1, 1)
+    proof_counts = (0, 1, 1, 1, 1, 1, 1, 1, 1)
     tag = events[0].get("tag")
     if (
         not isinstance(tag, str)
@@ -831,13 +834,23 @@ def validate_attempt_state_bytes(
     for index, event in enumerate(events):
         _exact_object(event, common | extras[index], f"attempt event {index + 1}")
         if (
-            event["schema_version"] != 1
+            event["schema_version"] != ATTEMPT_STATE_SCHEMA_VERSION
             or event["tag"] != tag
             or event["proof_invocation_count"] != proof_counts[index]
         ):
             raise AutomatedMediaError("attempt-state common transition fields differ")
 
-    started, live_ready, invoked, live_captured, terminal, replay, reopened, result_captured, sealed = events
+    (
+        started,
+        invoked,
+        terminal,
+        replay,
+        presentation_ready,
+        presentation_captured,
+        reopened,
+        result_captured,
+        sealed,
+    ) = events
     _git_oid(started["source_commit"], "attempt source commit")
     _git_oid(started["source_tree"], "attempt source tree")
     for key in (
@@ -849,12 +862,27 @@ def validate_attempt_state_bytes(
         _digest(started[key], f"attempt {key}")
     _positive_int(started["preflight_owner_pid"], "attempt preflight owner PID")
     _positive_int(started["preflight_window_id"], "attempt preflight window ID")
-    _digest(live_ready["executable_sha256"], "attempt live executable")
-    _positive_int(live_ready["owner_pid"], "attempt live owner PID")
-    _positive_int(live_ready["window_id"], "attempt live window ID")
+    _digest(
+        presentation_ready["executable_sha256"],
+        "attempt post-proof presentation executable",
+    )
+    _positive_int(
+        presentation_ready["owner_pid"],
+        "attempt post-proof presentation owner PID",
+    )
+    _positive_int(
+        presentation_ready["window_id"],
+        "attempt post-proof presentation window ID",
+    )
     _digest(invoked["challenge_sha256"], "attempt challenge")
-    _digest(live_captured["segment_sha256"], "attempt live segment")
-    _positive_int(live_captured["window_id"], "attempt live capture window ID")
+    _digest(
+        presentation_captured["segment_sha256"],
+        "attempt post-proof presentation segment",
+    )
+    _positive_int(
+        presentation_captured["window_id"],
+        "attempt post-proof presentation capture window ID",
+    )
     _uuid(terminal["run_identifier"], "attempt terminal run")
     if (
         terminal["metric_verdict"] not in _TERMINAL_OUTCOMES
@@ -878,7 +906,7 @@ def validate_attempt_state_bytes(
     if report is not None:
         validated_report = validate_report(report)
         preflight = validated_report["capture"]["preflight_segment"]
-        live = validated_report["capture"]["segments"][0]
+        presentation = validated_report["capture"]["segments"][0]
         result = validated_report["capture"]["segments"][1]
         expected_pairs = (
             (tag, validated_report["source"]["tag"]),
@@ -900,19 +928,22 @@ def validate_attempt_state_bytes(
                 validated_report["attempt"]["local_tag_trust_receipt_sha256"],
             ),
             (
-                live_ready["executable_sha256"],
+                presentation_ready["executable_sha256"],
                 validated_report["run"]["application_executable_sha256"],
             ),
-            (live_ready["owner_pid"], live["owner_pid"]),
-            (live_ready["window_id"], live["window_id"]),
+            (presentation_ready["owner_pid"], presentation["owner_pid"]),
+            (presentation_ready["window_id"], presentation["window_id"]),
             (invoked["challenge_sha256"], validated_report["run"]["challenge_sha256"]),
-            (live_captured["segment_sha256"], live["sha256"]),
-            (live_captured["window_id"], live["window_id"]),
+            (presentation_captured["segment_sha256"], presentation["sha256"]),
+            (presentation_captured["window_id"], presentation["window_id"]),
             (terminal["run_identifier"], validated_report["run"]["identifier"]),
             (terminal["metric_verdict"], validated_report["run"]["metric_verdict"]),
             (terminal["terminal_outcome"], validated_report["run"]["terminal_outcome"]),
             (replay["replay_verdict"], validated_report["run"]["replay_verdict"]),
-            (reopened["result_readiness_sha256"], validated_report["capture"]["result_readiness_sha256"]),
+            (
+                reopened["result_readiness_sha256"],
+                validated_report["capture"]["result_readiness_sha256"],
+            ),
             (reopened["window_id"], result["window_id"]),
             (result_captured["segment_sha256"], result["sha256"]),
             (result_captured["window_id"], result["window_id"]),
@@ -1067,14 +1098,16 @@ def validate_report(
     ):
         raise AutomatedMediaError("capture target/mode/topology is not exact")
     preflight_segment = _segment(capture["preflight_segment"], "preflight")
-    live_segment = _segment(capture["segments"][0], "live_presentation")
+    presentation_segment = _segment(
+        capture["segments"][0], "post_proof_presentation"
+    )
     result_segment = _segment(capture["segments"][1], "same_run_result")
-    if (live_segment["width"], live_segment["height"]) != (
+    if (presentation_segment["width"], presentation_segment["height"]) != (
         result_segment["width"],
         result_segment["height"],
     ) or (preflight_segment["width"], preflight_segment["height"]) != (
-        live_segment["width"],
-        live_segment["height"],
+        presentation_segment["width"],
+        presentation_segment["height"],
     ):
         raise AutomatedMediaError("capture segment dimensions are not exact and equal")
     _digest(capture["result_readiness_sha256"], "result readiness receipt")
@@ -1193,7 +1226,9 @@ def validate_report(
                 "local_tag_trust_receipt_sha256"
             ],
             "preflight_segment_sha256": preflight_segment["sha256"],
-            "live_segment_sha256": live_segment["sha256"],
+            "post_proof_presentation_segment_sha256": presentation_segment[
+                "sha256"
+            ],
             "result_segment_sha256": result_segment["sha256"],
             "window_helper_sha256": report["tools"]["window_helper"][
                 "executable_sha256"

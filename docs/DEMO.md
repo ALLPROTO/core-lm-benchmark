@@ -1,8 +1,9 @@
 # Automation-only macOS portfolio demo
 
-This is the current V6 product-media contour for portfolio gate G03. It has no
-interactive window selection, editor, manual trim, chosen poster frame, or
-human-review acceptance step. Its exact classification is:
+This is the current V7 product-media contour for portfolio gate G03 under
+`corelm-automated-presentation-v2`. It has no interactive window selection,
+editor, manual trim, chosen poster frame, or human-review acceptance step. Its
+exact classification is:
 
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`
 
@@ -31,11 +32,22 @@ invoked or consumed. Never rerun or move V3, V4, or V5, and never relabel their
 bytes as V6. V6 is the distinct corrected identity with a bounded signed
 64-bit GitHub identifier contract.
 
+The signed `corelm-portfolio-v6` candidate passed first-attempt tag CI and its
+one scientific proof reached honest PASS: 2.052384x compression, delta NLL
+-0.00000846, top-1 agreement 99.5117%, and a 1,024/1,024-decision heavy replay
+with zero maximum loss error. Its durable state then ended `ATTEMPT_FAILED`
+after `REPLAY_VERIFIED`: the preflight-built explanatory-window executable
+differed from the proof-rebuilt verified app. This was before
+same-run result capture, media sealing, or collection. Never rerun or move V6,
+and never relabel its proof or partial media as V7. V7 is the distinct corrected
+identity with post-proof presentation contract
+`corelm-automated-presentation-v2`.
+
 ## Fixed source and one-attempt boundary
 
 The command accepts only a clean canonical checkout whose `main`,
 `origin/main`, and already-created SSH-signed annotated
-`corelm-portfolio-v6` tag all resolve to the same commit/tree. The signed tag
+`corelm-portfolio-v7` tag all resolve to the same commit/tree. The signed tag
 and its first-attempt Linux/macOS Actions must already be green.
 
 Before model execution the command checks power, the offline doctor, pinned
@@ -51,7 +63,7 @@ than one pinned-Qwen model execution.
 `CORELM_OFFLINE=1` applies to the model, corpus, app proof, replay, and media
 pipeline. Before reserving the attempt, the runner makes the sole bounded
 online exception: eight anonymous, direct, no-proxy/no-redirect GitHub API
-requests that prove the exact public V6 tag/main and first-attempt Linux/macOS
+requests that prove the exact public V7 tag/main and first-attempt Linux/macOS
 tag CI. Failure remains pre-marker and safely retryable. Exact response bytes,
 the recomputed public receipt, and hard-pinned local tag-trust receipt are
 retained for collector and release verification; they record admission-time
@@ -59,7 +71,7 @@ state rather than a GitHub-signed attestation or perpetual live-state claim.
 
 The durable state sequence is:
 
-`ATTEMPT_STARTED → LIVE_SURFACE_READY → PROOF_INVOKED → LIVE_CAPTURED → PROOF_TERMINAL → REPLAY_VERIFIED → SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL → REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`
 
 If proof execution ends in verified metric FAIL, that FAIL is preserved. If
 capture, encoding, or collection fails after proof execution, the retained
@@ -79,10 +91,10 @@ providing both `ffmpeg` and `ffprobe`.
 ```sh
 set -eu
 
-DEMO_TAG=corelm-portfolio-v6
+DEMO_TAG=corelm-portfolio-v7
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v6-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v7-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -107,11 +119,14 @@ fallback "latest" run. The visible watermark is:
 
 ## Fixed media pipeline
 
-The timeline is fixed by tracked code:
+The timeline is fixed by tracked code. The first public raw role is exactly
+`post_proof_presentation`; legacy live-role names are rejected:
 
-- 12 seconds of the fixed-only `--portfolio-capture-live` window while the
-  proof-driver attempt runs separately; this is a deterministic module
-  overview labelled `NOT MEASURED TELEMETRY`, not a forged progress meter;
+- after the proof and heavy replay terminate, 12 seconds of the fixed,
+  model-free `--portfolio-capture-presentation` explanatory overview launched
+  from the exact verified proof app;
+  it is labelled `NOT MEASURED TELEMETRY`, contains no inference telemetry,
+  and is presentation rather than proof evidence;
 - 18 seconds of the exact same retained run reopened by lowercase UUID;
 - silent H.264 composition with a fixed FFmpeg recipe;
 - poster derived automatically at exactly 15.000000 seconds.
@@ -152,13 +167,13 @@ AUTOMATION_RECEIPT="$DEMO_SESSION/automation-receipt.json"
 RESULT_READINESS="$DEMO_SESSION/result-readiness.json"
 ATTEMPT_STATE="$DEMO_SESSION/attempt-state.jsonl"
 PREFLIGHT_SEGMENT="$DEMO_SESSION/preflight-window.mov"
-LIVE_SEGMENT="$DEMO_SESSION/live-presentation.mov"
+POST_PROOF_PRESENTATION_SEGMENT="$DEMO_SESSION/post-proof-presentation.mov"
 RESULT_SEGMENT="$DEMO_SESSION/same-run-result.mov"
 WINDOW_HELPER="$DEMO_SESSION/find-proof-window"
 TAG_CI_RECEIPT="$DEMO_SESSION/tag-ci-receipt.json"
 LOCAL_TAG_TRUST_RECEIPT="$DEMO_SESSION/local-tag-trust-receipt.json"
 TAG_CI_BUNDLE="$DEMO_SESSION/tag-ci-bundle"
-INPUTS=/absolute/absent/corelm-portfolio-v6-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v7-inputs
 PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 
 publication/run_portfolio_python.sh \
@@ -173,7 +188,7 @@ publication/run_portfolio_python.sh \
   --result-readiness "$RESULT_READINESS" \
   --attempt-state "$ATTEMPT_STATE" \
   --preflight-segment "$PREFLIGHT_SEGMENT" \
-  --live-segment "$LIVE_SEGMENT" \
+  --post-proof-presentation-segment "$POST_PROOF_PRESENTATION_SEGMENT" \
   --result-segment "$RESULT_SEGMENT" \
   --window-helper "$WINDOW_HELPER" \
   --tag-ci-receipt "$TAG_CI_RECEIPT" \
@@ -202,7 +217,7 @@ must never be uploaded. Continue with
 Automation-ready G03 requires all of the following:
 
 - first retained tagged proof outcome preserved without selection;
-- exact-window live and same-run result segments;
+- exact-window post-proof presentation and same-run result segments;
 - canonical automation receipt and evidence archive;
 - fixed poster replay and decoded-frame/PTS checks;
 - no human-review or pixel-evidence claim;

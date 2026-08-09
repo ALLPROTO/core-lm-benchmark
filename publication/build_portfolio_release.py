@@ -228,8 +228,8 @@ VERIFIER_PATHS = (
 LEGACY_PRIVATE_PATH_ALLOWLIST = {
     "RealLLM/verify_voidtoken_v5_development.py": "9645dd4a456a9c7e35c0f91dc613ea4cbad97bea8b0e6d3f6090c9604cd7308b",
     "Tests/test_app_real_llm_evidence.py": "ff0419672b46fea6a77f48ec89c7b60ebab5b71362b52593534391219a100a97",
-    "Tests/test_local_app_build.py": "538407e678f3d7405522b21805eaaa86933d1f7f55d3284bb5b67e5b80cbc495",
-    "platforms/macos/Tests/SecurityValidationTests.swift": "4d35bc4e296b7ca96a29fae35db0e775277430af099c2872480e52bbcdf137a2",
+    "Tests/test_local_app_build.py": "6620b59cf2f8b43a1549ea9eb65139d24ce5610b38e27d7c5f7cd5a73d30be25",
+    "platforms/macos/Tests/SecurityValidationTests.swift": "9956c54ec58d61e382b3351cf391c6e9020c43bfdc782df7cd73f37a01d8ba4b",
     "real-llm-results/aggregate.json": "ebf3bb9558282bf23265989df82a9b18c599654b5bb05d82c4e4d400f1f62265",
     "real-llm-v5-development/validation-000-007.json": "f8c900246c8dafe50ffea309ce86793822cf6fb93e438e3f16b7450bd1f9f224",
     "real-llm-v5-development/validation-008-015.json": "04ef609cf32f0828de70e6adc47eefc717b6c7c67240035d856f047450860d34",
@@ -1658,7 +1658,7 @@ EVIDENCE_REQUIRED_FILES = frozenset(
         "reports/local-tag-trust-receipt.json",
         "session/attempt-state.jsonl",
         "session/preflight-window.mov",
-        "session/live-presentation.mov",
+        "session/post-proof-presentation.mov",
         "session/same-run-result.mov",
         "session/find-proof-window",
         *{
@@ -1841,6 +1841,8 @@ def _validate_automation_report_member(
     )
     if not isinstance(report, dict):
         raise PortfolioReleaseError("automated media report root is malformed")
+    if report.get("schema_version") != automated_media.SCHEMA_VERSION:
+        raise PortfolioReleaseError("automated media report schema is not exact")
     challenge = receipt.get("challengeNonce")
     readiness_bytes = _read_tar_member(
         archive, "reports/result-readiness.json", automated_media.MAX_READINESS_BYTES
@@ -1884,8 +1886,8 @@ def _validate_automation_report_member(
     preflight_bytes = _read_tar_member(
         archive, "session/preflight-window.mov", MAX_VIDEO_BYTES
     )
-    live_bytes = _read_tar_member(
-        archive, "session/live-presentation.mov", MAX_VIDEO_BYTES
+    post_proof_presentation_bytes = _read_tar_member(
+        archive, "session/post-proof-presentation.mov", MAX_VIDEO_BYTES
     )
     result_segment_bytes = _read_tar_member(
         archive, "session/same-run-result.mov", MAX_VIDEO_BYTES
@@ -1895,7 +1897,10 @@ def _validate_automation_report_member(
     )
     for raw_bytes, label in (
         (preflight_bytes, "preflight raw segment"),
-        (live_bytes, "live raw segment"),
+        (
+            post_proof_presentation_bytes,
+            "post-proof presentation raw segment",
+        ),
         (result_segment_bytes, "same-run result raw segment"),
     ):
         _validate_raw_segment_bytes(raw_bytes, label)
@@ -1943,7 +1948,9 @@ def _validate_automation_report_member(
             "preflight_segment_sha256": hashlib.sha256(
                 preflight_bytes
             ).hexdigest(),
-            "live_segment_sha256": hashlib.sha256(live_bytes).hexdigest(),
+            "post_proof_presentation_segment_sha256": hashlib.sha256(
+                post_proof_presentation_bytes
+            ).hexdigest(),
             "result_segment_sha256": hashlib.sha256(
                 result_segment_bytes
             ).hexdigest(),
@@ -1973,7 +1980,17 @@ def _validate_automation_report_member(
             raise automated_media.AutomatedMediaError(
                 "automation report does not bind result readiness bytes"
             )
-        automated_media.validate_attempt_state_bytes(state_bytes, report=report)
+        state_events = automated_media.validate_attempt_state_bytes(
+            state_bytes, report=report
+        )
+        if any(
+            event.get("schema_version")
+            != automated_media.ATTEMPT_STATE_SCHEMA_VERSION
+            for event in state_events
+        ):
+            raise automated_media.AutomatedMediaError(
+                "attempt-state schema is not exact"
+            )
         automated_media.validate_tag_ci_receipt_bytes(
             tag_ci_bytes,
             expected={

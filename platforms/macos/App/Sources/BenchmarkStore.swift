@@ -13,7 +13,7 @@ private struct ValidatedPythonRuntime {
 enum PortfolioCaptureRequest: Equatable {
     case none
     case preflight
-    case live
+    case presentation
     case result(runIdentifier: String, readyFilePath: String)
     case invalid
 
@@ -25,7 +25,10 @@ enum PortfolioCaptureRequest: Equatable {
         let preflightCount = arguments.filter {
             $0 == "--portfolio-capture-preflight"
         }.count
-        let liveCount = arguments.filter {
+        let presentationCount = arguments.filter {
+            $0 == "--portfolio-capture-presentation"
+        }.count
+        let legacyLiveCount = arguments.filter {
             $0 == "--portfolio-capture-live"
         }.count
         let resultFlagIndices = arguments.indices.filter {
@@ -41,7 +44,8 @@ enum PortfolioCaptureRequest: Equatable {
         ].contains { arguments.contains($0) }
         let mentionsCapture = captureCount > 0
             || preflightCount > 0
-            || liveCount > 0
+            || presentationCount > 0
+            || legacyLiveCount > 0
             || !resultFlagIndices.isEmpty
             || !readyFlagIndices.isEmpty
 
@@ -53,26 +57,30 @@ enum PortfolioCaptureRequest: Equatable {
             self = .invalid
             return
         }
+        guard legacyLiveCount == 0 else {
+            self = .invalid
+            return
+        }
         if preflightCount == 1,
            captureCount == 0,
-           liveCount == 0,
+           presentationCount == 0,
            resultFlagIndices.isEmpty,
            readyFlagIndices.isEmpty,
            payload == ["--portfolio-capture-preflight"] {
             self = .preflight
             return
         }
-        if liveCount == 1,
+        if presentationCount == 1,
            captureCount == 0,
            preflightCount == 0,
            resultFlagIndices.isEmpty,
            readyFlagIndices.isEmpty,
-           payload == ["--portfolio-capture-live"] {
-            self = .live
+           payload == ["--portfolio-capture-presentation"] {
+            self = .presentation
             return
         }
         guard preflightCount == 0,
-              liveCount == 0,
+              presentationCount == 0,
               captureCount == 1,
               resultFlagIndices.count == 1,
               readyFlagIndices.count == 1,
@@ -121,8 +129,8 @@ enum PortfolioCaptureRequest: Equatable {
         self == .preflight
     }
 
-    var isLive: Bool {
-        self == .live
+    var isPresentation: Bool {
+        self == .presentation
     }
 }
 
@@ -238,8 +246,8 @@ final class BenchmarkStore: ObservableObject {
         switch portfolioCaptureRequest {
         case .preflight:
             portfolioCaptureStatusCode = "AUTOMATED CAPTURE PREFLIGHT"
-        case .live:
-            portfolioCaptureStatusCode = "AUTOMATED VALIDATION IN PROGRESS"
+        case .presentation:
+            portfolioCaptureStatusCode = "POST-PROOF EXPLANATORY OVERVIEW"
         case .result:
             portfolioCaptureStatusCode = "CAPTURE_RESULT_LOADING"
         case .invalid:
@@ -257,8 +265,8 @@ final class BenchmarkStore: ObservableObject {
         portfolioCaptureRequest.isPreflight
     }
 
-    var portfolioCaptureIsLive: Bool {
-        portfolioCaptureRequest.isLive
+    var portfolioCaptureIsPresentation: Bool {
+        portfolioCaptureRequest.isPresentation
     }
     var projectDirectory: URL {
         URL(fileURLWithPath: #filePath)
@@ -3002,7 +3010,7 @@ final class BenchmarkStore: ObservableObject {
         case .preflight:
             await prepareAutomatedRunWindow()
             return
-        case .live:
+        case .presentation:
             return
         case let .result(runIdentifier, readyFilePath):
             await prepareAutomatedRunWindow()

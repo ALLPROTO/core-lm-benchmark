@@ -35,7 +35,7 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
-    def test_current_portfolio_schemas_pin_automation_only_v6_contract(self):
+    def test_current_portfolio_schemas_pin_automation_only_v7_contract(self):
         release_input = json.loads(
             (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
                 encoding="utf-8"
@@ -71,7 +71,7 @@ class PublicationArchiveTests(unittest.TestCase):
             set(presentation["required"]), set(presentation["properties"])
         )
         expected_contract = {
-            "automation_contract": "corelm-automated-presentation-v1",
+            "automation_contract": "corelm-automated-presentation-v2",
             "classification": "AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE",
             "automation_only": True,
             "human_reviewed": False,
@@ -167,7 +167,7 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v6")
+        self.assertEqual(release_tag, "corelm-portfolio-v7")
         self.assertRegex(citation, r"(?m)^date-released: 2026-08-09$")
 
         for relative in (
@@ -195,7 +195,7 @@ class PublicationArchiveTests(unittest.TestCase):
         identifiers = (
             ROOT / "docs/development/SCIENTIFIC_IDENTIFIERS.md"
         ).read_text(encoding="utf-8")
-        self.assertIn("corelm-automated-presentation-v1", identifiers)
+        self.assertIn("corelm-automated-presentation-v2", identifiers)
         self.assertIn("AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE", identifiers)
         self.assertIn("G10", identifiers)
         self.assertIn("**OPEN**", identifiers)
@@ -232,7 +232,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v5", text)
-                self.assertIn("corelm-portfolio-v6", text)
+                self.assertIn("corelm-portfolio-v7", text)
                 self.assertIn("HTTP 403", normalized)
                 self.assertIn("AttemptLog.reserve", text)
                 self.assertRegex(normalized, r"(?:signed 32-bit|above `2\^31`)")
@@ -240,6 +240,38 @@ class PublicationArchiveTests(unittest.TestCase):
                     normalized,
                     r"no V5 model attempt was invoked or consumed",
                 )
+                self.assertIn("never", normalized.lower())
+
+    def test_v6_pass_and_post_proof_executable_failure_are_preserved(self):
+        for relative in (
+            "docs/DEMO.md",
+            "docs/ENGINEERING_CASE_STUDY.md",
+            "docs/LIMITATIONS.md",
+            "docs/PORTFOLIO_READINESS.md",
+            "docs/development/RELEASE_PROCESS.md",
+            "docs/development/SCIENTIFIC_IDENTIFIERS.md",
+            "publication/PORTFOLIO_RELEASE.md",
+            "publication/README.md",
+            "publication/reproducibility/README.md",
+        ):
+            with self.subTest(document=relative):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                normalized = " ".join(text.split())
+                self.assertIn("corelm-portfolio-v6", text)
+                self.assertIn("corelm-portfolio-v7", text)
+                self.assertIn("first-attempt tag CI", normalized)
+                self.assertIn("2.052384x", normalized)
+                self.assertIn("-0.00000846", normalized)
+                self.assertIn("99.5117%", normalized)
+                self.assertIn("1,024", normalized)
+                self.assertIn("zero maximum loss error", normalized)
+                self.assertIn("ATTEMPT_FAILED", text)
+                self.assertIn("REPLAY_VERIFIED", text)
+                self.assertIn("preflight-built", normalized)
+                self.assertRegex(normalized, r"proof-(?:driver's )?rebuilt verified app")
+                self.assertIn("same-run result", normalized.lower())
+                self.assertIn("media sealing", normalized)
+                self.assertIn("collection", normalized)
                 self.assertIn("never", normalized.lower())
 
     def test_current_publication_readmes_close_beacon_without_overclaim(self):

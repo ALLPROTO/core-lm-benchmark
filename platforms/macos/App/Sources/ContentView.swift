@@ -9,7 +9,7 @@ struct ContentView: View {
     ]
 
     var body: some View {
-        if store.portfolioCaptureIsLive {
+        if store.portfolioCaptureIsPresentation {
             PortfolioCaptureView()
         } else if store.portfolioCaptureRequested {
             PortfolioCaptureView()
@@ -90,21 +90,21 @@ struct PortfolioCaptureView: View {
             .padding(48)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .windowBackgroundColor))
-        } else if store.portfolioCaptureIsLive {
+        } else if store.portfolioCaptureIsPresentation {
             VStack(spacing: 24) {
                 Text(watermark)
                     .font(.system(.headline, design: .monospaced).bold())
                     .lineLimit(1)
                     .minimumScaleFactor(0.55)
-                Text("AUTOMATED VALIDATION IN PROGRESS")
+                Text("POST-PROOF EXPLANATORY OVERVIEW")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
-                Text("FIXED PRESENTATION STATE · NOT MEASURED TELEMETRY")
+                Text("FIXED MODEL-FREE PRESENTATION · NOT TELEMETRY")
                     .font(.headline.monospaced())
                     .foregroundStyle(.secondary)
                 PortfolioCaptureModuleStates(
-                    moduleState: "IN PROGRESS",
-                    heavyReplayState: "IN PROGRESS",
-                    verifierState: "IN PROGRESS"
+                    moduleState: "COMPLETE",
+                    heavyReplayState: "PASS",
+                    verifierState: "PASS"
                 )
             }
             .padding(48)

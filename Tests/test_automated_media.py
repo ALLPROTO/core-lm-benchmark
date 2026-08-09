@@ -125,7 +125,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
 
     def _report(self):
         return {
-            "schema_version": 1,
+            "schema_version": automated_media.SCHEMA_VERSION,
             "report_kind": automated_media.REPORT_KIND,
             "verdict": automated_media.VERDICT,
             "automation_contract": automated_media.AUTOMATION_CONTRACT,
@@ -136,7 +136,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
             "machine_evidence": False,
             "pixel_semantics_verified": False,
             "source": {
-                "tag": "corelm-portfolio-v6",
+                "tag": "corelm-portfolio-v7",
                 "commit": "1" * 40,
                 "tree": "2" * 40,
             },
@@ -162,8 +162,9 @@ class AutomatedMediaContractTests(unittest.TestCase):
                 ),
                 "segments": [
                     self._segment(
-                        "live_presentation", 100, 200,
-                        automated_media.LIVE_SEGMENT_SECONDS, "7" * 64,
+                        "post_proof_presentation", 100, 200,
+                        automated_media.POST_PROOF_PRESENTATION_SEGMENT_SECONDS,
+                        "7" * 64,
                     ),
                     self._segment(
                         "same_run_result", 101, 201,
@@ -220,8 +221,11 @@ class AutomatedMediaContractTests(unittest.TestCase):
 
     def _attempt_state(self, report):
         preflight = report["capture"]["preflight_segment"]
-        live, result = report["capture"]["segments"]
-        common = {"schema_version": 1, "tag": report["source"]["tag"]}
+        presentation, result = report["capture"]["segments"]
+        common = {
+            "schema_version": automated_media.ATTEMPT_STATE_SCHEMA_VERSION,
+            "tag": report["source"]["tag"],
+        }
         events = [
             {**common, "event": "ATTEMPT_STARTED", "proof_invocation_count": 0,
              "source_commit": report["source"]["commit"], "source_tree": report["source"]["tree"],
@@ -230,13 +234,8 @@ class AutomatedMediaContractTests(unittest.TestCase):
              "window_helper_sha256": report["tools"]["window_helper"]["executable_sha256"],
              "tag_ci_receipt_sha256": report["attempt"]["tag_ci_receipt_sha256"],
              "local_tag_trust_receipt_sha256": report["attempt"]["local_tag_trust_receipt_sha256"]},
-            {**common, "event": "LIVE_SURFACE_READY", "proof_invocation_count": 0,
-             "executable_sha256": report["run"]["application_executable_sha256"],
-             "owner_pid": live["owner_pid"], "window_id": live["window_id"]},
             {**common, "event": "PROOF_INVOKED", "proof_invocation_count": 1,
              "challenge_sha256": report["run"]["challenge_sha256"]},
-            {**common, "event": "LIVE_CAPTURED", "proof_invocation_count": 1,
-             "segment_sha256": live["sha256"], "window_id": live["window_id"]},
             {**common, "event": "PROOF_TERMINAL", "proof_invocation_count": 1,
              "metric_verdict": report["run"]["metric_verdict"],
              "run_identifier": report["run"]["identifier"],
@@ -244,6 +243,12 @@ class AutomatedMediaContractTests(unittest.TestCase):
             {**common, "event": "REPLAY_VERIFIED", "proof_invocation_count": 1,
              "replay_verdict": report["run"]["replay_verdict"],
              "run_identifier": report["run"]["identifier"]},
+            {**common, "event": "POST_PROOF_PRESENTATION_SURFACE_READY",
+             "proof_invocation_count": 1,
+             "executable_sha256": report["run"]["application_executable_sha256"],
+             "owner_pid": presentation["owner_pid"], "window_id": presentation["window_id"]},
+            {**common, "event": "POST_PROOF_PRESENTATION_CAPTURED", "proof_invocation_count": 1,
+             "segment_sha256": presentation["sha256"], "window_id": presentation["window_id"]},
             {**common, "event": "SAME_RUN_REOPENED", "proof_invocation_count": 1,
              "result_readiness_sha256": report["capture"]["result_readiness_sha256"],
              "run_identifier": report["run"]["identifier"], "window_id": result["window_id"]},
@@ -256,7 +261,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
         return b"".join(automated_media.canonical_json_bytes(event) for event in events)
 
     def _tag_ci_receipt(self):
-        tag = "corelm-portfolio-v6"
+        tag = "corelm-portfolio-v7"
         commit = "1" * 40
         tree = "2" * 40
         workflows = []
@@ -313,6 +318,16 @@ class AutomatedMediaContractTests(unittest.TestCase):
 
     def test_exact_report_and_external_bindings_pass(self):
         report = self._report()
+        self.assertEqual(automated_media.SCHEMA_VERSION, 2)
+        self.assertEqual(automated_media.ATTEMPT_STATE_SCHEMA_VERSION, 2)
+        self.assertEqual(
+            automated_media.REPORT_KIND,
+            "corelm_automated_portfolio_media_v2",
+        )
+        self.assertEqual(
+            automated_media.AUTOMATION_CONTRACT,
+            "corelm-automated-presentation-v2",
+        )
         observed = automated_media.validate_report(
             report,
             expected={
@@ -332,6 +347,31 @@ class AutomatedMediaContractTests(unittest.TestCase):
             },
         )
         self.assertIs(observed, report)
+
+    def test_v1_report_role_and_attempt_grammar_are_rejected(self):
+        for path, value in (
+            (("schema_version",), 1),
+            (("report_kind",), "corelm_automated_portfolio_media_v1"),
+            (("automation_contract",), "corelm-automated-presentation-v1"),
+            (("capture", "segments", 0, "role"), "live_presentation"),
+        ):
+            report = copy.deepcopy(self._report())
+            target = report
+            for key in path[:-1]:
+                target = target[key]
+            target[path[-1]] = value
+            with self.subTest(path=path), self.assertRaises(
+                automated_media.AutomatedMediaError
+            ):
+                automated_media.validate_report(report)
+
+        state = self._attempt_state(self._report()).replace(
+            b'"event":"POST_PROOF_PRESENTATION_SURFACE_READY"',
+            b'"event":"LIVE_SURFACE_READY"',
+            1,
+        )
+        with self.assertRaises(automated_media.AutomatedMediaError):
+            automated_media.validate_attempt_state_bytes(state)
 
     def test_downgrade_human_claim_manual_edit_and_second_proof_fail(self):
         for path, value in (
@@ -437,15 +477,19 @@ class AutomatedMediaContractTests(unittest.TestCase):
             len(automated_media.validate_attempt_state_bytes(state, report=report)), 9
         )
         for tampered in (
-            state.replace(b'"event":"LIVE_CAPTURED"', b'"event":"RESULT_CAPTURED"', 1),
+            state.replace(
+                b'"event":"POST_PROOF_PRESENTATION_CAPTURED"',
+                b'"event":"RESULT_CAPTURED"',
+                1,
+            ),
             state.replace(("7" * 64).encode(), ("8" * 64).encode(), 1),
             state + automated_media.canonical_json_bytes({"event": "EXTRA"}),
         ):
             with self.assertRaises(automated_media.AutomatedMediaError):
                 automated_media.validate_attempt_state_bytes(tampered, report=report)
         wrong_tag_state = state.replace(
-            b'"tag":"corelm-portfolio-v6"',
             b'"tag":"corelm-portfolio-v7"',
+            b'"tag":"corelm-portfolio-v8"',
         )
         wrong_tag_report = copy.deepcopy(report)
         wrong_tag_report["attempt"]["state_log_sha256"] = hashlib.sha256(
@@ -467,7 +511,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
             automated_media.validate_tag_ci_receipt_bytes(
                 payload,
                 expected={"repository": "ALLPROTO/core-lm-benchmark",
-                          "tag": "corelm-portfolio-v6", "commit": "1" * 40,
+                          "tag": "corelm-portfolio-v7", "commit": "1" * 40,
                           "tree": "2" * 40},
             ),
             receipt,

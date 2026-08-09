@@ -1030,7 +1030,7 @@ struct SecurityValidationTests {
                 "archiveManifestSHA256": NSNull(),
                 "commit": sourceCommit,
                 "dirty": false,
-                "exactTag": "corelm-portfolio-v6",
+                "exactTag": "corelm-portfolio-v7",
                 "mode": "git",
                 "remote": (
                     "https://github.com/ALLPROTO/"
@@ -1162,8 +1162,8 @@ struct SecurityValidationTests {
         )
         #expect(
             PortfolioCaptureRequest(
-                arguments: ["app", "--portfolio-capture-live"]
-            ) == .live
+                arguments: ["app", "--portfolio-capture-presentation"]
+            ) == .presentation
         )
         #expect(
             PortfolioCaptureRequest(
@@ -1179,6 +1179,7 @@ struct SecurityValidationTests {
         )
         for arguments in [
             ["app", "--portfolio-capture"],
+            ["app", "--portfolio-capture-live"],
             ["app", "--portfolio-result-id", runIdentifier],
             ["app", "--portfolio-ready-file", readyFilePath],
             [
@@ -1199,9 +1200,9 @@ struct SecurityValidationTests {
                 "app", "--portfolio-capture-preflight",
                 "--automated-compression-proof"
             ],
-            ["app", "--portfolio-capture-live", "free-form"],
+            ["app", "--portfolio-capture-presentation", "free-form"],
             [
-                "app", "--portfolio-capture-live",
+                "app", "--portfolio-capture-presentation",
                 "--automated-compression-proof"
             ],
             [
@@ -1248,17 +1249,17 @@ struct SecurityValidationTests {
 
     @Test
     @MainActor
-    func testPortfolioLivePresentationIsFixedAndModelFree() async {
+    func testPortfolioPostProofPresentationIsFixedAndModelFree() async {
         let store = BenchmarkStore(
             commandLineArguments: [
-                "CoreLMBenchmarkApp", "--portfolio-capture-live"
+                "CoreLMBenchmarkApp", "--portfolio-capture-presentation"
             ]
         )
-        #expect(store.portfolioCaptureIsLive)
+        #expect(store.portfolioCaptureIsPresentation)
         #expect(store.portfolioCaptureSnapshot == nil)
         #expect(
             store.portfolioCaptureStatusCode
-                == "AUTOMATED VALIDATION IN PROGRESS"
+                == "POST-PROOF EXPLANATORY OVERVIEW"
         )
         #expect(!store.isRunning)
         #expect(store.realLLMResult == nil)
@@ -1291,7 +1292,7 @@ struct SecurityValidationTests {
             replayReportData: fixture.replayReportData,
             terminalReportData: fixture.terminalReportData
         )
-        #expect(snapshot.sourceTag == "corelm-portfolio-v6")
+        #expect(snapshot.sourceTag == "corelm-portfolio-v7")
         #expect(snapshot.sourceCommit == String(repeating: "1", count: 40))
         #expect(snapshot.sourceTree == String(repeating: "2", count: 40))
         #expect(

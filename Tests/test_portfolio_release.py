@@ -25,7 +25,7 @@ from security import verify_portfolio_tag_ci as tag_ci  # noqa: E402
 from Tests import test_portfolio_tag_ci as tag_ci_fixture  # noqa: E402
 
 
-TAG = "corelm-portfolio-v6"
+TAG = "corelm-portfolio-v7"
 COMMIT = "1" * 40
 TAG_OBJECT = "0" * 40
 LAB_COMMIT = "3" * 40
@@ -242,16 +242,19 @@ class PortfolioReleaseTests(unittest.TestCase):
                 "result_readiness_sha256": "f" * 64,
                 "preflight_segment": self._segment(
                     "preflight", 99, 199,
-                    automated_media.PREFLIGHT_SEGMENT_SECONDS, raw_sha256,
+                    automated_media.PREFLIGHT_SEGMENT_SECONDS,
+                    raw_sha256["preflight"],
                 ),
                 "segments": [
                     self._segment(
-                        "live_presentation", 100, 200,
-                        automated_media.LIVE_SEGMENT_SECONDS, raw_sha256,
+                        "post_proof_presentation", 100, 200,
+                        automated_media.POST_PROOF_PRESENTATION_SEGMENT_SECONDS,
+                        raw_sha256["post_proof_presentation"],
                     ),
                     self._segment(
                         "same_run_result", 101, 201,
-                        automated_media.RESULT_SEGMENT_SECONDS, raw_sha256,
+                        automated_media.RESULT_SEGMENT_SECONDS,
+                        raw_sha256["same_run_result"],
                     ),
                 ],
             },
@@ -286,8 +289,11 @@ class PortfolioReleaseTests(unittest.TestCase):
 
     def _attempt_state(self, report):
         preflight = report["capture"]["preflight_segment"]
-        live, result = report["capture"]["segments"]
-        common = {"schema_version": 1, "tag": report["source"]["tag"]}
+        presentation, result = report["capture"]["segments"]
+        common = {
+            "schema_version": automated_media.ATTEMPT_STATE_SCHEMA_VERSION,
+            "tag": report["source"]["tag"],
+        }
         events = [
             {**common, "event": "ATTEMPT_STARTED", "proof_invocation_count": 0,
              "source_commit": report["source"]["commit"], "source_tree": report["source"]["tree"],
@@ -296,13 +302,8 @@ class PortfolioReleaseTests(unittest.TestCase):
              "window_helper_sha256": report["tools"]["window_helper"]["executable_sha256"],
              "tag_ci_receipt_sha256": report["attempt"]["tag_ci_receipt_sha256"],
              "local_tag_trust_receipt_sha256": report["attempt"]["local_tag_trust_receipt_sha256"]},
-            {**common, "event": "LIVE_SURFACE_READY", "proof_invocation_count": 0,
-             "executable_sha256": report["run"]["application_executable_sha256"],
-             "owner_pid": live["owner_pid"], "window_id": live["window_id"]},
             {**common, "event": "PROOF_INVOKED", "proof_invocation_count": 1,
              "challenge_sha256": report["run"]["challenge_sha256"]},
-            {**common, "event": "LIVE_CAPTURED", "proof_invocation_count": 1,
-             "segment_sha256": live["sha256"], "window_id": live["window_id"]},
             {**common, "event": "PROOF_TERMINAL", "proof_invocation_count": 1,
              "metric_verdict": report["run"]["metric_verdict"],
              "run_identifier": report["run"]["identifier"],
@@ -310,6 +311,15 @@ class PortfolioReleaseTests(unittest.TestCase):
             {**common, "event": "REPLAY_VERIFIED", "proof_invocation_count": 1,
              "replay_verdict": report["run"]["replay_verdict"],
              "run_identifier": report["run"]["identifier"]},
+            {**common, "event": "POST_PROOF_PRESENTATION_SURFACE_READY",
+             "proof_invocation_count": 1,
+             "executable_sha256": report["run"]["application_executable_sha256"],
+             "owner_pid": presentation["owner_pid"],
+             "window_id": presentation["window_id"]},
+            {**common, "event": "POST_PROOF_PRESENTATION_CAPTURED",
+             "proof_invocation_count": 1,
+             "segment_sha256": presentation["sha256"],
+             "window_id": presentation["window_id"]},
             {**common, "event": "SAME_RUN_REOPENED", "proof_invocation_count": 1,
              "result_readiness_sha256": report["capture"]["result_readiness_sha256"],
              "run_identifier": report["run"]["identifier"], "window_id": result["window_id"]},
@@ -398,8 +408,15 @@ class PortfolioReleaseTests(unittest.TestCase):
                 "verifier_state": "PASS",
             }
         )
-        raw_segment = self._mp4()
-        raw_segment_sha256 = hashlib.sha256(raw_segment).hexdigest()
+        raw_segments = {
+            "preflight": self._mp4(1),
+            "post_proof_presentation": self._mp4(2),
+            "same_run_result": self._mp4(3),
+        }
+        raw_segment_sha256 = {
+            role: hashlib.sha256(payload).hexdigest()
+            for role, payload in raw_segments.items()
+        }
         helper_bytes = HELPER_BYTES
         helper_sha256 = hashlib.sha256(helper_bytes).hexdigest()
         tag_ci_responses = {
@@ -499,9 +516,12 @@ class PortfolioReleaseTests(unittest.TestCase):
             ("reports/tag-ci-receipt.json", tag_ci_receipt),
             ("reports/local-tag-trust-receipt.json", local_tag_trust_receipt),
             ("session/attempt-state.jsonl", attempt_state),
-            ("session/preflight-window.mov", raw_segment),
-            ("session/live-presentation.mov", raw_segment),
-            ("session/same-run-result.mov", raw_segment),
+            ("session/preflight-window.mov", raw_segments["preflight"]),
+            (
+                "session/post-proof-presentation.mov",
+                raw_segments["post_proof_presentation"],
+            ),
+            ("session/same-run-result.mov", raw_segments["same_run_result"]),
             ("session/find-proof-window", helper_bytes),
             ("logs/terminal.log", b"END-TO-END PROOF PASS\n"),
         ]
@@ -549,7 +569,7 @@ class PortfolioReleaseTests(unittest.TestCase):
             + chunk(b"IEND", b"")
         )
 
-    def _mp4(self):
+    def _mp4(self, marker=0):
         def atom(kind, payload):
             return struct.pack(">I4s", 8 + len(payload), kind) + payload
 
@@ -574,7 +594,7 @@ class PortfolioReleaseTests(unittest.TestCase):
         return (
             atom(b"ftyp", b"isom\x00\x00\x02\x00isomiso2")
             + moov
-            + atom(b"mdat", b"\x00" * 1024)
+            + atom(b"mdat", bytes([marker]) * 1024)
         )
 
     def _ffprobe(self, root):
@@ -1102,8 +1122,8 @@ class PortfolioReleaseTests(unittest.TestCase):
             root = Path(temporary)
             (root / "CITATION.cff").write_text(
                 "cff-version: 1.2.0\n"
-                "version: corelm-portfolio-v6\n"
-                "version: corelm-portfolio-v6\n"
+                "version: corelm-portfolio-v7\n"
+                "version: corelm-portfolio-v7\n"
                 "date-released: 2026-08-09\n"
                 "license: MIT\n"
                 "repository-code: https://github.com/ALLPROTO/core-lm-benchmark\n"
@@ -1631,11 +1651,11 @@ class PortfolioReleaseTests(unittest.TestCase):
                 "reports/automated-media.json": lambda payload: json_mutation(
                     payload, "automation_only", False
                 ),
-                "session/live-presentation.mov": lambda payload: payload[:-1]
+                "session/post-proof-presentation.mov": lambda payload: payload[:-1]
                 + bytes([payload[-1] ^ 1]),
                 "session/attempt-state.jsonl": lambda payload: payload.replace(
-                    b'"event":"LIVE_CAPTURED"',
-                    b'"event":"LIVE_CAPTURFd"',
+                    b'"event":"POST_PROOF_PRESENTATION_CAPTURED"',
+                    b'"event":"POST_PROOF_PRESENTATION_CAPTURFd"',
                     1,
                 ),
                 "session/find-proof-window": lambda payload: payload + b"tamper\n",
@@ -1651,6 +1671,87 @@ class PortfolioReleaseTests(unittest.TestCase):
                     members = dict(base)
                     members[member_name] = mutate(members[member_name])
                     path = root / f"tampered-{index}.tar.gz"
+                    path.write_bytes(self._tar_gzip(list(members.items())))
+                    provenance = self._provenance(video, poster, path)
+                    with patch.object(
+                        portfolio,
+                        "_extract_and_verify_product_evidence",
+                        return_value={},
+                    ), self.assertRaises(portfolio.PortfolioReleaseError):
+                        portfolio._validate_evidence_archive(
+                            path,
+                            provenance=provenance,
+                            source={"commit": COMMIT, "tree": TREE},
+                        )
+
+    def test_session_evidence_rejects_v1_names_schema_contract_and_order(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(strict=True)
+            video = root / "video.mp4"
+            poster = root / "poster.png"
+            video.write_bytes(self._mp4())
+            poster.write_bytes(self._png())
+            canonical = root / "canonical.tar.gz"
+            canonical.write_bytes(self._evidence())
+            with tarfile.open(canonical, "r:gz") as archive:
+                base = {
+                    member.name: archive.extractfile(member).read()
+                    for member in archive.getmembers()
+                    if member.isfile()
+                }
+
+            def mutate_report(mutate):
+                members = dict(base)
+                report = json.loads(members["reports/automated-media.json"])
+                mutate(report)
+                members["reports/automated-media.json"] = _canonical(report)
+                return members
+
+            cases = {
+                "report-schema-v1": mutate_report(
+                    lambda report: report.__setitem__("schema_version", 1)
+                ),
+                "contract-v1": mutate_report(
+                    lambda report: report.__setitem__(
+                        "automation_contract",
+                        "corelm-automated-presentation-v1",
+                    )
+                ),
+                "legacy-live-role": mutate_report(
+                    lambda report: report["capture"]["segments"][0].__setitem__(
+                        "role", "live_presentation"
+                    )
+                ),
+            }
+            legacy_member = dict(base)
+            legacy_member["session/live-presentation.mov"] = legacy_member.pop(
+                "session/post-proof-presentation.mov"
+            )
+            cases["legacy-live-member"] = legacy_member
+
+            swapped_segments = dict(base)
+            presentation = swapped_segments["session/post-proof-presentation.mov"]
+            result = swapped_segments["session/same-run-result.mov"]
+            swapped_segments["session/post-proof-presentation.mov"] = result
+            swapped_segments["session/same-run-result.mov"] = presentation
+            cases["raw-segment-swap"] = swapped_segments
+
+            reordered_state = dict(base)
+            state_lines = reordered_state["session/attempt-state.jsonl"].splitlines(
+                keepends=True
+            )
+            state_lines[1], state_lines[2] = state_lines[2], state_lines[1]
+            reordered_state["session/attempt-state.jsonl"] = b"".join(state_lines)
+            report = json.loads(reordered_state["reports/automated-media.json"])
+            report["attempt"]["state_log_sha256"] = hashlib.sha256(
+                reordered_state["session/attempt-state.jsonl"]
+            ).hexdigest()
+            reordered_state["reports/automated-media.json"] = _canonical(report)
+            cases["attempt-state-order"] = reordered_state
+
+            for index, (label, members) in enumerate(cases.items()):
+                with self.subTest(case=label):
+                    path = root / f"legacy-or-reordered-{index}.tar.gz"
                     path.write_bytes(self._tar_gzip(list(members.items())))
                     provenance = self._provenance(video, poster, path)
                     with patch.object(

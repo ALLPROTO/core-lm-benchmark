@@ -39,23 +39,32 @@ CV_READY = G01 AND G02 AND G03 AND G04 AND G05 AND G06
 | G11 Engineering ownership | A public code tour covers codec format, model replay, verifier separation, failure-state semantics, and the supply-chain threat model; AI assistance is disclosed. |
 | G12 Stable release | One obvious signed current portfolio release binds source identity, checksums, public key, SBOM, reproduce command, release notes, and demo. Historical releases are clearly archival. |
 
-The V6 product-media path may satisfy G03 with a deterministic, single-window
-automation receipt classified
+The `corelm-portfolio-v7` `corelm-automated-presentation-v2` product-media path
+may satisfy G03 with a deterministic, single-window automation receipt
+classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. Its signed result, raw evidence,
 and replay reports—not the pixels—support the metrics. Automated capture and
 agent audit never satisfy G10. Later passive viewing by a CV recipient does
 not satisfy it either; that gate still requires the specified non-author,
 non-agent clean-clone publication.
 
-V6 is a new identity rather than a relabel of any failed candidate. V3
+V7 is a new identity rather than a relabel of any failed candidate. V3
 remains frozen at its first tag-push assertion failure. V4 remains frozen at a
 pre-model FFprobe frame-PTS field-validation failure that occurred before
 `AttemptLog.reserve`; no V4 model attempt was invoked or consumed. V5 passed
 first-attempt tag CI, then stopped twice before the marker: first on a safely
 retryable anonymous API HTTP 403, and after reset on real GitHub run/job IDs
 above the receipt validator's old signed 32-bit ceiling. No V5 model attempt
-was invoked or consumed. None of the V3/V4/V5 tags or workflows are rerun or
-moved, and none of those candidates' bytes can satisfy a V6 gate.
+was invoked or consumed. The signed `corelm-portfolio-v6` candidate passed
+first-attempt tag CI, and one scientific proof honestly passed at 2.052384x
+compression, delta NLL
+-0.00000846, 99.5117% top-1 agreement, and a 1,024/1,024-decision replay with
+zero maximum loss error. Its durable automation state nevertheless ended
+`ATTEMPT_FAILED` after `REPLAY_VERIFIED`: the preflight-built explanatory
+executable differed from the proof-rebuilt verified app, before same-run result
+capture, media sealing, or collection. None of the V3/V4/V5/V6 tags or
+workflows are rerun or moved, and none of those candidates' bytes can satisfy
+a V7 gate.
 
 No gate can be replaced by a large test count, an author-controlled agent
 review, an uncommitted local run, or a future promise.

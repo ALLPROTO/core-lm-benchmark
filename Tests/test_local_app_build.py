@@ -433,13 +433,17 @@ class LocalAppBuildTests(unittest.TestCase):
             "AUTOMATED PRESENTATION · NOT MACHINE EVIDENCE · ",
             capture_view,
         )
-        self.assertIn("portfolioCaptureIsLive", content)
+        self.assertIn("portfolioCaptureIsPresentation", content)
         self.assertIn("portfolioCaptureIsPreflight", capture_view)
         self.assertIn('"AUTOMATED CAPTURE PREFLIGHT"', store)
-        self.assertIn('"AUTOMATED VALIDATION IN PROGRESS"', store)
+        self.assertIn('"POST-PROOF EXPLANATORY OVERVIEW"', store)
+        self.assertIn('"--portfolio-capture-presentation"', store)
+        self.assertIn('"--portfolio-capture-live"', store)
+        self.assertIn("guard legacyLiveCount == 0", store)
+        self.assertNotIn('"AUTOMATED VALIDATION IN PROGRESS"', store)
         self.assertIn('"--portfolio-ready-file"', store)
         self.assertIn(
-            "FIXED PRESENTATION STATE · NOT MEASURED TELEMETRY",
+            "FIXED MODEL-FREE PRESENTATION · NOT TELEMETRY",
             capture_view,
         )
         for visible_result_field in (
@@ -478,16 +482,16 @@ class LocalAppBuildTests(unittest.TestCase):
             "private func prepareAutomatedRunWindow", 1
         )[0]
         preflight = automation.split("case .preflight:", 1)[1]
-        preflight = preflight.split("case .live", 1)[0]
+        preflight = preflight.split("case .presentation", 1)[0]
         self.assertIn("await prepareAutomatedRunWindow()", preflight)
         self.assertIn("return", preflight)
         self.assertNotIn("runRealLLM", preflight)
-        live = automation.split("case .live:", 1)[1]
-        live = live.split("case let .result", 1)[0]
-        self.assertNotIn("prepareAutomatedRunWindow", live)
-        self.assertNotIn("loadExactPortfolioCaptureResult", live)
-        self.assertNotIn("runRealLLM", live)
-        self.assertIn("return", live)
+        presentation = automation.split("case .presentation:", 1)[1]
+        presentation = presentation.split("case let .result", 1)[0]
+        self.assertNotIn("prepareAutomatedRunWindow", presentation)
+        self.assertNotIn("loadExactPortfolioCaptureResult", presentation)
+        self.assertNotIn("runRealLLM", presentation)
+        self.assertIn("return", presentation)
         self.assertLess(
             automation.index("switch portfolioCaptureRequest"),
             automation.index('contains("--automated-compression-proof")'),
@@ -553,12 +557,12 @@ class LocalAppBuildTests(unittest.TestCase):
             readiness_writer.index("renameatx_np"),
         )
 
-        live_view_branch = content.split(
-            "if store.portfolioCaptureIsLive", 1
+        presentation_view_branch = content.split(
+            "if store.portfolioCaptureIsPresentation", 1
         )[1].split("else if store.portfolioCaptureRequested", 1)[0]
-        self.assertIn("PortfolioCaptureView()", live_view_branch)
-        self.assertNotIn("automatedRunIfRequested", live_view_branch)
-        self.assertNotIn(".task", live_view_branch)
+        self.assertIn("PortfolioCaptureView()", presentation_view_branch)
+        self.assertNotIn("automatedRunIfRequested", presentation_view_branch)
+        self.assertNotIn(".task", presentation_view_branch)
 
     def test_final_bundle_and_default_gates_exclude_legacy_benchmark(self):
         package = (MACOS_SCRIPTS / "package-app.sh").read_text(encoding="utf-8")

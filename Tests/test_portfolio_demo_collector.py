@@ -269,12 +269,13 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
     def test_fixed_composition_replay_rejects_byte_tamper(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve(strict=True)
-            live = root / "live.mov"
+            post_proof_presentation = root / "post-proof-presentation.mov"
             result = root / "result.mov"
             video = root / "video.mp4"
             poster = root / "poster.png"
             for path, payload in (
-                (live, b"live"), (result, b"result"),
+                (post_proof_presentation, b"presentation"),
+                (result, b"result"),
                 (video, b"expected-video"), (poster, b"expected-poster"),
             ):
                 path.write_bytes(payload)
@@ -292,7 +293,7 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
                     collector.CollectionError, "exact raw composition"
                 ):
                     collector._verify_composition_from_raw(
-                        live=live,
+                        post_proof_presentation=post_proof_presentation,
                         result=result,
                         video=video,
                         poster=poster,
@@ -306,10 +307,14 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
         for required in (
             'parser.add_argument("--result-readiness", type=Path, required=True)',
             'parser.add_argument("--attempt-state", type=Path, required=True)',
+            '"--post-proof-presentation-segment", type=Path, required=True',
             'parser.add_argument("--tag-ci-bundle", type=Path, required=True)',
             'parser.add_argument("--local-tag-trust-receipt", type=Path, required=True)',
             '"session/preflight-window.mov": preflight_path',
-            '"session/live-presentation.mov": live_path',
+            (
+                '"session/post-proof-presentation.mov": '
+                "post_proof_presentation_path"
+            ),
             '"session/same-run-result.mov": result_segment_path',
             '"session/find-proof-window": helper_path',
         ):
@@ -326,7 +331,7 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
                     "--result-readiness",
                     "--attempt-state",
                     "--preflight-segment",
-                    "--live-segment",
+                    "--post-proof-presentation-segment",
                     "--result-segment",
                     "--window-helper",
                     "--tag-ci-receipt",
@@ -336,8 +341,49 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
                     self.assertIn(option, document)
                 self.assertNotIn("--linux-ci-url", document)
                 self.assertNotIn("--macos-ci-url", document)
+                self.assertNotIn("--live-segment", document)
                 self.assertNotIn("only the three named", document.lower())
                 self.assertNotIn("only the three", document.lower())
+
+        self.assertNotIn('parser.add_argument("--live-segment"', source)
+        self.assertNotIn('"session/live-presentation.mov"', source)
+
+    def test_strict_release_schemas_require_only_automation_contract_v2(self):
+        contracts = {
+            "schemas/portfolio-demo-provenance.schema.json": (
+                "properties",
+                "capture",
+                "properties",
+                "automation_contract",
+                "const",
+            ),
+            "schemas/portfolio-release-input.schema.json": (
+                "properties",
+                "presentation",
+                "properties",
+                "automation_contract",
+                "const",
+            ),
+            "schemas/portfolio-source-identity.schema.json": (
+                "properties",
+                "demo",
+                "properties",
+                "automation_contract",
+                "const",
+            ),
+        }
+        for relative, keys in contracts.items():
+            schema = json.loads((ROOT / relative).read_text(encoding="utf-8"))
+            observed = schema
+            for key in keys:
+                observed = observed[key]
+            with self.subTest(schema=relative):
+                self.assertEqual(observed, automated_media.AUTOMATION_CONTRACT)
+                self.assertEqual(schema["properties"]["schema_version"]["const"], 2)
+                self.assertNotIn(
+                    "corelm-automated-presentation-v1",
+                    json.dumps(schema, sort_keys=True),
+                )
 
     def test_terminal_outcome_preserves_metric_fail_without_selection(self):
         with tempfile.TemporaryDirectory() as temporary:

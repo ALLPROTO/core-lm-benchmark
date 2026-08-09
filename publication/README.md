@@ -67,7 +67,7 @@ one another:
   from a checkout whose historical `CITATION.cff` names the same paper tag,
   verifies that the tag is lightweight, points to clean `HEAD`, and is visible
   on the canonical public origin. The current default branch instead names the
-  current `corelm-portfolio-v6` software identity.
+  current `corelm-portfolio-v7` software identity.
 - `corelm-portfolio-vN` is the SSH-signed annotated portfolio and source-
   verification contour. Its signed-source identity is verified against the
   pinned signer policy and canonical remote; the separate
@@ -106,27 +106,34 @@ A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
 
 On the default branch that preview includes the current
-`corelm-portfolio-v6` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
+`corelm-portfolio-v7` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
 not a byte claim about the historical paper-v5 package. Exact paper-v5
 reproduction requires the detached tag below.
 
-The V6 portfolio media path is governed by
-`corelm-automated-presentation-v1` and is classified
+The V7 portfolio media path is governed by
+`corelm-automated-presentation-v2` and is classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. It requires no human review or
 manual edit to accept generated media, but it does not verify pixel semantics
 and does not make the video or poster scientific machine evidence. Gate G10
 remains **OPEN** until a non-author, non-agent person publishes the required
 clean-clone replication.
 
-V6 is distinct from the preserved V3, V4, and V5 failures. V3 failed its first
-tag-push assertion. V4 passed tag CI but stopped in pre-model FFprobe frame-PTS
-field validation before `AttemptLog.reserve`, so no V4 model attempt was
+V7 is distinct from the preserved V3, V4, V5, and V6 failures. V3 failed its
+first tag-push assertion. V4 passed tag CI but stopped in pre-model FFprobe
+frame-PTS field validation before `AttemptLog.reserve`, so no V4 model attempt was
 invoked or consumed. V5 also passed first-attempt tag CI. Its first local
 contour received a safely retryable anonymous API HTTP 403 pre-marker; after
 reset, its normative contour rejected real GitHub run/job IDs above `2^31` in
 the tag-CI receipt validator, again before `AttemptLog.reserve`. No V5 model
-attempt was invoked or consumed. None of the failed candidates is rerun,
-moved, reused, or relabelled as V6.
+attempt was invoked or consumed. The signed `corelm-portfolio-v6` candidate
+passed first-attempt tag CI, and its one scientific proof honestly passed at
+2.052384x compression, delta NLL
+-0.00000846, 99.5117% top-1 agreement, and all 1,024 heavy-replay decisions
+with zero maximum loss error. Its durable state then ended `ATTEMPT_FAILED`
+after `REPLAY_VERIFIED` because the preflight-built explanatory-window
+executable differed from the proof-rebuilt verified app, before same-run result
+capture, media sealing, or collection. None of the failed candidates is rerun,
+moved, reused, or relabelled as V7.
 
 ## Reproduce the existing tagged package
 

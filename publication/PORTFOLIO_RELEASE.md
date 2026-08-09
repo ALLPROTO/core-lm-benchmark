@@ -67,7 +67,7 @@ direct-dependency CycloneDX 1.5 SBOM is generated twice by
 `security/generate_direct_sbom.py`; it must be byte-identical and retain scope
 `direct-python-dependencies-only`.
 
-This V6 contract does not reopen a failed historical candidate. V3 remains
+This V7 contract does not reopen a failed historical candidate. V3 remains
 frozen at its first tag-push assertion failure. V4 remains frozen after its
 automation stopped in pre-model FFprobe frame-PTS field validation, before
 `AttemptLog.reserve`; no V4 model attempt was invoked or consumed. V5 passed
@@ -76,7 +76,15 @@ anonymous GitHub API HTTP 403 before the marker; after reset, its normative
 contour fetched the exact responses but rejected real GitHub run/job IDs above
 the tag-CI receipt validator's old signed 32-bit ceiling. That rejection also
 preceded `AttemptLog.reserve`; no V5 model attempt was invoked or consumed.
-Never rerun or move V3, V4, or V5, and never relabel their bytes as V6.
+The signed `corelm-portfolio-v6` candidate passed first-attempt tag CI and its
+one scientific proof honestly passed at 2.052384x compression, delta NLL
+-0.00000846, 99.5117% top-1
+agreement, and all 1,024 heavy-replay decisions with zero maximum loss error.
+Its durable state then ended `ATTEMPT_FAILED` after `REPLAY_VERIFIED` because
+the preflight-built explanatory-window executable differed from the
+proof-rebuilt verified app, before same-run result capture, media sealing, or
+collection. Never rerun or move V3, V4, V5, or V6, and never relabel their bytes
+or partial evidence as V7.
 
 ## Automated public tag-CI admission
 
@@ -128,13 +136,13 @@ lifecycle, the exact automation-only presentation contract, and absolute paths
 to five local automatically collected demo assets. Absolute paths are
 input-only and never enter an output asset.
 
-The canonical V6 demo-provenance object has the exact keys documented by the
+The canonical V7 demo-provenance object has the exact keys documented by the
 builder: source/tag; video hash, duration, dimensions, silent H.264;
 poster hash, dimensions and fixed frame timestamp; both media objects
 classified `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`; macOS arm64
 single-window capture; automation-receipt, executable, result, receipt and
 evidence hashes; workload classification; and `synthetic_data:false`. Its
-capture contract is `corelm-automated-presentation-v1` with
+capture contract is `corelm-automated-presentation-v2` with
 `automation_only:true`, `human_reviewed:false`, `manual_edits:false`,
 `machine_evidence:false`, and `pixel_semantics_verified:false`. The canonical
 runtime-assets object binds source/tag, macOS arm64, Python 3.12.13, the exact
@@ -154,7 +162,7 @@ hash, and proof hashes. The builder verifies tracked lockfile/verifier hashes
 against the clean source.
 
 `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION` is the exact workload enum for
-the public validation range fixed before this V6 execution. It is not a media
+the public validation range fixed before this V7 execution. It is not a media
 selection or human-review state: the tagged proof-driver attempt and its first
 honest terminal outcome are retained once by the owner-local automation state.
 The proof driver also performs the required pinned-Qwen heavy replay; the
@@ -179,7 +187,7 @@ The evidence gzip tar has exact regular members
 `reports/automated-media.json`, `reports/result-readiness.json`,
 `reports/tag-ci-receipt.json`, `reports/local-tag-trust-receipt.json`,
 `session/attempt-state.jsonl`, `session/preflight-window.mov`,
-`session/live-presentation.mov`, `session/same-run-result.mov`,
+`session/post-proof-presentation.mov`, `session/same-run-result.mov`,
 `session/find-proof-window`, `logs/terminal.log`, all nine exact files under
 `tag-ci-responses/` (eight raw API responses plus the recomputed public
 receipt), and only raw files below `run/primary-evidence/`.
@@ -201,23 +209,24 @@ with mode `0600`, zero uid/gid/mtime, and empty owner names.
 ## Run and collect one automated tagged proof
 
 `platforms/macos/scripts/run-automated-portfolio-demo.py` is the only current
-V6 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
+V7 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
 the exact clean, signed tagged checkout. It checks the tag/main/source binding,
 AC power, offline runtime and assets, capture authorization, exact app/window,
 and tool identities before invoking the model. It then reserves one durable
 exclusive attempt for the tag, invokes the proof once, preserves its first
-honest terminal PASS or verified metric FAIL, reopens that same UUID, records
-a fixed 12-second `--portfolio-capture-live` presentation window while the
-proof runs and an 18-second capture-safe view of the exact retained result,
+honest terminal PASS or verified metric FAIL, then records a fixed 12-second,
+model-free `--portfolio-capture-presentation` explanatory overview from the
+exact verified proof app and an
+18-second capture-safe view of the exact retained result,
 creates one fixed silent H.264 composition, and derives the poster at exactly
 15.000000 seconds. The normal proof UI, worker log, and free-form error surface
 are never captured.
 
 ```sh
-DEMO_TAG=corelm-portfolio-v6
+DEMO_TAG=corelm-portfolio-v7
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v6-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v7-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -238,6 +247,12 @@ privacy boundary, and durable attempt-state digest. A capture or media failure
 after proof invocation consumes the tag attempt and cannot be retried to seek
 a preferred result.
 
+The exact V7 state order is
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL → REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`.
+The first composed raw role is exactly `post_proof_presentation`; legacy
+live-role names, paths, and command-line options are not accepted by this
+contour.
+
 The same session may contain private driver/UI logs. Do not upload or publish
 the session directory as a whole. Only the explicitly named bounded inputs
 below enter collection; the collector revalidates them and embeds their exact
@@ -254,7 +269,7 @@ tag, and local lab checkout:
 PORTFOLIO_PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 LAB=/absolute/clean/core-lm-cross-model-lab
 RUN_DIRECTORY=/absolute/exact/run-directory-from-automation-receipt
-INPUTS=/absolute/absent/corelm-portfolio-v6-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v7-inputs
 
 publication/run_portfolio_python.sh \
   "$PORTFOLIO_PYTHON" collect_portfolio_demo.py \
@@ -268,7 +283,7 @@ publication/run_portfolio_python.sh \
   --result-readiness "$DEMO_SESSION/result-readiness.json" \
   --attempt-state "$DEMO_SESSION/attempt-state.jsonl" \
   --preflight-segment "$DEMO_SESSION/preflight-window.mov" \
-  --live-segment "$DEMO_SESSION/live-presentation.mov" \
+  --post-proof-presentation-segment "$DEMO_SESSION/post-proof-presentation.mov" \
   --result-segment "$DEMO_SESSION/same-run-result.mov" \
   --window-helper "$DEMO_SESSION/find-proof-window" \
   --tag-ci-receipt "$DEMO_SESSION/tag-ci-receipt.json" \
@@ -383,9 +398,9 @@ checkout and the already verified fourteen-asset directory, generate the
 request into a new absolute path:
 
 ```sh
-TAG=corelm-portfolio-v6
-ASSET_DIR=/absolute/corelm-portfolio-v6-assets
-CREATE_REQUEST=/absolute/corelm-portfolio-v6-create-release.json
+TAG=corelm-portfolio-v7
+ASSET_DIR=/absolute/corelm-portfolio-v7-assets
+CREATE_REQUEST=/absolute/corelm-portfolio-v7-create-release.json
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
 publication/run_portfolio_python.sh \
@@ -399,9 +414,9 @@ The canonical request has exactly these seven keys and values:
 
 ```json
 {
-  "tag_name": "corelm-portfolio-v6",
+  "tag_name": "corelm-portfolio-v7",
   "target_commitish": "main",
-  "name": "Core LM Portfolio v6 — reproducible real-model KV-cache benchmark",
+  "name": "Core LM Portfolio v7 — reproducible real-model KV-cache benchmark",
   "body": "generated exactly from the signed source identity and SHA256SUMS digest",
   "draft": false,
   "prerelease": false,
@@ -446,8 +461,8 @@ Fetch five API views and all fourteen assets without a GitHub token, cookie,
 the exact commit and tag-object SHA come from the signed source identity:
 
 ```sh
-TAG=corelm-portfolio-v6
-ASSET_DIR=/absolute/corelm-portfolio-v6-assets
+TAG=corelm-portfolio-v7
+ASSET_DIR=/absolute/corelm-portfolio-v7-assets
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
 PUBLIC_AUDIT=/absolute/new-public-audit
@@ -529,7 +544,7 @@ and exact first version line written to the receipt; that identity describes
 the invocation and is not a release-signing, GitHub, or CI trust root.
 
 ```sh
-RECEIPT="$RECEIPT_DIRECTORY/corelm-portfolio-v6-github-release-receipt.json"
+RECEIPT="$RECEIPT_DIRECTORY/corelm-portfolio-v7-github-release-receipt.json"
 publication/run_portfolio_python.sh \
   "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py verify \
   --assets "$DOWNLOADED" \
@@ -557,10 +572,10 @@ project rule that tags and assets are never moved or replaced.
 
 The receipt binds the saved-response hashes but cannot prove that the fetch was
 logged out or that GitHub is still in the same state; those are transport and
-time boundaries. The V6 acceptance contour uses the scrubbed logged-out API
+time boundaries. The V7 acceptance contour uses the scrubbed logged-out API
 fetches and verifier receipt and has no browser inspection or human-review
 gate. A later viewer may inspect the public page, but that observation is not
-an input to V6 acceptance and cannot retroactively close independent-
+an input to V7 acceptance and cannot retroactively close independent-
 replication gate G10. Keep the receipt and API files in the operator/design or
 Zenodo evidence bundle. Do not upload them back into the same fourteen-asset
 release, edit its body after verification, or move its tag; doing so would

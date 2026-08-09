@@ -55,7 +55,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
         wheelhouse.mkdir(mode=0o700)
         output = root / "output"
         return demo.Configuration(
-            tag="corelm-portfolio-v6",
+            tag="corelm-portfolio-v7",
             output=output,
             ffmpeg=Path("/fixture/ffmpeg"),
             ffprobe=Path("/fixture/ffprobe"),
@@ -148,7 +148,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 "macos",
                 "portfolio-demo",
                 "--tag",
-                "corelm-portfolio-v6",
+                "corelm-portfolio-v7",
             )
             accepted = subprocess.run(
                 command,
@@ -229,15 +229,19 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             self.assertEqual(invocation_log.read_text(encoding="utf-8"), "invoked\n")
 
     def test_configuration_rejects_future_tag_without_running_preflight(self):
-        arguments = mock.Mock(tag="corelm-portfolio-v7")
-        with self.assertRaisesRegex(demo.AutomatedDemoError, "exact corelm-portfolio-v6"):
+        arguments = mock.Mock(tag="corelm-portfolio-v8")
+        with self.assertRaisesRegex(demo.AutomatedDemoError, "exact corelm-portfolio-v7"):
             demo._validate_configuration(arguments)
 
     def test_preflight_is_nonprompting_and_precedes_attempt_and_proof(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('(str(helper), "--preflight")', source)
         self.assertIn('b\'{"screen_capture_authorized":true}\\n\'', source)
-        self.assertIn('return (str(APP_EXECUTABLE), "--portfolio-capture-live")', source)
+        self.assertIn(
+            'return (str(APP_EXECUTABLE), "--portfolio-capture-presentation")',
+            source,
+        )
+        self.assertNotIn("--portfolio-capture-live", source)
         self.assertNotIn("CGRequestScreenCaptureAccess", source)
         self.assertNotIn("_descendant_pids", source)
         self.assertNotIn("include_descendants", source)
@@ -400,7 +404,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(marker.stat().st_mode), 0o600)
             popen.assert_not_called()
 
-    def test_live_capture_failure_preserves_terminal_and_never_runs_second_proof(self):
+    def test_post_proof_capture_failure_preserves_terminal_and_one_proof(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve(strict=True)
             configuration = self._configuration(root)
@@ -433,9 +437,9 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 delta_nll_nat_per_token="-0.000008",
                 top1_agreement="0.995117",
             )
-            live_process = FakeProcess(pid=5151)
+            presentation_process = FakeProcess(pid=5151)
             proof_process = FakeProcess(pid=4242)
-            live_window = demo.WindowIdentity(
+            presentation_window = demo.WindowIdentity(
                 pid=5151,
                 window_id=6161,
                 width=1280,
@@ -448,15 +452,17 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 with mock.patch.object(
                     demo.subprocess,
                     "Popen",
-                    side_effect=(live_process, proof_process),
+                    side_effect=(proof_process, presentation_process),
                 ) as popen, mock.patch.object(
                     demo, "_snapshot_runs", return_value=set()
                 ), mock.patch.object(
-                    demo, "_wait_for_window", return_value=live_window
+                    demo, "_wait_for_window", return_value=presentation_window
                 ) as wait_window, mock.patch.object(
                     demo, "_validate_window_executable"
                 ) as validate_window, mock.patch.object(
-                    demo, "_recheck_window"
+                    demo,
+                    "_recheck_window",
+                    return_value=presentation_window,
                 ) as recheck_window, mock.patch.object(
                     demo,
                     "_capture_segment",
@@ -468,23 +474,20 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 ), mock.patch.object(
                     demo, "_terminate_process"
                 ) as terminate, mock.patch.object(
+                    demo, "_require_regular"
+                ) as require_regular, mock.patch.object(
                     demo, "_sha256_path", return_value="6" * 64
                 ):
                     with self.assertRaisesRegex(
                         demo.AutomatedDemoError,
-                        "live presentation capture failed after proof invocation",
+                        "post-proof presentation capture failed",
                     ):
                         demo._execute_reserved_attempt(
                             configuration, source, prepared, attempt
                         )
 
                 self.assertEqual(popen.call_count, 2)
-                live_call, proof_call = popen.call_args_list
-                self.assertEqual(live_call.args[0], demo._live_presentation_argv())
-                self.assertEqual(
-                    live_call.args[0],
-                    (str(demo.APP_EXECUTABLE), "--portfolio-capture-live"),
-                )
+                proof_call, presentation_call = popen.call_args_list
                 positional, keyword = proof_call
                 self.assertEqual(positional[0], demo._proof_argv())
                 self.assertEqual(
@@ -496,16 +499,44 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                     keyword["env"]["CORELM_PROOF_CHALLENGE"],
                     r"^[0-9a-f]{64}$",
                 )
-                self.assertEqual(proof_process.wait_calls, 1)
-                self.assertEqual(wait_window.call_args.args[0], live_process.pid)
-                self.assertNotEqual(wait_window.call_args.args[0], proof_process.pid)
-                validate_window.assert_called_once_with(
-                    live_window,
-                    expected_sha256="6" * 64,
-                    label="live presentation window",
+                self.assertEqual(
+                    presentation_call.args[0],
+                    demo._post_proof_presentation_argv(),
                 )
-                self.assertGreaterEqual(recheck_window.call_count, 2)
-                terminate.assert_called_once_with(live_process)
+                self.assertEqual(
+                    presentation_call.args[0],
+                    (
+                        str(demo.APP_EXECUTABLE),
+                        "--portfolio-capture-presentation",
+                    ),
+                )
+                self.assertEqual(proof_process.wait_calls, 1)
+                self.assertEqual(
+                    wait_window.call_args.args[0], presentation_process.pid
+                )
+                self.assertNotEqual(wait_window.call_args.args[0], proof_process.pid)
+                self.assertEqual(validate_window.call_count, 2)
+                validate_window.assert_has_calls(
+                    (
+                        mock.call(
+                            presentation_window,
+                            expected_sha256="6" * 64,
+                            label="post-proof presentation window",
+                        ),
+                        mock.call(
+                            presentation_window,
+                            expected_sha256="6" * 64,
+                            label="post-proof presentation window before capture",
+                        ),
+                    )
+                )
+                recheck_window.assert_called_once()
+                terminate.assert_called_once_with(presentation_process)
+                require_regular.assert_called_once_with(
+                    demo.APP_EXECUTABLE,
+                    "post-proof presentation application executable before launch",
+                    executable=True,
+                )
 
                 state_lines = attempt.path.read_text(encoding="utf-8").splitlines()
                 events = [json.loads(line) for line in state_lines]
@@ -513,10 +544,10 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                     [event["event"] for event in events],
                     [
                         "ATTEMPT_STARTED",
-                        "LIVE_SURFACE_READY",
                         "PROOF_INVOKED",
                         "PROOF_TERMINAL",
                         "REPLAY_VERIFIED",
+                        "POST_PROOF_PRESENTATION_SURFACE_READY",
                     ],
                 )
                 terminal = next(
@@ -531,7 +562,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             finally:
                 attempt.close()
 
-    def test_live_surface_must_bind_before_the_only_proof_invocation(self):
+    def test_post_proof_surface_failure_occurs_after_verified_one_proof(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve(strict=True)
             configuration = self._configuration(root)
@@ -547,13 +578,33 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 "c" * 64,
             )
             source = demo.SourceIdentity(configuration.tag, "1" * 40, "2" * 40)
-            live_process = FakeProcess(pid=5151)
+            proof = demo.ProofIdentity(
+                run_directory=root / "run",
+                identifier="12345678-1234-4234-8234-123456789abc",
+                challenge_sha256="3" * 64,
+                receipt_sha256="4" * 64,
+                result_sha256="5" * 64,
+                application_executable_sha256="6" * 64,
+                metric_verdict="PASS",
+                terminal_outcome="END-TO-END PROOF PASS",
+                compression_ratio_vs_bf16="2.052384",
+                delta_nll_nat_per_token="-0.000008",
+                top1_agreement="0.995117",
+            )
+            proof_process = FakeProcess(pid=4242)
+            presentation_process = FakeProcess(pid=5151)
             attempt = demo.AttemptLog.reserve(configuration.home, configuration.tag)
             try:
                 with mock.patch.object(
-                    demo.subprocess, "Popen", return_value=live_process
+                    demo.subprocess,
+                    "Popen",
+                    side_effect=(proof_process, presentation_process),
                 ) as popen, mock.patch.object(
                     demo, "_snapshot_runs", return_value=set()
+                ), mock.patch.object(
+                    demo, "_new_run_directory", return_value=proof.run_directory
+                ), mock.patch.object(
+                    demo, "_inspect_proof", return_value=proof
                 ), mock.patch.object(
                     demo,
                     "_wait_for_window",
@@ -561,6 +612,8 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 ) as wait_window, mock.patch.object(
                     demo, "_terminate_process"
                 ) as terminate, mock.patch.object(
+                    demo, "_require_regular"
+                ) as require_regular, mock.patch.object(
                     demo, "_sha256_path", return_value="6" * 64
                 ):
                     with self.assertRaisesRegex(
@@ -569,17 +622,76 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                         demo._execute_reserved_attempt(
                             configuration, source, prepared, attempt
                         )
-                self.assertEqual(popen.call_count, 1)
-                self.assertEqual(popen.call_args.args[0], demo._live_presentation_argv())
-                self.assertEqual(wait_window.call_args.args[0], live_process.pid)
-                terminate.assert_called_once_with(live_process)
+                self.assertEqual(popen.call_count, 2)
+                proof_call, presentation_call = popen.call_args_list
+                self.assertEqual(proof_call.args[0], demo._proof_argv())
+                self.assertEqual(
+                    presentation_call.args[0],
+                    demo._post_proof_presentation_argv(),
+                )
+                self.assertEqual(proof_process.wait_calls, 1)
+                self.assertEqual(
+                    wait_window.call_args.args[0], presentation_process.pid
+                )
+                terminate.assert_called_once_with(presentation_process)
+                require_regular.assert_called_once_with(
+                    demo.APP_EXECUTABLE,
+                    "post-proof presentation application executable before launch",
+                    executable=True,
+                )
                 events = [
                     json.loads(line)["event"]
                     for line in attempt.path.read_text(encoding="utf-8").splitlines()
                 ]
-                self.assertEqual(events, ["ATTEMPT_STARTED"])
+                self.assertEqual(
+                    events,
+                    [
+                        "ATTEMPT_STARTED",
+                        "PROOF_INVOKED",
+                        "PROOF_TERMINAL",
+                        "REPLAY_VERIFIED",
+                    ],
+                )
             finally:
                 attempt.close()
+
+    def test_proof_application_hash_is_required_before_presentation_and_result(self):
+        proof = demo.ProofIdentity(
+            run_directory=Path("/private/run"),
+            identifier="12345678-1234-4234-8234-123456789abc",
+            challenge_sha256="3" * 64,
+            receipt_sha256="4" * 64,
+            result_sha256="5" * 64,
+            application_executable_sha256="6" * 64,
+            metric_verdict="PASS",
+            terminal_outcome="END-TO-END PROOF PASS",
+            compression_ratio_vs_bf16="2.052384",
+            delta_nll_nat_per_token="-0.000008",
+            top1_agreement="0.995117",
+        )
+        with mock.patch.object(demo, "_require_regular") as require, mock.patch.object(
+            demo, "_sha256_path", return_value="6" * 64
+        ):
+            demo._validate_proof_application_executable(
+                proof,
+                label="post-proof presentation application executable before launch",
+            )
+        require.assert_called_once_with(
+            demo.APP_EXECUTABLE,
+            "post-proof presentation application executable before launch",
+            executable=True,
+        )
+
+        with mock.patch.object(demo, "_require_regular"), mock.patch.object(
+            demo, "_sha256_path", return_value="7" * 64
+        ), self.assertRaisesRegex(
+            demo.AutomatedDemoError,
+            "differs from the verified proof app",
+        ):
+            demo._validate_proof_application_executable(
+                proof,
+                label="pre-result application executable",
+            )
 
     def test_permission_window_or_capture_failure_precedes_marker_and_proof(self):
         for failure in (
@@ -791,6 +903,8 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 with mock.patch.object(
                     demo.subprocess, "Popen", return_value=process
                 ) as popen, mock.patch.object(
+                    demo, "_validate_proof_application_executable"
+                ) as validate_proof_app, mock.patch.object(
                     demo, "_wait_for_window", return_value=window
                 ), mock.patch.object(
                     demo, "_validate_window_executable"
@@ -821,6 +935,10 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                         configuration, helper, proof, attempt
                     )
                 self.assertEqual(observed, (segment, readiness.sha256))
+                validate_proof_app.assert_called_once_with(
+                    proof,
+                    label="pre-result application executable",
+                )
                 readiness_path = configuration.output / "result-readiness.json"
                 self.assertEqual(
                     popen.call_args.args[0],
@@ -853,7 +971,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
     def test_screencapture_targets_only_exact_window_id_for_fixed_duration(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve(strict=True)
-            destination = root / "live-presentation.mov"
+            destination = root / "post-proof-presentation.mov"
             observed = []
 
             def fake_run(arguments, **_kwargs):
@@ -875,10 +993,12 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 return_value=(1280, 720, 12.0, 360, "a" * 64),
             ):
                 segment = demo._capture_segment(
-                    role="live_presentation",
+                    role="post_proof_presentation",
                     window=window,
                     destination=destination,
-                    duration=demo.automated_media.LIVE_SEGMENT_SECONDS,
+                    duration=(
+                        demo.automated_media.POST_PROOF_PRESENTATION_SEGMENT_SECONDS
+                    ),
                     ffprobe=Path("/fixture/ffprobe"),
                 )
             self.assertEqual(
@@ -895,7 +1015,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                     )
                 ],
             )
-            self.assertEqual(segment.role, "live_presentation")
+            self.assertEqual(segment.role, "post_proof_presentation")
             self.assertEqual(segment.duration_seconds, 12.0)
             self.assertRegex(segment.sha256, r"^[0-9a-f]{64}$")
 
@@ -1045,7 +1165,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             ),
         )
 
-        source = demo.SourceIdentity("corelm-portfolio-v6", "1" * 40, "2" * 40)
+        source = demo.SourceIdentity("corelm-portfolio-v7", "1" * 40, "2" * 40)
         proof = demo.ProofIdentity(
             Path("/private/run"),
             "12345678-1234-4234-8234-123456789abc",
@@ -1059,8 +1179,8 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             "-0.000008",
             "0.995117",
         )
-        live = demo.CaptureSegment(
-            "live_presentation", 10, 11, 1280, 720, 12.0, "7" * 64,
+        presentation = demo.CaptureSegment(
+            "post_proof_presentation", 10, 11, 1280, 720, 12.0, "7" * 64,
             requested_duration_seconds=12.0, frame_count=360, pts_sha256="7" * 64,
         )
         result = demo.CaptureSegment(
@@ -1103,7 +1223,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             source=source,
             proof=proof,
             preflight=preflight,
-            live=live,
+            presentation=presentation,
             result=result,
             tools=tools,
             media=media,

@@ -84,8 +84,9 @@ does not turn that claim into a general model-compression result.
     release metadata, manifests, checksums, and current evidence. Private keys,
     tokens, credential-like bytes, model weights, and new author-local paths
     remain release blockers.
-17. V6 demo pixels are an automatically captured product presentation, not
-    metric evidence or independent review. Single-window isolation, a
+17. `corelm-portfolio-v7` demo pixels are an automatically captured product
+    presentation, not metric evidence or independent review. Single-window
+    isolation, a
     capture-safe allowlisted view, metadata/byte scans, fixed-frame replay, and
     decoded-frame hashes are checked automatically, but semantic pixel privacy
     is explicitly not claimed. G10 remains open until a non-author, non-agent
@@ -94,8 +95,8 @@ does not turn that claim into a general model-compression result.
     model run. Its automation stopped in pre-model FFprobe frame-PTS field
     validation before the durable attempt marker was reserved, so no V4 model
     attempt was consumed. Its tag and first-attempt CI are never moved, rerun,
-    or relabelled as V6. The earlier V3 tag-push assertion failure remains
-    immutable as well.
+    or relabelled as a later candidate. The earlier V3 tag-push assertion
+    failure remains immutable as well.
 19. `corelm-portfolio-v5` is another preserved pre-model failure. Its first
     tag-push Linux/macOS CI passed. An anonymous API HTTP 403 stopped the first
     local contour before the marker and was safely retryable. After reset, the
@@ -103,7 +104,15 @@ does not turn that claim into a general model-compression result.
     IDs above the receipt validator's old signed 32-bit ceiling. This also
     happened before `AttemptLog.reserve`; no V5 model attempt was invoked or
     consumed. The V5 tag and first-attempt CI are never moved, rerun, reused,
-    or relabelled as V6.
+    or relabelled as a later candidate.
+20. `corelm-portfolio-v6` passed its signed first-attempt tag CI and produced
+    one honest scientific proof PASS: 2.052384x compression, delta NLL
+    -0.00000846, 99.5117% top-1 agreement, and a 1,024/1,024-decision heavy
+    replay with zero maximum loss error. Its durable automation state then ended
+    `ATTEMPT_FAILED` after `REPLAY_VERIFIED` because the preflight-built
+    explanatory-window executable differed from the proof-rebuilt verified app.
+    This happened before same-run result capture, media sealing, or collection.
+    V6 is never rerun, moved, reused, or relabelled as V7.
 
 The detailed versioned research record is preserved under `docs/development/`
 and in immutable publication tags.

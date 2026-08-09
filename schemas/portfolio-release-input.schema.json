@@ -102,7 +102,7 @@
         "independent_human_replication"
       ],
       "properties": {
-        "automation_contract": {"const": "corelm-automated-presentation-v1"},
+        "automation_contract": {"const": "corelm-automated-presentation-v2"},
         "classification": {"const": "AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE"},
         "automation_only": {"const": true},
         "human_reviewed": {"const": false},

@@ -527,7 +527,7 @@ def _raw_segment_identity(
 
 def _composition_argv(
     ffmpeg: Path,
-    live: Path,
+    post_proof_presentation: Path,
     result: Path,
     video: Path,
 ) -> tuple[str, ...]:
@@ -538,18 +538,21 @@ def _composition_argv(
         f"pad={automated_media.OUTPUT_WIDTH}:{automated_media.OUTPUT_HEIGHT}:"
         "(ow-iw)/2:(oh-ih)/2:color=0x111318,setsar=1"
     )
-    live_seconds = automated_media.LIVE_SEGMENT_SECONDS
+    presentation_seconds = (
+        automated_media.POST_PROOF_PRESENTATION_SEGMENT_SECONDS
+    )
     result_seconds = automated_media.RESULT_SEGMENT_SECONDS
     filter_value = (
-        f"[0:v]{common},tpad=stop_mode=clone:stop_duration={live_seconds:g},"
-        f"trim=duration={live_seconds:g},setpts=PTS-STARTPTS[live];"
+        f"[0:v]{common},tpad=stop_mode=clone:stop_duration={presentation_seconds:g},"
+        f"trim=duration={presentation_seconds:g},setpts=PTS-STARTPTS[presentation];"
         f"[1:v]{common},tpad=stop_mode=clone:stop_duration={result_seconds:g},"
         f"trim=duration={result_seconds:g},setpts=PTS-STARTPTS[result];"
-        "[live][result]concat=n=2:v=1:a=0[outv]"
+        "[presentation][result]concat=n=2:v=1:a=0[outv]"
     )
     return (
         str(ffmpeg), "-nostdin", "-hide_banner", "-loglevel", "error",
-        "-i", str(live), "-i", str(result), "-filter_complex", filter_value,
+        "-i", str(post_proof_presentation), "-i", str(result),
+        "-filter_complex", filter_value,
         "-map", "[outv]", "-an", "-c:v", "h264_videotoolbox", "-b:v", "8M",
         "-pix_fmt", "yuv420p", "-r", str(automated_media.OUTPUT_FRAME_RATE),
         "-fflags", "+bitexact", "-flags:v", "+bitexact", "-map_metadata", "-1",
@@ -562,7 +565,7 @@ def _composition_argv(
 
 def _verify_composition_from_raw(
     *,
-    live: Path,
+    post_proof_presentation: Path,
     result: Path,
     video: Path,
     poster: Path,
@@ -572,7 +575,9 @@ def _verify_composition_from_raw(
         root = Path(temporary).resolve(strict=True)
         replay_video = root / "recomposed.mp4"
         completed = portfolio._run(
-            _composition_argv(ffmpeg, live, result, replay_video),
+            _composition_argv(
+                ffmpeg, post_proof_presentation, result, replay_video
+            ),
             cwd=root,
             timeout=300,
         )
@@ -1201,10 +1206,10 @@ def _collect_snapshot(
             portfolio.MAX_VIDEO_BYTES,
             "preflight raw segment",
         )
-        source_live = _canonical_regular_input(
-            arguments.live_segment,
+        source_post_proof_presentation = _canonical_regular_input(
+            arguments.post_proof_presentation_segment,
             portfolio.MAX_VIDEO_BYTES,
-            "live raw segment",
+            "post-proof presentation raw segment",
         )
         source_result_segment = _canonical_regular_input(
             arguments.result_segment,
@@ -1260,7 +1265,7 @@ def _collect_snapshot(
         readiness_path = staging / "result-readiness.json"
         attempt_state_path = staging / "attempt-state.jsonl"
         preflight_path = staging / "preflight-window.mov"
-        live_path = staging / "live-presentation.mov"
+        post_proof_presentation_path = staging / "post-proof-presentation.mov"
         result_segment_path = staging / "same-run-result.mov"
         helper_path = staging / "find-proof-window"
         tag_ci_path = staging / "tag-ci-receipt.json"
@@ -1282,7 +1287,11 @@ def _collect_snapshot(
         _copy_private_regular(
             source_preflight, preflight_path, portfolio.MAX_VIDEO_BYTES
         )
-        _copy_private_regular(source_live, live_path, portfolio.MAX_VIDEO_BYTES)
+        _copy_private_regular(
+            source_post_proof_presentation,
+            post_proof_presentation_path,
+            portfolio.MAX_VIDEO_BYTES,
+        )
         _copy_private_regular(
             source_result_segment, result_segment_path, portfolio.MAX_VIDEO_BYTES
         )
@@ -1302,6 +1311,8 @@ def _collect_snapshot(
         video_identity, ffprobe_version = _probe_video(video, arguments.ffprobe)
         poster_width, poster_height = portfolio._png_dimensions(poster)
         automation_report = automated_media.read_canonical_report(automation_path)
+        if automation_report.get("schema_version") != automated_media.SCHEMA_VERSION:
+            raise CollectionError("automation receipt schema is not exact")
         readiness = automated_media.read_canonical_readiness(readiness_path)
         receipt_sha256 = portfolio._sha256(receipt_path)
         result_sha256 = portfolio._sha256(result_path)
@@ -1361,7 +1372,9 @@ def _collect_snapshot(
                         local_tag_trust_path
                     ),
                     "preflight_segment_sha256": portfolio._sha256(preflight_path),
-                    "live_segment_sha256": portfolio._sha256(live_path),
+                    "post_proof_presentation_segment_sha256": portfolio._sha256(
+                        post_proof_presentation_path
+                    ),
                     "result_segment_sha256": portfolio._sha256(result_segment_path),
                     "window_helper_sha256": portfolio._sha256(helper_path),
                 },
@@ -1417,7 +1430,11 @@ def _collect_snapshot(
         }:
             raise CollectionError("automation receipt media tool identity changed")
         _verify_poster_from_video(video, poster, ffmpeg)
-        raw_paths = (preflight_path, live_path, result_segment_path)
+        raw_paths = (
+            preflight_path,
+            post_proof_presentation_path,
+            result_segment_path,
+        )
         raw_records = (
             automation_report["capture"]["preflight_segment"],
             *automation_report["capture"]["segments"],
@@ -1451,13 +1468,19 @@ def _collect_snapshot(
         ] != portfolio._sha256(local_tag_trust_path):
             raise CollectionError("local tag trust receipt bytes changed")
         try:
-            automated_media.read_canonical_attempt_state(
+            attempt_events = automated_media.read_canonical_attempt_state(
                 attempt_state_path, report=automation_report
             )
         except automated_media.AutomatedMediaError as error:
             raise CollectionError("attempt-state snapshot is not report-bound") from error
+        if any(
+            event.get("schema_version")
+            != automated_media.ATTEMPT_STATE_SCHEMA_VERSION
+            for event in attempt_events
+        ):
+            raise CollectionError("attempt-state schema is not exact")
         _verify_composition_from_raw(
-            live=live_path,
+            post_proof_presentation=post_proof_presentation_path,
             result=result_segment_path,
             video=video,
             poster=poster,
@@ -1466,7 +1489,7 @@ def _collect_snapshot(
         for retained_session_asset in (
             attempt_state_path,
             preflight_path,
-            live_path,
+            post_proof_presentation_path,
             result_segment_path,
             helper_path,
             tag_ci_path,
@@ -1524,7 +1547,7 @@ def _collect_snapshot(
             "reports/local-tag-trust-receipt.json": local_tag_trust_path,
             "session/attempt-state.jsonl": attempt_state_path,
             "session/preflight-window.mov": preflight_path,
-            "session/live-presentation.mov": live_path,
+            "session/post-proof-presentation.mov": post_proof_presentation_path,
             "session/same-run-result.mov": result_segment_path,
             "session/find-proof-window": helper_path,
             "logs/terminal.log": terminal,
@@ -1742,7 +1765,9 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--result-readiness", type=Path, required=True)
     parser.add_argument("--attempt-state", type=Path, required=True)
     parser.add_argument("--preflight-segment", type=Path, required=True)
-    parser.add_argument("--live-segment", type=Path, required=True)
+    parser.add_argument(
+        "--post-proof-presentation-segment", type=Path, required=True
+    )
     parser.add_argument("--result-segment", type=Path, required=True)
     parser.add_argument("--window-helper", type=Path, required=True)
     parser.add_argument("--tag-ci-receipt", type=Path, required=True)

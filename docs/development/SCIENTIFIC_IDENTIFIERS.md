@@ -20,8 +20,8 @@ documentation.
 | Beacon freeze tag | `corelm-beacon-heldout-v1` | Public pre-reveal protocol anchor |
 | Beacon artifacts | `corelm-beacon-attempt-v1`, `corelm-beacon-resolution-v1`, `corelm-beacon-outcome-v1` | Irreversible state and result compatibility |
 | Publication tag | `voidtoken-v5-paper-v5` | Immutable archive provenance |
-| Portfolio software tag | `corelm-portfolio-v6` | Automation-only engineering release identity; signing and public status are verified separately |
-| Automated presentation contract | `corelm-automated-presentation-v1` | Deterministic single-window capture, assembly, and validation with no required human acceptance step |
+| Portfolio software tag | `corelm-portfolio-v7` | Automation-only engineering release identity; signing and public status are verified separately |
+| Automated presentation contract | `corelm-automated-presentation-v2` | Deterministic post-proof explanatory and exact-result capture, assembly, and validation with no required human acceptance step |
 | Portfolio media classification | `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE` | Author-controlled presentation bytes; scientific evidence remains the receipt, result, retained containers, and replay reports |
 | Bundle metadata | `CFBundleShortVersionString`, `CFBundleVersion` | macOS identity and receipt field |
 | Dependency versions | Python, Swift, Torch, Transformers, NumPy | Runtime reproducibility |
@@ -34,7 +34,7 @@ The upstream model identifier `Qwen/Qwen2.5-0.5B` must also remain visible. It
 identifies the exact model family being measured and is not application
 branding.
 
-The V6 automation contour does not close independent-replication gate G10.
+The V7 automation contour does not close independent-replication gate G10.
 That gate remains **OPEN** until a non-author, non-agent person completes and
 publishes the specified clean-clone replication. Automated capture and
 verification remove a required human acceptance step from media production;
@@ -58,7 +58,17 @@ the rate limit reset, the normative contour fetched the exact responses but
 the tag-CI receipt validator rejected GitHub run/job identifiers above its old
 signed 32-bit ceiling. That rejection preceded `AttemptLog.reserve`; no V5
 model attempt was invoked or consumed. V5 is never rerun, moved, reused, or
-relabelled as V6. The current portfolio software identity is the distinct V6
+relabelled as a later candidate.
+
+`corelm-portfolio-v6` is the next immutable historical failed candidate. Its
+signed tag and first-attempt tag CI passed. Its one scientific proof honestly
+passed at 2.052384x compression, delta NLL -0.00000846, and 99.5117% top-1
+agreement; the heavy replay matched all 1,024 decisions with zero maximum loss
+error. The durable automation state then ended `ATTEMPT_FAILED` after
+`REPLAY_VERIFIED` because the preflight-built explanatory-window executable
+differed from the proof-rebuilt verified app. Same-run result capture,
+media sealing, and collection never occurred. V6 is never rerun, moved, reused,
+or relabelled as V7. The current portfolio software identity is the distinct V7
 tag shown in the table.
 
 ## User-facing rule

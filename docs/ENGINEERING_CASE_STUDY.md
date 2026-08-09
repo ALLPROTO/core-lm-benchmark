@@ -110,16 +110,18 @@ orchestrator in
 does not print end-to-end PASS until the app, structural verifier, and heavy
 model replay have all returned successfully.
 
-The V6 presentation contour is also automation-only: it discovers and records
-only the exact application window, reopens the exact retained run, derives the
-poster at a fixed timestamp, and emits a canonical receipt binding the media to
-the tag, source tree, challenge, result, evidence, and tool hashes. That receipt
+The `corelm-portfolio-v7` `corelm-automated-presentation-v2` contour is also
+automation-only: after proof and replay it records a fixed model-free
+explanatory overview from the exact verified proof app, reopens the exact
+retained run, derives the poster at a fixed timestamp,
+and emits a canonical receipt binding the media to the tag, source tree,
+challenge, result, evidence, and tool hashes. That receipt
 classifies the pixels as `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`; metric
 support remains in signed result/evidence bytes and the heavy replay. The
 capture-safe view and metadata scans reduce disclosure risk but do not prove
 that no private glyph exists.
 
-This V6 contour does not rewrite the failed V4 candidate. V4 stopped during
+This V7 contour does not rewrite the failed V4 candidate. V4 stopped during
 pre-model tool admission when its FFprobe frame-PTS field validator rejected
 n8.1.2's `duration_time`/SEI output grammar, before the durable attempt marker
 and before any model invocation; no V4 model attempt was consumed. V5 then
@@ -127,9 +129,16 @@ passed first-attempt tag CI. Its first local contour received an anonymous API
 HTTP 403 pre-marker and was safely retryable; after reset, its normative
 contour rejected the real GitHub run/job IDs above `2^31` in the tag-CI receipt
 validator, again before `AttemptLog.reserve` and without invoking a model. The
-V4 and V5 tags and first-attempt CI records stay historical and are never
-moved, rerun, or relabelled as V6. The earlier V3 tag-push assertion failure
-remains immutable for the same record-preservation reason.
+V4 and V5 tags and first-attempt CI records stay historical. The signed
+`corelm-portfolio-v6` candidate passed first-attempt tag CI, then produced one
+honest scientific proof PASS:
+2.052384x compression, delta NLL -0.00000846, 99.5117% top-1 agreement, and a
+1,024/1,024-decision heavy replay with zero maximum loss error. Its durable
+state ended `ATTEMPT_FAILED` after `REPLAY_VERIFIED` because the preflight-built
+explanatory-window executable differed from the proof-rebuilt verified app,
+before same-run result capture, media sealing, or collection. V3 through V6 are
+never moved, rerun, or relabelled as V7. The earlier V3 tag-push assertion
+failure remains immutable for the same record-preservation reason.
 
 This is **implementation/process separation**, not independent scientific
 review. The project is currently author-operated and

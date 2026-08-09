@@ -91,7 +91,7 @@
         "video_sha256": {"$ref": "#/$defs/sha256"},
         "workload_classification": {"const": "AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION"},
         "media_classification": {"const": "AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE"},
-        "automation_contract": {"const": "corelm-automated-presentation-v1"},
+        "automation_contract": {"const": "corelm-automated-presentation-v2"},
         "automation_only": {"const": true},
         "human_reviewed": {"const": false},
         "manual_edits": {"const": false},

@@ -131,7 +131,10 @@ OUTPUT_WIDTH = 1280
 OUTPUT_HEIGHT = 720
 OUTPUT_FRAME_RATE = 30
 EXPECTED_FRAME_COUNT = int(
-    (automated_media.LIVE_SEGMENT_SECONDS + automated_media.RESULT_SEGMENT_SECONDS)
+    (
+        automated_media.POST_PROOF_PRESENTATION_SEGMENT_SECONDS
+        + automated_media.RESULT_SEGMENT_SECONDS
+    )
     * OUTPUT_FRAME_RATE
 )
 RESULT_WINDOW_WAIT_SECONDS = 30
@@ -377,8 +380,8 @@ def _resolve_tool(path: Path, label: str) -> Path:
 
 def _validate_configuration(arguments: argparse.Namespace) -> Configuration:
     match = TAG_PATTERN.fullmatch(arguments.tag)
-    if match is None or arguments.tag != "corelm-portfolio-v6":
-        raise AutomatedDemoError("tag must be exact corelm-portfolio-v6")
+    if match is None or arguments.tag != "corelm-portfolio-v7":
+        raise AutomatedDemoError("tag must be exact corelm-portfolio-v7")
     if os.environ.get("CORELM_OFFLINE") != "1":
         raise AutomatedDemoError("CORELM_OFFLINE=1 is mandatory")
     wheelhouse_value = os.environ.get("CORELM_WHEELHOUSE", "")
@@ -931,7 +934,7 @@ class AttemptLog:
             {
                 "event": event,
                 "proof_invocation_count": self.proof_invocation_count,
-                "schema_version": 1,
+                "schema_version": automated_media.ATTEMPT_STATE_SCHEMA_VERSION,
                 "tag": self.tag,
                 **values,
             }
@@ -1056,8 +1059,8 @@ def _proof_argv() -> tuple[str, ...]:
     return (str(ROOT / "corelm"), "macos", "proof")
 
 
-def _live_presentation_argv() -> tuple[str, ...]:
-    return (str(APP_EXECUTABLE), "--portfolio-capture-live")
+def _post_proof_presentation_argv() -> tuple[str, ...]:
+    return (str(APP_EXECUTABLE), "--portfolio-capture-presentation")
 
 
 def _parse_window(raw: bytes, expected_pid: int) -> WindowIdentity:
@@ -1180,16 +1183,27 @@ def _validate_window_executable(
         raise AutomatedDemoError(f"{label} executable differs from the proof app")
 
 
+def _validate_proof_application_executable(
+    proof: ProofIdentity,
+    *,
+    label: str,
+) -> None:
+    _require_regular(APP_EXECUTABLE, label, executable=True)
+    if _sha256_path(APP_EXECUTABLE) != proof.application_executable_sha256:
+        raise AutomatedDemoError(f"{label} differs from the verified proof app")
+
+
 def _recheck_window(
     helper: Path,
     expected: WindowIdentity,
     home: Path,
     *,
     label: str,
-) -> None:
+) -> WindowIdentity:
     observed = _window_for_pid(helper, expected.pid, home)
     if observed != expected:
         raise AutomatedDemoError(f"{label} changed before exact-window capture")
+    return observed
 
 
 def _probe_segment(
@@ -1643,6 +1657,10 @@ def _launch_result_capture(
     proof: ProofIdentity,
     attempt: AttemptLog,
 ) -> tuple[CaptureSegment, str]:
+    _validate_proof_application_executable(
+        proof,
+        label="pre-result application executable",
+    )
     log_path = configuration.output / "result-ui.log"
     readiness_path = configuration.output / "result-readiness.json"
     if readiness_path.exists() or readiness_path.is_symlink():
@@ -1725,7 +1743,7 @@ def _launch_result_capture(
 
 
 def _fixed_filter() -> str:
-    live = automated_media.LIVE_SEGMENT_SECONDS
+    presentation = automated_media.POST_PROOF_PRESENTATION_SEGMENT_SECONDS
     result = automated_media.RESULT_SEGMENT_SECONDS
     common = (
         f"fps={OUTPUT_FRAME_RATE},"
@@ -1734,11 +1752,11 @@ def _fixed_filter() -> str:
         "setsar=1"
     )
     return (
-        f"[0:v]{common},tpad=stop_mode=clone:stop_duration={live:g},"
-        f"trim=duration={live:g},setpts=PTS-STARTPTS[live];"
+        f"[0:v]{common},tpad=stop_mode=clone:stop_duration={presentation:g},"
+        f"trim=duration={presentation:g},setpts=PTS-STARTPTS[presentation];"
         f"[1:v]{common},tpad=stop_mode=clone:stop_duration={result:g},"
         f"trim=duration={result:g},setpts=PTS-STARTPTS[result];"
-        "[live][result]concat=n=2:v=1:a=0[outv]"
+        "[presentation][result]concat=n=2:v=1:a=0[outv]"
     )
 
 
@@ -1967,7 +1985,7 @@ def _poster_argv(ffmpeg: Path, video: Path, poster: Path) -> tuple[str, ...]:
 
 def _composition_argv(
     ffmpeg: Path,
-    live: Path,
+    presentation: Path,
     result: Path,
     video: Path,
 ) -> tuple[str, ...]:
@@ -1978,7 +1996,7 @@ def _composition_argv(
         "-loglevel",
         "error",
         "-i",
-        str(live),
+        str(presentation),
         "-i",
         str(result),
         "-filter_complex",
@@ -2023,7 +2041,7 @@ def _composition_argv(
 
 
 def _assemble_media(configuration: Configuration) -> MediaIdentity:
-    live = configuration.output / "live-presentation.mov"
+    presentation = configuration.output / "post-proof-presentation.mov"
     result = configuration.output / "same-run-result.mov"
     video = configuration.output / f"{configuration.tag}-demo.mp4"
     poster = configuration.output / f"{configuration.tag}-demo-poster.png"
@@ -2031,7 +2049,7 @@ def _assemble_media(configuration: Configuration) -> MediaIdentity:
         if target.exists() or target.is_symlink():
             raise AutomatedDemoError("final media target already exists")
     composition = _run(
-        _composition_argv(configuration.ffmpeg, live, result, video),
+        _composition_argv(configuration.ffmpeg, presentation, result, video),
         cwd=configuration.output,
         timeout=300,
     )
@@ -2072,7 +2090,7 @@ def _build_report(
     source: SourceIdentity,
     proof: ProofIdentity,
     preflight: CaptureSegment,
-    live: CaptureSegment,
+    presentation: CaptureSegment,
     result: CaptureSegment,
     tools: dict[str, Any],
     media: MediaIdentity,
@@ -2115,7 +2133,7 @@ def _build_report(
             "bundle_identifier": automated_media.BUNDLE_IDENTIFIER,
             "result_readiness_sha256": result_readiness_sha256,
             "preflight_segment": preflight.report(),
-            "segments": [live.report(), result.report()],
+            "segments": [presentation.report(), result.report()],
         },
         "tools": tools,
         "output": {
@@ -2163,122 +2181,40 @@ def _execute_reserved_attempt(
         raise AutomatedDemoError("verified local tag trust identity is unavailable")
     before = _snapshot_runs(configuration.home)
     challenge = os.urandom(32).hex()
-    live_log_path = configuration.output / "live-presentation-ui.log"
-    descriptor = os.open(
-        live_log_path,
-        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0),
+    proof_log_path = configuration.output / "proof-driver.log"
+    proof_descriptor = os.open(
+        proof_log_path,
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_EXCL
+        | getattr(os, "O_CLOEXEC", 0),
         0o600,
     )
-    live_log = os.fdopen(descriptor, "wb", closefd=True)
-    live_process: subprocess.Popen[Any] | None = None
+    proof_log = os.fdopen(proof_descriptor, "wb", closefd=True)
     proof_process: subprocess.Popen[Any] | None = None
-    live: CaptureSegment | None = None
-    capture_error: Exception | None = None
-    live_executable_sha256: str | None = None
     try:
-        expected_live_sha256 = _sha256_path(APP_EXECUTABLE)
-        live_process = subprocess.Popen(
-            _live_presentation_argv(),
+        attempt.append(
+            "PROOF_INVOKED",
+            proof_invocation_count=1,
+            challenge_sha256=automated_media.challenge_sha256(challenge),
+        )
+        proof_process = subprocess.Popen(
+            _proof_argv(),
             cwd=ROOT,
-            env=_safe_environment(configuration.home),
-            stdout=live_log,
+            env=_proof_environment(configuration, challenge),
+            stdout=proof_log,
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
-        window = _wait_for_window(
-            live_process.pid,
-            prepared.helper,
-            configuration.home,
-            timeout=RESULT_WINDOW_WAIT_SECONDS,
-        )
-        _validate_window_executable(
-            window,
-            expected_sha256=expected_live_sha256,
-            label="live presentation window",
-        )
-        _recheck_window(
-            prepared.helper,
-            window,
-            configuration.home,
-            label="live presentation window",
-        )
-        live_executable_sha256 = window.executable_sha256
-        if live_executable_sha256 is None:
-            raise AutomatedDemoError(
-                "live presentation executable identity is unavailable"
-            )
-        attempt.append(
-            "LIVE_SURFACE_READY",
-            proof_invocation_count=0,
-            executable_sha256=live_executable_sha256,
-            owner_pid=window.pid,
-            window_id=window.window_id,
-        )
-
-        proof_log_path = configuration.output / "proof-driver.log"
-        proof_descriptor = os.open(
-            proof_log_path,
-            os.O_WRONLY
-            | os.O_CREAT
-            | os.O_EXCL
-            | getattr(os, "O_CLOEXEC", 0),
-            0o600,
-        )
-        proof_log = os.fdopen(proof_descriptor, "wb", closefd=True)
         try:
-            attempt.append(
-                "PROOF_INVOKED",
-                proof_invocation_count=1,
-                challenge_sha256=automated_media.challenge_sha256(challenge),
-            )
-            proof_process = subprocess.Popen(
-                _proof_argv(),
-                cwd=ROOT,
-                env=_proof_environment(configuration, challenge),
-                stdout=proof_log,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-            )
-            try:
-                _recheck_window(
-                    prepared.helper,
-                    window,
-                    configuration.home,
-                    label="live presentation window before capture",
-                )
-                live = _capture_segment(
-                    role="live_presentation",
-                    window=window,
-                    destination=configuration.output / "live-presentation.mov",
-                    duration=automated_media.LIVE_SEGMENT_SECONDS,
-                    ffprobe=configuration.ffprobe,
-                )
-                _recheck_window(
-                    prepared.helper,
-                    window,
-                    configuration.home,
-                    label="live presentation window after capture",
-                )
-                attempt.append(
-                    "LIVE_CAPTURED",
-                    segment_sha256=live.sha256,
-                    window_id=live.window_id,
-                )
-            except Exception as error:  # preserve the proof's first terminal state
-                capture_error = error
-            try:
-                proof_status = proof_process.wait(timeout=PROOF_WAIT_SECONDS)
-            except subprocess.TimeoutExpired as error:
-                _terminate_process(proof_process)
-                raise AutomatedDemoError(
-                    "the one proof invocation exceeded its hard timeout"
-                ) from error
-        finally:
-            proof_log.close()
+            proof_status = proof_process.wait(timeout=PROOF_WAIT_SECONDS)
+        except subprocess.TimeoutExpired as error:
+            _terminate_process(proof_process)
+            raise AutomatedDemoError(
+                "the one proof invocation exceeded its hard timeout"
+            ) from error
     finally:
-        if live_process is not None:
-            _terminate_process(live_process)
-        live_log.close()
+        proof_log.close()
 
     if proof_process is None:
         raise AutomatedDemoError("the one proof invocation was not started")
@@ -2297,16 +2233,91 @@ def _execute_reserved_attempt(
         replay_verdict=automated_media.REPLAY_VERDICT,
         run_identifier=proof.identifier,
     )
-    if live_executable_sha256 != proof.application_executable_sha256:
-        capture_error = capture_error or AutomatedDemoError(
-            "live presentation executable differs from the verified proof app"
+
+    _validate_proof_application_executable(
+        proof,
+        label="post-proof presentation application executable before launch",
+    )
+    presentation_log_path = configuration.output / "post-proof-presentation-ui.log"
+    descriptor = os.open(
+        presentation_log_path,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_CLOEXEC", 0),
+        0o600,
+    )
+    presentation_log = os.fdopen(descriptor, "wb", closefd=True)
+    presentation_process: subprocess.Popen[Any] | None = None
+    try:
+        presentation_process = subprocess.Popen(
+            _post_proof_presentation_argv(),
+            cwd=ROOT,
+            env=_safe_environment(configuration.home),
+            stdout=presentation_log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
         )
-    if capture_error is not None:
+        window = _wait_for_window(
+            presentation_process.pid,
+            prepared.helper,
+            configuration.home,
+            timeout=RESULT_WINDOW_WAIT_SECONDS,
+        )
+        _validate_window_executable(
+            window,
+            expected_sha256=proof.application_executable_sha256,
+            label="post-proof presentation window",
+        )
+        window = _recheck_window(
+            prepared.helper,
+            window,
+            configuration.home,
+            label="post-proof presentation window",
+        )
+        _validate_window_executable(
+            window,
+            expected_sha256=proof.application_executable_sha256,
+            label="post-proof presentation window before capture",
+        )
+        if window.executable_sha256 is None:
+            raise AutomatedDemoError(
+                "post-proof presentation executable identity is unavailable"
+            )
+        attempt.append(
+            "POST_PROOF_PRESENTATION_SURFACE_READY",
+            executable_sha256=window.executable_sha256,
+            owner_pid=window.pid,
+            window_id=window.window_id,
+        )
+        presentation = _capture_segment(
+            role="post_proof_presentation",
+            window=window,
+            destination=configuration.output / "post-proof-presentation.mov",
+            duration=automated_media.POST_PROOF_PRESENTATION_SEGMENT_SECONDS,
+            ffprobe=configuration.ffprobe,
+        )
+        window = _recheck_window(
+            prepared.helper,
+            window,
+            configuration.home,
+            label="post-proof presentation window after capture",
+        )
+        _validate_window_executable(
+            window,
+            expected_sha256=proof.application_executable_sha256,
+            label="post-proof presentation window after capture",
+        )
+        attempt.append(
+            "POST_PROOF_PRESENTATION_CAPTURED",
+            segment_sha256=presentation.sha256,
+            window_id=presentation.window_id,
+        )
+    except Exception as error:
         raise AutomatedDemoError(
-            f"live presentation capture failed after proof invocation: {capture_error}"
-        )
-    if live is None:
-        raise AutomatedDemoError("live presentation capture did not produce a segment")
+            f"post-proof presentation capture failed: {error}"
+        ) from error
+    finally:
+        if presentation_process is not None:
+            _terminate_process(presentation_process)
+        presentation_log.close()
 
     result, result_readiness_sha256 = _launch_result_capture(
         configuration,
@@ -2327,7 +2338,7 @@ def _execute_reserved_attempt(
         source=source,
         proof=proof,
         preflight=prepared.preflight_capture,
-        live=live,
+        presentation=presentation,
         result=result,
         tools=prepared.report,
         media=media,

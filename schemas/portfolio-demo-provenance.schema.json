@@ -97,7 +97,7 @@
       "properties": {
         "platform": {"const": "macOS"},
         "architecture": {"const": "arm64"},
-        "automation_contract": {"const": "corelm-automated-presentation-v1"},
+        "automation_contract": {"const": "corelm-automated-presentation-v2"},
         "mode": {"const": "MACOS_SINGLE_WINDOW_ID_V1"},
         "automation_only": {"const": true},
         "human_reviewed": {"const": false},

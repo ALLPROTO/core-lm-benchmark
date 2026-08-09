@@ -386,28 +386,36 @@ state, and hashes of included evidence files. It is descriptive metadata, not
 a replacement for Git history. The distribution-side `SHA256SUMS` verifies the
 v5 arXiv source archive, reproducibility archive, and rendered paper PDF.
 
-A default-branch preview carries the current `corelm-portfolio-v6` software
+A default-branch preview carries the current `corelm-portfolio-v7` software
 CFF/SBOM identity and records `UNRELEASED_PREVIEW`; it is not the historical
 paper-v5 release. Exact paper-v5 bytes must be built from the detached tag.
 
-The V6 portfolio's `corelm-automated-presentation-v1` path records and checks
-the single application window without a required human acceptance or manual
-edit. Its video and poster are explicitly
+The V7 portfolio's `corelm-automated-presentation-v2` path records and checks a
+post-proof model-free explanatory window plus the exact same-run result without
+a required human acceptance or manual edit. Its video and poster are explicitly
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`: they aid inspection but do not
 replace the receipt, result, raw containers, or replay reports, and pixel
 semantics are not claimed to be verified. Independent-replication gate G10
 remains **OPEN** until a non-author, non-agent person publishes a clean-clone
 replication.
 
-The current V6 identity does not replace the failed V3, V4, or V5 candidates.
+The current V7 identity does not replace the failed V3, V4, V5, or V6
+candidates.
 V3 remains at its first tag-push assertion failure. V4 remains at a pre-model
 FFprobe frame-PTS field-validation failure before `AttemptLog.reserve`; no V4
 model attempt was invoked or consumed. V5 passed first-attempt tag CI, then
 stopped pre-marker on a safely retryable anonymous API HTTP 403. After reset,
 its normative contour rejected real GitHub run/job IDs above `2^31` in the
 tag-CI receipt validator, still before `AttemptLog.reserve`; no V5 model
-attempt was invoked or consumed. Their tags and first-attempt records are
-never moved, rerun, or relabelled as V6.
+attempt was invoked or consumed. The signed `corelm-portfolio-v6` candidate
+passed first-attempt tag CI, and its one scientific proof honestly passed at
+2.052384x compression, delta NLL
+-0.00000846, 99.5117% top-1 agreement, and all 1,024 heavy-replay decisions
+with zero maximum loss error. Its durable state then ended `ATTEMPT_FAILED`
+after `REPLAY_VERIFIED` because the preflight-built explanatory-window
+executable differed from the proof-rebuilt verified app, before same-run result
+capture, media sealing, or collection. Their tags and first-attempt records are
+never moved, rerun, or relabelled as V7.
 
 To reproduce the already published `voidtoken-v5-paper-v5` package, maintainers
 use a full clean repository clone at that existing public tag. They do not

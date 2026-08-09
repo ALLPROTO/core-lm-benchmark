@@ -15,8 +15,8 @@ than inferred from this preservation policy.
 The existing publication snapshot uses `voidtoken-v5-paper-v5`. At that
 immutable tag, its CFF version, manuscript reference, SBOM component, archive
 provenance, and canonical asset names are synchronized. The current default
-branch instead uses the `corelm-portfolio-v6` software CFF/SBOM identity and
-the `corelm-automated-presentation-v1` automation contract.
+branch instead uses the `corelm-portfolio-v7` software CFF/SBOM identity and
+the `corelm-automated-presentation-v2` automation contract.
 Check GitHub's live
 `immutable` API field before making a platform-immutability statement; do not
 derive it from the project policy alone. Regardless of that field, do not
@@ -67,10 +67,10 @@ packager for the other.
    canonical receipt outside the same release; and
 6. never pass a portfolio tag to `publication/build_archives.py`.
 
-For V6, recording, deterministic poster extraction, media assembly, metadata
-checks, and evidence collection must complete through the tracked automation
-contract without a required human review or manual-edit acceptance step. Both
-media assets are classified
+For V7, post-proof recording, deterministic poster extraction, media assembly,
+metadata checks, and evidence collection must complete through the tracked
+automation contract without a required human review or manual-edit acceptance
+step. Both media assets are classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`; the machine evidence is the
 bound receipt, result, raw containers, logs, and verifier reports. The
 automation receipt must state `human_reviewed:false`, `manual_edits:false`,
@@ -100,9 +100,19 @@ After the rate limit reset, the normative contour fetched the exact public
 responses but rejected GitHub's real run/job IDs above `2^31` in the tag-CI
 receipt validator. This second failure also preceded `AttemptLog.reserve`; no
 V5 model attempt was invoked or consumed. Never rerun the V5 contour, move or
-replace its tag, or relabel its bytes as V6. V6 corrects the bounded identifier
-contract and requires its own signed commit, tag, first-attempt tag CI, and
-proof.
+replace its tag, or relabel its bytes as a later candidate.
+
+The signed annotated `corelm-portfolio-v6` tag is a fourth preserved failed
+release candidate. Its signed first-attempt tag CI passed, and its one
+scientific proof honestly passed at 2.052384x compression, delta NLL
+-0.00000846, 99.5117% top-1 agreement, and 1,024/1,024 heavy-replay decisions
+with zero maximum loss error. Its durable state then ended `ATTEMPT_FAILED`
+after `REPLAY_VERIFIED`: the preflight-built explanatory-window executable
+differed from the proof-rebuilt verified app. Same-run result capture, media
+sealing, and collection never occurred. Never rerun the V6 contour, move or
+replace its tag, or relabel its proof or partial media as V7. V7 corrects the
+presentation ordering under `corelm-automated-presentation-v2` and requires its
+own signed commit, tag, first-attempt tag CI, and proof.
 
 This contour leaves independent-replication gate G10 **OPEN**. An author-run
 automation, including an agent-run audit, cannot satisfy it. Only a later
