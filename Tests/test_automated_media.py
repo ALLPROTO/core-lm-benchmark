@@ -136,7 +136,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
             "machine_evidence": False,
             "pixel_semantics_verified": False,
             "source": {
-                "tag": "corelm-portfolio-v5",
+                "tag": "corelm-portfolio-v6",
                 "commit": "1" * 40,
                 "tree": "2" * 40,
             },
@@ -256,24 +256,37 @@ class AutomatedMediaContractTests(unittest.TestCase):
         return b"".join(automated_media.canonical_json_bytes(event) for event in events)
 
     def _tag_ci_receipt(self):
-        tag = "corelm-portfolio-v5"
+        tag = "corelm-portfolio-v6"
         commit = "1" * 40
         tree = "2" * 40
         workflows = []
-        for index, (name, path, jobs) in enumerate((
-            ("Verify Linux", ".github/workflows/verify-linux.yml", ("python-and-publication", "supply-chain")),
-            ("Verify macOS", ".github/workflows/verify-macos.yml", ("native-application",)),
-        ), start=1):
+        for name, path, run_id, jobs in (
+            (
+                "Verify Linux",
+                ".github/workflows/verify-linux.yml",
+                31_320_957_015,
+                (
+                    ("python-and-publication", 93_257_094_239),
+                    ("supply-chain", 93_257_094_240),
+                ),
+            ),
+            (
+                "Verify macOS",
+                ".github/workflows/verify-macos.yml",
+                31_320_957_016,
+                (("native-application", 93_257_094_241),),
+            ),
+        ):
             workflows.append({
-                "workflow_name": name, "workflow_path": path, "run_id": index,
+                "workflow_name": name, "workflow_path": path, "run_id": run_id,
                 "run_attempt": 1, "event": "push", "head_branch": tag,
                 "head_sha": commit, "status": "completed", "conclusion": "success",
-                "api_url": f"https://api.github.com/repos/ALLPROTO/core-lm-benchmark/actions/runs/{index}",
-                "html_url": f"https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/{index}",
-                "jobs": [{"job_id": index * 10 + job_index, "name": job_name,
+                "api_url": f"https://api.github.com/repos/ALLPROTO/core-lm-benchmark/actions/runs/{run_id}",
+                "html_url": f"https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/{run_id}",
+                "jobs": [{"job_id": job_id, "name": job_name,
                           "step_count": 1, "tag_ref_assertion": "PASS",
                           "status": "completed", "conclusion": "success"}
-                         for job_index, job_name in enumerate(jobs, start=1)],
+                         for job_name, job_id in jobs],
             })
         return {
             "schema_version": 1,
@@ -431,8 +444,8 @@ class AutomatedMediaContractTests(unittest.TestCase):
             with self.assertRaises(automated_media.AutomatedMediaError):
                 automated_media.validate_attempt_state_bytes(tampered, report=report)
         wrong_tag_state = state.replace(
-            b'"tag":"corelm-portfolio-v5"',
             b'"tag":"corelm-portfolio-v6"',
+            b'"tag":"corelm-portfolio-v7"',
         )
         wrong_tag_report = copy.deepcopy(report)
         wrong_tag_report["attempt"]["state_log_sha256"] = hashlib.sha256(
@@ -454,7 +467,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
             automated_media.validate_tag_ci_receipt_bytes(
                 payload,
                 expected={"repository": "ALLPROTO/core-lm-benchmark",
-                          "tag": "corelm-portfolio-v5", "commit": "1" * 40,
+                          "tag": "corelm-portfolio-v6", "commit": "1" * 40,
                           "tree": "2" * 40},
             ),
             receipt,
@@ -467,6 +480,77 @@ class AutomatedMediaContractTests(unittest.TestCase):
             )
         with self.assertRaises(automated_media.AutomatedMediaError):
             automated_media.validate_tag_ci_receipt_bytes(payload[:-1] + b" \n")
+
+    def test_tag_ci_receipt_accepts_realistic_and_maximum_github_ids(self):
+        receipt = self._tag_ci_receipt()
+        self.assertGreater(receipt["workflows"][0]["run_id"], 2**31 - 1)
+        self.assertGreater(receipt["workflows"][0]["jobs"][0]["job_id"], 2**31 - 1)
+        self.assertEqual(
+            automated_media.validate_tag_ci_receipt_bytes(
+                tag_ci.canonical_receipt_bytes(receipt)
+            ),
+            receipt,
+        )
+
+        boundary = copy.deepcopy(receipt)
+        boundary["workflows"][0]["run_id"] = automated_media.MAX_GITHUB_ID
+        boundary["workflows"][0]["api_url"] = (
+            "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/actions/runs/"
+            f"{automated_media.MAX_GITHUB_ID}"
+        )
+        boundary["workflows"][0]["html_url"] = (
+            "https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/"
+            f"{automated_media.MAX_GITHUB_ID}"
+        )
+        boundary["workflows"][0]["jobs"][0]["job_id"] = (
+            automated_media.MAX_GITHUB_ID
+        )
+        self.assertEqual(
+            automated_media.validate_tag_ci_receipt_bytes(
+                tag_ci.canonical_receipt_bytes(boundary)
+            ),
+            boundary,
+        )
+
+    def test_tag_ci_github_id_mutations_fail_closed_at_64_bit_boundary(self):
+        for path in (
+            ("workflows", 0, "run_id"),
+            ("workflows", 0, "jobs", 0, "job_id"),
+        ):
+            for invalid in (0, True, automated_media.MAX_GITHUB_ID + 1):
+                receipt = copy.deepcopy(self._tag_ci_receipt())
+                target = receipt
+                for key in path[:-1]:
+                    target = target[key]
+                target[path[-1]] = invalid
+                with self.subTest(path=path, invalid=invalid), self.assertRaisesRegex(
+                    automated_media.AutomatedMediaError,
+                    "bounded positive integer",
+                ):
+                    automated_media.validate_tag_ci_receipt_bytes(
+                        tag_ci.canonical_receipt_bytes(receipt)
+                    )
+
+    def test_tag_ci_step_count_keeps_existing_31_bit_bound(self):
+        boundary = self._tag_ci_receipt()
+        boundary["workflows"][0]["jobs"][0]["step_count"] = 2**31 - 1
+        self.assertEqual(
+            automated_media.validate_tag_ci_receipt_bytes(
+                tag_ci.canonical_receipt_bytes(boundary)
+            ),
+            boundary,
+        )
+
+        for invalid in (0, True, 2**31):
+            receipt = copy.deepcopy(self._tag_ci_receipt())
+            receipt["workflows"][0]["jobs"][0]["step_count"] = invalid
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(
+                automated_media.AutomatedMediaError,
+                "bounded positive integer",
+            ):
+                automated_media.validate_tag_ci_receipt_bytes(
+                    tag_ci.canonical_receipt_bytes(receipt)
+                )
 
 
 if __name__ == "__main__":

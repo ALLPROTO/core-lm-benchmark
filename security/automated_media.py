@@ -41,6 +41,7 @@ MAX_DECODED_FRAME_COUNT = 90 * 240
 MAX_REPORT_BYTES = 1024 * 1024
 MAX_READINESS_BYTES = 16 * 1024
 MAX_ATTEMPT_STATE_BYTES = 256 * 1024
+MAX_GITHUB_ID = 2**63 - 1
 ATTEMPT_EVENT_COUNT = 9
 ATTEMPT_SCOPE = "EXACTLY_ONE_INVOCATION_IN_RETAINED_OWNER_LOCAL_SESSION_ONLY"
 ATTEMPT_SUCCESS_EVENTS = (
@@ -342,7 +343,11 @@ def validate_tag_ci_receipt_bytes(
             or record["conclusion"] != "success"
         ):
             raise AutomatedMediaError("tag-CI workflow admission is not exact")
-        _positive_int(record["run_id"], "tag-CI workflow run")
+        _positive_int(
+            record["run_id"],
+            "tag-CI workflow run",
+            maximum=MAX_GITHUB_ID,
+        )
         if not isinstance(record["jobs"], list) or {
             job.get("name") for job in record["jobs"] if isinstance(job, dict)
         } != job_names:
@@ -360,7 +365,11 @@ def validate_tag_ci_receipt_bytes(
                 },
                 "tag-CI job",
             )
-            _positive_int(job_record["job_id"], "tag-CI job ID")
+            _positive_int(
+                job_record["job_id"],
+                "tag-CI job ID",
+                maximum=MAX_GITHUB_ID,
+            )
             _positive_int(job_record["step_count"], "tag-CI job step count")
             if (
                 job_record["tag_ref_assertion"] != "PASS"

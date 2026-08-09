@@ -84,7 +84,7 @@ does not turn that claim into a general model-compression result.
     release metadata, manifests, checksums, and current evidence. Private keys,
     tokens, credential-like bytes, model weights, and new author-local paths
     remain release blockers.
-17. V5 demo pixels are an automatically captured product presentation, not
+17. V6 demo pixels are an automatically captured product presentation, not
     metric evidence or independent review. Single-window isolation, a
     capture-safe allowlisted view, metadata/byte scans, fixed-frame replay, and
     decoded-frame hashes are checked automatically, but semantic pixel privacy
@@ -94,8 +94,16 @@ does not turn that claim into a general model-compression result.
     model run. Its automation stopped in pre-model FFprobe frame-PTS field
     validation before the durable attempt marker was reserved, so no V4 model
     attempt was consumed. Its tag and first-attempt CI are never moved, rerun,
-    or relabelled as V5. The earlier V3 tag-push assertion failure remains
+    or relabelled as V6. The earlier V3 tag-push assertion failure remains
     immutable as well.
+19. `corelm-portfolio-v5` is another preserved pre-model failure. Its first
+    tag-push Linux/macOS CI passed. An anonymous API HTTP 403 stopped the first
+    local contour before the marker and was safely retryable. After reset, the
+    normative contour fetched the public responses but rejected GitHub run/job
+    IDs above the receipt validator's old signed 32-bit ceiling. This also
+    happened before `AttemptLog.reserve`; no V5 model attempt was invoked or
+    consumed. The V5 tag and first-attempt CI are never moved, rerun, reused,
+    or relabelled as V6.
 
 The detailed versioned research record is preserved under `docs/development/`
 and in immutable publication tags.

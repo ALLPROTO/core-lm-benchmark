@@ -39,7 +39,7 @@ CV_READY = G01 AND G02 AND G03 AND G04 AND G05 AND G06
 | G11 Engineering ownership | A public code tour covers codec format, model replay, verifier separation, failure-state semantics, and the supply-chain threat model; AI assistance is disclosed. |
 | G12 Stable release | One obvious signed current portfolio release binds source identity, checksums, public key, SBOM, reproduce command, release notes, and demo. Historical releases are clearly archival. |
 
-The V5 product-media path may satisfy G03 with a deterministic, single-window
+The V6 product-media path may satisfy G03 with a deterministic, single-window
 automation receipt classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. Its signed result, raw evidence,
 and replay reports—not the pixels—support the metrics. Automated capture and
@@ -47,12 +47,15 @@ agent audit never satisfy G10. Later passive viewing by a CV recipient does
 not satisfy it either; that gate still requires the specified non-author,
 non-agent clean-clone publication.
 
-V5 is a new identity rather than a relabel of either failed candidate. V3
+V6 is a new identity rather than a relabel of any failed candidate. V3
 remains frozen at its first tag-push assertion failure. V4 remains frozen at a
 pre-model FFprobe frame-PTS field-validation failure that occurred before
-`AttemptLog.reserve`; no V4 model attempt was invoked or consumed. Neither tag
-or workflow is rerun or moved, and neither candidate's bytes can satisfy a V5
-gate.
+`AttemptLog.reserve`; no V4 model attempt was invoked or consumed. V5 passed
+first-attempt tag CI, then stopped twice before the marker: first on a safely
+retryable anonymous API HTTP 403, and after reset on real GitHub run/job IDs
+above the receipt validator's old signed 32-bit ceiling. No V5 model attempt
+was invoked or consumed. None of the V3/V4/V5 tags or workflows are rerun or
+moved, and none of those candidates' bytes can satisfy a V6 gate.
 
 No gate can be replaced by a large test count, an author-controlled agent
 review, an uncommitted local run, or a future promise.

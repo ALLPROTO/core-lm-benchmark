@@ -15,7 +15,7 @@ than inferred from this preservation policy.
 The existing publication snapshot uses `voidtoken-v5-paper-v5`. At that
 immutable tag, its CFF version, manuscript reference, SBOM component, archive
 provenance, and canonical asset names are synchronized. The current default
-branch instead uses the `corelm-portfolio-v5` software CFF/SBOM identity and
+branch instead uses the `corelm-portfolio-v6` software CFF/SBOM identity and
 the `corelm-automated-presentation-v1` automation contract.
 Check GitHub's live
 `immutable` API field before making a platform-immutability statement; do not
@@ -67,7 +67,7 @@ packager for the other.
    canonical receipt outside the same release; and
 6. never pass a portfolio tag to `publication/build_archives.py`.
 
-For V5, recording, deterministic poster extraction, media assembly, metadata
+For V6, recording, deterministic poster extraction, media assembly, metadata
 checks, and evidence collection must complete through the tracked automation
 contract without a required human review or manual-edit acceptance step. Both
 media assets are classified
@@ -90,8 +90,19 @@ tool preflight when the FFprobe frame-PTS field validator rejected n8.1.2's
 `duration_time`/SEI output grammar. The failure occurred before `AttemptLog.reserve`; the durable
 V4 attempt marker was never created and no model attempt was invoked or
 consumed. Never rerun the V4 contour, move or replace its tag, or relabel V4
-bytes as V5. V5 corrects this parser boundary and requires its own signed
-commit, tag, first-attempt tag CI, and proof.
+bytes as a later candidate.
+
+The signed annotated `corelm-portfolio-v5` tag is a third preserved failed
+candidate. Its first tag-push Linux and macOS workflows passed on attempt one.
+The first local contour then received an anonymous GitHub API HTTP 403 before
+the durable marker; by contract that transport failure was safely retryable.
+After the rate limit reset, the normative contour fetched the exact public
+responses but rejected GitHub's real run/job IDs above `2^31` in the tag-CI
+receipt validator. This second failure also preceded `AttemptLog.reserve`; no
+V5 model attempt was invoked or consumed. Never rerun the V5 contour, move or
+replace its tag, or relabel its bytes as V6. V6 corrects the bounded identifier
+contract and requires its own signed commit, tag, first-attempt tag CI, and
+proof.
 
 This contour leaves independent-replication gate G10 **OPEN**. An author-run
 automation, including an agent-run audit, cannot satisfy it. Only a later

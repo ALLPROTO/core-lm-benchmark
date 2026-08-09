@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed public GitHub tag-CI admission for the V5 portfolio run.
+"""Fail-closed public GitHub tag-CI admission for the V6 portfolio run.
 
 The validator is deliberately split in two:
 
@@ -42,6 +42,7 @@ MIN_TIMEOUT_SECONDS = 1.0
 MAX_TIMEOUT_SECONDS = 30.0
 DEFAULT_TIMEOUT_SECONDS = 10.0
 PAGE_SIZE = 100
+MAX_GITHUB_ID = 2**63 - 1
 API_VERSION = "2022-11-28"
 GIT = "/usr/bin/git"
 SSH_KEYGEN = "/usr/bin/ssh-keygen"
@@ -111,7 +112,7 @@ RESPONSE_FILENAMES = {
 PUBLIC_RECEIPT_FILENAME = "github-tag-ci-admission-receipt.json"
 LOCAL_TRUST_RECEIPT_FILENAME = "local-tag-trust-receipt.json"
 TAG_REF_ASSERTION_STEP = "Require exact portfolio tag-push ref"
-CURRENT_PORTFOLIO_TAG = "corelm-portfolio-v5"
+CURRENT_PORTFOLIO_TAG = "corelm-portfolio-v6"
 
 
 def _reject_constant(value: str) -> None:
@@ -174,6 +175,13 @@ def _positive_integer(value: Any, label: str) -> int:
     return value
 
 
+def _github_identifier(value: Any, label: str) -> int:
+    identifier = _positive_integer(value, label)
+    if identifier > MAX_GITHUB_ID:
+        raise TagCIAdmissionError(f"{label} is outside the positive signed 64-bit range")
+    return identifier
+
+
 def _nonnegative_integer(value: Any, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise TagCIAdmissionError(f"{label} must be a non-negative integer")
@@ -208,7 +216,7 @@ def _validate_inputs(
         raise TagCIAdmissionError("expected tag is not a safe single Git ref component")
     if expected_tag != CURRENT_PORTFOLIO_TAG:
         raise TagCIAdmissionError(
-            f"expected tag must be the active V5 contour {CURRENT_PORTFOLIO_TAG}"
+            f"expected tag must be the active V6 contour {CURRENT_PORTFOLIO_TAG}"
         )
     _sha1(expected_commit, "expected commit")
     _sha1(expected_tree, "expected tree")
@@ -420,7 +428,7 @@ def _validate_workflow_run(
     if total_count != 1:
         raise TagCIAdmissionError(f"{workflow.name} must have exactly one matching tag-push run")
     run = _mapping(runs[0], f"{workflow.name} run")
-    run_id = _positive_integer(run.get("id"), f"{workflow.name} run id")
+    run_id = _github_identifier(run.get("id"), f"{workflow.name} run id")
     _positive_integer(run.get("run_number"), f"{workflow.name} run number")
     _exact(run.get("run_attempt"), 1, f"{workflow.name} run attempt")
     _exact(run.get("name"), workflow.name, f"{workflow.name} workflow name")
@@ -478,7 +486,7 @@ def _validate_jobs(
         raise TagCIAdmissionError(f"{workflow.name} job count is not exact")
 
     observed: dict[str, dict[str, Any]] = {}
-    run_id = _positive_integer(run.get("run_id"), f"{workflow.name} retained run id")
+    run_id = _github_identifier(run.get("run_id"), f"{workflow.name} retained run id")
     for index, value in enumerate(jobs):
         job = _mapping(value, f"{workflow.name} job {index}")
         name = _string(job.get("name"), f"{workflow.name} job name")
@@ -486,7 +494,7 @@ def _validate_jobs(
             raise TagCIAdmissionError(f"{workflow.name} has duplicate job {name!r}")
         if name not in workflow.expected_jobs:
             raise TagCIAdmissionError(f"{workflow.name} has unexpected job {name!r}")
-        job_id = _positive_integer(job.get("id"), f"{workflow.name} {name} job id")
+        job_id = _github_identifier(job.get("id"), f"{workflow.name} {name} job id")
         _exact(job.get("run_id"), run_id, f"{workflow.name} {name} run id")
         _exact(_sha1(job.get("head_sha"), f"{workflow.name} {name} head SHA"), expected_commit, f"{workflow.name} {name} head SHA")
         _exact(job.get("status"), "completed", f"{workflow.name} {name} status")
@@ -657,7 +665,7 @@ def validate_saved_tag_ci(
     for workflow in _WORKFLOWS:
         response_urls[workflow.role] = _workflow_runs_url(repository, workflow, expected_tag)
         response_urls[workflow.jobs_role] = _jobs_url(
-            repository, _positive_integer(run_details[workflow.role]["run_id"], "run id")
+            repository, _github_identifier(run_details[workflow.role]["run_id"], "run id")
         )
 
     receipt: dict[str, Any] = {
@@ -1396,7 +1404,7 @@ def fetch_public_tag_ci_responses(
         run_details[workflow.role] = run
 
     for workflow in _WORKFLOWS:
-        run_id = _positive_integer(
+        run_id = _github_identifier(
             run_details[workflow.role]["run_id"], f"{workflow.name} run id"
         )
         responses[workflow.jobs_role] = fetch(
@@ -1504,6 +1512,7 @@ __all__ = [
     "EXPECTED_FINGERPRINT",
     "EXPECTED_PUBLIC_KEY_SHA256",
     "EXPECTED_SIGNING_PRINCIPAL",
+    "MAX_GITHUB_ID",
     "MAX_RESPONSE_BYTES",
     "LOCAL_TRUST_RECEIPT_FILENAME",
     "PUBLIC_RECEIPT_FILENAME",

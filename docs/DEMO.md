@@ -1,6 +1,6 @@
 # Automation-only macOS portfolio demo
 
-This is the current V5 product-media contour for portfolio gate G03. It has no
+This is the current V6 product-media contour for portfolio gate G03. It has no
 interactive window selection, editor, manual trim, chosen poster frame, or
 human-review acceptance step. Its exact classification is:
 
@@ -17,15 +17,25 @@ The signed `corelm-portfolio-v3` candidate remains frozen at its first
 tag-push assertion failure. The signed `corelm-portfolio-v4` candidate is a
 separate historical failure: its automated contour stopped in the pre-model
 tool preflight when the FFprobe frame-PTS field validator rejected n8.1.2's
-`duration_time`/SEI output grammar. That happened before `AttemptLog.reserve`, so no V4 model
-attempt was invoked or consumed. Never rerun either failed candidate, move
-either tag, or relabel V3/V4 bytes as V5. V5 is a new corrected identity.
+`duration_time`/SEI output grammar. That happened before `AttemptLog.reserve`,
+so no V4 model attempt was invoked or consumed.
+
+The signed `corelm-portfolio-v5` candidate also remains frozen. Its first tag
+push Linux/macOS CI passed. The first local contour then received an anonymous
+GitHub API HTTP 403 before the durable marker, which the contract classifies as
+safely retryable. After the API limit reset, the normative V5 contour fetched
+the exact public responses but its tag-CI receipt validator rejected GitHub's
+real run/job identifiers because they exceeded the old signed 32-bit ceiling.
+That failure also preceded `AttemptLog.reserve`; no V5 model attempt was
+invoked or consumed. Never rerun or move V3, V4, or V5, and never relabel their
+bytes as V6. V6 is the distinct corrected identity with a bounded signed
+64-bit GitHub identifier contract.
 
 ## Fixed source and one-attempt boundary
 
 The command accepts only a clean canonical checkout whose `main`,
 `origin/main`, and already-created SSH-signed annotated
-`corelm-portfolio-v5` tag all resolve to the same commit/tree. The signed tag
+`corelm-portfolio-v6` tag all resolve to the same commit/tree. The signed tag
 and its first-attempt Linux/macOS Actions must already be green.
 
 Before model execution the command checks power, the offline doctor, pinned
@@ -41,7 +51,7 @@ than one pinned-Qwen model execution.
 `CORELM_OFFLINE=1` applies to the model, corpus, app proof, replay, and media
 pipeline. Before reserving the attempt, the runner makes the sole bounded
 online exception: eight anonymous, direct, no-proxy/no-redirect GitHub API
-requests that prove the exact public V5 tag/main and first-attempt Linux/macOS
+requests that prove the exact public V6 tag/main and first-attempt Linux/macOS
 tag CI. Failure remains pre-marker and safely retryable. Exact response bytes,
 the recomputed public receipt, and hard-pinned local tag-trust receipt are
 retained for collector and release verification; they record admission-time
@@ -69,10 +79,10 @@ providing both `ffmpeg` and `ffprobe`.
 ```sh
 set -eu
 
-DEMO_TAG=corelm-portfolio-v5
+DEMO_TAG=corelm-portfolio-v6
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v5-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v6-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -148,7 +158,7 @@ WINDOW_HELPER="$DEMO_SESSION/find-proof-window"
 TAG_CI_RECEIPT="$DEMO_SESSION/tag-ci-receipt.json"
 LOCAL_TAG_TRUST_RECEIPT="$DEMO_SESSION/local-tag-trust-receipt.json"
 TAG_CI_BUNDLE="$DEMO_SESSION/tag-ci-bundle"
-INPUTS=/absolute/absent/corelm-portfolio-v5-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v6-inputs
 PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 
 publication/run_portfolio_python.sh \

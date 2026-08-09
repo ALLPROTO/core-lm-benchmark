@@ -110,7 +110,7 @@ orchestrator in
 does not print end-to-end PASS until the app, structural verifier, and heavy
 model replay have all returned successfully.
 
-The V5 presentation contour is also automation-only: it discovers and records
+The V6 presentation contour is also automation-only: it discovers and records
 only the exact application window, reopens the exact retained run, derives the
 poster at a fixed timestamp, and emits a canonical receipt binding the media to
 the tag, source tree, challenge, result, evidence, and tool hashes. That receipt
@@ -119,13 +119,17 @@ support remains in signed result/evidence bytes and the heavy replay. The
 capture-safe view and metadata scans reduce disclosure risk but do not prove
 that no private glyph exists.
 
-This V5 contour does not rewrite the failed V4 candidate. V4 stopped during
+This V6 contour does not rewrite the failed V4 candidate. V4 stopped during
 pre-model tool admission when its FFprobe frame-PTS field validator rejected
-n8.1.2's `duration_time`/SEI output grammar, before the durable attempt marker and before any model
-invocation; no V4 model attempt was consumed. The V4 tag and first-attempt CI
-record stay historical and are never moved, rerun, or relabelled as V5. The
-earlier V3 tag-push assertion failure remains immutable for the same
-record-preservation reason.
+n8.1.2's `duration_time`/SEI output grammar, before the durable attempt marker
+and before any model invocation; no V4 model attempt was consumed. V5 then
+passed first-attempt tag CI. Its first local contour received an anonymous API
+HTTP 403 pre-marker and was safely retryable; after reset, its normative
+contour rejected the real GitHub run/job IDs above `2^31` in the tag-CI receipt
+validator, again before `AttemptLog.reserve` and without invoking a model. The
+V4 and V5 tags and first-attempt CI records stay historical and are never
+moved, rerun, or relabelled as V6. The earlier V3 tag-push assertion failure
+remains immutable for the same record-preservation reason.
 
 This is **implementation/process separation**, not independent scientific
 review. The project is currently author-operated and

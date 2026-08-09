@@ -15,10 +15,15 @@ from security import verify_portfolio_tag_ci as tag_ci
 
 
 REPOSITORY = "ALLPROTO/core-lm-benchmark"
-TAG = "corelm-portfolio-v5"
+TAG = "corelm-portfolio-v6"
 TAG_OBJECT = "a" * 40
 COMMIT = "b" * 40
 TREE = "c" * 40
+LINUX_RUN_ID = 31_320_957_015
+MACOS_RUN_ID = 31_320_957_021
+LINUX_SUPPLY_CHAIN_JOB_ID = 93_263_748_891
+LINUX_PYTHON_JOB_ID = 93_263_748_910
+MACOS_NATIVE_JOB_ID = 93_263_748_932
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -128,8 +133,8 @@ def _job(workflow_name, run_id, job_id, name):
 
 def _fixture_documents():
     api_base = f"https://api.github.com/repos/{REPOSITORY}"
-    linux_run_id = 101
-    macos_run_id = 102
+    linux_run_id = LINUX_RUN_ID
+    macos_run_id = MACOS_RUN_ID
     return {
         "tag_ref": {
             "ref": f"refs/tags/{TAG}",
@@ -185,11 +190,16 @@ def _fixture_documents():
         "linux_jobs": {
             "total_count": 2,
             "jobs": [
-                _job("Verify Linux", linux_run_id, 1002, "supply-chain"),
                 _job(
                     "Verify Linux",
                     linux_run_id,
-                    1001,
+                    LINUX_SUPPLY_CHAIN_JOB_ID,
+                    "supply-chain",
+                ),
+                _job(
+                    "Verify Linux",
+                    linux_run_id,
+                    LINUX_PYTHON_JOB_ID,
                     "python-and-publication",
                 ),
             ],
@@ -200,14 +210,19 @@ def _fixture_documents():
         "macos_jobs": {
             "total_count": 1,
             "jobs": [
-                _job("Verify macOS", macos_run_id, 2001, "native-application")
+                _job(
+                    "Verify macOS",
+                    macos_run_id,
+                    MACOS_NATIVE_JOB_ID,
+                    "native-application",
+                )
             ],
         },
     }
 
 
 class PortfolioTagWorkflowSourceTests(unittest.TestCase):
-    def test_exact_tag_ref_assertion_is_v5_tag_only_in_every_required_job(self):
+    def test_exact_tag_ref_assertion_is_v6_tag_only_in_every_required_job(self):
         for relative, expected_jobs in (
             (
                 ".github/workflows/verify-linux.yml",
@@ -223,12 +238,12 @@ class PortfolioTagWorkflowSourceTests(unittest.TestCase):
                 )
                 self.assertEqual(len(blocks), len(expected_jobs))
                 self.assertEqual(
-                    source.count("expected_tag=corelm-portfolio-v5"),
+                    source.count("expected_tag=corelm-portfolio-v6"),
                     len(expected_jobs),
                 )
                 self.assertEqual(
                     source.count(
-                        "expected_citation_line='version: \"corelm-portfolio-v5\"'"
+                        "expected_citation_line='version: \"corelm-portfolio-v6\"'"
                     ),
                     len(expected_jobs),
                 )
@@ -251,7 +266,7 @@ class PortfolioTagWorkflowSourceTests(unittest.TestCase):
                 ):
                     with self.subTest(workflow=relative, command=command):
                         self.assertEqual(source.count(command), len(expected_jobs))
-                self.assertNotIn('version: \\\"corelm-portfolio-v5\\\"', source)
+                self.assertNotIn('version: \\\"corelm-portfolio-v6\\\"', source)
                 self.assertNotIn("if: ${{", source)
 
     def test_each_tag_ref_assertion_executes_fail_closed(self):
@@ -272,7 +287,7 @@ class PortfolioTagWorkflowSourceTests(unittest.TestCase):
                 check=True,
             )
             citation = root / "CITATION.cff"
-            citation.write_text('version: "corelm-portfolio-v5"\n', encoding="utf-8")
+            citation.write_text('version: "corelm-portfolio-v6"\n', encoding="utf-8")
             subprocess.run(["git", "add", "CITATION.cff"], cwd=root, check=True)
             subprocess.run(
                 ["git", "commit", "-q", "-m", "fixture"], cwd=root, check=True
@@ -339,19 +354,19 @@ class PortfolioTagWorkflowSourceTests(unittest.TestCase):
                         0,
                     )
                 for label, text in (
-                    ("escaped-citation", 'version: \\\"corelm-portfolio-v5\\\"\n'),
+                    ("escaped-citation", 'version: \\\"corelm-portfolio-v6\\\"\n'),
                     ("missing-citation", 'version: "different"\n'),
                     (
                         "duplicate-citation",
-                        'version: "corelm-portfolio-v5"\n'
-                        'version: "corelm-portfolio-v5"\n',
+                        'version: "corelm-portfolio-v6"\n'
+                        'version: "corelm-portfolio-v6"\n',
                     ),
                 ):
                     citation.write_text(text, encoding="utf-8")
                     with self.subTest(job=job, case=label):
                         self.assertNotEqual(execute(body).returncode, 0)
                 citation.write_text(
-                    'version: "corelm-portfolio-v5"\n', encoding="utf-8"
+                    'version: "corelm-portfolio-v6"\n', encoding="utf-8"
                 )
 
 
@@ -513,6 +528,29 @@ class SavedTagCIAdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(tag_ci.TagCIAdmissionError, "run id"):
             _validate({role: _json(value) for role, value in documents.items()})
 
+    def test_realistic_github_ids_above_signed_32_bit_are_valid_64_bit_ids(self):
+        receipt = _validate(_fixture_responses())
+        self.assertEqual(
+            [workflow["run_id"] for workflow in receipt["workflows"]],
+            [LINUX_RUN_ID, MACOS_RUN_ID],
+        )
+        self.assertTrue(
+            all(
+                job["job_id"] > 2**31 - 1
+                for workflow in receipt["workflows"]
+                for job in workflow["jobs"]
+            )
+        )
+        self.assertEqual(
+            tag_ci._github_identifier(tag_ci.MAX_GITHUB_ID, "GitHub id"),
+            tag_ci.MAX_GITHUB_ID,
+        )
+        for invalid in (True, 0, tag_ci.MAX_GITHUB_ID + 1):
+            with self.subTest(invalid=invalid), self.assertRaises(
+                tag_ci.TagCIAdmissionError
+            ):
+                tag_ci._github_identifier(invalid, "GitHub id")
+
     def test_every_job_and_step_must_complete_success_without_skips(self):
         mutations = (
             ("job status", lambda job: job.__setitem__("status", "queued")),
@@ -580,10 +618,10 @@ class SavedTagCIAdmissionTests(unittest.TestCase):
                 expected_commit=COMMIT,
                 expected_tree=TREE,
             )
-        with self.assertRaisesRegex(tag_ci.TagCIAdmissionError, "active V5 contour"):
+        with self.assertRaisesRegex(tag_ci.TagCIAdmissionError, "active V6 contour"):
             tag_ci.validate_saved_tag_ci(
                 _fixture_responses(),
-                expected_tag="corelm-portfolio-v6",
+                expected_tag="corelm-portfolio-v7",
                 expected_commit=COMMIT,
                 expected_tree=TREE,
             )

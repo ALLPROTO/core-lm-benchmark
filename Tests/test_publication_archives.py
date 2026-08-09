@@ -35,7 +35,7 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
-    def test_current_portfolio_schemas_pin_automation_only_v5_contract(self):
+    def test_current_portfolio_schemas_pin_automation_only_v6_contract(self):
         release_input = json.loads(
             (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
                 encoding="utf-8"
@@ -167,7 +167,7 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v5")
+        self.assertEqual(release_tag, "corelm-portfolio-v6")
         self.assertRegex(citation, r"(?m)^date-released: 2026-08-09$")
 
         for relative in (
@@ -219,6 +219,26 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertRegex(
                     normalized,
                     r"no (?:V4 )?model attempt (?:was )?(?:invoked or )?consumed",
+                )
+                self.assertIn("never", normalized.lower())
+
+    def test_v5_github_id_failure_is_preserved_without_consuming_attempt(self):
+        for relative in (
+            "docs/DEMO.md",
+            "docs/development/RELEASE_PROCESS.md",
+            "docs/development/SCIENTIFIC_IDENTIFIERS.md",
+        ):
+            with self.subTest(document=relative):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                normalized = " ".join(text.split())
+                self.assertIn("corelm-portfolio-v5", text)
+                self.assertIn("corelm-portfolio-v6", text)
+                self.assertIn("HTTP 403", normalized)
+                self.assertIn("AttemptLog.reserve", text)
+                self.assertRegex(normalized, r"(?:signed 32-bit|above `2\^31`)")
+                self.assertRegex(
+                    normalized,
+                    r"no V5 model attempt was invoked or consumed",
                 )
                 self.assertIn("never", normalized.lower())
 

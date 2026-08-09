@@ -25,7 +25,7 @@ from security import verify_portfolio_tag_ci as tag_ci  # noqa: E402
 from Tests import test_portfolio_tag_ci as tag_ci_fixture  # noqa: E402
 
 
-TAG = "corelm-portfolio-v5"
+TAG = "corelm-portfolio-v6"
 COMMIT = "1" * 40
 TAG_OBJECT = "0" * 40
 LAB_COMMIT = "3" * 40
@@ -94,13 +94,19 @@ class PortfolioReleaseTests(unittest.TestCase):
                     "commit": COMMIT,
                     "conclusion": "success",
                     "required": True,
-                    "url": "https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/101",
+                    "url": (
+                        "https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/"
+                        f"{tag_ci_fixture.LINUX_RUN_ID}"
+                    ),
                 },
                 "macos_arm64": {
                     "commit": COMMIT,
                     "conclusion": "success",
                     "required": True,
-                    "url": "https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/102",
+                    "url": (
+                        "https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/"
+                        f"{tag_ci_fixture.MACOS_RUN_ID}"
+                    ),
                 },
             },
             "related_sources": {
@@ -1096,8 +1102,8 @@ class PortfolioReleaseTests(unittest.TestCase):
             root = Path(temporary)
             (root / "CITATION.cff").write_text(
                 "cff-version: 1.2.0\n"
-                "version: corelm-portfolio-v5\n"
-                "version: corelm-portfolio-v5\n"
+                "version: corelm-portfolio-v6\n"
+                "version: corelm-portfolio-v6\n"
                 "date-released: 2026-08-09\n"
                 "license: MIT\n"
                 "repository-code: https://github.com/ALLPROTO/core-lm-benchmark\n"
