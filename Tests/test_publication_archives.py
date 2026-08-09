@@ -35,6 +35,112 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
+    def test_current_portfolio_schemas_pin_automation_only_v3_contract(self):
+        release_input = json.loads(
+            (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        source_identity = json.loads(
+            (ROOT / "schemas/portfolio-source-identity.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        demo_provenance = json.loads(
+            (ROOT / "schemas/portfolio-demo-provenance.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        runtime_assets = json.loads(
+            (ROOT / "schemas/portfolio-runtime-assets.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        for schema in (
+            release_input,
+            source_identity,
+            demo_provenance,
+            runtime_assets,
+        ):
+            self.assertEqual(schema["properties"]["schema_version"]["const"], 2)
+
+        presentation = release_input["properties"]["presentation"]
+        self.assertFalse(presentation["additionalProperties"])
+        self.assertEqual(
+            set(presentation["required"]), set(presentation["properties"])
+        )
+        expected_contract = {
+            "automation_contract": "corelm-automated-presentation-v1",
+            "classification": "AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE",
+            "automation_only": True,
+            "human_reviewed": False,
+            "manual_edits": False,
+            "machine_evidence": False,
+            "pixel_semantics_verified": False,
+            "independent_human_replication": False,
+        }
+        self.assertEqual(
+            {
+                key: descriptor["const"]
+                for key, descriptor in presentation["properties"].items()
+            },
+            expected_contract,
+        )
+
+        demo = source_identity["properties"]["demo"]
+        self.assertFalse(demo["additionalProperties"])
+        self.assertIn("provenance_sha256", demo["required"])
+        self.assertEqual(
+            demo["properties"]["media_classification"]["const"],
+            expected_contract["classification"],
+        )
+        self.assertEqual(
+            demo["properties"]["automation_contract"]["const"],
+            expected_contract["automation_contract"],
+        )
+
+        capture = demo_provenance["properties"]["capture"]
+        self.assertFalse(capture["additionalProperties"])
+        self.assertEqual(set(capture["required"]), set(capture["properties"]))
+        self.assertEqual(
+            capture["properties"]["mode"]["const"],
+            "MACOS_SINGLE_WINDOW_ID_V1",
+        )
+        self.assertEqual(
+            capture["properties"]["automation_receipt_sha256"]["$ref"],
+            "#/$defs/sha256",
+        )
+        self.assertEqual(
+            capture["properties"]["result_readiness_sha256"]["$ref"],
+            "#/$defs/sha256",
+        )
+        self.assertEqual(
+            demo_provenance["properties"]["video"]["properties"][
+                "audio_codec"
+            ]["const"],
+            "silent",
+        )
+
+        capture_tools = runtime_assets["properties"]["capture_tools"]
+        self.assertFalse(capture_tools["additionalProperties"])
+        self.assertEqual(
+            set(capture_tools["required"]), set(capture_tools["properties"])
+        )
+        self.assertEqual(
+            capture_tools["properties"]["screencapture"]["properties"][
+                "codesign_identifier"
+            ]["const"],
+            "com.apple.screencapture",
+        )
+        self.assertEqual(
+            capture_tools["properties"]["window_helper"]["properties"][
+                "source_sha256"
+            ]["$ref"],
+            "#/$defs/sha256",
+        )
+        self.assertIn("capture_tools", runtime_assets["required"])
+
     def test_archive_output_rejects_symlink_directory_and_target(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -61,7 +167,8 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v2")
+        self.assertEqual(release_tag, "corelm-portfolio-v3")
+        self.assertRegex(citation, r"(?m)^date-released: 2026-08-09$")
 
         for relative in (
             "publication/README.md",
@@ -84,6 +191,14 @@ class PublicationArchiveTests(unittest.TestCase):
         self.assertEqual(component["version"], release_tag)
         self.assertTrue(component["purl"].endswith(f"@{release_tag}"))
         self.assertEqual(sbom["dependencies"][0]["ref"], component["bom-ref"])
+
+        identifiers = (
+            ROOT / "docs/development/SCIENTIFIC_IDENTIFIERS.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("corelm-automated-presentation-v1", identifiers)
+        self.assertIn("AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE", identifiers)
+        self.assertIn("G10", identifiers)
+        self.assertIn("**OPEN**", identifiers)
 
         with self.assertRaisesRegex(ValueError, "outside the historical paper contour"):
             archives._citation_release_tag()
@@ -466,6 +581,8 @@ class PublicationArchiveTests(unittest.TestCase):
                     "platforms/macos/scripts/bootstrap-python.sh",
                     "platforms/macos/scripts/doctor.sh",
                     "platforms/macos/scripts/prepare-offline.sh",
+                    "platforms/macos/scripts/find-proof-window.swift",
+                    "platforms/macos/scripts/run-automated-portfolio-demo.py",
                     "platforms/macos/scripts/run-proof.sh",
                     "platforms/macos/BUILD_AND_VERIFY.md",
                     "platforms/linux/scripts/bootstrap-python.sh",
@@ -497,13 +614,22 @@ class PublicationArchiveTests(unittest.TestCase):
                     "platforms/macos/App/Sources/SecurityValidation.swift",
                     "platforms/macos/Tests/SecurityValidationTests.swift",
                     "Tests/test_platform_boundaries.py",
+                    "Tests/test_automated_media.py",
+                    "Tests/test_automated_portfolio_demo.py",
+                    "Tests/test_automated_window_capture.py",
+                    "Tests/test_strict_git_checkout.py",
                     "Tests/test_portfolio_demo_collector.py",
+                    "Tests/test_portfolio_python_launcher.py",
                     "Tests/test_portfolio_release.py",
+                    "Tests/test_portfolio_tag_ci.py",
                     "security/generate_python_runtime_manifest.py",
                     "security/generate_build_provenance.py",
                     "security/find_python312.sh",
                     "security/manage_local_runtime.py",
                     "security/proof_reports.py",
+                    "security/automated_media.py",
+                    "security/verify_git_checkout.py",
+                    "security/verify_portfolio_tag_ci.py",
                     "security/validate_proof_challenge.sh",
                     "security/verify_app_run_evidence.py",
                     "security/verify_primary_evidence.py",
@@ -512,6 +638,7 @@ class PublicationArchiveTests(unittest.TestCase):
                     "security/verify_locked_environment.py",
                     "security/verify_supply_chain.py",
                     "security/verify_app_bundle.sh",
+                    "publication/run_portfolio_python.sh",
                     "Tests/test_build_provenance.py",
                     "Tests/test_independent_replication.py",
                     "Tests/test_beacon_protocol.py",
@@ -527,6 +654,8 @@ class PublicationArchiveTests(unittest.TestCase):
                     "schemas/beacon-window-ledger.schema.json",
                     "schemas/portfolio-release-input.schema.json",
                     "schemas/portfolio-source-identity.schema.json",
+                    "schemas/portfolio-demo-provenance.schema.json",
+                    "schemas/portfolio-runtime-assets.schema.json",
                     "RealLLM/BEACON_HELDOUT_PROTOCOL.md",
                     "RealLLM/beacon_evaluation.py",
                     "RealLLM/beacon_protocol.py",

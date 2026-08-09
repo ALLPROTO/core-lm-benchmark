@@ -20,9 +20,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from publication import build_portfolio_release as portfolio  # noqa: E402
+from security import automated_media  # noqa: E402
+from security import verify_portfolio_tag_ci as tag_ci  # noqa: E402
+from Tests import test_portfolio_tag_ci as tag_ci_fixture  # noqa: E402
 
 
-TAG = "corelm-portfolio-v2"
+TAG = "corelm-portfolio-v3"
 COMMIT = "1" * 40
 TAG_OBJECT = "0" * 40
 LAB_COMMIT = "3" * 40
@@ -30,13 +33,15 @@ LAB_TREE = "4" * 40
 BLIND_COMMIT = "5" * 40
 BLIND_TREE = "6" * 40
 FFPROBE_VERSION = "ffprobe version 7.1.1-fixture"
+FFMPEG_VERSION = "ffmpeg version 7.1.1-fixture"
+HELPER_BYTES = b"compiled-window-helper-fixture\n"
 FFPROBE_BYTES = (
     b"#!/bin/sh\n"
     b"if [ \"${1:-}\" = -version ]; then\n"
     b"  /bin/echo 'ffprobe version 7.1.1-fixture'\n"
     b"  exit 0\n"
     b"fi\n"
-    b"/bin/echo '{\"format\":{\"duration\":\"20.0\"},"
+    b"/bin/echo '{\"format\":{\"duration\":\"30.0\"},"
     b"\"streams\":[{\"codec_type\":\"video\",\"codec_name\":"
     b"\"h264\",\"width\":1280,\"height\":720}]}'\n"
 )
@@ -80,7 +85,7 @@ def _sha256(path):
 class PortfolioReleaseTests(unittest.TestCase):
     def _release_input(self):
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "tag": TAG,
             "release_date": "2026-08-09",
             "source": {"commit": COMMIT, "tag_object": TAG_OBJECT, "tree": TREE},
@@ -114,6 +119,7 @@ class PortfolioReleaseTests(unittest.TestCase):
                 "demo_evidence": "/private/tmp/evidence.tar.gz",
                 "runtime_assets": "/private/tmp/runtime.json",
             },
+            "presentation": dict(portfolio.PRESENTATION_CONTRACT),
         }
 
     def _tar_gzip(self, members, *, comment=None):
@@ -148,6 +154,166 @@ class PortfolioReleaseTests(unittest.TestCase):
         with gzip.GzipFile(filename="", mode="wb", compresslevel=9, fileobj=target, mtime=0) as compressed:
             compressed.write(raw.getvalue())
         return target.getvalue()
+
+    def _capture_tools(self, helper_sha256=None):
+        if helper_sha256 is None:
+            helper_sha256 = hashlib.sha256(HELPER_BYTES).hexdigest()
+        return {
+            "window_helper": {
+                "source_sha256": "4" * 64,
+                "executable_sha256": helper_sha256,
+                "swift_version": "Apple Swift version 6.3.3 fixture",
+            },
+            "screencapture": {
+                "executable_sha256": "6" * 64,
+                "codesign_identifier": "com.apple.screencapture",
+            },
+            "ffmpeg": {
+                "executable_sha256": "7" * 64,
+                "version": FFMPEG_VERSION,
+            },
+            "ffprobe": {
+                "executable_sha256": hashlib.sha256(FFPROBE_BYTES).hexdigest(),
+                "version": FFPROBE_VERSION,
+            },
+        }
+
+    def _segment(self, role, owner_pid, window_id, duration, digest):
+        return {
+            "role": role,
+            "owner_pid": owner_pid,
+            "window_id": window_id,
+            "width": 1280,
+            "height": 720,
+            "requested_duration_seconds": duration,
+            "duration_seconds": duration,
+            "frame_count": max(1, int(duration * 30)),
+            "pts_sha256": digest,
+            "sha256": digest,
+        }
+
+    def _automation_report(
+        self,
+        receipt,
+        result,
+        *,
+        raw_sha256,
+        helper_sha256,
+        tag_ci_sha256,
+        local_tag_trust_sha256,
+    ):
+        receipt_value = json.loads(receipt)
+        return {
+            "schema_version": automated_media.SCHEMA_VERSION,
+            "report_kind": automated_media.REPORT_KIND,
+            "verdict": automated_media.VERDICT,
+            "automation_contract": automated_media.AUTOMATION_CONTRACT,
+            "classification": automated_media.MEDIA_CLASSIFICATION,
+            "automation_only": True,
+            "human_reviewed": False,
+            "manual_edits": False,
+            "machine_evidence": False,
+            "pixel_semantics_verified": False,
+            "source": {"tag": TAG, "commit": COMMIT, "tree": TREE},
+            "run": {
+                "identifier": "12345678-1234-4234-8234-123456789abc",
+                "challenge_sha256": automated_media.challenge_sha256(
+                    receipt_value["challengeNonce"]
+                ),
+                "receipt_sha256": hashlib.sha256(receipt).hexdigest(),
+                "result_sha256": hashlib.sha256(result).hexdigest(),
+                "application_executable_sha256": "7" * 64,
+                "metric_verdict": "PASS",
+                "terminal_outcome": "END-TO-END PROOF PASS",
+                "structural_verdict": "PASS",
+                "replay_verdict": automated_media.REPLAY_VERDICT,
+                "workload_classification": automated_media.WORKLOAD_CLASSIFICATION,
+                "synthetic_data": False,
+            },
+            "capture": {
+                "mode": automated_media.CAPTURE_MODE,
+                "bundle_identifier": automated_media.BUNDLE_IDENTIFIER,
+                "result_readiness_sha256": "f" * 64,
+                "preflight_segment": self._segment(
+                    "preflight", 99, 199,
+                    automated_media.PREFLIGHT_SEGMENT_SECONDS, raw_sha256,
+                ),
+                "segments": [
+                    self._segment(
+                        "live_presentation", 100, 200,
+                        automated_media.LIVE_SEGMENT_SECONDS, raw_sha256,
+                    ),
+                    self._segment(
+                        "same_run_result", 101, 201,
+                        automated_media.RESULT_SEGMENT_SECONDS, raw_sha256,
+                    ),
+                ],
+            },
+            "tools": self._capture_tools(helper_sha256),
+            "output": {
+                "video_sha256": hashlib.sha256(self._mp4()).hexdigest(),
+                "poster_sha256": hashlib.sha256(self._png()).hexdigest(),
+                "poster_frame_timestamp_seconds": automated_media.POSTER_TIMESTAMP_SECONDS,
+                "duration_seconds": 30.0,
+                "width": 1280,
+                "height": 720,
+                "frame_count": 900,
+                "pts_sha256": "a" * 64,
+                "decoded_frames_sha256": "b" * 64,
+            },
+            "privacy": {
+                "input_surface": "ALLOWLISTED_APP_VIEW_ONLY",
+                "byte_and_metadata_scan": "PASS",
+                "ocr_role": "NOT_RUN_NOT_A_COMPLETENESS_PROOF",
+                "verdict": "NO_CONFIGURED_PATTERN_DETECTED",
+                "semantic_pixel_privacy": "NOT_CLAIMED",
+            },
+            "attempt": {
+                "proof_invocation_count": 1,
+                "event_count": automated_media.ATTEMPT_EVENT_COUNT,
+                "scope": automated_media.ATTEMPT_SCOPE,
+                "state_log_sha256": "c" * 64,
+                "tag_ci_receipt_sha256": tag_ci_sha256,
+                "local_tag_trust_receipt_sha256": local_tag_trust_sha256,
+            },
+        }
+
+    def _attempt_state(self, report):
+        preflight = report["capture"]["preflight_segment"]
+        live, result = report["capture"]["segments"]
+        common = {"schema_version": 1, "tag": report["source"]["tag"]}
+        events = [
+            {**common, "event": "ATTEMPT_STARTED", "proof_invocation_count": 0,
+             "source_commit": report["source"]["commit"], "source_tree": report["source"]["tree"],
+             "preflight_segment_sha256": preflight["sha256"],
+             "preflight_owner_pid": preflight["owner_pid"], "preflight_window_id": preflight["window_id"],
+             "window_helper_sha256": report["tools"]["window_helper"]["executable_sha256"],
+             "tag_ci_receipt_sha256": report["attempt"]["tag_ci_receipt_sha256"],
+             "local_tag_trust_receipt_sha256": report["attempt"]["local_tag_trust_receipt_sha256"]},
+            {**common, "event": "LIVE_SURFACE_READY", "proof_invocation_count": 0,
+             "executable_sha256": report["run"]["application_executable_sha256"],
+             "owner_pid": live["owner_pid"], "window_id": live["window_id"]},
+            {**common, "event": "PROOF_INVOKED", "proof_invocation_count": 1,
+             "challenge_sha256": report["run"]["challenge_sha256"]},
+            {**common, "event": "LIVE_CAPTURED", "proof_invocation_count": 1,
+             "segment_sha256": live["sha256"], "window_id": live["window_id"]},
+            {**common, "event": "PROOF_TERMINAL", "proof_invocation_count": 1,
+             "metric_verdict": report["run"]["metric_verdict"],
+             "run_identifier": report["run"]["identifier"],
+             "terminal_outcome": report["run"]["terminal_outcome"]},
+            {**common, "event": "REPLAY_VERIFIED", "proof_invocation_count": 1,
+             "replay_verdict": report["run"]["replay_verdict"],
+             "run_identifier": report["run"]["identifier"]},
+            {**common, "event": "SAME_RUN_REOPENED", "proof_invocation_count": 1,
+             "result_readiness_sha256": report["capture"]["result_readiness_sha256"],
+             "run_identifier": report["run"]["identifier"], "window_id": result["window_id"]},
+            {**common, "event": "RESULT_CAPTURED", "proof_invocation_count": 1,
+             "segment_sha256": result["sha256"], "window_id": result["window_id"]},
+            {**common, "event": "MEDIA_SEALED_FOR_COLLECTION", "proof_invocation_count": 1,
+             "poster_sha256": report["output"]["poster_sha256"],
+             "video_sha256": report["output"]["video_sha256"]},
+        ]
+        return b"".join(automated_media.canonical_json_bytes(event) for event in events)
 
     def _evidence(self, *, nested_directories=False, build_document=None):
         if build_document is None:
@@ -186,12 +352,15 @@ class PortfolioReleaseTests(unittest.TestCase):
                 "challengeNonce": "e" * 64,
                 "error": None,
                 "result": {
+                    "compressionRatioVsBF16": 2.0,
+                    "deltaNLLNatPerToken": 0.001,
                     "metricVerdict": "PASS",
                     "path": "validation-064-071.json",
                     "resultFileSHA256": result_digest,
                     "resultRole": "PUBLIC_VALIDATION_REGRESSION",
                     "resultSHA256": "d" * 64,
                     "swiftStructuralVerification": "PASS",
+                    "top1Agreement": 0.999,
                 },
                 "schemaVersion": "corelm-macos-app-real-llm-run-v5",
                 "worker": {
@@ -201,6 +370,81 @@ class PortfolioReleaseTests(unittest.TestCase):
             }
         )
         receipt_digest = hashlib.sha256(receipt).hexdigest()
+        readiness = _canonical(
+            {
+                "schema_version": 1,
+                "status": "CAPTURE_RESULT_READY",
+                "run_identifier": "12345678-1234-4234-8234-123456789abc",
+                "receipt_sha256": receipt_digest,
+                "result_sha256": result_digest,
+                "application_executable_sha256": "7" * 64,
+                "metric_verdict": "PASS",
+                "compression_ratio_vs_bf16": "2.000000",
+                "delta_nll_nat_per_token": "0.001000",
+                "top1_agreement": "0.999000",
+                "module_states": {
+                    "qwen_model": "COMPLETE",
+                    "kv_cache": "COMPLETE",
+                    "compression": "COMPLETE",
+                    "primary_evidence": "COMPLETE",
+                    "heavy_replay": "PASS",
+                },
+                "verifier_state": "PASS",
+            }
+        )
+        raw_segment = self._mp4()
+        raw_segment_sha256 = hashlib.sha256(raw_segment).hexdigest()
+        helper_bytes = HELPER_BYTES
+        helper_sha256 = hashlib.sha256(helper_bytes).hexdigest()
+        tag_ci_responses = {
+            role: raw.replace(("a" * 40).encode(), TAG_OBJECT.encode())
+            .replace(("b" * 40).encode(), COMMIT.encode())
+            .replace(("c" * 40).encode(), TREE.encode())
+            for role, raw in tag_ci_fixture._fixture_responses().items()
+        }
+        tag_ci_receipt_value = tag_ci.validate_saved_tag_ci(
+            tag_ci_responses,
+            repository=tag_ci.DEFAULT_REPOSITORY,
+            expected_tag=TAG,
+            expected_commit=COMMIT,
+            expected_tree=TREE,
+        )
+        tag_ci_receipt = tag_ci.canonical_receipt_bytes(tag_ci_receipt_value)
+        local_tag_trust_receipt = tag_ci.canonical_receipt_bytes(
+            {
+                "schema_version": 1,
+                "artifact_kind": "corelm_portfolio_local_tag_trust_receipt",
+                "status": "PASS",
+                "tag": TAG,
+                "tag_object": TAG_OBJECT,
+                "commit": COMMIT,
+                "tree": TREE,
+                "principal": tag_ci.EXPECTED_SIGNING_PRINCIPAL,
+                "fingerprint": tag_ci.EXPECTED_FINGERPRINT,
+                "public_key_sha256": tag_ci.EXPECTED_PUBLIC_KEY_SHA256,
+                "allowed_signers_sha256": tag_ci.EXPECTED_ALLOWED_SIGNERS_SHA256,
+                "git_binary": tag_ci.GIT,
+                "ssh_keygen_binary": tag_ci.SSH_KEYGEN,
+                "verification": "PINNED_SSH_GIT_NAMESPACE_PASS",
+            }
+        )
+        automation_report = self._automation_report(
+            receipt,
+            result,
+            raw_sha256=raw_segment_sha256,
+            helper_sha256=helper_sha256,
+            tag_ci_sha256=hashlib.sha256(tag_ci_receipt).hexdigest(),
+            local_tag_trust_sha256=hashlib.sha256(
+                local_tag_trust_receipt
+            ).hexdigest(),
+        )
+        automation_report["capture"]["result_readiness_sha256"] = (
+            hashlib.sha256(readiness).hexdigest()
+        )
+        attempt_state = self._attempt_state(automation_report)
+        automation_report["attempt"]["state_log_sha256"] = hashlib.sha256(
+            attempt_state
+        ).hexdigest()
         base_report = {
             "schema_version": 1,
             "verdict": "PASS",
@@ -244,8 +488,30 @@ class PortfolioReleaseTests(unittest.TestCase):
             ("run/primary-evidence/manifest.json", b"{}\n"),
             ("reports/structural-verifier.json", _canonical(structural)),
             ("reports/fresh-model-replay.json", _canonical(replay)),
+            ("reports/automated-media.json", _canonical(automation_report)),
+            ("reports/result-readiness.json", readiness),
+            ("reports/tag-ci-receipt.json", tag_ci_receipt),
+            ("reports/local-tag-trust-receipt.json", local_tag_trust_receipt),
+            ("session/attempt-state.jsonl", attempt_state),
+            ("session/preflight-window.mov", raw_segment),
+            ("session/live-presentation.mov", raw_segment),
+            ("session/same-run-result.mov", raw_segment),
+            ("session/find-proof-window", helper_bytes),
             ("logs/terminal.log", b"END-TO-END PROOF PASS\n"),
         ]
+        members.extend(
+            (
+                f"tag-ci-responses/{tag_ci.RESPONSE_FILENAMES[role]}",
+                tag_ci_responses[role],
+            )
+            for role in tag_ci.RESPONSE_ROLES
+        )
+        members.append(
+            (
+                f"tag-ci-responses/{tag_ci.PUBLIC_RECEIPT_FILENAME}",
+                tag_ci_receipt,
+            )
+        )
         if nested_directories:
             members.extend(
                 [
@@ -333,13 +599,19 @@ class PortfolioReleaseTests(unittest.TestCase):
         with tarfile.open(evidence, "r:gz") as archive:
             receipt = archive.extractfile("run/app-run-receipt.json").read()
             result = archive.extractfile("run/validation-064-071.json").read()
+            automation_receipt = archive.extractfile(
+                "reports/automated-media.json"
+            ).read()
+            result_readiness = archive.extractfile(
+                "reports/result-readiness.json"
+            ).read()
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "tag": TAG,
             "source": {"commit": COMMIT, "tree": TREE},
             "video": {
                 "sha256": _sha256(video),
-                "duration_seconds": 20.0,
+                "duration_seconds": 30.0,
                 "width": 1280,
                 "height": 720,
                 "codec": "h264",
@@ -350,10 +622,26 @@ class PortfolioReleaseTests(unittest.TestCase):
                 "sha256": _sha256(poster),
                 "width": 1280,
                 "height": 720,
-                "frame_timestamp_seconds": 4.0,
+                "frame_timestamp_seconds": automated_media.POSTER_TIMESTAMP_SECONDS,
                 "evidence_role": portfolio.MEDIA_CLASSIFICATION,
             },
-            "capture": {"platform": "macOS", "architecture": "arm64"},
+            "capture": {
+                "platform": "macOS",
+                "architecture": "arm64",
+                "automation_contract": automated_media.AUTOMATION_CONTRACT,
+                "mode": automated_media.CAPTURE_MODE,
+                "automation_only": True,
+                "human_reviewed": False,
+                "manual_edits": False,
+                "machine_evidence": False,
+                "pixel_semantics_verified": False,
+                "automation_receipt_sha256": hashlib.sha256(
+                    automation_receipt
+                ).hexdigest(),
+                "result_readiness_sha256": hashlib.sha256(
+                    result_readiness
+                ).hexdigest(),
+            },
             "application_executable_sha256": "7" * 64,
             "result_sha256": hashlib.sha256(result).hexdigest(),
             "receipt_sha256": hashlib.sha256(receipt).hexdigest(),
@@ -364,7 +652,7 @@ class PortfolioReleaseTests(unittest.TestCase):
 
     def _runtime(self, provenance):
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "tag": TAG,
             "source": {"commit": COMMIT, "tree": TREE},
             "platform": {"system": "macOS", "architecture": "arm64"},
@@ -401,6 +689,7 @@ class PortfolioReleaseTests(unittest.TestCase):
                 "executable_sha256": hashlib.sha256(FFPROBE_BYTES).hexdigest(),
                 "version": FFPROBE_VERSION,
             },
+            "capture_tools": self._capture_tools(),
             "lockfiles": [
                 {"path": path, "sha256": hashlib.sha256(path.encode()).hexdigest()}
                 for path in portfolio.LOCKFILE_PATHS
@@ -501,12 +790,45 @@ class PortfolioReleaseTests(unittest.TestCase):
         portfolio._validate_schema(
             release_input, portfolio.INPUT_SCHEMA, "release input"
         )
-        portfolio._validate_ci_bindings(release_input)
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence = Path(temporary) / "evidence.tar.gz"
+            evidence.write_bytes(self._evidence())
+            receipt = portfolio._tag_ci_receipt_from_evidence(
+                evidence,
+                tag=TAG,
+                source=release_input["source"],
+            )
+        portfolio._validate_ci_bindings(release_input, receipt)
+        forged_url = json.loads(json.dumps(release_input))
+        forged_url["continuous_integration"]["linux_x86_64"]["url"] = (
+            "https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/999"
+        )
+        with self.assertRaisesRegex(
+            portfolio.PortfolioReleaseError, "recomputed tag-CI"
+        ):
+            portfolio._validate_ci_bindings(forged_url, receipt)
         release_input["unexpected"] = True
         with self.assertRaisesRegex(portfolio.PortfolioReleaseError, "schema failure"):
             portfolio._validate_schema(
                 release_input, portfolio.INPUT_SCHEMA, "release input"
             )
+
+    def test_tag_ci_raw_object_must_equal_release_source_tag_object(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            evidence = Path(temporary) / "evidence.tar.gz"
+            evidence.write_bytes(self._evidence())
+            with self.assertRaisesRegex(
+                portfolio.PortfolioReleaseError, "cannot be independently recomputed"
+            ):
+                portfolio._tag_ci_receipt_from_evidence(
+                    evidence,
+                    tag=TAG,
+                    source={
+                        "commit": COMMIT,
+                        "tree": TREE,
+                        "tag_object": "f" * 40,
+                    },
+                )
 
     def test_release_input_rejects_pre_terminal_blind_v1_lifecycle(self):
         release_input = self._release_input()
@@ -580,7 +902,7 @@ class PortfolioReleaseTests(unittest.TestCase):
             path.write_bytes(_canonical(fabricated))
             with self.assertRaisesRegex(
                 portfolio.PortfolioReleaseError,
-                "runtime toolchain identity is not canonical",
+                "runtime-assets manifest schema failure|runtime toolchain identity is not canonical",
             ):
                 portfolio._validate_runtime_assets(
                     path,
@@ -774,8 +1096,8 @@ class PortfolioReleaseTests(unittest.TestCase):
             root = Path(temporary)
             (root / "CITATION.cff").write_text(
                 "cff-version: 1.2.0\n"
-                "version: corelm-portfolio-v2\n"
-                "version: corelm-portfolio-v2\n"
+                "version: corelm-portfolio-v3\n"
+                "version: corelm-portfolio-v3\n"
                 "date-released: 2026-08-09\n"
                 "license: MIT\n"
                 "repository-code: https://github.com/ALLPROTO/core-lm-benchmark\n"
@@ -822,7 +1144,12 @@ class PortfolioReleaseTests(unittest.TestCase):
             'locked_python="$HOME/.cache/corelm/linux/runtime/bin/python"',
             document,
         )
+        self.assertIn("publication/run_portfolio_python.sh", document)
         self.assertIn(
+            '"$locked_python" build_portfolio_release.py',
+            document,
+        )
+        self.assertNotIn(
             '"$locked_python" -I -B publication/build_portfolio_release.py',
             document,
         )
@@ -1273,6 +1600,64 @@ class PortfolioReleaseTests(unittest.TestCase):
                     source={"commit": COMMIT, "tree": TREE},
                 )
 
+    def test_session_evidence_rejects_report_raw_state_helper_and_trust_tamper(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(strict=True)
+            video = root / "video.mp4"
+            poster = root / "poster.png"
+            video.write_bytes(self._mp4())
+            poster.write_bytes(self._png())
+            canonical = root / "canonical.tar.gz"
+            canonical.write_bytes(self._evidence())
+            with tarfile.open(canonical, "r:gz") as archive:
+                base = {
+                    member.name: archive.extractfile(member).read()
+                    for member in archive.getmembers()
+                    if member.isfile()
+                }
+
+            def json_mutation(payload, key, value):
+                document = json.loads(payload)
+                document[key] = value
+                return _canonical(document)
+
+            cases = {
+                "reports/automated-media.json": lambda payload: json_mutation(
+                    payload, "automation_only", False
+                ),
+                "session/live-presentation.mov": lambda payload: payload[:-1]
+                + bytes([payload[-1] ^ 1]),
+                "session/attempt-state.jsonl": lambda payload: payload.replace(
+                    b'"event":"LIVE_CAPTURED"',
+                    b'"event":"LIVE_CAPTURFd"',
+                    1,
+                ),
+                "session/find-proof-window": lambda payload: payload + b"tamper\n",
+                "reports/local-tag-trust-receipt.json": lambda payload: json_mutation(
+                    payload, "status", "FAIL"
+                ),
+                f"tag-ci-responses/{tag_ci.RESPONSE_FILENAMES['main_ref']}": (
+                    lambda payload: payload + b" "
+                ),
+            }
+            for index, (member_name, mutate) in enumerate(cases.items()):
+                with self.subTest(member=member_name):
+                    members = dict(base)
+                    members[member_name] = mutate(members[member_name])
+                    path = root / f"tampered-{index}.tar.gz"
+                    path.write_bytes(self._tar_gzip(list(members.items())))
+                    provenance = self._provenance(video, poster, path)
+                    with patch.object(
+                        portfolio,
+                        "_extract_and_verify_product_evidence",
+                        return_value={},
+                    ), self.assertRaises(portfolio.PortfolioReleaseError):
+                        portfolio._validate_evidence_archive(
+                            path,
+                            provenance=provenance,
+                            source={"commit": COMMIT, "tree": TREE},
+                        )
+
     def test_evidence_archive_rejects_explicit_directory_members(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -1682,7 +2067,8 @@ class PortfolioReleaseTests(unittest.TestCase):
         self.assertNotIn("ls-remote", source)
         self.assertNotIn("urllib.request", source)
         self.assertIn("CORELM_PORTFOLIO_SIGNING_KEY", source)
-        self.assertIn("--ci-api-preflight-confirmed", source)
+        self.assertNotIn("--ci-api-preflight-confirmed", source)
+        self.assertIn("_tag_ci_receipt_from_evidence", source)
         self.assertIn("refs/remotes/origin/main", source)
         self.assertIn("refs/remotes/origin/pull/5/head", source)
 

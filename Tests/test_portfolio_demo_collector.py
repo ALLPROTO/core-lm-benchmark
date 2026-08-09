@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -13,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 from publication import build_portfolio_release as portfolio  # noqa: E402
 from publication import collect_portfolio_demo as collector  # noqa: E402
 from security import proof_reports  # noqa: E402
+from security import automated_media  # noqa: E402
 
 
 SOURCE = {"commit": "1" * 40, "tree": "2" * 40}
@@ -146,6 +148,121 @@ class ProofReportTests(unittest.TestCase):
 
 
 class PortfolioDemoCollectorTests(unittest.TestCase):
+    def _readiness(self):
+        return {
+            "schema_version": 1,
+            "status": "CAPTURE_RESULT_READY",
+            "run_identifier": "12345678-1234-4234-8234-123456789abc",
+            "receipt_sha256": "1" * 64,
+            "result_sha256": "2" * 64,
+            "application_executable_sha256": "3" * 64,
+            "metric_verdict": "PASS",
+            "compression_ratio_vs_bf16": "2.000000",
+            "delta_nll_nat_per_token": "0.001000",
+            "top1_agreement": "0.999000",
+            "module_states": {
+                "qwen_model": "COMPLETE",
+                "kv_cache": "COMPLETE",
+                "compression": "COMPLETE",
+                "primary_evidence": "COMPLETE",
+                "heavy_replay": "PASS",
+            },
+            "verifier_state": "PASS",
+        }
+
+    def test_private_readiness_copy_remains_0600_and_0644_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(strict=True)
+            source = root / "source-readiness.json"
+            target = root / "target-readiness.json"
+            source.write_bytes(automated_media.canonical_json_bytes(self._readiness()))
+            source.chmod(0o600)
+            collector._copy_private_regular(
+                source, target, automated_media.MAX_READINESS_BYTES
+            )
+            self.assertEqual(target.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(
+                automated_media.read_canonical_readiness(target), self._readiness()
+            )
+            target.chmod(0o644)
+            with self.assertRaisesRegex(
+                automated_media.AutomatedMediaError, "owner-only"
+            ):
+                automated_media.read_canonical_readiness(target)
+
+    def test_fixed_composition_replay_rejects_byte_tamper(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(strict=True)
+            live = root / "live.mov"
+            result = root / "result.mov"
+            video = root / "video.mp4"
+            poster = root / "poster.png"
+            for path, payload in (
+                (live, b"live"), (result, b"result"),
+                (video, b"expected-video"), (poster, b"expected-poster"),
+            ):
+                path.write_bytes(payload)
+
+            def fake_run(arguments, **_kwargs):
+                output = Path(arguments[-1])
+                if output.suffix == ".mp4":
+                    output.write_bytes(b"tampered-video")
+                else:
+                    output.write_bytes(b"expected-poster")
+                return subprocess.CompletedProcess(arguments, 0, b"", b"")
+
+            with patch.object(portfolio, "_run", side_effect=fake_run):
+                with self.assertRaisesRegex(
+                    collector.CollectionError, "exact raw composition"
+                ):
+                    collector._verify_composition_from_raw(
+                        live=live,
+                        result=result,
+                        video=video,
+                        poster=poster,
+                        ffmpeg=Path("/fixture/ffmpeg"),
+                    )
+
+    def test_collector_cli_and_archive_surface_require_full_session_evidence(self):
+        source = (ROOT / "publication/collect_portfolio_demo.py").read_text(
+            encoding="utf-8"
+        )
+        for required in (
+            'parser.add_argument("--result-readiness", type=Path, required=True)',
+            'parser.add_argument("--attempt-state", type=Path, required=True)',
+            'parser.add_argument("--tag-ci-bundle", type=Path, required=True)',
+            'parser.add_argument("--local-tag-trust-receipt", type=Path, required=True)',
+            '"session/preflight-window.mov": preflight_path',
+            '"session/live-presentation.mov": live_path',
+            '"session/same-run-result.mov": result_segment_path',
+            '"session/find-proof-window": helper_path',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, source)
+        self.assertNotIn('parser.add_argument("--linux-ci-url"', source)
+        self.assertNotIn('parser.add_argument("--macos-ci-url"', source)
+        self.assertIn('recomputed_tag_ci["workflows"][0]["html_url"]', source)
+
+        for relative in ("docs/DEMO.md", "publication/PORTFOLIO_RELEASE.md"):
+            document = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(document=relative):
+                for option in (
+                    "--result-readiness",
+                    "--attempt-state",
+                    "--preflight-segment",
+                    "--live-segment",
+                    "--result-segment",
+                    "--window-helper",
+                    "--tag-ci-receipt",
+                    "--local-tag-trust-receipt",
+                    "--tag-ci-bundle",
+                ):
+                    self.assertIn(option, document)
+                self.assertNotIn("--linux-ci-url", document)
+                self.assertNotIn("--macos-ci-url", document)
+                self.assertNotIn("only the three named", document.lower())
+                self.assertNotIn("only the three", document.lower())
+
     def test_terminal_outcome_preserves_metric_fail_without_selection(self):
         with tempfile.TemporaryDirectory() as temporary:
             terminal = Path(temporary) / "terminal.log"
@@ -337,10 +454,18 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
             replacement.rename(python_cache)
 
     def test_runtime_manifest_tracks_the_collector_and_report_generator(self):
-        self.assertIn(
-            "publication/collect_portfolio_demo.py", portfolio.VERIFIER_PATHS
-        )
-        self.assertIn("security/proof_reports.py", portfolio.VERIFIER_PATHS)
+        for relative in (
+            ".github/workflows/verify-linux.yml",
+            ".github/workflows/verify-macos.yml",
+            "corelm",
+            "publication/collect_portfolio_demo.py",
+            "publication/run_portfolio_python.sh",
+            "scripts/verify-python.sh",
+            "security/proof_reports.py",
+            "security/verify_portfolio_tag_ci.py",
+        ):
+            with self.subTest(path=relative):
+                self.assertIn(relative, portfolio.VERIFIER_PATHS)
         self.assertEqual(tuple(sorted(portfolio.VERIFIER_PATHS)), portfolio.VERIFIER_PATHS)
 
     def test_release_validator_rejects_declared_replay_counts(self):
@@ -424,25 +549,26 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
         self.assertIn("END-TO-END PROOF VERIFIED — METRIC FAIL", proof)
         self.assertNotIn("rerun-to-pass", proof)
 
-    def test_demo_runbook_exports_metadata_free_public_media(self):
+    def test_demo_runbook_uses_only_automated_bound_public_media(self):
         runbook = (ROOT / "docs" / "DEMO.md").read_text(encoding="utf-8")
         for required in (
-            'RAW_DEMO_SCREENSHOT="$DEMO_CAPTURE_DIR/corelm-result-raw.png"',
-            'DEMO_VIDEO="$DEMO_CAPTURE_DIR/corelm-demo-85s-public.mp4"',
-            '-fflags +bitexact -flags:v +bitexact',
-            '-map_metadata -1',
-            '-empty_hdlr_name 1 -movflags +faststart',
-            '--video "$DEMO_VIDEO"',
-            '--poster "$DEMO_SCREENSHOT"',
+            "AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE",
+            "./corelm macos portfolio-demo",
+            '--automation-receipt "$AUTOMATION_RECEIPT"',
+            '--video "$VIDEO"',
+            '--poster "$POSTER"',
+            '--ffmpeg "$FFMPEG"',
+            '--ffprobe "$FFPROBE"',
+            "poster derived automatically at exactly 15.000000 seconds",
+            "pixel_semantics_verified:false",
+            "NO_CONFIGURED_PATTERN_DETECTED",
         ):
             with self.subTest(required=required):
                 self.assertIn(required, runbook)
-        self.assertNotIn(
-            '--video "$DEMO_CAPTURE_DIR/corelm-demo-85s.mov"', runbook
-        )
-        self.assertNotIn(
-            '--poster "$DEMO_CAPTURE_DIR/corelm-result-raw.png"', runbook
-        )
+        self.assertNotIn("RAW_DEMO_SCREENSHOT=", runbook)
+        self.assertNotIn("DEMO_SCREENSHOT=", runbook)
+        self.assertNotIn("--poster-frame-seconds", runbook)
+        self.assertNotIn("HUMAN_REVIEWED_PRESENTATION_NOT_MACHINE_EVIDENCE", runbook)
 
 
 if __name__ == "__main__":

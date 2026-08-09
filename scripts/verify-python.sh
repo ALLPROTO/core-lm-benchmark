@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+SCRIPT_DIR=$(CDPATH= cd -- "$(/usr/bin/dirname -- "$0")/.." && pwd -P)
 if [ "${PYTHON_BIN+x}" = x ]; then
     PYTHON_REQUEST=$PYTHON_BIN
 else
@@ -17,13 +17,28 @@ else
     if [ -n "$PLATFORM_RUNTIME" ] && [ -x "$PLATFORM_RUNTIME/bin/python" ]; then
         PYTHON_REQUEST=$PLATFORM_RUNTIME/bin/python
     else
-        PYTHON_REQUEST=python3
+        printf '%s\n' \
+            'TEST GATE FAIL: the managed platform runtime is unavailable; set PYTHON_BIN to its absolute interpreter path' >&2
+        exit 1
     fi
 fi
 case "$PYTHON_REQUEST" in
-    /*) PYTHON_EXECUTABLE=$PYTHON_REQUEST ;;
-    *) PYTHON_EXECUTABLE=$(command -v "$PYTHON_REQUEST" 2>/dev/null || true) ;;
+    /*) ;;
+    *)
+        printf '%s\n' 'TEST GATE FAIL: PYTHON_BIN must be an absolute path' >&2
+        exit 1
+        ;;
 esac
+PYTHON_DIRECTORY=$(CDPATH= cd -- \
+    "$(/usr/bin/dirname -- "$PYTHON_REQUEST")" && pwd -P) || {
+    printf '%s\n' 'TEST GATE FAIL: Python executable directory is unavailable' >&2
+    exit 1
+}
+PYTHON_EXECUTABLE="$PYTHON_DIRECTORY/$(/usr/bin/basename -- "$PYTHON_REQUEST")"
+[ "$PYTHON_EXECUTABLE" = "$PYTHON_REQUEST" ] || {
+    printf '%s\n' 'TEST GATE FAIL: PYTHON_BIN must be a canonical path' >&2
+    exit 1
+}
 [ -n "$PYTHON_EXECUTABLE" ] && [ -x "$PYTHON_EXECUTABLE" ] || {
     printf 'TEST GATE FAIL: Python executable is missing: %s\n' \
         "$PYTHON_REQUEST" >&2
@@ -39,18 +54,42 @@ PYTHON_VERSION=$(
         'Build the platform runtime first or set PYTHON_BIN to its exact interpreter.' >&2
     exit 1
 }
-PYTHON_CACHE=$(mktemp -d "${TMPDIR:-/tmp}/corelm-test-pycache.XXXXXX")
+TEST_TMP_ROOT=${TMPDIR:-/tmp}
+case "$TEST_TMP_ROOT" in
+    /*) ;;
+    *)
+        printf '%s\n' 'TEST GATE FAIL: TMPDIR must be an absolute directory' >&2
+        exit 1
+        ;;
+esac
+TEST_TMP_ROOT=$(CDPATH= cd -- "$TEST_TMP_ROOT" && pwd -P) || {
+    printf '%s\n' 'TEST GATE FAIL: TMPDIR is unavailable' >&2
+    exit 1
+}
+case "$TEST_TMP_ROOT/" in
+    "$SCRIPT_DIR/"|"$SCRIPT_DIR/"*)
+        printf '%s\n' \
+            'TEST GATE FAIL: test caches must be outside the source checkout' >&2
+        exit 1
+        ;;
+esac
+PYTHON_CACHE=$(/usr/bin/mktemp -d \
+    "$TEST_TMP_ROOT/corelm-test-pycache.XXXXXX")
+PYTHON_CACHE=$(CDPATH= cd -- "$PYTHON_CACHE" && pwd -P)
 TEST_TMP="$PYTHON_CACHE/tmp"
 /bin/mkdir -m 700 "$TEST_TMP"
 
 cleanup() {
-    rm -rf "$PYTHON_CACHE"
+    /bin/rm -rf -- "$PYTHON_CACHE"
 }
 trap cleanup EXIT
 
 if [ "$#" -eq 0 ]; then
     set -- \
         Tests.test_app_real_llm_evidence \
+        Tests.test_automated_media \
+        Tests.test_automated_portfolio_demo \
+        Tests.test_automated_window_capture \
         Tests.test_beacon_launch_runbook \
         Tests.test_beacon_publication_audit \
         Tests.test_beacon_protocol \
@@ -62,10 +101,13 @@ if [ "$#" -eq 0 ]; then
         Tests.test_paper_v5_release_receipt \
         Tests.test_portfolio_demo_collector \
         Tests.test_portfolio_github_release \
+        Tests.test_portfolio_python_launcher \
         Tests.test_portfolio_release \
+        Tests.test_portfolio_tag_ci \
         Tests.test_real_llm \
         Tests.test_security_supply_chain \
         Tests.test_swift_security_gate \
+        Tests.test_strict_git_checkout \
         Tests.test_voidtoken_v5 \
         Tests.test_voidtoken_v5_development \
         Tests.test_voidtoken_v5_frozen

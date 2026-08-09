@@ -84,6 +84,12 @@ does not turn that claim into a general model-compression result.
     release metadata, manifests, checksums, and current evidence. Private keys,
     tokens, credential-like bytes, model weights, and new author-local paths
     remain release blockers.
+17. V3 demo pixels are an automatically captured product presentation, not
+    metric evidence or independent review. Single-window isolation, a
+    capture-safe allowlisted view, metadata/byte scans, fixed-frame replay, and
+    decoded-frame hashes are checked automatically, but semantic pixel privacy
+    is explicitly not claimed. G10 remains open until a non-author, non-agent
+    clean-clone replication is published.
 
 The detailed versioned research record is preserved under `docs/development/`
 and in immutable publication tags.

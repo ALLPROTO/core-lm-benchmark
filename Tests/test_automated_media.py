@@ -1,0 +1,396 @@
+import copy
+import hashlib
+import tempfile
+import unittest
+from pathlib import Path
+
+
+from security import automated_media
+from security import verify_portfolio_tag_ci as tag_ci
+
+
+class AutomatedMediaContractTests(unittest.TestCase):
+    def _segment(self, role, owner_pid, window_id, duration, digest):
+        return {
+            "role": role,
+            "owner_pid": owner_pid,
+            "window_id": window_id,
+            "width": 1280,
+            "height": 720,
+            "requested_duration_seconds": duration,
+            "duration_seconds": duration,
+            "frame_count": max(1, int(duration * 30)),
+            "pts_sha256": digest,
+            "sha256": digest,
+        }
+
+    def _readiness(self):
+        return {
+            "schema_version": 1,
+            "status": "CAPTURE_RESULT_READY",
+            "run_identifier": "12345678-1234-4234-8234-123456789abc",
+            "receipt_sha256": "4" * 64,
+            "result_sha256": "5" * 64,
+            "application_executable_sha256": "6" * 64,
+            "metric_verdict": "FAIL",
+            "compression_ratio_vs_bf16": "2.000000",
+            "delta_nll_nat_per_token": "0.001000",
+            "top1_agreement": "0.999000",
+            "module_states": {
+                "qwen_model": "COMPLETE",
+                "kv_cache": "COMPLETE",
+                "compression": "COMPLETE",
+                "primary_evidence": "COMPLETE",
+                "heavy_replay": "PASS",
+            },
+            "verifier_state": "PASS",
+        }
+
+    def _report(self):
+        return {
+            "schema_version": 1,
+            "report_kind": automated_media.REPORT_KIND,
+            "verdict": automated_media.VERDICT,
+            "automation_contract": automated_media.AUTOMATION_CONTRACT,
+            "classification": automated_media.MEDIA_CLASSIFICATION,
+            "automation_only": True,
+            "human_reviewed": False,
+            "manual_edits": False,
+            "machine_evidence": False,
+            "pixel_semantics_verified": False,
+            "source": {
+                "tag": "corelm-portfolio-v3",
+                "commit": "1" * 40,
+                "tree": "2" * 40,
+            },
+            "run": {
+                "identifier": "12345678-1234-4234-8234-123456789abc",
+                "challenge_sha256": "3" * 64,
+                "receipt_sha256": "4" * 64,
+                "result_sha256": "5" * 64,
+                "application_executable_sha256": "6" * 64,
+                "metric_verdict": "FAIL",
+                "terminal_outcome": "END-TO-END PROOF VERIFIED — METRIC FAIL",
+                "structural_verdict": "PASS",
+                "replay_verdict": automated_media.REPLAY_VERDICT,
+                "workload_classification": automated_media.WORKLOAD_CLASSIFICATION,
+                "synthetic_data": False,
+            },
+            "capture": {
+                "mode": automated_media.CAPTURE_MODE,
+                "bundle_identifier": automated_media.BUNDLE_IDENTIFIER,
+                "result_readiness_sha256": "f" * 64,
+                "preflight_segment": self._segment(
+                    "preflight", 99, 199, automated_media.PREFLIGHT_SEGMENT_SECONDS, "6" * 64
+                ),
+                "segments": [
+                    self._segment(
+                        "live_presentation", 100, 200,
+                        automated_media.LIVE_SEGMENT_SECONDS, "7" * 64,
+                    ),
+                    self._segment(
+                        "same_run_result", 101, 201,
+                        automated_media.RESULT_SEGMENT_SECONDS, "8" * 64,
+                    ),
+                ],
+            },
+            "tools": {
+                "window_helper": {
+                    "source_sha256": "9" * 64,
+                    "executable_sha256": "a" * 64,
+                    "swift_version": "Apple Swift version 6.3.3 fixture",
+                },
+                "screencapture": {
+                    "executable_sha256": "b" * 64,
+                    "codesign_identifier": "com.apple.screencapture",
+                },
+                "ffmpeg": {
+                    "executable_sha256": "c" * 64,
+                    "version": "ffmpeg version 8.1.2 fixture",
+                },
+                "ffprobe": {
+                    "executable_sha256": "d" * 64,
+                    "version": "ffprobe version 8.1.2 fixture",
+                },
+            },
+            "output": {
+                "video_sha256": "e" * 64,
+                "poster_sha256": "f" * 64,
+                "poster_frame_timestamp_seconds": automated_media.POSTER_TIMESTAMP_SECONDS,
+                "duration_seconds": 30.0,
+                "width": 1280,
+                "height": 720,
+                "frame_count": 900,
+                "pts_sha256": "0" * 64,
+                "decoded_frames_sha256": "1" * 64,
+            },
+            "privacy": {
+                "input_surface": "ALLOWLISTED_APP_VIEW_ONLY",
+                "byte_and_metadata_scan": "PASS",
+                "ocr_role": "NOT_RUN_NOT_A_COMPLETENESS_PROOF",
+                "verdict": "NO_CONFIGURED_PATTERN_DETECTED",
+                "semantic_pixel_privacy": "NOT_CLAIMED",
+            },
+            "attempt": {
+                "proof_invocation_count": 1,
+                "event_count": automated_media.ATTEMPT_EVENT_COUNT,
+                "scope": automated_media.ATTEMPT_SCOPE,
+                "state_log_sha256": "2" * 64,
+                "tag_ci_receipt_sha256": "3" * 64,
+                "local_tag_trust_receipt_sha256": "4" * 64,
+            },
+        }
+
+    def _attempt_state(self, report):
+        preflight = report["capture"]["preflight_segment"]
+        live, result = report["capture"]["segments"]
+        common = {"schema_version": 1, "tag": report["source"]["tag"]}
+        events = [
+            {**common, "event": "ATTEMPT_STARTED", "proof_invocation_count": 0,
+             "source_commit": report["source"]["commit"], "source_tree": report["source"]["tree"],
+             "preflight_segment_sha256": preflight["sha256"],
+             "preflight_owner_pid": preflight["owner_pid"], "preflight_window_id": preflight["window_id"],
+             "window_helper_sha256": report["tools"]["window_helper"]["executable_sha256"],
+             "tag_ci_receipt_sha256": report["attempt"]["tag_ci_receipt_sha256"],
+             "local_tag_trust_receipt_sha256": report["attempt"]["local_tag_trust_receipt_sha256"]},
+            {**common, "event": "LIVE_SURFACE_READY", "proof_invocation_count": 0,
+             "executable_sha256": report["run"]["application_executable_sha256"],
+             "owner_pid": live["owner_pid"], "window_id": live["window_id"]},
+            {**common, "event": "PROOF_INVOKED", "proof_invocation_count": 1,
+             "challenge_sha256": report["run"]["challenge_sha256"]},
+            {**common, "event": "LIVE_CAPTURED", "proof_invocation_count": 1,
+             "segment_sha256": live["sha256"], "window_id": live["window_id"]},
+            {**common, "event": "PROOF_TERMINAL", "proof_invocation_count": 1,
+             "metric_verdict": report["run"]["metric_verdict"],
+             "run_identifier": report["run"]["identifier"],
+             "terminal_outcome": report["run"]["terminal_outcome"]},
+            {**common, "event": "REPLAY_VERIFIED", "proof_invocation_count": 1,
+             "replay_verdict": report["run"]["replay_verdict"],
+             "run_identifier": report["run"]["identifier"]},
+            {**common, "event": "SAME_RUN_REOPENED", "proof_invocation_count": 1,
+             "result_readiness_sha256": report["capture"]["result_readiness_sha256"],
+             "run_identifier": report["run"]["identifier"], "window_id": result["window_id"]},
+            {**common, "event": "RESULT_CAPTURED", "proof_invocation_count": 1,
+             "segment_sha256": result["sha256"], "window_id": result["window_id"]},
+            {**common, "event": "MEDIA_SEALED_FOR_COLLECTION", "proof_invocation_count": 1,
+             "poster_sha256": report["output"]["poster_sha256"],
+             "video_sha256": report["output"]["video_sha256"]},
+        ]
+        return b"".join(automated_media.canonical_json_bytes(event) for event in events)
+
+    def _tag_ci_receipt(self):
+        tag = "corelm-portfolio-v3"
+        commit = "1" * 40
+        tree = "2" * 40
+        workflows = []
+        for index, (name, path, jobs) in enumerate((
+            ("Verify Linux", ".github/workflows/verify-linux.yml", ("python-and-publication", "supply-chain")),
+            ("Verify macOS", ".github/workflows/verify-macos.yml", ("native-application",)),
+        ), start=1):
+            workflows.append({
+                "workflow_name": name, "workflow_path": path, "run_id": index,
+                "run_attempt": 1, "event": "push", "head_branch": tag,
+                "head_sha": commit, "status": "completed", "conclusion": "success",
+                "api_url": f"https://api.github.com/repos/ALLPROTO/core-lm-benchmark/actions/runs/{index}",
+                "html_url": f"https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/{index}",
+                "jobs": [{"job_id": index * 10 + job_index, "name": job_name,
+                          "step_count": 1, "tag_ref_assertion": "PASS",
+                          "status": "completed", "conclusion": "success"}
+                         for job_index, job_name in enumerate(jobs, start=1)],
+            })
+        return {
+            "schema_version": 1,
+            "artifact_kind": "corelm_portfolio_tag_ci_admission_receipt",
+            "status": "PASS",
+            "admission_boundary": "PUBLIC_ANNOTATED_TAG_AND_FIRST_ATTEMPT_TAG_PUSH_CI",
+            "automation_only": True,
+            "human_reviewed": False,
+            "source": {"repository": "ALLPROTO/core-lm-benchmark", "tag": tag,
+                       "tag_ref": f"refs/tags/{tag}", "annotated_tag_object": "0" * 40,
+                       "commit": commit, "tree": tree, "main_ref": "refs/heads/main",
+                       "tag_github_verification": "VERIFIED_VALID",
+                       "commit_github_verification": "VERIFIED_VALID"},
+            "network_contract": {"api_origin": "https://api.github.com",
+                                 "authentication_sent_by_fetcher": False,
+                                 "redirects": "FORBIDDEN", "response_limit_bytes": 4 * 1024 * 1024,
+                                 "timeout_max_seconds": 30.0, "offline_validation": True},
+            "responses": [{"role": role,
+                           "url": f"https://api.github.com/repos/ALLPROTO/core-lm-benchmark/{role}",
+                           "sha256": f"{index:x}" * 64, "size_bytes": 1}
+                          for index, role in enumerate(tag_ci.RESPONSE_ROLES, start=1)],
+            "workflows": workflows,
+        }
+
+    def test_exact_report_and_external_bindings_pass(self):
+        report = self._report()
+        observed = automated_media.validate_report(
+            report,
+            expected={
+                "tag": report["source"]["tag"],
+                "commit": report["source"]["commit"],
+                "tree": report["source"]["tree"],
+                "run_identifier": report["run"]["identifier"],
+                "challenge_sha256": report["run"]["challenge_sha256"],
+                "receipt_sha256": report["run"]["receipt_sha256"],
+                "result_sha256": report["run"]["result_sha256"],
+                "application_executable_sha256": report["run"][
+                    "application_executable_sha256"
+                ],
+                "metric_verdict": "FAIL",
+                "video_sha256": report["output"]["video_sha256"],
+                "poster_sha256": report["output"]["poster_sha256"],
+            },
+        )
+        self.assertIs(observed, report)
+
+    def test_downgrade_human_claim_manual_edit_and_second_proof_fail(self):
+        for path, value in (
+            (("classification",), "HUMAN_REVIEWED_PRESENTATION_NOT_MACHINE_EVIDENCE"),
+            (("human_reviewed",), True),
+            (("manual_edits",), True),
+            (("machine_evidence",), True),
+            (("attempt", "proof_invocation_count"), 2),
+        ):
+            report = copy.deepcopy(self._report())
+            target = report
+            for key in path[:-1]:
+                target = target[key]
+            target[path[-1]] = value
+            with self.subTest(path=path), self.assertRaises(
+                automated_media.AutomatedMediaError
+            ):
+                automated_media.validate_report(report)
+
+    def test_cross_run_window_mode_and_media_swaps_fail(self):
+        mutations = (
+            ("source", "tag", "corelm-portfolio-v2"),
+            ("run", "identifier", "not-a-uuid"),
+            ("run", "terminal_outcome", "END-TO-END PROOF PASS"),
+            ("capture", "mode", "FULL_SCREEN"),
+            ("capture", "bundle_identifier", "com.apple.Terminal"),
+            ("privacy", "semantic_pixel_privacy", "PROVEN_SAFE"),
+        )
+        for group, key, value in mutations:
+            report = copy.deepcopy(self._report())
+            report[group][key] = value
+            with self.subTest(group=group, key=key), self.assertRaises(
+                automated_media.AutomatedMediaError
+            ):
+                automated_media.validate_report(report)
+
+    def test_fixed_media_topology_and_readiness_are_exact(self):
+        for key, value in (
+            ("duration_seconds", 45.0),
+            ("width", 1),
+            ("height", 1),
+            ("frame_count", 1),
+        ):
+            report = copy.deepcopy(self._report())
+            report["output"][key] = value
+            with self.subTest(key=key), self.assertRaises(
+                automated_media.AutomatedMediaError
+            ):
+                automated_media.validate_report(report)
+
+        readiness = self._readiness()
+        self.assertIs(automated_media.validate_readiness(readiness), readiness)
+        for path, value in (
+            (("status",), "CAPTURE_RESULT_LOADING"),
+            (("run_identifier",), "not-a-uuid"),
+            (("compression_ratio_vs_bf16",), "2.0"),
+            (("module_states", "heavy_replay"), "NOT_RETAINED"),
+        ):
+            tampered = copy.deepcopy(readiness)
+            target = tampered
+            for key in path[:-1]:
+                target = target[key]
+            target[path[-1]] = value
+            with self.subTest(path=path), self.assertRaises(
+                automated_media.AutomatedMediaError
+            ):
+                automated_media.validate_readiness(tampered)
+        report = self._report()
+        with self.assertRaisesRegex(
+            automated_media.AutomatedMediaError, "differs from video_sha256"
+        ):
+            automated_media.validate_report(
+                report, expected={"video_sha256": "9" * 64}
+            )
+
+    def test_canonical_writer_is_nonoverwriting_and_reader_rejects_unknown_field(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(strict=True)
+            path = root / "automation.json"
+            report = self._report()
+            automated_media.write_report(path, report)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(automated_media.read_canonical_report(path), report)
+            with self.assertRaisesRegex(
+                automated_media.AutomatedMediaError, "absent absolute"
+            ):
+                automated_media.write_report(path, report)
+            tampered = copy.deepcopy(report)
+            tampered["unexpected"] = True
+            path.write_bytes(automated_media.canonical_json_bytes(tampered))
+            with self.assertRaisesRegex(
+                automated_media.AutomatedMediaError, "fields are not exact"
+            ):
+                automated_media.validate_report(
+                    automated_media.read_canonical_report(path)
+                )
+
+    def test_exact_nine_event_state_is_report_bound_and_tamper_fails(self):
+        report = self._report()
+        state = self._attempt_state(report)
+        report["attempt"]["state_log_sha256"] = hashlib.sha256(state).hexdigest()
+        self.assertEqual(
+            len(automated_media.validate_attempt_state_bytes(state, report=report)), 9
+        )
+        for tampered in (
+            state.replace(b'"event":"LIVE_CAPTURED"', b'"event":"RESULT_CAPTURED"', 1),
+            state.replace(("7" * 64).encode(), ("8" * 64).encode(), 1),
+            state + automated_media.canonical_json_bytes({"event": "EXTRA"}),
+        ):
+            with self.assertRaises(automated_media.AutomatedMediaError):
+                automated_media.validate_attempt_state_bytes(tampered, report=report)
+        wrong_tag_state = state.replace(
+            b'"tag":"corelm-portfolio-v3"',
+            b'"tag":"corelm-portfolio-v4"',
+        )
+        wrong_tag_report = copy.deepcopy(report)
+        wrong_tag_report["attempt"]["state_log_sha256"] = hashlib.sha256(
+            wrong_tag_state
+        ).hexdigest()
+        with self.assertRaisesRegex(
+            automated_media.AutomatedMediaError,
+            "differ from automation report",
+        ):
+            automated_media.validate_attempt_state_bytes(
+                wrong_tag_state,
+                report=wrong_tag_report,
+            )
+
+    def test_tag_ci_receipt_is_canonical_source_bound_and_tamper_fails(self):
+        receipt = self._tag_ci_receipt()
+        payload = tag_ci.canonical_receipt_bytes(receipt)
+        self.assertEqual(
+            automated_media.validate_tag_ci_receipt_bytes(
+                payload,
+                expected={"repository": "ALLPROTO/core-lm-benchmark",
+                          "tag": "corelm-portfolio-v3", "commit": "1" * 40,
+                          "tree": "2" * 40},
+            ),
+            receipt,
+        )
+        tampered = copy.deepcopy(receipt)
+        tampered["workflows"][0]["conclusion"] = "failure"
+        with self.assertRaises(automated_media.AutomatedMediaError):
+            automated_media.validate_tag_ci_receipt_bytes(
+                tag_ci.canonical_receipt_bytes(tampered)
+            )
+        with self.assertRaises(automated_media.AutomatedMediaError):
+            automated_media.validate_tag_ci_receipt_bytes(payload[:-1] + b" \n")
+
+
+if __name__ == "__main__":
+    unittest.main()

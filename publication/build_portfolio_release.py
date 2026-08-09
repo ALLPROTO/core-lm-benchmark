@@ -4,8 +4,9 @@
 Build mode is intentionally offline and fail closed.  It accepts only a clean
 canonical ``main`` worktree at an already-created SSH-signed annotated
 ``corelm-portfolio-vN`` tag.  It never creates a tag and never contacts
-GitHub.  The operator must perform the documented GitHub Actions API preflight
-immediately before build mode and acknowledge that step explicitly.
+GitHub.  The retained demo evidence must contain the bounded public tag-CI API
+responses captured automatically before the proof; build and verify modes
+recompute their exact admission receipt without an operator-confirmation flag.
 
 The private key is read only from ``CORELM_PORTFOLIO_SIGNING_KEY``.  Its path
 and bytes are never emitted, copied, or included in an output manifest.
@@ -37,6 +38,54 @@ from typing import Any, BinaryIO, Iterable, Iterator, Mapping, Sequence
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _require_isolated_product_python() -> None:
+    """Reject a direct CLI before any checkout-local module can be imported."""
+
+    prefix_value = sys.pycache_prefix
+    if (
+        sys.flags.isolated != 1
+        or not sys.dont_write_bytecode
+        or not isinstance(prefix_value, str)
+        or not prefix_value
+    ):
+        raise SystemExit("portfolio tools require a tracked isolated Python launcher")
+    prefix = Path(prefix_value)
+    if not prefix.is_absolute():
+        raise SystemExit("portfolio Python cache prefix must be absolute")
+    try:
+        resolved = prefix.resolve(strict=True)
+    except OSError as error:
+        raise SystemExit("portfolio Python cache prefix is unavailable") from error
+    if resolved != prefix or resolved == ROOT or ROOT in resolved.parents:
+        raise SystemExit(
+            "portfolio Python cache prefix must be canonical and outside the checkout"
+        )
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(resolved, flags)
+    except OSError as error:
+        raise SystemExit("portfolio Python cache prefix is unsafe") from error
+    try:
+        status = os.fstat(descriptor)
+        if (
+            not stat.S_ISDIR(status.st_mode)
+            or status.st_uid != os.getuid()
+            or stat.S_IMODE(status.st_mode) != 0o700
+            or os.listdir(descriptor)
+        ):
+            raise SystemExit(
+                "portfolio Python cache prefix must be an empty owner-only directory"
+            )
+    finally:
+        os.close(descriptor)
+
+
+if __name__ == "__main__":
+    _require_isolated_product_python()
+
 # ``python -I`` deliberately omits the checkout root.  Pin the resolved root
 # containing this tracked tool at index zero even when an API caller already
 # placed it later in ``sys.path``; product verifiers must not resolve through
@@ -45,6 +94,9 @@ sys.path[:] = [entry for entry in sys.path if entry != str(ROOT)]
 sys.path.insert(0, str(ROOT))
 from security.generate_build_provenance import validate_toolchain
 from RealLLM.pinned_assets import PINNED_RELEASE_ASSETS
+from security import automated_media
+from security import verify_portfolio_tag_ci as tag_ci
+from security.verify_git_checkout import StrictCheckoutError, verify_clean_checkout
 from security.proof_reports import (
     REPLAY_EXECUTION_SCOPE,
     REPLAY_INTEGRITY_VERDICT,
@@ -54,6 +106,8 @@ from security.proof_reports import (
 
 INPUT_SCHEMA = ROOT / "schemas" / "portfolio-release-input.schema.json"
 IDENTITY_SCHEMA = ROOT / "schemas" / "portfolio-source-identity.schema.json"
+DEMO_PROVENANCE_SCHEMA = ROOT / "schemas" / "portfolio-demo-provenance.schema.json"
+RUNTIME_ASSETS_SCHEMA = ROOT / "schemas" / "portfolio-runtime-assets.schema.json"
 CANONICAL_REMOTE = "https://github.com/ALLPROTO/core-lm-benchmark.git"
 CANONICAL_REPOSITORY = "https://github.com/ALLPROTO/core-lm-benchmark"
 LAB_REPOSITORY = "https://github.com/ALLPROTO/core-lm-cross-model-lab"
@@ -73,7 +127,20 @@ EXPECTED_MODEL = PINNED_RELEASE_ASSETS["model"]["repository"]
 EXPECTED_MODEL_REVISION = PINNED_RELEASE_ASSETS["model"]["revision"]
 EXPECTED_CORPUS = PINNED_RELEASE_ASSETS["corpus"]["repository"]
 EXPECTED_CORPUS_REVISION = PINNED_RELEASE_ASSETS["corpus"]["revision"]
-MEDIA_CLASSIFICATION = "HUMAN_REVIEWED_PRESENTATION_NOT_MACHINE_EVIDENCE"
+MEDIA_CLASSIFICATION = automated_media.MEDIA_CLASSIFICATION
+CI_VALIDATION_SCOPE = (
+    "RETAINED_PUBLIC_TAG_CI_API_BYTES_RECOMPUTED_AND_SOURCE_BOUND"
+)
+PRESENTATION_CONTRACT = {
+    "automation_contract": automated_media.AUTOMATION_CONTRACT,
+    "classification": automated_media.MEDIA_CLASSIFICATION,
+    "automation_only": True,
+    "human_reviewed": False,
+    "manual_edits": False,
+    "machine_evidence": False,
+    "pixel_semantics_verified": False,
+    "independent_human_replication": False,
+}
 TAG_RE = re.compile(r"^corelm-portfolio-v([1-9][0-9]*)$")
 GIT_OBJECT_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -117,6 +184,8 @@ LOCKFILE_PATHS = (
     "requirements.txt",
 )
 VERIFIER_PATHS = (
+    ".github/workflows/verify-linux.yml",
+    ".github/workflows/verify-macos.yml",
     "BenchmarkCore/corelm_benchmark.py",
     "RealLLM/__init__.py",
     "RealLLM/app_proof_core.py",
@@ -129,12 +198,20 @@ VERIFIER_PATHS = (
     "RealLLM/run_voidtoken_v5_frozen.py",
     "RealLLM/verify_voidtoken_v5_development.py",
     "RealLLM/voidtoken_v5.py",
+    "corelm",
+    "platforms/macos/scripts/find-proof-window.swift",
+    "platforms/macos/scripts/run-automated-portfolio-demo.py",
     "platforms/macos/scripts/run-proof.sh",
     "publication/build_portfolio_release.py",
     "publication/collect_portfolio_demo.py",
+    "publication/run_portfolio_python.sh",
     "publication/verify_portfolio_github_release.py",
+    "schemas/portfolio-demo-provenance.schema.json",
     "schemas/portfolio-release-input.schema.json",
+    "schemas/portfolio-runtime-assets.schema.json",
     "schemas/portfolio-source-identity.schema.json",
+    "scripts/verify-python.sh",
+    "security/automated_media.py",
     "security/generate_app_proof_core.py",
     "security/generate_build_provenance.py",
     "security/generate_direct_sbom.py",
@@ -142,15 +219,17 @@ VERIFIER_PATHS = (
     "security/proof_reports.py",
     "security/verify_app_bundle.sh",
     "security/verify_app_run_evidence.py",
+    "security/verify_git_checkout.py",
     "security/verify_local_app_run.py",
+    "security/verify_portfolio_tag_ci.py",
     "security/verify_primary_evidence.py",
     "security/verify_primary_replay.py",
 )
 LEGACY_PRIVATE_PATH_ALLOWLIST = {
     "RealLLM/verify_voidtoken_v5_development.py": "9645dd4a456a9c7e35c0f91dc613ea4cbad97bea8b0e6d3f6090c9604cd7308b",
     "Tests/test_app_real_llm_evidence.py": "ff0419672b46fea6a77f48ec89c7b60ebab5b71362b52593534391219a100a97",
-    "Tests/test_local_app_build.py": "ff7c1a4e6b114b68ff59d9032cf27e5cf895f4466c6c75572e73d56dde8d3e05",
-    "platforms/macos/Tests/SecurityValidationTests.swift": "953c6a7165c62a77baa1bfc714a6da23d67bda6e8986d0ac758c65c562647050",
+    "Tests/test_local_app_build.py": "538407e678f3d7405522b21805eaaa86933d1f7f55d3284bb5b67e5b80cbc495",
+    "platforms/macos/Tests/SecurityValidationTests.swift": "ab0bdfeb3d4ad6905d7fbb63ba221263a2285653af8de69d29dda13eaf8935f3",
     "real-llm-results/aggregate.json": "ebf3bb9558282bf23265989df82a9b18c599654b5bb05d82c4e4d400f1f62265",
     "real-llm-v5-development/validation-000-007.json": "f8c900246c8dafe50ffea309ce86793822cf6fb93e438e3f16b7450bd1f9f224",
     "real-llm-v5-development/validation-008-015.json": "04ef609cf32f0828de70e6adc47eefc717b6c7c67240035d856f047450860d34",
@@ -540,21 +619,28 @@ def _verify_signed_tag(repository: Path, tag: str, commit: str, tree: str) -> No
 
 def _validate_source(repository: Path, release_input: Mapping[str, Any]) -> tuple[str, str]:
     root = _resolve_exact_root(repository)
-    if _git(root, "status", "--porcelain=v1", "--untracked-files=all", "--ignored=no", "--ignore-submodules=none"):
-        raise PortfolioReleaseError("portfolio build requires a completely clean worktree")
-    if _git(root, "branch", "--show-current") != "main":
-        raise PortfolioReleaseError("portfolio build requires the exact main branch")
-    if _git(root, "remote", "get-url", "origin") != CANONICAL_REMOTE:
-        raise PortfolioReleaseError("origin is not the canonical HTTPS remote")
-    commit = _git(root, "rev-parse", "--verify", "HEAD^{commit}")
-    tree = _git(root, "rev-parse", "--verify", "HEAD^{tree}")
+    source = release_input["source"]
+    try:
+        checkout = verify_clean_checkout(
+            root,
+            expected_commit=source["commit"],
+            expected_tree=source["tree"],
+            expected_origins={CANONICAL_REMOTE},
+            expected_branch="main",
+            expected_upstream="origin/main",
+        )
+    except StrictCheckoutError as error:
+        raise PortfolioReleaseError(
+            "portfolio build source differs from its exact signed HEAD tree"
+        ) from error
+    commit = checkout.commit
+    tree = checkout.tree
     if _git(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}") != "origin/main":
         raise PortfolioReleaseError("local main must track exact origin/main")
     if _git(root, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}") != commit:
         raise PortfolioReleaseError("origin/main does not equal clean local HEAD")
     if _git(root, "rev-parse", "--verify", "refs/remotes/origin/main^{tree}") != tree:
         raise PortfolioReleaseError("origin/main tree does not equal clean local HEAD tree")
-    source = release_input["source"]
     tag_object = _git(root, "rev-parse", f"refs/tags/{release_input['tag']}")
     if (
         commit != source["commit"]
@@ -733,7 +819,9 @@ def _validate_demo_provenance(
         },
         "demo provenance",
     )
-    if value["schema_version"] != 1 or value["tag"] != tag:
+    _validate_schema(value, DEMO_PROVENANCE_SCHEMA, "demo provenance")
+    _exact, version = _exact_tag(tag)
+    if version < 3 or value["schema_version"] != 2 or value["tag"] != tag:
         raise PortfolioReleaseError("demo provenance version/tag is inconsistent")
     source = _exact_object(value["source"], {"commit", "tree"}, "demo source")
     if source != {"commit": commit, "tree": tree}:
@@ -763,37 +851,58 @@ def _validate_demo_provenance(
         "demo poster identity",
     )
     capture = _exact_object(
-        value["capture"], {"platform", "architecture"}, "demo capture"
+        value["capture"],
+        {
+            "platform",
+            "architecture",
+            "automation_contract",
+            "mode",
+            "automation_only",
+            "human_reviewed",
+            "manual_edits",
+            "machine_evidence",
+            "pixel_semantics_verified",
+            "automation_receipt_sha256",
+            "result_readiness_sha256",
+        },
+        "demo capture",
     )
-    if capture != {"platform": "macOS", "architecture": "arm64"}:
-        raise PortfolioReleaseError("demo capture must be macOS arm64")
-    if video_identity["codec"] != "h264" or video_identity["audio_codec"] not in {
-        "aac",
-        "silent",
+    if capture != {
+        "platform": "macOS",
+        "architecture": "arm64",
+        "automation_contract": automated_media.AUTOMATION_CONTRACT,
+        "mode": automated_media.CAPTURE_MODE,
+        "automation_only": True,
+        "human_reviewed": False,
+        "manual_edits": False,
+        "machine_evidence": False,
+        "pixel_semantics_verified": False,
+        "automation_receipt_sha256": capture["automation_receipt_sha256"],
+        "result_readiness_sha256": capture["result_readiness_sha256"],
     }:
-        raise PortfolioReleaseError("demo must be H.264 with AAC or no audio")
+        raise PortfolioReleaseError("demo automated capture boundary is not exact")
+    _digest(capture["automation_receipt_sha256"], "automation receipt")
+    _digest(capture["result_readiness_sha256"], "result readiness receipt")
+    if video_identity["codec"] != "h264" or video_identity["audio_codec"] != "silent":
+        raise PortfolioReleaseError("automated demo must be silent H.264")
     if (
         video_identity["evidence_role"] != MEDIA_CLASSIFICATION
         or poster_identity["evidence_role"] != MEDIA_CLASSIFICATION
     ):
         raise PortfolioReleaseError(
-            "demo media must be classified as human-reviewed presentation"
+            "demo media must be classified as automated presentation, not machine evidence"
         )
     duration = video_identity["duration_seconds"]
     if (
-        isinstance(duration, bool)
-        or not isinstance(duration, (int, float))
-        or not math.isfinite(float(duration))
-        or not (0 < float(duration) <= 90)
+        duration != automated_media.OUTPUT_DURATION_SECONDS
+        or video_identity["width"] != automated_media.OUTPUT_WIDTH
+        or video_identity["height"] != automated_media.OUTPUT_HEIGHT
+        or poster_identity["width"] != automated_media.OUTPUT_WIDTH
+        or poster_identity["height"] != automated_media.OUTPUT_HEIGHT
     ):
-        raise PortfolioReleaseError("demo duration must be in (0, 90] seconds")
-    for identity, label in (
-        (video_identity, "video"),
-        (poster_identity, "poster"),
-    ):
-        for key in ("width", "height"):
-            if isinstance(identity[key], bool) or not isinstance(identity[key], int) or identity[key] <= 0:
-                raise PortfolioReleaseError(f"demo {label} {key} is invalid")
+        raise PortfolioReleaseError(
+            "automated demo media geometry/duration is not exact"
+        )
     timestamp = poster_identity["frame_timestamp_seconds"]
     if (
         isinstance(timestamp, bool)
@@ -873,6 +982,7 @@ def _validate_runtime_assets(
     tree: str,
     provenance: Mapping[str, Any],
     repository: Path | None,
+    automation_report: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     value = _exact_object(
         _read_canonical_json(path),
@@ -884,6 +994,7 @@ def _validate_runtime_assets(
             "python",
             "toolchain",
             "ffprobe",
+            "capture_tools",
             "lockfiles",
             "model",
             "corpus",
@@ -893,7 +1004,9 @@ def _validate_runtime_assets(
         },
         "runtime-assets manifest",
     )
-    if value["schema_version"] != 1 or value["tag"] != tag:
+    _validate_schema(value, RUNTIME_ASSETS_SCHEMA, "runtime-assets manifest")
+    _exact, version = _exact_tag(tag)
+    if version < 3 or value["schema_version"] != 2 or value["tag"] != tag:
         raise PortfolioReleaseError("runtime-assets version/tag is inconsistent")
     source = _exact_object(value["source"], {"commit", "tree"}, "runtime source")
     if source != {"commit": commit, "tree": tree}:
@@ -925,6 +1038,15 @@ def _validate_runtime_assets(
         or len(ffprobe_identity["version"].encode("utf-8")) > 1024
     ):
         raise PortfolioReleaseError("ffprobe version identity is not exact")
+    capture_tools = value["capture_tools"]
+    if capture_tools["ffprobe"] != ffprobe_identity:
+        raise PortfolioReleaseError("runtime ffprobe identities are not byte-exact")
+    try:
+        automated_media.validate_tools(capture_tools)
+    except automated_media.AutomatedMediaError as error:
+        raise PortfolioReleaseError("runtime capture tool identities are invalid") from error
+    if automation_report is not None and capture_tools != automation_report["tools"]:
+        raise PortfolioReleaseError("runtime and automation capture tool identities differ")
     _validate_manifest_rows(
         value["lockfiles"], exact_paths=LOCKFILE_PATHS, label="lockfiles", repository=repository
     )
@@ -1260,6 +1382,7 @@ def _validate_video(
                 "format=duration:format_tags:"
                 "stream=codec_name,codec_type,width,height:stream_tags"
             ),
+            "-show_chapters",
             "-of",
             "json",
             str(path),
@@ -1284,11 +1407,12 @@ def _validate_video(
         raise PortfolioReleaseError("demo must have exactly one H.264 video stream")
     if videos[0].get("width") != expected["width"] or videos[0].get("height") != expected["height"]:
         raise PortfolioReleaseError("ffprobe dimensions differ from demo provenance")
-    audio_codec = "silent" if not audios else "aac"
-    if audios and (len(audios) != 1 or audios[0].get("codec_name") != "aac"):
-        raise PortfolioReleaseError("demo audio must be absent or one AAC stream")
-    if audio_codec != expected["audio_codec"]:
-        raise PortfolioReleaseError("ffprobe audio identity differs from demo provenance")
+    if audios or len(streams) != 1 or report.get("chapters", []) != []:
+        raise PortfolioReleaseError(
+            "automated demo must contain one video stream and no audio, chapters, or extra streams"
+        )
+    if expected["audio_codec"] != "silent":
+        raise PortfolioReleaseError("automated demo provenance must record silent media")
     try:
         duration = float(report["format"]["duration"])
     except (KeyError, TypeError, ValueError) as error:
@@ -1528,11 +1652,34 @@ EVIDENCE_REQUIRED_FILES = frozenset(
         "run/runtime-provenance.json",
         "reports/structural-verifier.json",
         "reports/fresh-model-replay.json",
+        "reports/automated-media.json",
+        "reports/result-readiness.json",
+        "reports/tag-ci-receipt.json",
+        "reports/local-tag-trust-receipt.json",
+        "session/attempt-state.jsonl",
+        "session/preflight-window.mov",
+        "session/live-presentation.mov",
+        "session/same-run-result.mov",
+        "session/find-proof-window",
+        *{
+            f"tag-ci-responses/{filename}"
+            for filename in (
+                *tag_ci.RESPONSE_FILENAMES.values(),
+                tag_ci.PUBLIC_RECEIPT_FILENAME,
+            )
+        },
         "logs/terminal.log",
     }
 )
 EVIDENCE_ALLOWED_DIRECTORIES = frozenset(
-    {"run", "run/primary-evidence", "reports", "logs"}
+    {
+        "run",
+        "run/primary-evidence",
+        "reports",
+        "session",
+        "tag-ci-responses",
+        "logs",
+    }
 )
 
 
@@ -1645,6 +1792,334 @@ def _json_from_bytes(data: bytes, label: str, *, canonical: bool) -> Any:
         raise PortfolioReleaseError(f"{label} is not canonical JSON")
     _reject_placeholders(value, label)
     return value
+
+
+def _validate_raw_segment_bytes(data: bytes, label: str) -> None:
+    """Reject raw session media without a bounded single MP4/MOV container."""
+
+    if len(data) < 1024 or len(data) > MAX_VIDEO_BYTES:
+        raise PortfolioReleaseError(f"{label} is implausibly sized")
+    source = io.BytesIO(data)
+    counter = [0]
+    boxes = _mp4_boxes(source, 0, len(data), counter)
+    if (
+        not boxes
+        or boxes[0][0] != b"ftyp"
+        or len([box for box in boxes if box[0] == b"moov"]) != 1
+        or not any(box[0] == b"mdat" and box[2] > box[1] for box in boxes)
+    ):
+        raise PortfolioReleaseError(f"{label} container topology is not exact")
+
+
+def _validate_automation_report_member(
+    archive: tarfile.TarFile,
+    *,
+    provenance: Mapping[str, Any],
+    source: Mapping[str, str],
+    receipt_bytes: bytes | None = None,
+) -> dict[str, Any]:
+    if receipt_bytes is None:
+        receipt_bytes = _read_tar_member(
+            archive, "run/app-run-receipt.json", MAX_JSON_BYTES
+        )
+    receipt = _json_from_bytes(receipt_bytes, "demo receipt", canonical=False)
+    if not isinstance(receipt, dict):
+        raise PortfolioReleaseError("demo receipt root is malformed")
+    result_receipt = receipt.get("result")
+    if not isinstance(result_receipt, dict):
+        raise PortfolioReleaseError("demo receipt has no exact result binding")
+    automation_bytes = _read_tar_member(
+        archive, "reports/automated-media.json", MAX_JSON_BYTES
+    )
+    automation_digest = hashlib.sha256(automation_bytes).hexdigest()
+    if automation_digest != provenance["capture"]["automation_receipt_sha256"]:
+        raise PortfolioReleaseError(
+            "demo provenance does not bind the automation receipt bytes"
+        )
+    report = _json_from_bytes(
+        automation_bytes, "automated media report", canonical=True
+    )
+    if not isinstance(report, dict):
+        raise PortfolioReleaseError("automated media report root is malformed")
+    challenge = receipt.get("challengeNonce")
+    readiness_bytes = _read_tar_member(
+        archive, "reports/result-readiness.json", automated_media.MAX_READINESS_BYTES
+    )
+    readiness_digest = hashlib.sha256(readiness_bytes).hexdigest()
+    if readiness_digest != provenance["capture"]["result_readiness_sha256"]:
+        raise PortfolioReleaseError(
+            "demo provenance does not bind result readiness bytes"
+        )
+    readiness = _json_from_bytes(
+        readiness_bytes, "result readiness receipt", canonical=True
+    )
+    if not isinstance(readiness, dict):
+        raise PortfolioReleaseError("result readiness receipt root is malformed")
+    state_bytes = _read_tar_member(
+        archive,
+        "session/attempt-state.jsonl",
+        automated_media.MAX_ATTEMPT_STATE_BYTES,
+    )
+    tag_ci_bytes = _read_tar_member(
+        archive, "reports/tag-ci-receipt.json", automated_media.MAX_REPORT_BYTES
+    )
+    local_tag_trust_bytes = _read_tar_member(
+        archive,
+        "reports/local-tag-trust-receipt.json",
+        automated_media.MAX_READINESS_BYTES,
+    )
+    tag_ci_response_bytes = {
+        role: _read_tar_member(
+            archive,
+            f"tag-ci-responses/{tag_ci.RESPONSE_FILENAMES[role]}",
+            tag_ci.MAX_RESPONSE_BYTES,
+        )
+        for role in tag_ci.RESPONSE_ROLES
+    }
+    bundled_tag_ci_receipt = _read_tar_member(
+        archive,
+        f"tag-ci-responses/{tag_ci.PUBLIC_RECEIPT_FILENAME}",
+        tag_ci.MAX_RESPONSE_BYTES,
+    )
+    preflight_bytes = _read_tar_member(
+        archive, "session/preflight-window.mov", MAX_VIDEO_BYTES
+    )
+    live_bytes = _read_tar_member(
+        archive, "session/live-presentation.mov", MAX_VIDEO_BYTES
+    )
+    result_segment_bytes = _read_tar_member(
+        archive, "session/same-run-result.mov", MAX_VIDEO_BYTES
+    )
+    helper_bytes = _read_tar_member(
+        archive, "session/find-proof-window", 128 * 1024 * 1024
+    )
+    for raw_bytes, label in (
+        (preflight_bytes, "preflight raw segment"),
+        (live_bytes, "live raw segment"),
+        (result_segment_bytes, "same-run result raw segment"),
+    ):
+        _validate_raw_segment_bytes(raw_bytes, label)
+    try:
+        def metric_text(key: str) -> str:
+            value = result_receipt.get(key)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise automated_media.AutomatedMediaError(
+                    f"result readiness source metric is invalid: {key}"
+                )
+            observed = float(value)
+            if not math.isfinite(observed):
+                raise automated_media.AutomatedMediaError(
+                    f"result readiness source metric is non-finite: {key}"
+                )
+            return f"{observed:.6f}"
+
+        expected = {
+            "tag": provenance["tag"],
+            "commit": source["commit"],
+            "tree": source["tree"],
+            "challenge_sha256": automated_media.challenge_sha256(challenge),
+            "receipt_sha256": hashlib.sha256(receipt_bytes).hexdigest(),
+            "result_sha256": provenance["result_sha256"],
+            "application_executable_sha256": provenance[
+                "application_executable_sha256"
+            ],
+            "metric_verdict": result_receipt.get("metricVerdict"),
+            "video_sha256": provenance["video"]["sha256"],
+            "poster_sha256": provenance["poster"]["sha256"],
+            "duration_seconds": provenance["video"]["duration_seconds"],
+            "width": provenance["video"]["width"],
+            "height": provenance["video"]["height"],
+            "poster_frame_timestamp_seconds": provenance["poster"][
+                "frame_timestamp_seconds"
+            ],
+            "result_readiness_sha256": provenance["capture"][
+                "result_readiness_sha256"
+            ],
+            "attempt_state_sha256": hashlib.sha256(state_bytes).hexdigest(),
+            "tag_ci_receipt_sha256": hashlib.sha256(tag_ci_bytes).hexdigest(),
+            "local_tag_trust_receipt_sha256": hashlib.sha256(
+                local_tag_trust_bytes
+            ).hexdigest(),
+            "preflight_segment_sha256": hashlib.sha256(
+                preflight_bytes
+            ).hexdigest(),
+            "live_segment_sha256": hashlib.sha256(live_bytes).hexdigest(),
+            "result_segment_sha256": hashlib.sha256(
+                result_segment_bytes
+            ).hexdigest(),
+            "window_helper_sha256": hashlib.sha256(helper_bytes).hexdigest(),
+        }
+        automated_media.validate_report(report, expected=expected)
+        automated_media.validate_readiness(
+            readiness,
+            expected={
+                "run_identifier": report["run"]["identifier"],
+                "receipt_sha256": hashlib.sha256(receipt_bytes).hexdigest(),
+                "result_sha256": provenance["result_sha256"],
+                "application_executable_sha256": provenance[
+                    "application_executable_sha256"
+                ],
+                "metric_verdict": result_receipt.get("metricVerdict"),
+                "compression_ratio_vs_bf16": metric_text(
+                    "compressionRatioVsBF16"
+                ),
+                "delta_nll_nat_per_token": metric_text(
+                    "deltaNLLNatPerToken"
+                ),
+                "top1_agreement": metric_text("top1Agreement"),
+            },
+        )
+        if report["capture"]["result_readiness_sha256"] != readiness_digest:
+            raise automated_media.AutomatedMediaError(
+                "automation report does not bind result readiness bytes"
+            )
+        automated_media.validate_attempt_state_bytes(state_bytes, report=report)
+        automated_media.validate_tag_ci_receipt_bytes(
+            tag_ci_bytes,
+            expected={
+                "repository": "ALLPROTO/core-lm-benchmark",
+                "tag": provenance["tag"],
+                "commit": source["commit"],
+                "tree": source["tree"],
+            },
+        )
+        recomputed_tag_ci = tag_ci.validate_saved_tag_ci(
+            tag_ci_response_bytes,
+            repository=tag_ci.DEFAULT_REPOSITORY,
+            expected_tag=provenance["tag"],
+            expected_commit=source["commit"],
+            expected_tree=source["tree"],
+        )
+        if (
+            bundled_tag_ci_receipt
+            != tag_ci.canonical_receipt_bytes(recomputed_tag_ci)
+            or bundled_tag_ci_receipt != tag_ci_bytes
+        ):
+            raise automated_media.AutomatedMediaError(
+                "tag-CI response bundle differs from retained receipt"
+            )
+        if (
+            source.get("tag_object") is not None
+            and recomputed_tag_ci["source"]["annotated_tag_object"]
+            != source["tag_object"]
+        ):
+            raise automated_media.AutomatedMediaError(
+                "public tag-CI object differs from release source identity"
+            )
+        automated_media.validate_local_tag_trust_receipt_bytes(
+            local_tag_trust_bytes,
+            expected={
+                "tag": provenance["tag"],
+                "tag_object": recomputed_tag_ci["source"][
+                    "annotated_tag_object"
+                ],
+                "commit": source["commit"],
+                "tree": source["tree"],
+            },
+        )
+    except (automated_media.AutomatedMediaError, tag_ci.TagCIAdmissionError) as error:
+        raise PortfolioReleaseError(
+            "automated media report does not bind the exact proof and media"
+        ) from error
+    return report
+
+
+def _automation_report_from_evidence(
+    path: Path,
+    *,
+    provenance: Mapping[str, Any],
+    source: Mapping[str, str],
+    captured_source: BinaryIO | None = None,
+) -> dict[str, Any]:
+    opener = (
+        _open_bounded_tar_stream(captured_source, label="demo evidence archive")
+        if captured_source is not None
+        else _open_bounded_tar(
+            path,
+            label="demo evidence archive",
+            compressed_limit=MAX_EVIDENCE_BYTES,
+        )
+    )
+    with opener as archive:
+        return _validate_automation_report_member(
+            archive, provenance=provenance, source=source
+        )
+
+
+def _tag_ci_receipt_from_evidence(
+    path: Path,
+    *,
+    tag: str,
+    source: Mapping[str, str],
+    captured_source: BinaryIO | None = None,
+) -> dict[str, Any]:
+    """Independently recompute retained public tag-CI admission bytes."""
+
+    opener = (
+        _open_bounded_tar_stream(captured_source, label="demo evidence archive")
+        if captured_source is not None
+        else _open_bounded_tar(
+            path,
+            label="demo evidence archive",
+            compressed_limit=MAX_EVIDENCE_BYTES,
+        )
+    )
+    with opener as archive:
+        responses = {
+            role: _read_tar_member(
+                archive,
+                f"tag-ci-responses/{tag_ci.RESPONSE_FILENAMES[role]}",
+                tag_ci.MAX_RESPONSE_BYTES,
+            )
+            for role in tag_ci.RESPONSE_ROLES
+        }
+        report_receipt = _read_tar_member(
+            archive,
+            "reports/tag-ci-receipt.json",
+            tag_ci.MAX_RESPONSE_BYTES,
+        )
+        bundled_receipt = _read_tar_member(
+            archive,
+            f"tag-ci-responses/{tag_ci.PUBLIC_RECEIPT_FILENAME}",
+            tag_ci.MAX_RESPONSE_BYTES,
+        )
+        local_receipt = _read_tar_member(
+            archive,
+            "reports/local-tag-trust-receipt.json",
+            automated_media.MAX_READINESS_BYTES,
+        )
+    try:
+        recomputed = tag_ci.validate_saved_tag_ci(
+            responses,
+            repository=tag_ci.DEFAULT_REPOSITORY,
+            expected_tag=tag,
+            expected_commit=source["commit"],
+            expected_tree=source["tree"],
+        )
+        canonical = tag_ci.canonical_receipt_bytes(recomputed)
+        if report_receipt != canonical or bundled_receipt != canonical:
+            raise automated_media.AutomatedMediaError(
+                "retained tag-CI receipt differs from raw response bytes"
+            )
+        tag_object = recomputed["source"]["annotated_tag_object"]
+        if source.get("tag_object") is not None and source["tag_object"] != tag_object:
+            raise automated_media.AutomatedMediaError(
+                "retained tag-CI object differs from release source identity"
+            )
+        automated_media.validate_local_tag_trust_receipt_bytes(
+            local_receipt,
+            expected={
+                "tag": tag,
+                "tag_object": tag_object,
+                "commit": source["commit"],
+                "tree": source["tree"],
+            },
+        )
+    except (tag_ci.TagCIAdmissionError, automated_media.AutomatedMediaError) as error:
+        raise PortfolioReleaseError(
+            "retained tag-CI admission cannot be independently recomputed"
+        ) from error
+    return recomputed
 
 
 def _validate_evidence_report(
@@ -1852,6 +2327,10 @@ def _extract_and_verify_product_evidence(
         try:
             for member in archive.getmembers():
                 pure = _safe_tar_name(member.name, "demo evidence archive")
+                if pure.parts[0] in {"session", "tag-ci-responses"}:
+                    # Session procedure bytes are validated and hash-bound above;
+                    # product verifiers intentionally receive only proof artifacts.
+                    continue
                 if pure.parts[0] == "run":
                     destination = run_root.joinpath(*pure.parts[1:])
                 elif pure.parts[0] == "reports":
@@ -1946,7 +2425,7 @@ def _validate_evidence_archive(
     captured_source: BinaryIO | None = None,
     expected_toolchain: Mapping[str, Any] | None = None,
     expected_python: Mapping[str, Any] | None = None,
-) -> None:
+) -> dict[str, Any]:
     try:
         compressed_bytes = _bounded_archive_source_bytes(path, captured_source)
         opener = (
@@ -2002,6 +2481,12 @@ def _validate_evidence_archive(
                 or result_digest != provenance["result_sha256"]
             ):
                 raise PortfolioReleaseError("demo provenance does not bind receipt/result bytes")
+            automation_report = _validate_automation_report_member(
+                archive,
+                provenance=provenance,
+                source=source,
+                receipt_bytes=receipt_bytes,
+            )
             result_receipt = receipt.get("result")
             if (
                 receipt.get("schemaVersion") != "corelm-macos-app-real-llm-run-v5"
@@ -2052,6 +2537,7 @@ def _validate_evidence_archive(
                 expected_toolchain=expected_toolchain,
                 expected_python=expected_python,
             )
+            return automation_report
     except (OSError, tarfile.TarError) as error:
         raise PortfolioReleaseError("demo evidence archive cannot be inspected") from error
 
@@ -2341,6 +2827,8 @@ def _source_identity(
     source = release_input["source"]
     related = release_input["related_sources"]
     ci = release_input["continuous_integration"]
+    if release_input.get("presentation") != PRESENTATION_CONTRACT:
+        raise PortfolioReleaseError("release input presentation boundary is not exact")
     identity = {
         "artifact_kind": "corelm_portfolio_release",
         "author": {"name": EXPECTED_AUTHOR, "orcid": EXPECTED_ORCID},
@@ -2366,14 +2854,24 @@ def _source_identity(
                 "required": True,
                 "url": ci["macos_arm64"]["url"],
             },
-            "validation": "SIGNED_OPERATOR_ASSERTION_REQUIRES_LIVE_API_RECHECK",
+            "validation": CI_VALIDATION_SCOPE,
         },
         "demo": {
             "evidence_sha256": provenance["evidence_sha256"],
+            "provenance_sha256": hashlib.sha256(
+                _canonical_json(provenance)
+            ).hexdigest(),
             "result_sha256": provenance["result_sha256"],
             "synthetic_data": False,
             "video_sha256": provenance["video"]["sha256"],
             "workload_classification": WORKLOAD_CLASSIFICATION,
+            "media_classification": automated_media.MEDIA_CLASSIFICATION,
+            "automation_contract": automated_media.AUTOMATION_CONTRACT,
+            "automation_only": True,
+            "human_reviewed": False,
+            "manual_edits": False,
+            "machine_evidence": False,
+            "pixel_semantics_verified": False,
         },
         "related_sources": {
             "blind_v1_draft": {
@@ -2404,7 +2902,7 @@ def _source_identity(
             "macos": ["./corelm macos doctor", "./corelm macos proof"],
             "repository_gate": "./corelm verify",
         },
-        "schema_version": 1,
+        "schema_version": 2,
         "signing": {
             "allowed_signers_sha256": EXPECTED_ALLOWED_SIGNERS_SHA256,
             "algorithm": "ssh-ed25519",
@@ -2436,9 +2934,7 @@ def _validate_identity_bindings(identity: Mapping[str, Any], tag: str) -> None:
     tree = identity["source"]["tree"]
     if identity["continuous_integration"]["commit"] != commit:
         raise PortfolioReleaseError("CI identity is not bound to the source commit")
-    if identity["continuous_integration"]["validation"] != (
-        "SIGNED_OPERATOR_ASSERTION_REQUIRES_LIVE_API_RECHECK"
-    ):
+    if identity["continuous_integration"]["validation"] != CI_VALIDATION_SCOPE:
         raise PortfolioReleaseError("CI identity overstates offline verification")
     for platform in ("linux_x86_64", "macos_arm64"):
         run = identity["continuous_integration"][platform]
@@ -2542,7 +3038,8 @@ test "$("$locked_python" -I -B -c \\
 ffprobe_path=$(command -v ffprobe || true)
 test -n "$ffprobe_path"
 # This is a caller-side decoder check, not a release signing or CI trust root.
-"$locked_python" -I -B publication/build_portfolio_release.py \
+publication/run_portfolio_python.sh \
+  "$locked_python" build_portfolio_release.py \
   --verify "$asset_directory" --ffprobe "$ffprobe_path"
 PYTHON_BIN="$locked_python" ./corelm verify
 ```
@@ -2702,17 +3199,55 @@ def _parse_checksums(path: Path) -> dict[str, str]:
     return result
 
 
-def _validate_ci_bindings(release_input: Mapping[str, Any]) -> None:
+def _tag_ci_workflow_urls(receipt: Mapping[str, Any]) -> dict[str, str]:
+    workflows = receipt.get("workflows")
+    if not isinstance(workflows, list) or len(workflows) != 2:
+        raise PortfolioReleaseError("retained tag-CI workflow set is not exact")
+    by_name = {
+        row.get("workflow_name"): row
+        for row in workflows
+        if isinstance(row, dict)
+    }
+    if set(by_name) != {"Verify Linux", "Verify macOS"}:
+        raise PortfolioReleaseError("retained tag-CI workflow identity is not exact")
+    return {
+        "linux_x86_64": by_name["Verify Linux"]["html_url"],
+        "macos_arm64": by_name["Verify macOS"]["html_url"],
+    }
+
+
+def _validate_ci_bindings(
+    release_input: Mapping[str, Any],
+    tag_ci_receipt: Mapping[str, Any],
+) -> None:
     commit = release_input["source"]["commit"]
+    if tag_ci_receipt.get("source", {}).get("commit") != commit:
+        raise PortfolioReleaseError("retained tag-CI source commit differs")
+    expected_urls = _tag_ci_workflow_urls(tag_ci_receipt)
     for platform in ("linux_x86_64", "macos_arm64"):
         run = release_input["continuous_integration"][platform]
         if run["commit"] != commit:
             raise PortfolioReleaseError(f"{platform} CI run is not bound to source HEAD")
-        if ACTION_URL_RE.fullmatch(run["url"]) is None:
-            raise PortfolioReleaseError(f"{platform} CI URL is not an exact run URL")
+        if run["url"] != expected_urls[platform]:
+            raise PortfolioReleaseError(
+                f"{platform} CI URL differs from recomputed tag-CI response bytes"
+            )
     urls = [release_input["continuous_integration"][key]["url"] for key in ("linux_x86_64", "macos_arm64")]
     if len(set(urls)) != 2:
         raise PortfolioReleaseError("Linux and macOS must bind distinct CI runs")
+
+
+def _validate_identity_ci_bindings(
+    identity: Mapping[str, Any], tag_ci_receipt: Mapping[str, Any]
+) -> None:
+    expected_urls = _tag_ci_workflow_urls(tag_ci_receipt)
+    if tag_ci_receipt.get("source", {}).get("commit") != identity["source"]["commit"]:
+        raise PortfolioReleaseError("source identity commit differs from retained tag-CI")
+    for platform, expected_url in expected_urls.items():
+        if identity["continuous_integration"][platform]["url"] != expected_url:
+            raise PortfolioReleaseError(
+                f"source identity {platform} URL differs from retained tag-CI"
+            )
 
 
 def _asset_paths(release_input: Mapping[str, Any]) -> dict[str, Path]:
@@ -3220,6 +3755,19 @@ def _verify_release_snapshot(
             evidence=evidence_path,
             captured_evidence_sha256=checksums[evidence_name],
         )
+        automation_report = _automation_report_from_evidence(
+            evidence_path,
+            provenance=provenance,
+            source=identity["source"],
+            captured_source=captured_archives[evidence_name],
+        )
+        retained_tag_ci = _tag_ci_receipt_from_evidence(
+            evidence_path,
+            tag=tag,
+            source=identity["source"],
+            captured_source=captured_archives[evidence_name],
+        )
+        _validate_identity_ci_bindings(identity, retained_tag_ci)
         runtime = _validate_runtime_assets(
             runtime_path,
             tag=tag,
@@ -3227,13 +3775,22 @@ def _verify_release_snapshot(
             tree=identity["source"]["tree"],
             provenance=provenance,
             repository=None,
+            automation_report=automation_report,
         )
         if identity["demo"] != {
             "evidence_sha256": provenance["evidence_sha256"],
+            "provenance_sha256": _sha256(provenance_path),
             "result_sha256": provenance["result_sha256"],
             "synthetic_data": False,
             "video_sha256": provenance["video"]["sha256"],
             "workload_classification": WORKLOAD_CLASSIFICATION,
+            "media_classification": automated_media.MEDIA_CLASSIFICATION,
+            "automation_contract": automated_media.AUTOMATION_CONTRACT,
+            "automation_only": True,
+            "human_reviewed": False,
+            "manual_edits": False,
+            "machine_evidence": False,
+            "pixel_semantics_verified": False,
         }:
             raise PortfolioReleaseError("source identity and demo provenance differ")
         width, height = _png_dimensions(poster_path)
@@ -3249,7 +3806,7 @@ def _verify_release_snapshot(
             runtime,
             require_recorded_ffprobe=False,
         )
-        _validate_evidence_archive(
+        validated_automation_report = _validate_evidence_archive(
             evidence_path,
             provenance=provenance,
             source=identity["source"],
@@ -3257,6 +3814,8 @@ def _verify_release_snapshot(
             expected_toolchain=runtime["toolchain"],
             expected_python=runtime["python"],
         )
+        if validated_automation_report != automation_report:
+            raise PortfolioReleaseError("automation receipt changed across verification")
         source_name = f"{tag}-source.tar.gz"
         source_archive = root / source_name
         source_capture = captured_archives[source_name]
@@ -3314,7 +3873,7 @@ def _verify_release_snapshot(
             "asset_count": 14,
             "covered_asset_count": 12,
             "model_file_count": len(runtime["model"]["files"]),
-            "ci_status": "SIGNED_OPERATOR_ASSERTION_REQUIRES_LIVE_API_RECHECK",
+            "ci_status": CI_VALIDATION_SCOPE,
             "decoder_check": "CALLER_SIDE_FFPROBE_NOT_A_RELEASE_TRUST_ROOT",
         }
 
@@ -3326,16 +3885,10 @@ def build_release(
     input_path: Path,
     output: Path,
     ffprobe: Path,
-    ci_api_preflight_confirmed: bool,
 ) -> dict[str, Any]:
-    if not ci_api_preflight_confirmed:
-        raise PortfolioReleaseError(
-            "release-time GitHub Actions API preflight was not acknowledged"
-        )
     release_input = _read_canonical_json(input_path)
     _validate_schema(release_input, INPUT_SCHEMA, "release input")
     tag, _version = _exact_tag(release_input["tag"])
-    _validate_ci_bindings(release_input)
     root = _require_builder_repository(repository)
     commit, tree = _validate_source(root, release_input)
     _validate_related_sources(lab_repository, release_input)
@@ -3350,6 +3903,17 @@ def build_release(
         poster=assets["demo_poster"],
         evidence=assets["demo_evidence"],
     )
+    automation_report = _automation_report_from_evidence(
+        assets["demo_evidence"],
+        provenance=provenance,
+        source=release_input["source"],
+    )
+    retained_tag_ci = _tag_ci_receipt_from_evidence(
+        assets["demo_evidence"],
+        tag=tag,
+        source=release_input["source"],
+    )
+    _validate_ci_bindings(release_input, retained_tag_ci)
     runtime = _validate_runtime_assets(
         assets["runtime_assets"],
         tag=tag,
@@ -3357,6 +3921,7 @@ def build_release(
         tree=tree,
         provenance=provenance,
         repository=root,
+        automation_report=automation_report,
     )
     width, height = _png_dimensions(assets["demo_poster"])
     if (width, height) != (provenance["poster"]["width"], provenance["poster"]["height"]):
@@ -3368,13 +3933,15 @@ def build_release(
         runtime,
         require_recorded_ffprobe=True,
     )
-    _validate_evidence_archive(
+    validated_automation_report = _validate_evidence_archive(
         assets["demo_evidence"],
         provenance=provenance,
-        source={"commit": commit, "tree": tree},
+        source=release_input["source"],
         expected_toolchain=runtime["toolchain"],
         expected_python=runtime["python"],
     )
+    if validated_automation_report != automation_report:
+        raise PortfolioReleaseError("automation receipt changed across verification")
     if not output.is_absolute():
         raise PortfolioReleaseError("output directory path must be absolute")
     if output.parent.is_symlink():
@@ -3450,11 +4017,6 @@ def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespac
     parser.add_argument("--cross-model-lab", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--ffprobe", type=Path)
-    parser.add_argument(
-        "--ci-api-preflight-confirmed",
-        action="store_true",
-        help="acknowledge the mandatory same-commit GitHub Actions API preflight",
-    )
     return parser.parse_args(arguments)
 
 
@@ -3462,7 +4024,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
     options = parse_arguments(arguments)
     try:
         if options.verify is not None:
-            if options.input is not None or options.output is not None or options.cross_model_lab is not None or options.ci_api_preflight_confirmed:
+            if options.input is not None or options.output is not None or options.cross_model_lab is not None:
                 raise PortfolioReleaseError("build-only options are forbidden in verify mode")
             if options.ffprobe is None:
                 raise PortfolioReleaseError("verify mode requires --ffprobe for a full PASS")
@@ -3478,7 +4040,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 input_path=options.input,
                 output=options.output,
                 ffprobe=options.ffprobe,
-                ci_api_preflight_confirmed=options.ci_api_preflight_confirmed,
             )
     except (OSError, PortfolioReleaseError) as error:
         print(f"PORTFOLIO RELEASE FAIL: {error}", file=sys.stderr)

@@ -27,11 +27,60 @@ from typing import Any, BinaryIO
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _require_isolated_product_python() -> None:
+    """Reject a direct CLI before any checkout-local module can be imported."""
+
+    prefix_value = sys.pycache_prefix
+    if (
+        sys.flags.isolated != 1
+        or not sys.dont_write_bytecode
+        or not isinstance(prefix_value, str)
+        or not prefix_value
+    ):
+        raise SystemExit("portfolio tools require a tracked isolated Python launcher")
+    prefix = Path(prefix_value)
+    if not prefix.is_absolute():
+        raise SystemExit("portfolio Python cache prefix must be absolute")
+    try:
+        resolved = prefix.resolve(strict=True)
+    except OSError as error:
+        raise SystemExit("portfolio Python cache prefix is unavailable") from error
+    if resolved != prefix or resolved == ROOT or ROOT in resolved.parents:
+        raise SystemExit(
+            "portfolio Python cache prefix must be canonical and outside the checkout"
+        )
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(resolved, flags)
+    except OSError as error:
+        raise SystemExit("portfolio Python cache prefix is unsafe") from error
+    try:
+        status = os.fstat(descriptor)
+        if (
+            not stat.S_ISDIR(status.st_mode)
+            or status.st_uid != os.getuid()
+            or stat.S_IMODE(status.st_mode) != 0o700
+            or os.listdir(descriptor)
+        ):
+            raise SystemExit(
+                "portfolio Python cache prefix must be an empty owner-only directory"
+            )
+    finally:
+        os.close(descriptor)
+
+
+if __name__ == "__main__":
+    _require_isolated_product_python()
+
 sys.path[:] = [entry for entry in sys.path if entry != str(ROOT)]
 sys.path.insert(0, str(ROOT))
 
 from publication import build_portfolio_release as portfolio  # noqa: E402
 from RealLLM.pinned_assets import PINNED_RELEASE_ASSETS  # noqa: E402
+from security import automated_media  # noqa: E402
 from security.generate_build_provenance import (  # noqa: E402
     canonical_json_bytes as canonical_build_bytes,
     validate_build_manifest,
@@ -52,6 +101,20 @@ from security.proof_reports import (  # noqa: E402
     verify_report,
 )
 from security.verify_app_run_evidence import verify_fresh_run  # noqa: E402
+from security.verify_git_checkout import (  # noqa: E402
+    StrictCheckoutError,
+    verify_clean_checkout,
+)
+from security.verify_portfolio_tag_ci import (  # noqa: E402
+    DEFAULT_REPOSITORY as TAG_CI_REPOSITORY,
+    PUBLIC_RECEIPT_FILENAME,
+    RESPONSE_FILENAMES,
+    RESPONSE_ROLES,
+    TagCIAdmissionError,
+    canonical_receipt_bytes as canonical_tag_ci_receipt_bytes,
+    read_response_bundle,
+    write_response_bundle,
+)
 
 
 RESULT_NAME = "validation-064-071.json"
@@ -64,6 +127,15 @@ MAX_TERMINAL_BYTES = 4096
 
 class CollectionError(ValueError):
     """A fail-closed demo collection error."""
+
+
+def _fixed_metric_text(value: Any, label: str) -> str:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise CollectionError(f"{label} is not numeric")
+    observed = float(value)
+    if not math.isfinite(observed):
+        raise CollectionError(f"{label} is non-finite")
+    return f"{observed:.6f}"
 
 
 def _git(repository: Path, *arguments: str) -> str:
@@ -121,6 +193,24 @@ def _canonical_regular_input(path: Path, maximum_bytes: int, label: str) -> Path
     if resolved != path:
         raise CollectionError(f"{label} path must be canonical")
     portfolio._require_regular_file(path, maximum_bytes)
+    return path
+
+
+def _canonical_owner_directory(path: Path, label: str) -> Path:
+    if not path.is_absolute() or path.is_symlink():
+        raise CollectionError(f"{label} must be an absolute non-symlink directory")
+    try:
+        resolved = path.resolve(strict=True)
+        status = path.lstat()
+    except OSError as error:
+        raise CollectionError(f"{label} is unavailable") from error
+    if (
+        resolved != path
+        or not stat.S_ISDIR(status.st_mode)
+        or status.st_uid != os.getuid()
+        or stat.S_IMODE(status.st_mode) != 0o700
+    ):
+        raise CollectionError(f"{label} is not a canonical owner-only directory")
     return path
 
 
@@ -187,6 +277,7 @@ def _probe_video(path: Path, executable: Path) -> tuple[dict[str, Any], str]:
                 "format=duration:format_tags:"
                 "stream=codec_name,codec_type,width,height:stream_tags"
             ),
+            "-show_chapters",
             "-of",
             "json",
             str(path),
@@ -230,8 +321,10 @@ def _probe_video(path: Path, executable: Path) -> tuple[dict[str, Any], str]:
         or height <= 0
     ):
         raise CollectionError("demo video dimensions are invalid")
-    if audios and (len(audios) != 1 or audios[0].get("codec_name") != "aac"):
-        raise CollectionError("demo audio must be absent or one AAC stream")
+    if audios or len(streams) != 1 or report.get("chapters", []) != []:
+        raise CollectionError(
+            "automated demo must contain one video stream and no audio, chapters, or extra streams"
+        )
     try:
         duration = float(report["format"]["duration"])
     except (KeyError, TypeError, ValueError) as error:
@@ -244,10 +337,259 @@ def _probe_video(path: Path, executable: Path) -> tuple[dict[str, Any], str]:
             "width": width,
             "height": height,
             "codec": "h264",
-            "audio_codec": "silent" if not audios else "aac",
+            "audio_codec": "silent",
         },
         version,
     )
+
+
+def _tool_version(executable: Path, label: str) -> tuple[Path, str]:
+    resolved = portfolio._resolve_executable(executable, label)
+    completed = portfolio._run(
+        (str(resolved), "-version"), cwd=resolved.parent, timeout=30
+    )
+    if completed.returncode != 0:
+        raise CollectionError(f"{label} version query failed")
+    try:
+        first = completed.stdout.decode("utf-8").splitlines()[0]
+    except (UnicodeDecodeError, IndexError) as error:
+        raise CollectionError(f"{label} version identity is unavailable") from error
+    prefix = f"{label} version "
+    if (
+        not first.startswith(prefix)
+        or len(first.encode("utf-8")) > 1024
+        or "\r" in first
+    ):
+        raise CollectionError(f"{label} version identity is malformed")
+    return resolved, first
+
+
+def _verify_poster_from_video(
+    video: Path, poster: Path, ffmpeg: Path
+) -> None:
+    with tempfile.TemporaryDirectory(prefix="corelm-poster-replay-") as temporary:
+        root = Path(temporary).resolve(strict=True)
+        replay = root / "poster.png"
+        completed = portfolio._run(
+            (
+                str(ffmpeg),
+                "-v",
+                "error",
+                "-ss",
+                f"{automated_media.POSTER_TIMESTAMP_SECONDS:.6f}",
+                "-i",
+                str(video),
+                "-frames:v",
+                "1",
+                "-an",
+                "-map_metadata",
+                "-1",
+                "-compression_level",
+                "9",
+                "-pred",
+                "mixed",
+                str(replay),
+            ),
+            cwd=root,
+            timeout=60,
+        )
+        if completed.returncode != 0 or not replay.is_file():
+            raise CollectionError("fixed poster-frame replay failed")
+        portfolio._require_regular_file(replay, portfolio.MAX_POSTER_BYTES)
+        if replay.read_bytes() != poster.read_bytes():
+            raise CollectionError("poster bytes are not the fixed final-video frame")
+
+
+def _decoded_video_identity(
+    video: Path, ffmpeg: Path, ffprobe: Path
+) -> dict[str, Any]:
+    probe = portfolio._run(
+        (
+            str(ffprobe),
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_frames",
+            "-show_entries",
+            "frame=best_effort_timestamp_time,pkt_duration_time,width,height",
+            "-of",
+            "json",
+            str(video),
+        ),
+        cwd=video.parent,
+        timeout=120,
+    )
+    if probe.returncode != 0:
+        raise CollectionError("ffprobe frame enumeration failed")
+    try:
+        parsed = json.loads(probe.stdout.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise CollectionError("ffprobe frame enumeration is malformed") from error
+    frames = parsed.get("frames") if isinstance(parsed, dict) else None
+    if not isinstance(frames, list) or not frames or len(frames) > 90 * 240:
+        raise CollectionError("decoded frame count is outside the automation bound")
+    pts_bytes = automated_media.canonical_json_bytes({"frames": frames})
+    decoded = portfolio._run(
+        (
+            str(ffmpeg),
+            "-v",
+            "error",
+            "-i",
+            str(video),
+            "-map",
+            "0:v:0",
+            "-f",
+            "framemd5",
+            "-",
+        ),
+        cwd=video.parent,
+        timeout=120,
+    )
+    if decoded.returncode != 0 or not decoded.stdout:
+        raise CollectionError("decoded frame digest replay failed")
+    return {
+        "frame_count": len(frames),
+        "pts_sha256": _sha256_bytes(pts_bytes),
+        "decoded_frames_sha256": _sha256_bytes(decoded.stdout),
+    }
+
+
+def _raw_segment_identity(
+    path: Path,
+    ffmpeg: Path,
+    ffprobe: Path,
+) -> dict[str, Any]:
+    portfolio._validate_mp4_atoms(path)
+    completed = portfolio._run(
+        (
+            str(ffprobe),
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration:stream=codec_type,width,height",
+            "-show_chapters",
+            "-of",
+            "json",
+            str(path),
+        ),
+        cwd=path.parent,
+        timeout=120,
+    )
+    if completed.returncode != 0:
+        raise CollectionError("ffprobe rejected a retained raw segment")
+    try:
+        value = json.loads(completed.stdout.decode("utf-8"))
+        streams = value["streams"]
+        duration = float(value["format"]["duration"])
+    except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+        raise CollectionError("retained raw segment metadata is malformed") from error
+    videos = [
+        row
+        for row in streams
+        if isinstance(row, dict) and row.get("codec_type") == "video"
+    ] if isinstance(streams, list) else []
+    if (
+        len(videos) != 1
+        or len(streams) != 1
+        or value.get("chapters", []) != []
+        or type(videos[0].get("width")) is not int
+        or type(videos[0].get("height")) is not int
+        or not math.isfinite(duration)
+        or duration <= 0
+        or duration > 90
+    ):
+        raise CollectionError("retained raw segment topology is invalid")
+    decoded = _decoded_video_identity(path, ffmpeg, ffprobe)
+    return {
+        "sha256": portfolio._sha256(path),
+        "duration_seconds": duration,
+        "width": videos[0]["width"],
+        "height": videos[0]["height"],
+        "frame_count": decoded["frame_count"],
+        "pts_sha256": decoded["pts_sha256"],
+    }
+
+
+def _composition_argv(
+    ffmpeg: Path,
+    live: Path,
+    result: Path,
+    video: Path,
+) -> tuple[str, ...]:
+    common = (
+        f"fps={automated_media.OUTPUT_FRAME_RATE},"
+        f"scale={automated_media.OUTPUT_WIDTH}:{automated_media.OUTPUT_HEIGHT}:"
+        "force_original_aspect_ratio=decrease,"
+        f"pad={automated_media.OUTPUT_WIDTH}:{automated_media.OUTPUT_HEIGHT}:"
+        "(ow-iw)/2:(oh-ih)/2:color=0x111318,setsar=1"
+    )
+    live_seconds = automated_media.LIVE_SEGMENT_SECONDS
+    result_seconds = automated_media.RESULT_SEGMENT_SECONDS
+    filter_value = (
+        f"[0:v]{common},tpad=stop_mode=clone:stop_duration={live_seconds:g},"
+        f"trim=duration={live_seconds:g},setpts=PTS-STARTPTS[live];"
+        f"[1:v]{common},tpad=stop_mode=clone:stop_duration={result_seconds:g},"
+        f"trim=duration={result_seconds:g},setpts=PTS-STARTPTS[result];"
+        "[live][result]concat=n=2:v=1:a=0[outv]"
+    )
+    return (
+        str(ffmpeg), "-nostdin", "-hide_banner", "-loglevel", "error",
+        "-i", str(live), "-i", str(result), "-filter_complex", filter_value,
+        "-map", "[outv]", "-an", "-c:v", "h264_videotoolbox", "-b:v", "8M",
+        "-pix_fmt", "yuv420p", "-r", str(automated_media.OUTPUT_FRAME_RATE),
+        "-fflags", "+bitexact", "-flags:v", "+bitexact", "-map_metadata", "-1",
+        "-map_chapters", "-1", "-metadata", "title=", "-metadata", "comment=",
+        "-metadata", "creation_time=", "-metadata", "encoder=",
+        "-metadata:s:v:0", "title=", "-metadata:s:v:0", "encoder=",
+        "-empty_hdlr_name", "1", "-movflags", "+faststart", str(video),
+    )
+
+
+def _verify_composition_from_raw(
+    *,
+    live: Path,
+    result: Path,
+    video: Path,
+    poster: Path,
+    ffmpeg: Path,
+) -> None:
+    with tempfile.TemporaryDirectory(prefix="corelm-composition-replay-") as temporary:
+        root = Path(temporary).resolve(strict=True)
+        replay_video = root / "recomposed.mp4"
+        completed = portfolio._run(
+            _composition_argv(ffmpeg, live, result, replay_video),
+            cwd=root,
+            timeout=300,
+        )
+        if completed.returncode != 0 or not replay_video.is_file():
+            raise CollectionError("fixed raw-segment composition replay failed")
+        portfolio._require_regular_file(replay_video, portfolio.MAX_VIDEO_BYTES)
+        if replay_video.read_bytes() != video.read_bytes():
+            raise CollectionError("final video bytes are not the exact raw composition")
+        replay_poster = root / "poster.png"
+        poster_result = portfolio._run(
+            (
+                str(ffmpeg), "-v", "error", "-ss",
+                f"{automated_media.POSTER_TIMESTAMP_SECONDS:.6f}",
+                "-i", str(replay_video), "-frames:v", "1", "-an",
+                "-map_metadata", "-1", "-compression_level", "9",
+                "-pred", "mixed", str(replay_poster),
+            ),
+            cwd=root,
+            timeout=120,
+        )
+        if poster_result.returncode != 0 or not replay_poster.is_file():
+            raise CollectionError("fixed raw-composition poster replay failed")
+        if replay_poster.read_bytes() != poster.read_bytes():
+            raise CollectionError("poster bytes are not derived from raw composition")
+
+
+def _copy_private_regular(source: Path, destination: Path, maximum_bytes: int) -> None:
+    portfolio._copy_regular(source, destination, maximum_bytes)
+    destination.chmod(0o600)
+    if stat.S_IMODE(destination.stat().st_mode) != 0o600:
+        raise CollectionError("private evidence staging mode is not 0600")
 
 
 def _tar_info(name: str, size: int) -> tarfile.TarInfo:
@@ -595,6 +937,7 @@ def _runtime_assets(
     evidence_sha256: str,
     ffprobe: Path,
     ffprobe_version: str,
+    automation_report: dict[str, Any],
     repository: Path,
 ) -> dict[str, Any]:
     worker = receipt["worker"]
@@ -604,7 +947,7 @@ def _runtime_assets(
     pinned_model = PINNED_RELEASE_ASSETS["model"]
     pinned_corpus = PINNED_RELEASE_ASSETS["corpus"]
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "tag": tag,
         "source": source,
         "platform": {"system": "macOS", "architecture": "arm64"},
@@ -616,6 +959,7 @@ def _runtime_assets(
             "executable_sha256": portfolio._sha256(ffprobe),
             "version": ffprobe_version,
         },
+        "capture_tools": automation_report["tools"],
         "lockfiles": [
             {"path": path, "sha256": portfolio._sha256(repository / path)}
             for path in portfolio.LOCKFILE_PATHS
@@ -767,14 +1111,19 @@ def _collect_snapshot(
         or source_document.get("dirty") is not False
     ):
         raise CollectionError("proof is not bound to the exact clean portfolio tag")
-    if (
-        _git(repository, "status", "--porcelain=v1", "--untracked-files=all")
-        or _git(repository, "remote", "get-url", "origin")
-        != portfolio.CANONICAL_REMOTE
-        or _git(repository, "rev-parse", "HEAD^{commit}") != source["commit"]
-        or _git(repository, "rev-parse", "HEAD^{tree}") != source["tree"]
-    ):
-        raise CollectionError("collector checkout differs from proof source")
+    try:
+        verify_clean_checkout(
+            repository,
+            expected_commit=source["commit"],
+            expected_tree=source["tree"],
+            expected_origins={portfolio.CANONICAL_REMOTE},
+            expected_branch="main",
+            expected_upstream="origin/main",
+        )
+    except StrictCheckoutError as error:
+        raise CollectionError(
+            "collector checkout differs from the exact signed proof source tree"
+        ) from error
     tag_object = _git(repository, "rev-parse", f"refs/tags/{arguments.tag}")
     portfolio._verify_signed_tag(
         repository,
@@ -818,22 +1167,329 @@ def _collect_snapshot(
             portfolio.MAX_POSTER_BYTES,
             "demo poster",
         )
+        source_automation = _canonical_regular_input(
+            arguments.automation_receipt,
+            automated_media.MAX_REPORT_BYTES,
+            "automation receipt",
+        )
+        source_readiness = _canonical_regular_input(
+            arguments.result_readiness,
+            automated_media.MAX_READINESS_BYTES,
+            "result readiness receipt",
+        )
+        source_attempt_state = _canonical_regular_input(
+            arguments.attempt_state,
+            automated_media.MAX_ATTEMPT_STATE_BYTES,
+            "attempt-state snapshot",
+        )
+        source_preflight = _canonical_regular_input(
+            arguments.preflight_segment,
+            portfolio.MAX_VIDEO_BYTES,
+            "preflight raw segment",
+        )
+        source_live = _canonical_regular_input(
+            arguments.live_segment,
+            portfolio.MAX_VIDEO_BYTES,
+            "live raw segment",
+        )
+        source_result_segment = _canonical_regular_input(
+            arguments.result_segment,
+            portfolio.MAX_VIDEO_BYTES,
+            "same-run result raw segment",
+        )
+        source_helper = _canonical_regular_input(
+            arguments.window_helper,
+            128 * 1024 * 1024,
+            "compiled window helper",
+        )
+        if not source_helper.stat().st_mode & stat.S_IXUSR:
+            raise CollectionError("compiled window helper is not executable")
+        source_tag_ci = _canonical_regular_input(
+            arguments.tag_ci_receipt,
+            portfolio.MAX_JSON_BYTES,
+            "tag-CI receipt",
+        )
+        if not isinstance(portfolio._read_canonical_json(source_tag_ci), dict):
+            raise CollectionError("tag-CI receipt root is malformed")
+        source_local_tag_trust = _canonical_regular_input(
+            arguments.local_tag_trust_receipt,
+            automated_media.MAX_READINESS_BYTES,
+            "local tag trust receipt",
+        )
+        source_tag_ci_bundle = _canonical_owner_directory(
+            arguments.tag_ci_bundle, "tag-CI response bundle"
+        )
+        try:
+            tag_ci_responses, recomputed_tag_ci = read_response_bundle(
+                source_tag_ci_bundle,
+                repository=TAG_CI_REPOSITORY,
+                expected_tag=arguments.tag,
+                expected_commit=source["commit"],
+                expected_tree=source["tree"],
+            )
+        except TagCIAdmissionError as error:
+            raise CollectionError("tag-CI response bundle is invalid") from error
+        if source_tag_ci.read_bytes() != canonical_tag_ci_receipt_bytes(
+            recomputed_tag_ci
+        ):
+            raise CollectionError("tag-CI receipt differs from recomputed response bundle")
+        if recomputed_tag_ci["source"]["annotated_tag_object"] != tag_object:
+            raise CollectionError(
+                "public tag-CI annotated object differs from the signed local tag object"
+            )
         video_suffix = source_video.suffix.lower()
         if video_suffix not in {".mov", ".mp4"}:
             raise CollectionError("demo video must use a .mov or .mp4 filename")
         video = staging / f"demo-video{video_suffix}"
         poster = staging / "demo-poster.png"
+        automation_path = staging / "automation-receipt.json"
+        readiness_path = staging / "result-readiness.json"
+        attempt_state_path = staging / "attempt-state.jsonl"
+        preflight_path = staging / "preflight-window.mov"
+        live_path = staging / "live-presentation.mov"
+        result_segment_path = staging / "same-run-result.mov"
+        helper_path = staging / "find-proof-window"
+        tag_ci_path = staging / "tag-ci-receipt.json"
+        local_tag_trust_path = staging / "local-tag-trust-receipt.json"
+        tag_ci_bundle_path = staging / "tag-ci-bundle"
         portfolio._copy_regular(source_video, video, portfolio.MAX_VIDEO_BYTES)
         portfolio._copy_regular(source_poster, poster, portfolio.MAX_POSTER_BYTES)
+        _copy_private_regular(
+            source_automation, automation_path, automated_media.MAX_REPORT_BYTES
+        )
+        _copy_private_regular(
+            source_readiness, readiness_path, automated_media.MAX_READINESS_BYTES
+        )
+        _copy_private_regular(
+            source_attempt_state,
+            attempt_state_path,
+            automated_media.MAX_ATTEMPT_STATE_BYTES,
+        )
+        _copy_private_regular(
+            source_preflight, preflight_path, portfolio.MAX_VIDEO_BYTES
+        )
+        _copy_private_regular(source_live, live_path, portfolio.MAX_VIDEO_BYTES)
+        _copy_private_regular(
+            source_result_segment, result_segment_path, portfolio.MAX_VIDEO_BYTES
+        )
+        _copy_private_regular(source_helper, helper_path, 128 * 1024 * 1024)
+        _copy_private_regular(source_tag_ci, tag_ci_path, portfolio.MAX_JSON_BYTES)
+        _copy_private_regular(
+            source_local_tag_trust,
+            local_tag_trust_path,
+            automated_media.MAX_READINESS_BYTES,
+        )
+        try:
+            write_response_bundle(
+                tag_ci_bundle_path, tag_ci_responses, recomputed_tag_ci
+            )
+        except TagCIAdmissionError as error:
+            raise CollectionError("tag-CI response bundle could not be sealed") from error
         video_identity, ffprobe_version = _probe_video(video, arguments.ffprobe)
         poster_width, poster_height = portfolio._png_dimensions(poster)
-        timestamp = arguments.poster_frame_timestamp_seconds
+        automation_report = automated_media.read_canonical_report(automation_path)
+        readiness = automated_media.read_canonical_readiness(readiness_path)
+        receipt_sha256 = portfolio._sha256(receipt_path)
+        result_sha256 = portfolio._sha256(result_path)
+        video_sha256 = portfolio._sha256(video)
+        poster_sha256 = portfolio._sha256(poster)
+        try:
+            receipt_result = receipt["result"]
+            automated_media.validate_readiness(
+                readiness,
+                expected={
+                    "run_identifier": run.name,
+                    "receipt_sha256": receipt_sha256,
+                    "result_sha256": result_sha256,
+                    "application_executable_sha256": receipt["application"][
+                        "executableSHA256"
+                    ],
+                    "metric_verdict": binding["metric_verdict"],
+                    "compression_ratio_vs_bf16": _fixed_metric_text(
+                        receipt_result["compressionRatioVsBF16"],
+                        "readiness compression ratio",
+                    ),
+                    "delta_nll_nat_per_token": _fixed_metric_text(
+                        receipt_result["deltaNLLNatPerToken"],
+                        "readiness delta NLL",
+                    ),
+                    "top1_agreement": _fixed_metric_text(
+                        receipt_result["top1Agreement"],
+                        "readiness top-1 agreement",
+                    ),
+                },
+            )
+            automated_media.validate_report(
+                automation_report,
+                expected={
+                    "tag": arguments.tag,
+                    "commit": source["commit"],
+                    "tree": source["tree"],
+                    "run_identifier": run.name,
+                    "challenge_sha256": automated_media.challenge_sha256(challenge),
+                    "receipt_sha256": receipt_sha256,
+                    "result_sha256": result_sha256,
+                    "application_executable_sha256": receipt["application"][
+                        "executableSHA256"
+                    ],
+                    "metric_verdict": binding["metric_verdict"],
+                    "video_sha256": video_sha256,
+                    "poster_sha256": poster_sha256,
+                    "duration_seconds": video_identity["duration_seconds"],
+                    "width": video_identity["width"],
+                    "height": video_identity["height"],
+                    "frame_count": automation_report["output"]["frame_count"],
+                    "poster_frame_timestamp_seconds": automated_media.POSTER_TIMESTAMP_SECONDS,
+                    "result_readiness_sha256": portfolio._sha256(readiness_path),
+                    "attempt_state_sha256": portfolio._sha256(attempt_state_path),
+                    "tag_ci_receipt_sha256": portfolio._sha256(tag_ci_path),
+                    "local_tag_trust_receipt_sha256": portfolio._sha256(
+                        local_tag_trust_path
+                    ),
+                    "preflight_segment_sha256": portfolio._sha256(preflight_path),
+                    "live_segment_sha256": portfolio._sha256(live_path),
+                    "result_segment_sha256": portfolio._sha256(result_segment_path),
+                    "window_helper_sha256": portfolio._sha256(helper_path),
+                },
+            )
+            automated_media.validate_tag_ci_receipt_bytes(
+                tag_ci_path.read_bytes(),
+                expected={
+                    "repository": "ALLPROTO/core-lm-benchmark",
+                    "tag": arguments.tag,
+                    "commit": source["commit"],
+                    "tree": source["tree"],
+                },
+            )
+            automated_media.validate_local_tag_trust_receipt_bytes(
+                local_tag_trust_path.read_bytes(),
+                expected={
+                    "tag": arguments.tag,
+                    "tag_object": recomputed_tag_ci["source"][
+                        "annotated_tag_object"
+                    ],
+                    "commit": source["commit"],
+                    "tree": source["tree"],
+                },
+            )
+        except automated_media.AutomatedMediaError as error:
+            raise CollectionError(
+                "automation receipt does not bind the exact retained proof and media"
+            ) from error
+        output_identity = automation_report["output"]
+        timestamp = output_identity["poster_frame_timestamp_seconds"]
         if (
-            not math.isfinite(timestamp)
-            or timestamp < 0
-            or timestamp > float(video_identity["duration_seconds"])
+            not math.isclose(
+                float(output_identity["duration_seconds"]),
+                float(video_identity["duration_seconds"]),
+                rel_tol=0,
+                abs_tol=0.1,
+            )
+            or (output_identity["width"], output_identity["height"])
+            != (video_identity["width"], video_identity["height"])
+            or (poster_width, poster_height)
+            != (video_identity["width"], video_identity["height"])
         ):
-            raise CollectionError("poster frame timestamp is outside the video")
+            raise CollectionError("automation receipt media dimensions/duration differ")
+        ffmpeg, ffmpeg_version = _tool_version(arguments.ffmpeg, "ffmpeg")
+        ffprobe = portfolio._resolve_executable(arguments.ffprobe, "ffprobe")
+        observed_tools = automation_report["tools"]
+        if observed_tools["ffmpeg"] != {
+            "executable_sha256": portfolio._sha256(ffmpeg),
+            "version": ffmpeg_version,
+        } or observed_tools["ffprobe"] != {
+            "executable_sha256": portfolio._sha256(ffprobe),
+            "version": ffprobe_version,
+        }:
+            raise CollectionError("automation receipt media tool identity changed")
+        _verify_poster_from_video(video, poster, ffmpeg)
+        raw_paths = (preflight_path, live_path, result_segment_path)
+        raw_records = (
+            automation_report["capture"]["preflight_segment"],
+            *automation_report["capture"]["segments"],
+        )
+        for raw_path, record in zip(raw_paths, raw_records, strict=True):
+            observed_raw = _raw_segment_identity(raw_path, ffmpeg, ffprobe)
+            for key in ("sha256", "width", "height", "frame_count", "pts_sha256"):
+                if observed_raw[key] != record[key]:
+                    raise CollectionError(
+                        f"retained {record['role']} raw segment differs from report"
+                    )
+            if not math.isclose(
+                observed_raw["duration_seconds"],
+                float(record["duration_seconds"]),
+                rel_tol=0,
+                abs_tol=1e-6,
+            ):
+                raise CollectionError(
+                    f"retained {record['role']} raw duration differs from report"
+                )
+        if observed_tools["window_helper"]["executable_sha256"] != portfolio._sha256(
+            helper_path
+        ):
+            raise CollectionError("compiled window helper bytes changed")
+        if automation_report["attempt"]["tag_ci_receipt_sha256"] != portfolio._sha256(
+            tag_ci_path
+        ):
+            raise CollectionError("tag-CI receipt bytes changed")
+        if automation_report["attempt"][
+            "local_tag_trust_receipt_sha256"
+        ] != portfolio._sha256(local_tag_trust_path):
+            raise CollectionError("local tag trust receipt bytes changed")
+        try:
+            automated_media.read_canonical_attempt_state(
+                attempt_state_path, report=automation_report
+            )
+        except automated_media.AutomatedMediaError as error:
+            raise CollectionError("attempt-state snapshot is not report-bound") from error
+        _verify_composition_from_raw(
+            live=live_path,
+            result=result_segment_path,
+            video=video,
+            poster=poster,
+            ffmpeg=ffmpeg,
+        )
+        for retained_session_asset in (
+            attempt_state_path,
+            preflight_path,
+            live_path,
+            result_segment_path,
+            helper_path,
+            tag_ci_path,
+            local_tag_trust_path,
+            readiness_path,
+        ):
+            with retained_session_asset.open("rb") as handle:
+                portfolio._assert_public_stream(
+                    handle,
+                    f"retained session {retained_session_asset.name}",
+                    reject_absolute_paths=True,
+                    strict_credentials=True,
+                )
+        for tag_ci_member in tag_ci_bundle_path.iterdir():
+            with tag_ci_member.open("rb") as handle:
+                portfolio._assert_public_stream(
+                    handle,
+                    f"retained tag-CI response {tag_ci_member.name}",
+                    reject_absolute_paths=True,
+                    strict_credentials=True,
+                )
+        decoded_identity = _decoded_video_identity(video, ffmpeg, ffprobe)
+        if any(
+            output_identity[key] != value
+            for key, value in decoded_identity.items()
+        ):
+            raise CollectionError("automation receipt decoded-frame identity changed")
+        helper_source = repository / "platforms/macos/scripts/find-proof-window.swift"
+        if observed_tools["window_helper"]["source_sha256"] != portfolio._sha256(
+            helper_source
+        ):
+            raise CollectionError("automation receipt window helper source changed")
+        screencapture = Path("/usr/sbin/screencapture")
+        if observed_tools["screencapture"]["executable_sha256"] != portfolio._sha256(
+            screencapture
+        ):
+            raise CollectionError("automation receipt screencapture identity changed")
 
         members: dict[str, Path | bytes] = {
             f"run/{RECEIPT_NAME}": receipt_path,
@@ -842,35 +1498,64 @@ def _collect_snapshot(
             f"run/{RUNTIME_PROVENANCE_NAME}": runtime_provenance_bytes,
             "reports/structural-verifier.json": structural_path,
             "reports/fresh-model-replay.json": replay_path,
+            "reports/automated-media.json": automation_path,
+            "reports/result-readiness.json": readiness_path,
+            "reports/tag-ci-receipt.json": tag_ci_path,
+            "reports/local-tag-trust-receipt.json": local_tag_trust_path,
+            "session/attempt-state.jsonl": attempt_state_path,
+            "session/preflight-window.mov": preflight_path,
+            "session/live-presentation.mov": live_path,
+            "session/same-run-result.mov": result_segment_path,
+            "session/find-proof-window": helper_path,
             "logs/terminal.log": terminal,
         }
+        for role in RESPONSE_ROLES:
+            filename = RESPONSE_FILENAMES[role]
+            members[f"tag-ci-responses/{filename}"] = tag_ci_bundle_path / filename
+        members[
+            f"tag-ci-responses/{PUBLIC_RECEIPT_FILENAME}"
+        ] = tag_ci_bundle_path / PUBLIC_RECEIPT_FILENAME
         members.update(_primary_members(run))
         evidence = staging / "demo-evidence.tar.gz"
         _write_evidence_archive(evidence, members)
         evidence_sha256 = portfolio._sha256(evidence)
 
         provenance = {
-            "schema_version": 1,
+            "schema_version": 2,
             "tag": arguments.tag,
             "source": source,
             "video": {
                 **video_identity,
-                "sha256": portfolio._sha256(video),
+                "sha256": video_sha256,
                 "evidence_role": portfolio.MEDIA_CLASSIFICATION,
             },
             "poster": {
-                "sha256": portfolio._sha256(poster),
+                "sha256": poster_sha256,
                 "width": poster_width,
                 "height": poster_height,
                 "frame_timestamp_seconds": timestamp,
                 "evidence_role": portfolio.MEDIA_CLASSIFICATION,
             },
-            "capture": {"platform": "macOS", "architecture": "arm64"},
+            "capture": {
+                "platform": "macOS",
+                "architecture": "arm64",
+                "automation_contract": automated_media.AUTOMATION_CONTRACT,
+                "mode": automated_media.CAPTURE_MODE,
+                "automation_only": True,
+                "human_reviewed": False,
+                "manual_edits": False,
+                "machine_evidence": False,
+                "pixel_semantics_verified": False,
+                "automation_receipt_sha256": portfolio._sha256(automation_path),
+                "result_readiness_sha256": automation_report["capture"][
+                    "result_readiness_sha256"
+                ],
+            },
             "application_executable_sha256": receipt["application"][
                 "executableSHA256"
             ],
-            "result_sha256": portfolio._sha256(result_path),
-            "receipt_sha256": portfolio._sha256(receipt_path),
+            "result_sha256": result_sha256,
+            "receipt_sha256": receipt_sha256,
             "evidence_sha256": evidence_sha256,
             "workload_classification": WORKLOAD_CLASSIFICATION,
             "synthetic_data": False,
@@ -887,8 +1572,9 @@ def _collect_snapshot(
             build_document=build_document,
             runtime_provenance=runtime_provenance,
             evidence_sha256=evidence_sha256,
-            ffprobe=portfolio._resolve_executable(arguments.ffprobe, "ffprobe"),
+            ffprobe=ffprobe,
             ffprobe_version=ffprobe_version,
+            automation_report=automation_report,
             repository=repository,
         )
         runtime_assets_path = staging / "runtime-assets.json"
@@ -897,7 +1583,7 @@ def _collect_snapshot(
 
         related = _related_sources(arguments.cross_model_lab)
         release_input = {
-            "schema_version": 1,
+            "schema_version": 2,
             "tag": arguments.tag,
             "release_date": arguments.release_date,
             "source": {
@@ -910,13 +1596,13 @@ def _collect_snapshot(
                     "commit": source["commit"],
                     "conclusion": "success",
                     "required": True,
-                    "url": arguments.linux_ci_url,
+                    "url": recomputed_tag_ci["workflows"][0]["html_url"],
                 },
                 "macos_arm64": {
                     "commit": source["commit"],
                     "conclusion": "success",
                     "required": True,
-                    "url": arguments.macos_ci_url,
+                    "url": recomputed_tag_ci["workflows"][1]["html_url"],
                 },
             },
             "related_sources": related,
@@ -927,11 +1613,12 @@ def _collect_snapshot(
                 "demo_evidence": str(output / evidence.name),
                 "runtime_assets": str(output / runtime_assets_path.name),
             },
+            "presentation": portfolio.PRESENTATION_CONTRACT,
         }
         portfolio._validate_schema(
             release_input, portfolio.INPUT_SCHEMA, "release input draft"
         )
-        portfolio._validate_ci_bindings(release_input)
+        portfolio._validate_ci_bindings(release_input, recomputed_tag_ci)
         portfolio._validate_source(repository, release_input)
         portfolio._validate_related_sources(
             arguments.cross_model_lab, release_input
@@ -956,6 +1643,7 @@ def _collect_snapshot(
             tree=source["tree"],
             provenance=provenance,
             repository=repository,
+            automation_report=automation_report,
         )
         portfolio._validate_video(
             video,
@@ -964,13 +1652,15 @@ def _collect_snapshot(
             runtime,
             require_recorded_ffprobe=True,
         )
-        portfolio._validate_evidence_archive(
+        validated_automation_report = portfolio._validate_evidence_archive(
             evidence,
             provenance=provenance,
             source=source,
             expected_toolchain=runtime["toolchain"],
             expected_python=runtime["python"],
         )
+        if validated_automation_report != automation_report:
+            raise CollectionError("automation receipt changed across collection")
         for public_asset in (
             video,
             poster,
@@ -1028,12 +1718,20 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--app", type=Path, required=True)
     parser.add_argument("--video", type=Path, required=True)
     parser.add_argument("--poster", type=Path, required=True)
-    parser.add_argument("--poster-frame-timestamp-seconds", type=float, required=True)
+    parser.add_argument("--automation-receipt", type=Path, required=True)
+    parser.add_argument("--result-readiness", type=Path, required=True)
+    parser.add_argument("--attempt-state", type=Path, required=True)
+    parser.add_argument("--preflight-segment", type=Path, required=True)
+    parser.add_argument("--live-segment", type=Path, required=True)
+    parser.add_argument("--result-segment", type=Path, required=True)
+    parser.add_argument("--window-helper", type=Path, required=True)
+    parser.add_argument("--tag-ci-receipt", type=Path, required=True)
+    parser.add_argument("--local-tag-trust-receipt", type=Path, required=True)
+    parser.add_argument("--tag-ci-bundle", type=Path, required=True)
+    parser.add_argument("--ffmpeg", type=Path, required=True)
     parser.add_argument("--ffprobe", type=Path, required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--release-date", required=True)
-    parser.add_argument("--linux-ci-url", required=True)
-    parser.add_argument("--macos-ci-url", required=True)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 

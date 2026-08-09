@@ -9,6 +9,17 @@ struct ContentView: View {
     ]
 
     var body: some View {
+        if store.portfolioCaptureIsLive {
+            PortfolioCaptureView()
+        } else if store.portfolioCaptureRequested {
+            PortfolioCaptureView()
+                .task { await store.automatedRunIfRequested() }
+        } else {
+            benchmarkWorkspace
+        }
+    }
+
+    private var benchmarkWorkspace: some View {
         NavigationSplitView {
             List {
                 Section("Proof") {
@@ -55,6 +66,253 @@ struct ContentView: View {
         case .ready: .secondary
         case .running: .orange
         case .complete: .green
+        }
+    }
+}
+
+struct PortfolioCaptureView: View {
+    @EnvironmentObject private var store: BenchmarkStore
+
+    private let watermark =
+        "AUTOMATED PRESENTATION · NOT MACHINE EVIDENCE · "
+        + "PUBLIC VALIDATION REGRESSION · NOT INDEPENDENT REPLICATION"
+
+    var body: some View {
+        if store.portfolioCaptureIsPreflight {
+            VStack(spacing: 24) {
+                Text(watermark)
+                    .font(.system(.headline, design: .monospaced).bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                Text(store.portfolioCaptureStatusCode)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+            }
+            .padding(48)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
+        } else if store.portfolioCaptureIsLive {
+            VStack(spacing: 24) {
+                Text(watermark)
+                    .font(.system(.headline, design: .monospaced).bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                Text("AUTOMATED VALIDATION IN PROGRESS")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                Text("FIXED PRESENTATION STATE · NOT MEASURED TELEMETRY")
+                    .font(.headline.monospaced())
+                    .foregroundStyle(.secondary)
+                PortfolioCaptureModuleStates(
+                    moduleState: "IN PROGRESS",
+                    heavyReplayState: "IN PROGRESS",
+                    verifierState: "IN PROGRESS"
+                )
+            }
+            .padding(48)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
+        } else {
+            VStack(alignment: .leading, spacing: 22) {
+                Text(watermark)
+                    .font(.system(.headline, design: .monospaced).bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                Divider()
+                HStack {
+                    Text("Core LM · automated capture")
+                        .font(.largeTitle.bold())
+                    Spacer()
+                    Text(store.portfolioCaptureStatusCode)
+                        .font(.headline.monospaced().bold())
+                }
+                if let snapshot = store.portfolioCaptureSnapshot {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(spacing: 12) {
+                            PortfolioCaptureMetric(
+                                label: "Compression ratio vs BF16",
+                                value: BenchmarkStore.portfolioMetricDecimal(
+                                    snapshot.compressionRatioVsBF16
+                                )
+                            )
+                            PortfolioCaptureMetric(
+                                label: "Delta NLL nat/token",
+                                value: BenchmarkStore.portfolioMetricDecimal(
+                                    snapshot.deltaNLLNatPerToken
+                                )
+                            )
+                            PortfolioCaptureMetric(
+                                label: "Top-1 agreement",
+                                value: BenchmarkStore.portfolioMetricDecimal(
+                                    snapshot.top1Agreement
+                                )
+                            )
+                        }
+                        Grid(
+                            alignment: .leading,
+                            horizontalSpacing: 24,
+                            verticalSpacing: 8
+                        ) {
+                            PortfolioCaptureFieldRow(
+                                label: "Source tag",
+                                value: snapshot.sourceTag
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Source commit",
+                                value: snapshot.sourceCommit
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Source tree",
+                                value: snapshot.sourceTree
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Challenge SHA-256",
+                                value: snapshot.challengeSHA256
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Run UUID",
+                                value: snapshot.runIdentifier
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Result SHA-256",
+                                value: snapshot.resultFileSHA256
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Canonical result SHA-256",
+                                value: snapshot.resultSHA256
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Receipt SHA-256",
+                                value: snapshot.receiptFileSHA256
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Metric verdict",
+                                value: snapshot.metricVerdict
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Structural verifier",
+                                value: snapshot.structuralVerdict
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Replay outcome",
+                                value: snapshot.replayVerdict
+                            )
+                            PortfolioCaptureFieldRow(
+                                label: "Terminal outcome",
+                                value: snapshot.terminalVerdict
+                            )
+                        }
+                        PortfolioCaptureModuleStates(
+                            moduleState: snapshot.moduleState,
+                            heavyReplayState: snapshot.heavyReplayState,
+                            verifierState: snapshot.verifierState
+                        )
+                    }
+                    .padding(22)
+                    .background(
+                        .quaternary.opacity(0.45),
+                        in: RoundedRectangle(cornerRadius: 14)
+                    )
+                    .task(id: snapshot.runIdentifier) {
+                        await store
+                            .publishPortfolioCaptureReadinessFromRenderedView()
+                    }
+                } else {
+                    Spacer()
+                    Text(store.portfolioCaptureStatusCode)
+                        .font(.system(size: 30, weight: .bold, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    Spacer()
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(34)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
+        }
+    }
+}
+
+private struct PortfolioCaptureMetric: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title3.monospaced().bold())
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            .quaternary.opacity(0.45),
+            in: RoundedRectangle(cornerRadius: 10)
+        )
+    }
+}
+
+private struct PortfolioCaptureModuleStates: View {
+    let moduleState: String
+    let heavyReplayState: String
+    let verifierState: String
+
+    var body: some View {
+        Grid(horizontalSpacing: 20, verticalSpacing: 7) {
+            GridRow {
+                PortfolioCaptureStage(label: "Qwen model", state: moduleState)
+                PortfolioCaptureStage(label: "KV cache", state: moduleState)
+                PortfolioCaptureStage(label: "Compression", state: moduleState)
+            }
+            GridRow {
+                PortfolioCaptureStage(
+                    label: "Primary evidence", state: moduleState
+                )
+                PortfolioCaptureStage(
+                    label: "Heavy replay", state: heavyReplayState
+                )
+                PortfolioCaptureStage(
+                    label: "Verifier", state: verifierState
+                )
+            }
+        }
+    }
+}
+
+private struct PortfolioCaptureStage: View {
+    let label: String
+    let state: String
+
+    var body: some View {
+        HStack {
+            Text(label).font(.caption.bold())
+            Spacer()
+            Text(state).font(.caption.monospaced().bold())
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity)
+        .background(
+            .quaternary.opacity(0.35),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+    }
+}
+
+private struct PortfolioCaptureFieldRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        GridRow {
+            Text(label)
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(.body, design: .monospaced).weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .textSelection(.disabled)
         }
     }
 }

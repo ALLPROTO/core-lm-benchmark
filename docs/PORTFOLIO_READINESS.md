@@ -28,7 +28,7 @@ CV_READY = G01 AND G02 AND G03 AND G04 AND G05 AND G06
 |---|---|
 | G01 Public identity | GitHub shows Ivan Tyshchenko, a contact route, ORCID, pinned repositories, accurate descriptions, and topics. |
 | G02 Canonical entry | `core-lm-benchmark` default `main` explains within the first screen that this is complete-container KV-cache compression, not weight compression; it links the app, Linux path, lab, and retired unrun Blind V1 draft. |
-| G03 Visible product | README contains a current screenshot and a public demo no longer than 90 seconds showing module states, load/progress, metrics, and verifier verdict from a publicly reproducible build. |
+| G03 Visible product | README contains a current screenshot and a public demo no longer than 90 seconds showing the fixed module/pipeline overview, exact same-run metrics, and verifier verdict from a publicly reproducible build. Runtime stderr and free-form progress are intentionally excluded from the automation-safe surface; retained machine evidence carries the measured execution. |
 | G04 macOS reproduction | A clean Apple-Silicon clone builds the SwiftUI app, runs pinned real Qwen on MPS, creates a fresh challenge-bound receipt, and passes the separate verifier. |
 | G05 Linux reproduction | A clean Ubuntu 24.04 x86-64 environment builds the hash-locked CPU runtime, retains raw real-Qwen evidence, and passes the verifier as a regression. |
 | G06 Exact-commit CI | Required Linux x86-64 and macOS arm64 jobs are green on the same exact head SHA, with no required skipped, cancelled, or neutralized job. |
@@ -38,6 +38,14 @@ CV_READY = G01 AND G02 AND G03 AND G04 AND G05 AND G06
 | G10 Human clean clone | At least one non-author, non-agent person runs the public instructions on another machine and publishes commit, environment, log, receipt, result digest, and verifier report. A preserved FAIL is acceptable. |
 | G11 Engineering ownership | A public code tour covers codec format, model replay, verifier separation, failure-state semantics, and the supply-chain threat model; AI assistance is disclosed. |
 | G12 Stable release | One obvious signed current portfolio release binds source identity, checksums, public key, SBOM, reproduce command, release notes, and demo. Historical releases are clearly archival. |
+
+The V3 product-media path may satisfy G03 with a deterministic, single-window
+automation receipt classified
+`AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. Its signed result, raw evidence,
+and replay reports—not the pixels—support the metrics. Automated capture and
+agent audit never satisfy G10. Later passive viewing by a CV recipient does
+not satisfy it either; that gate still requires the specified non-author,
+non-agent clean-clone publication.
 
 No gate can be replaced by a large test count, an author-controlled agent
 review, an uncommitted local run, or a future promise.

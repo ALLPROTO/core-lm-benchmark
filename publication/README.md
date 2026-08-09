@@ -67,16 +67,17 @@ one another:
   from a checkout whose historical `CITATION.cff` names the same paper tag,
   verifies that the tag is lightweight, points to clean `HEAD`, and is visible
   on the canonical public origin. The current default branch instead names the
-  current `corelm-portfolio-v2` software identity.
-- `corelm-portfolio-vN` is the SSH-signed annotated portfolio and independent-
-  replication contour. It is verified by `tools/independent_replication.py`
-  against the pinned signer policy and canonical remote. The archive builder
-  rejects it as the wrong contour.
+  current `corelm-portfolio-v3` software identity.
+- `corelm-portfolio-vN` is the SSH-signed annotated portfolio and source-
+  verification contour. Its signed-source identity is verified against the
+  pinned signer policy and canonical remote; the separate
+  `tools/independent_replication.py` workflow remains an open human G10 gate.
+  The archive builder rejects portfolio tags as the wrong paper contour.
 
 A paper archive may be linked from a portfolio release, but its provenance
 continues to name its own `voidtoken-v5-paper-vN` tag. A portfolio tag does not
 retroactively sign or rename a historical paper archive, and a lightweight
-paper tag cannot satisfy the independent-replication source gate.
+paper tag cannot satisfy the signed portfolio source gate.
 
 ## Generate and preview
 
@@ -105,9 +106,17 @@ A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
 
 On the default branch that preview includes the current
-`corelm-portfolio-v2` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
+`corelm-portfolio-v3` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
 not a byte claim about the historical paper-v5 package. Exact paper-v5
 reproduction requires the detached tag below.
+
+The V3 portfolio media path is governed by
+`corelm-automated-presentation-v1` and is classified
+`AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. It requires no human review or
+manual edit to accept generated media, but it does not verify pixel semantics
+and does not make the video or poster scientific machine evidence. Gate G10
+remains **OPEN** until a non-author, non-agent person publishes the required
+clean-clone replication.
 
 ## Reproduce the existing tagged package
 

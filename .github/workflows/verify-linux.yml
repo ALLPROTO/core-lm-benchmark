@@ -21,6 +21,20 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
+      - name: Require exact portfolio tag-push ref
+        run: |
+          if [ "$GITHUB_REF_NAME" != corelm-portfolio-v3 ]; then
+            echo "Not the V3 portfolio tag; exact tag assertion is not applicable."
+            exit 0
+          fi
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF_TYPE" = tag
+          test "$GITHUB_REF" = "refs/tags/$GITHUB_REF_NAME"
+          test "$GITHUB_REF_NAME" = corelm-portfolio-v3
+          test "$(grep -Fxc 'version: \"corelm-portfolio-v3\"' CITATION.cff)" -eq 1
+          test "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME")" = tag
+          test "$(git rev-parse "refs/tags/$GITHUB_REF_NAME^{commit}")" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^{commit})" = "$GITHUB_SHA"
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12.13"
@@ -57,6 +71,20 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
+      - name: Require exact portfolio tag-push ref
+        run: |
+          if [ "$GITHUB_REF_NAME" != corelm-portfolio-v3 ]; then
+            echo "Not the V3 portfolio tag; exact tag assertion is not applicable."
+            exit 0
+          fi
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF_TYPE" = tag
+          test "$GITHUB_REF" = "refs/tags/$GITHUB_REF_NAME"
+          test "$GITHUB_REF_NAME" = corelm-portfolio-v3
+          test "$(grep -Fxc 'version: \"corelm-portfolio-v3\"' CITATION.cff)" -eq 1
+          test "$(git cat-file -t "refs/tags/$GITHUB_REF_NAME")" = tag
+          test "$(git rev-parse "refs/tags/$GITHUB_REF_NAME^{commit}")" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^{commit})" = "$GITHUB_SHA"
       - name: Bootstrap pinned owner-local Python 3.12.13
         run: |
           ./corelm linux bootstrap

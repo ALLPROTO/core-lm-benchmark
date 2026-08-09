@@ -1,4 +1,5 @@
 import AppKit
+import CoreFoundation
 import Darwin
 import Dispatch
 import Foundation
@@ -7,6 +8,151 @@ import UniformTypeIdentifiers
 private struct ValidatedPythonRuntime {
     let executableURL: URL
     let sha256: String
+}
+
+enum PortfolioCaptureRequest: Equatable {
+    case none
+    case preflight
+    case live
+    case result(runIdentifier: String, readyFilePath: String)
+    case invalid
+
+    init(arguments: [String]) {
+        let payload = Array(arguments.dropFirst())
+        let captureCount = arguments.filter {
+            $0 == "--portfolio-capture"
+        }.count
+        let preflightCount = arguments.filter {
+            $0 == "--portfolio-capture-preflight"
+        }.count
+        let liveCount = arguments.filter {
+            $0 == "--portfolio-capture-live"
+        }.count
+        let resultFlagIndices = arguments.indices.filter {
+            arguments[$0] == "--portfolio-result-id"
+        }
+        let readyFlagIndices = arguments.indices.filter {
+            arguments[$0] == "--portfolio-ready-file"
+        }
+        let conflicts = [
+            "--automated-compression-proof",
+            "--app-launch-check",
+            "--proof-challenge"
+        ].contains { arguments.contains($0) }
+        let mentionsCapture = captureCount > 0
+            || preflightCount > 0
+            || liveCount > 0
+            || !resultFlagIndices.isEmpty
+            || !readyFlagIndices.isEmpty
+
+        guard mentionsCapture else {
+            self = .none
+            return
+        }
+        guard !conflicts else {
+            self = .invalid
+            return
+        }
+        if preflightCount == 1,
+           captureCount == 0,
+           liveCount == 0,
+           resultFlagIndices.isEmpty,
+           readyFlagIndices.isEmpty,
+           payload == ["--portfolio-capture-preflight"] {
+            self = .preflight
+            return
+        }
+        if liveCount == 1,
+           captureCount == 0,
+           preflightCount == 0,
+           resultFlagIndices.isEmpty,
+           readyFlagIndices.isEmpty,
+           payload == ["--portfolio-capture-live"] {
+            self = .live
+            return
+        }
+        guard preflightCount == 0,
+              liveCount == 0,
+              captureCount == 1,
+              resultFlagIndices.count == 1,
+              readyFlagIndices.count == 1,
+              payload.count == 5,
+              payload[0] == "--portfolio-capture",
+              payload[1] == "--portfolio-result-id",
+              payload[3] == "--portfolio-ready-file" else {
+            self = .invalid
+            return
+        }
+        let flagIndex = resultFlagIndices[0]
+        guard flagIndex + 1 < arguments.count else {
+            self = .invalid
+            return
+        }
+        let identifier = arguments[flagIndex + 1]
+        guard let uuid = UUID(uuidString: identifier),
+              uuid.uuidString.lowercased() == identifier else {
+            self = .invalid
+            return
+        }
+        let readyFilePath = payload[4]
+        let readyFileURL = URL(fileURLWithPath: readyFilePath)
+        guard readyFilePath.hasPrefix("/"),
+              readyFilePath != "/",
+              readyFilePath.utf8.count <= 4_096,
+              !readyFilePath.utf8.contains(0),
+              readyFileURL.standardizedFileURL.path == readyFilePath,
+              readyFileURL.lastPathComponent != ".",
+              readyFileURL.lastPathComponent != "..",
+              !readyFileURL.lastPathComponent.isEmpty else {
+            self = .invalid
+            return
+        }
+        self = .result(
+            runIdentifier: identifier,
+            readyFilePath: readyFilePath
+        )
+    }
+
+    var isCaptureMode: Bool {
+        self != .none
+    }
+
+    var isPreflight: Bool {
+        self == .preflight
+    }
+
+    var isLive: Bool {
+        self == .live
+    }
+}
+
+struct PortfolioCaptureSnapshot: Equatable {
+    let sourceTag: String
+    let sourceCommit: String
+    let sourceTree: String
+    let challengeSHA256: String
+    let runIdentifier: String
+    let resultSHA256: String
+    let metricVerdict: String
+    let compressionRatioVsBF16: Double
+    let deltaNLLNatPerToken: Double
+    let top1Agreement: Double
+    let moduleState: String
+    let heavyReplayState: String
+    let verifierState: String
+    let structuralVerdict: String
+    let replayVerdict: String
+    let terminalVerdict: String
+    let resultFileSHA256: String
+    let receiptFileSHA256: String
+    let buildProvenanceSHA256: String
+    let applicationExecutableSHA256: String
+}
+
+private struct PortfolioCaptureReportBytes {
+    let structural: Data?
+    let replay: Data?
+    let terminal: Data?
 }
 
 enum ProcessGroupSupervisor {
@@ -47,6 +193,9 @@ final class BenchmarkStore: ObservableObject {
     @Published var realLLMVerified = false
     @Published var realLLMVerificationMessage = "No proof run"
     @Published var realLLMResultURL: URL?
+    @Published private(set) var portfolioCaptureSnapshot:
+        PortfolioCaptureSnapshot?
+    @Published private(set) var portfolioCaptureStatusCode: String
 
     private var process: Process?
     private var activeProcessGroupID: pid_t?
@@ -57,28 +206,60 @@ final class BenchmarkStore: ObservableObject {
     private var realLLMStartedAt: Date?
     private var activeRealLLMPythonSHA256: String?
     private var activeRealLLMScriptURL: URL?
+    private var portfolioReadinessPublishing = false
+    private var portfolioReadinessPublished = false
     private(set) var lastRealLLMWorkerPID: Int32?
-    private let proofChallengeRequested = CommandLine.arguments.contains(
-        "--proof-challenge"
-    )
-    private let proofChallengeNonce: String? = {
-        guard let index = CommandLine.arguments.firstIndex(
-            of: "--proof-challenge"
-        ), index + 1 < CommandLine.arguments.count else {
-            return nil
-        }
-        let value = CommandLine.arguments[index + 1]
-        guard value.range(
-            of: "^[0-9a-f]{64}$",
-            options: .regularExpression
-        ) != nil else {
-            return nil
-        }
-        return value
-    }()
+    let portfolioCaptureRequest: PortfolioCaptureRequest
+    private let commandLineArguments: [String]
+    private let proofChallengeRequested: Bool
+    private let proofChallengeNonce: String?
     static let realLLMHardTimeoutSeconds: UInt64 = 300
     static let mpsHighWatermarkRatio = "0.85"
     static let mpsLowWatermarkRatio = "0.75"
+
+    init(commandLineArguments: [String] = CommandLine.arguments) {
+        self.commandLineArguments = commandLineArguments
+        portfolioCaptureRequest = PortfolioCaptureRequest(
+            arguments: commandLineArguments
+        )
+        proofChallengeRequested = commandLineArguments.contains(
+            "--proof-challenge"
+        )
+        if let index = commandLineArguments.firstIndex(
+            of: "--proof-challenge"
+        ), index + 1 < commandLineArguments.count,
+           SecurityValidation.isLowercaseSHA256(
+               commandLineArguments[index + 1]
+           ) {
+            proofChallengeNonce = commandLineArguments[index + 1]
+        } else {
+            proofChallengeNonce = nil
+        }
+        switch portfolioCaptureRequest {
+        case .preflight:
+            portfolioCaptureStatusCode = "AUTOMATED CAPTURE PREFLIGHT"
+        case .live:
+            portfolioCaptureStatusCode = "AUTOMATED VALIDATION IN PROGRESS"
+        case .result:
+            portfolioCaptureStatusCode = "CAPTURE_RESULT_LOADING"
+        case .invalid:
+            portfolioCaptureStatusCode = "CAPTURE_ARGUMENTS_INVALID"
+        case .none:
+            portfolioCaptureStatusCode = "CAPTURE_DISABLED"
+        }
+    }
+
+    var portfolioCaptureRequested: Bool {
+        portfolioCaptureRequest.isCaptureMode
+    }
+
+    var portfolioCaptureIsPreflight: Bool {
+        portfolioCaptureRequest.isPreflight
+    }
+
+    var portfolioCaptureIsLive: Bool {
+        portfolioCaptureRequest.isLive
+    }
     var projectDirectory: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -320,6 +501,873 @@ final class BenchmarkStore: ObservableObject {
             )
         }
         return sanitized
+    }
+
+    private static func captureFailure(_ code: String)
+        -> SecurityValidationError
+    {
+        .invalid(code)
+    }
+
+    private static func exactCaptureObject(
+        _ value: Any?,
+        keys: Set<String>,
+        code: String
+    ) throws -> [String: Any] {
+        guard let object = value as? [String: Any],
+              Set(object.keys) == keys else {
+            throw captureFailure(code)
+        }
+        return object
+    }
+
+    private static func captureString(
+        _ value: Any?,
+        maximumUTF8Bytes: Int = 4_096
+    ) -> String? {
+        guard let value = value as? String,
+              !value.isEmpty,
+              value.utf8.count <= maximumUTF8Bytes,
+              value.unicodeScalars.allSatisfy({
+                  $0.value >= 0x20 && $0.value != 0x7f
+              }) else {
+            return nil
+        }
+        return value
+    }
+
+    private static func captureInteger(_ value: Any?) -> Int? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID() else {
+            return nil
+        }
+        let double = number.doubleValue
+        guard double.isFinite,
+              double.rounded(.towardZero) == double,
+              double >= Double(Int.min),
+              double <= Double(Int.max) else {
+            return nil
+        }
+        return Int(double)
+    }
+
+    private static func captureNumber(_ value: Any?) -> Double? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID(),
+              number.doubleValue.isFinite else {
+            return nil
+        }
+        return number.doubleValue
+    }
+
+    private static func captureNumbersEqual(
+        _ value: Any?,
+        _ expected: Double
+    ) -> Bool {
+        guard expected.isFinite,
+              let observed = captureNumber(value) else {
+            return false
+        }
+        return abs(observed - expected)
+            <= max(1e-12, abs(expected) * 1e-12)
+    }
+
+    private static func isLowercaseGitObjectID(_ value: String) -> Bool {
+        [40, 64].contains(value.utf8.count)
+            && value.utf8.allSatisfy {
+                (48...57).contains($0) || (97...102).contains($0)
+            }
+    }
+
+    private static func isSafeCaptureTag(_ value: String) -> Bool {
+        value.utf8.count <= 200
+            && value.range(
+                of: "^[A-Za-z0-9][A-Za-z0-9._/+@-]{0,199}$",
+                options: .regularExpression
+            ) != nil
+    }
+
+    private static func canonicalCaptureJSON(
+        _ value: Any,
+        prettyPrinted: Bool,
+        trailingNewline: Bool
+    ) throws -> Data {
+        var options: JSONSerialization.WritingOptions = [
+            .sortedKeys, .withoutEscapingSlashes
+        ]
+        if prettyPrinted {
+            options.insert(.prettyPrinted)
+        }
+        var data = try JSONSerialization.data(
+            withJSONObject: value,
+            options: options
+        )
+        if trailingNewline {
+            data.append(0x0a)
+        }
+        return data
+    }
+
+    static func validatedPortfolioReadyFileURL(
+        path: String
+    ) throws -> URL {
+        let readyFile = URL(fileURLWithPath: path)
+        guard path.hasPrefix("/"),
+              path != "/",
+              path.utf8.count <= 4_096,
+              !path.utf8.contains(0),
+              readyFile.standardizedFileURL.path == path else {
+            throw captureFailure("CAPTURE_READY_PATH_INVALID")
+        }
+        let parent = readyFile.deletingLastPathComponent()
+            .standardizedFileURL
+        guard parent.path != "/",
+              parent.resolvingSymlinksInPath().standardizedFileURL.path
+                == parent.path else {
+            throw captureFailure("CAPTURE_READY_PARENT_INVALID")
+        }
+        try SecurityValidation.validateDirectory(
+            parent, requireCurrentOwner: true
+        )
+        var parentStatus = stat()
+        guard parent.path.withCString({
+            lstat($0, &parentStatus)
+        }) == 0,
+        (parentStatus.st_mode & S_IFMT) == S_IFDIR,
+        parentStatus.st_uid == getuid(),
+        (parentStatus.st_mode & mode_t(0o7777)) == mode_t(0o700)
+        else {
+            throw captureFailure("CAPTURE_READY_PARENT_PERMISSIONS_INVALID")
+        }
+        var targetStatus = stat()
+        let targetResult = readyFile.path.withCString {
+            lstat($0, &targetStatus)
+        }
+        let targetErrno = errno
+        guard targetResult != 0, targetErrno == ENOENT else {
+            throw captureFailure("CAPTURE_READY_TARGET_NOT_ABSENT")
+        }
+        return readyFile
+    }
+
+    static func portfolioMetricDecimal(_ value: Double) -> String {
+        String(
+            format: "%.6f",
+            locale: Locale(identifier: "en_US_POSIX"),
+            value
+        )
+    }
+
+    static func writePortfolioCaptureReadiness(
+        at readyFile: URL,
+        runIdentifier: String,
+        resultFileSHA256: String,
+        receiptFileSHA256: String,
+        applicationExecutableSHA256: String,
+        metricVerdict: String,
+        compressionRatioVsBF16: Double,
+        deltaNLLNatPerToken: Double,
+        top1Agreement: Double
+    ) throws {
+        guard let uuid = UUID(uuidString: runIdentifier),
+              uuid.uuidString.lowercased() == runIdentifier,
+              SecurityValidation.isLowercaseSHA256(resultFileSHA256),
+              SecurityValidation.isLowercaseSHA256(receiptFileSHA256),
+              SecurityValidation.isLowercaseSHA256(
+                  applicationExecutableSHA256
+              ),
+              ["PASS", "FAIL"].contains(metricVerdict),
+              compressionRatioVsBF16.isFinite,
+              compressionRatioVsBF16 > 0,
+              compressionRatioVsBF16 <= 64,
+              deltaNLLNatPerToken.isFinite,
+              (-1...1).contains(deltaNLLNatPerToken),
+              top1Agreement.isFinite,
+              (0...1).contains(top1Agreement) else {
+            throw captureFailure("CAPTURE_READY_BINDING_INVALID")
+        }
+        let validatedTarget = try validatedPortfolioReadyFileURL(
+            path: readyFile.path
+        )
+        guard validatedTarget.path == readyFile.path else {
+            throw captureFailure("CAPTURE_READY_PATH_CHANGED")
+        }
+        let parent = validatedTarget.deletingLastPathComponent()
+        let targetName = validatedTarget.lastPathComponent
+        let parentDescriptor = parent.path.withCString {
+            Darwin.open(
+                $0,
+                O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW
+            )
+        }
+        guard parentDescriptor >= 0 else {
+            throw captureFailure("CAPTURE_READY_PARENT_OPEN_FAILED")
+        }
+        defer {
+            _ = Darwin.close(parentDescriptor)
+        }
+        var parentDescriptorStatus = stat()
+        var parentPathStatus = stat()
+        guard fstat(parentDescriptor, &parentDescriptorStatus) == 0,
+              parent.path.withCString({
+                  lstat($0, &parentPathStatus)
+              }) == 0,
+              (parentDescriptorStatus.st_mode & S_IFMT) == S_IFDIR,
+              parentDescriptorStatus.st_uid == getuid(),
+              (parentDescriptorStatus.st_mode & mode_t(0o7777))
+                == mode_t(0o700),
+              parentDescriptorStatus.st_dev == parentPathStatus.st_dev,
+              parentDescriptorStatus.st_ino == parentPathStatus.st_ino,
+              parent.resolvingSymlinksInPath().standardizedFileURL.path
+                == parent.path else {
+            throw captureFailure("CAPTURE_READY_PARENT_CHANGED")
+        }
+        var existingTargetStatus = stat()
+        let existingTargetResult = targetName.withCString {
+            fstatat(
+                parentDescriptor,
+                $0,
+                &existingTargetStatus,
+                AT_SYMLINK_NOFOLLOW
+            )
+        }
+        let existingTargetErrno = errno
+        guard existingTargetResult != 0,
+              existingTargetErrno == ENOENT else {
+            throw captureFailure("CAPTURE_READY_TARGET_NOT_ABSENT")
+        }
+        let payload: [String: Any] = [
+            "application_executable_sha256":
+                applicationExecutableSHA256,
+            "compression_ratio_vs_bf16": portfolioMetricDecimal(
+                compressionRatioVsBF16
+            ),
+            "delta_nll_nat_per_token": portfolioMetricDecimal(
+                deltaNLLNatPerToken
+            ),
+            "metric_verdict": metricVerdict,
+            "module_states": [
+                "compression": "COMPLETE",
+                "heavy_replay": "PASS",
+                "kv_cache": "COMPLETE",
+                "primary_evidence": "COMPLETE",
+                "qwen_model": "COMPLETE"
+            ],
+            "receipt_sha256": receiptFileSHA256,
+            "result_sha256": resultFileSHA256,
+            "run_identifier": runIdentifier,
+            "schema_version": 1,
+            "status": "CAPTURE_RESULT_READY",
+            "top1_agreement": portfolioMetricDecimal(top1Agreement),
+            "verifier_state": "PASS"
+        ]
+        let data = try canonicalCaptureJSON(
+            payload,
+            prettyPrinted: false,
+            trailingNewline: true
+        )
+        let temporaryName =
+            ".corelm-ready-\(UUID().uuidString.lowercased()).tmp"
+        guard temporaryName != targetName else {
+            throw captureFailure("CAPTURE_READY_TEMP_NAME_INVALID")
+        }
+        var descriptor = temporaryName.withCString {
+            Darwin.openat(
+                parentDescriptor,
+                $0,
+                O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW,
+                mode_t(0o600)
+            )
+        }
+        guard descriptor >= 0 else {
+            throw captureFailure("CAPTURE_READY_TEMP_CREATE_FAILED")
+        }
+        var temporaryExists = true
+        defer {
+            if descriptor >= 0 {
+                _ = Darwin.close(descriptor)
+            }
+            if temporaryExists {
+                _ = temporaryName.withCString {
+                    Darwin.unlinkat(parentDescriptor, $0, 0)
+                }
+            }
+        }
+        try data.withUnsafeBytes { rawBuffer in
+            guard let baseAddress = rawBuffer.baseAddress else {
+                throw captureFailure("CAPTURE_READY_PAYLOAD_INVALID")
+            }
+            var offset = 0
+            while offset < data.count {
+                let written = Darwin.write(
+                    descriptor,
+                    baseAddress.advanced(by: offset),
+                    data.count - offset
+                )
+                if written < 0, errno == EINTR {
+                    continue
+                }
+                guard written > 0 else {
+                    throw captureFailure("CAPTURE_READY_WRITE_FAILED")
+                }
+                offset += written
+            }
+        }
+        guard fchmod(descriptor, mode_t(0o600)) == 0,
+              fsync(descriptor) == 0 else {
+            throw captureFailure("CAPTURE_READY_SYNC_FAILED")
+        }
+        var fileStatus = stat()
+        guard fstat(descriptor, &fileStatus) == 0,
+              (fileStatus.st_mode & S_IFMT) == S_IFREG,
+              (fileStatus.st_mode & mode_t(0o7777)) == mode_t(0o600),
+              fileStatus.st_uid == getuid(),
+              fileStatus.st_nlink == 1,
+              fileStatus.st_size == off_t(data.count) else {
+            throw captureFailure("CAPTURE_READY_TEMP_INVALID")
+        }
+        guard Darwin.close(descriptor) == 0 else {
+            descriptor = -1
+            throw captureFailure("CAPTURE_READY_CLOSE_FAILED")
+        }
+        descriptor = -1
+
+        var publishTargetStatus = stat()
+        let publishTargetResult = targetName.withCString {
+            fstatat(
+                parentDescriptor,
+                $0,
+                &publishTargetStatus,
+                AT_SYMLINK_NOFOLLOW
+            )
+        }
+        let publishTargetErrno = errno
+        guard publishTargetResult != 0,
+              publishTargetErrno == ENOENT else {
+            throw captureFailure("CAPTURE_READY_TARGET_NOT_ABSENT")
+        }
+        let renameFlags = UInt32(RENAME_EXCL | RENAME_NOFOLLOW_ANY)
+        let renameResult = temporaryName.withCString { source in
+            targetName.withCString { target in
+                renameatx_np(
+                    parentDescriptor,
+                    source,
+                    parentDescriptor,
+                    target,
+                    renameFlags
+                )
+            }
+        }
+        guard renameResult == 0 else {
+            throw captureFailure("CAPTURE_READY_PUBLISH_FAILED")
+        }
+        temporaryExists = false
+    }
+
+    private static func canonicalCaptureObject(
+        from data: Data,
+        prettyPrinted: Bool,
+        trailingNewline: Bool,
+        maximumBytes: Int,
+        code: String,
+        requireCanonicalBytes: Bool = true
+    ) throws -> [String: Any] {
+        guard !data.isEmpty, data.count <= maximumBytes,
+              String(data: data, encoding: .utf8) != nil,
+              let object = try JSONSerialization.jsonObject(
+                  with: data,
+                  options: [.fragmentsAllowed]
+              ) as? [String: Any] else {
+            throw captureFailure(code)
+        }
+        if requireCanonicalBytes,
+           try canonicalCaptureJSON(
+               object,
+               prettyPrinted: prettyPrinted,
+               trailingNewline: trailingNewline
+           ) != data {
+            throw captureFailure(code)
+        }
+        return object
+    }
+
+    private static func captureTimestamp(_ value: Any?) -> Date? {
+        guard let text = captureString(value, maximumUTF8Bytes: 64) else {
+            return nil
+        }
+        let formatter = ISO8601DateFormatter()
+        if let date = formatter.date(from: text) {
+            return date
+        }
+        formatter.formatOptions = [
+            .withInternetDateTime, .withFractionalSeconds
+        ]
+        return formatter.date(from: text)
+    }
+
+    private static func validateCapturePrimaryEvidence(
+        _ value: Any?,
+        expected: RealLLMPrimaryEvidenceReference
+    ) throws {
+        let primary = try exactCaptureObject(
+            value,
+            keys: [
+                "schemaVersion", "path", "manifestSHA256",
+                "manifestBytes", "containerCount", "containerBytes",
+                "blocks", "predictionTokens"
+            ],
+            code: "CAPTURE_RECEIPT_PRIMARY_INVALID"
+        )
+        guard primary["schemaVersion"] as? String
+                == expected.schemaVersion,
+              primary["path"] as? String == expected.path,
+              primary["manifestSHA256"] as? String
+                == expected.manifestSHA256,
+              captureInteger(primary["manifestBytes"])
+                == expected.manifestBytes,
+              captureInteger(primary["containerCount"])
+                == expected.containerCount,
+              captureInteger(primary["containerBytes"])
+                == expected.containerBytes,
+              captureInteger(primary["blocks"]) == expected.blocks,
+              captureInteger(primary["predictionTokens"])
+                == expected.predictionTokens else {
+            throw captureFailure("CAPTURE_RECEIPT_PRIMARY_MISMATCH")
+        }
+    }
+
+    private static func validateCaptureReports(
+        _ reports: PortfolioCaptureReportBytes,
+        sourceCommit: String,
+        sourceTree: String,
+        metricVerdict: String,
+        receiptFileSHA256: String,
+        resultFileSHA256: String
+    ) throws -> (
+        structural: String,
+        replay: String,
+        terminal: String
+    ) {
+        let retainedCount = [
+            reports.structural, reports.replay, reports.terminal
+        ].compactMap { $0 }.count
+        if retainedCount == 0 {
+            return (
+                structural: "NOT RETAINED",
+                replay: "NOT RETAINED",
+                terminal: "NOT RETAINED"
+            )
+        }
+        guard retainedCount == 3,
+              let structuralData = reports.structural,
+              let replayData = reports.replay,
+              let terminalData = reports.terminal else {
+            throw captureFailure("CAPTURE_REPORT_SET_INCOMPLETE")
+        }
+
+        let structural = try canonicalCaptureObject(
+            from: structuralData,
+            prettyPrinted: false,
+            trailingNewline: true,
+            maximumBytes: 64 * 1_024,
+            code: "CAPTURE_STRUCTURAL_REPORT_INVALID"
+        )
+        let structuralSource = try exactCaptureObject(
+            structural["source"],
+            keys: ["commit", "tree"],
+            code: "CAPTURE_STRUCTURAL_SOURCE_INVALID"
+        )
+        guard Set(structural.keys) == [
+            "metric_verdict", "receipt_sha256", "report_kind",
+            "result_sha256", "schema_version", "source",
+            "synthetic_data", "verdict", "workload_classification"
+        ],
+              captureInteger(structural["schema_version"]) == 1,
+              structural["report_kind"] as? String == "structural_verifier",
+              structural["verdict"] as? String == "PASS",
+              structural["metric_verdict"] as? String == metricVerdict,
+              structural["receipt_sha256"] as? String
+                == receiptFileSHA256,
+              structural["result_sha256"] as? String
+                == resultFileSHA256,
+              structural["workload_classification"] as? String
+                == "AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION",
+              structural["synthetic_data"] as? Bool == false,
+              structuralSource["commit"] as? String == sourceCommit,
+              structuralSource["tree"] as? String == sourceTree else {
+            throw captureFailure("CAPTURE_STRUCTURAL_REPORT_MISMATCH")
+        }
+
+        let replay = try canonicalCaptureObject(
+            from: replayData,
+            prettyPrinted: false,
+            trailingNewline: true,
+            maximumBytes: 64 * 1_024,
+            code: "CAPTURE_REPLAY_REPORT_INVALID",
+            requireCanonicalBytes: false
+        )
+        let replaySource = try exactCaptureObject(
+            replay["source"],
+            keys: ["commit", "tree"],
+            code: "CAPTURE_REPLAY_SOURCE_INVALID"
+        )
+        let model = try exactCaptureObject(
+            replay["model"],
+            keys: ["repository", "revision"],
+            code: "CAPTURE_REPLAY_MODEL_INVALID"
+        )
+        let replayEvidence = try exactCaptureObject(
+            replay["replay"],
+            keys: [
+                "decisions", "lossAbsoluteTolerance",
+                "lossRelativeTolerance",
+                "maximumAllowedBaselineDifference",
+                "maximumAllowedCandidateDifference",
+                "maximumBaselineLossDifference",
+                "maximumCandidateLossDifference",
+                "perDecisionEvidenceSHA256",
+                "primaryManifestSHA256", "tokenMetricsSHA256"
+            ],
+            code: "CAPTURE_REPLAY_EVIDENCE_INVALID"
+        )
+        let maximumAllowedBaseline = captureNumber(
+            replayEvidence["maximumAllowedBaselineDifference"]
+        )
+        let maximumAllowedCandidate = captureNumber(
+            replayEvidence["maximumAllowedCandidateDifference"]
+        )
+        let maximumBaseline = captureNumber(
+            replayEvidence["maximumBaselineLossDifference"]
+        )
+        let maximumCandidate = captureNumber(
+            replayEvidence["maximumCandidateLossDifference"]
+        )
+        let replayVerdict =
+            "AUTHOR_RECORDED_HEAVY_REPLAY_INTEGRITY_PASS"
+        let replayDigestsValid = [
+            "perDecisionEvidenceSHA256",
+            "primaryManifestSHA256", "tokenMetricsSHA256"
+        ].allSatisfy { key in
+            guard let digest = replayEvidence[key] as? String else {
+                return false
+            }
+            return SecurityValidation.isLowercaseSHA256(digest)
+        }
+        guard Set(replay.keys) == [
+            "execution_scope", "metric_verdict", "model",
+            "receipt_sha256", "replay", "report_kind",
+            "result_sha256", "schema_version", "source",
+            "synthetic_data", "verdict", "workload_classification"
+        ],
+              captureInteger(replay["schema_version"]) == 1,
+              replay["report_kind"] as? String == "fresh_model_replay",
+              replay["verdict"] as? String == replayVerdict,
+              replay["metric_verdict"] as? String == metricVerdict,
+              replay["receipt_sha256"] as? String
+                == receiptFileSHA256,
+              replay["result_sha256"] as? String == resultFileSHA256,
+              replay["workload_classification"] as? String
+                == "AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION",
+              replay["synthetic_data"] as? Bool == false,
+              replay["execution_scope"] as? String
+                == "AUTHOR_RECORDED_NOT_INDEPENDENTLY_REEXECUTED_BY_RELEASE_VERIFIER",
+              replaySource["commit"] as? String == sourceCommit,
+              replaySource["tree"] as? String == sourceTree,
+              model["repository"] as? String == "Qwen/Qwen2.5-0.5B",
+              model["revision"] as? String
+                == "060db6499f32faf8b98477b0a26969ef7d8b9987",
+              captureInteger(replayEvidence["decisions"]) == 1_024,
+              captureNumbersEqual(
+                  replayEvidence["lossAbsoluteTolerance"], 2e-5
+              ),
+              captureNumbersEqual(
+                  replayEvidence["lossRelativeTolerance"], 2e-6
+              ),
+              let maximumAllowedBaseline,
+              let maximumAllowedCandidate,
+              let maximumBaseline,
+              let maximumCandidate,
+              maximumAllowedBaseline >= 0,
+              maximumAllowedCandidate >= 0,
+              maximumBaseline >= 0,
+              maximumCandidate >= 0,
+              maximumBaseline <= maximumAllowedBaseline,
+              maximumCandidate <= maximumAllowedCandidate,
+              replayDigestsValid else {
+            throw captureFailure("CAPTURE_REPLAY_REPORT_MISMATCH")
+        }
+
+        let passTerminal = "END-TO-END PROOF PASS\n"
+        let failTerminal =
+            "END-TO-END PROOF VERIFIED — METRIC FAIL\n"
+        let expectedTerminal = metricVerdict == "PASS"
+            ? passTerminal : failTerminal
+        guard terminalData == Data(expectedTerminal.utf8) else {
+            throw captureFailure("CAPTURE_TERMINAL_REPORT_MISMATCH")
+        }
+        return (
+            structural: "PASS",
+            replay: replayVerdict,
+            terminal: String(expectedTerminal.dropLast())
+        )
+    }
+
+    static func validatedPortfolioCaptureSnapshot(
+        result: RealLLMResult,
+        resultFileSHA256: String,
+        receiptData: Data,
+        receiptFileSHA256: String,
+        runIdentifier: String,
+        structuralReportData: Data? = nil,
+        replayReportData: Data? = nil,
+        terminalReportData: Data? = nil
+    ) throws -> PortfolioCaptureSnapshot {
+        guard let uuid = UUID(uuidString: runIdentifier),
+              uuid.uuidString.lowercased() == runIdentifier,
+              SecurityValidation.isLowercaseSHA256(resultFileSHA256),
+              SecurityValidation.isLowercaseSHA256(receiptFileSHA256),
+              SecurityValidation.isLowercaseSHA256(result.resultSHA256),
+              let aggregate = result.aggregate else {
+            throw captureFailure("CAPTURE_RESULT_IDENTITY_INVALID")
+        }
+        let receipt = try canonicalCaptureObject(
+            from: receiptData,
+            prettyPrinted: true,
+            trailingNewline: false,
+            maximumBytes: 64 * 1_024,
+            code: "CAPTURE_RECEIPT_INVALID"
+        )
+        guard Set(receipt.keys) == [
+            "application", "buildProvenance", "challengeNonce",
+            "createdAt", "error", "primaryEvidence", "protocol",
+            "result", "schemaVersion", "startedAt", "worker"
+        ],
+              receipt["schemaVersion"] as? String
+                == "corelm-macos-app-real-llm-run-v5",
+              receipt["error"] is NSNull,
+              let startedAt = captureTimestamp(receipt["startedAt"]),
+              let resultCreatedAt = captureTimestamp(result.createdAt),
+              let receiptCreatedAt = captureTimestamp(receipt["createdAt"]),
+              startedAt <= resultCreatedAt,
+              resultCreatedAt <= receiptCreatedAt else {
+            throw captureFailure("CAPTURE_RECEIPT_CONTRACT_INVALID")
+        }
+
+        let challenge = receipt["challengeNonce"] as? String ?? ""
+        guard SecurityValidation.isLowercaseSHA256(challenge) else {
+            throw captureFailure("CAPTURE_CHALLENGE_INVALID")
+        }
+        let resultReceipt = try exactCaptureObject(
+            receipt["result"],
+            keys: [
+                "compressionRatioVsBF16", "deltaNLLNatPerToken",
+                "metricVerdict", "path", "resultFileSHA256",
+                "resultRole", "resultSHA256",
+                "swiftStructuralVerification", "top1Agreement"
+            ],
+            code: "CAPTURE_RESULT_RECEIPT_INVALID"
+        )
+        let metricVerdict = aggregate.pass ? "PASS" : "FAIL"
+        guard aggregate.compressionRatioVsBF16.isFinite,
+              aggregate.compressionRatioVsBF16 > 0,
+              aggregate.compressionRatioVsBF16 <= 64,
+              aggregate.deltaNLLNatPerToken.isFinite,
+              (-1...1).contains(aggregate.deltaNLLNatPerToken),
+              aggregate.top1Agreement.isFinite,
+              (0...1).contains(aggregate.top1Agreement),
+              resultReceipt["path"] as? String
+                == "validation-064-071.json",
+              resultReceipt["resultFileSHA256"] as? String
+                == resultFileSHA256,
+              resultReceipt["resultSHA256"] as? String
+                == result.resultSHA256,
+              resultReceipt["resultRole"] as? String
+                == "PUBLIC_VALIDATION_REGRESSION",
+              resultReceipt["metricVerdict"] as? String
+                == metricVerdict,
+              resultReceipt["swiftStructuralVerification"] as? String
+                == "PASS",
+              captureNumbersEqual(
+                  resultReceipt["compressionRatioVsBF16"],
+                  aggregate.compressionRatioVsBF16
+              ),
+              captureNumbersEqual(
+                  resultReceipt["deltaNLLNatPerToken"],
+                  aggregate.deltaNLLNatPerToken
+              ),
+              captureNumbersEqual(
+                  resultReceipt["top1Agreement"], aggregate.top1Agreement
+              ) else {
+            throw captureFailure("CAPTURE_RESULT_RECEIPT_MISMATCH")
+        }
+
+        guard let primary = result.primaryEvidence else {
+            throw captureFailure("CAPTURE_PRIMARY_EVIDENCE_MISSING")
+        }
+        try validateCapturePrimaryEvidence(
+            receipt["primaryEvidence"], expected: primary
+        )
+
+        let application = try exactCaptureObject(
+            receipt["application"],
+            keys: [
+                "bundleIdentifier", "bundleName", "executableSHA256",
+                "processIdentifier", "version"
+            ],
+            code: "CAPTURE_APPLICATION_RECEIPT_INVALID"
+        )
+        guard application["bundleIdentifier"] as? String
+                == "com.corelm.benchmark",
+              application["bundleName"] as? String
+                == "CoreLMBenchmark.app",
+              let appDigest = application["executableSHA256"] as? String,
+              SecurityValidation.isLowercaseSHA256(appDigest),
+              let appPID = captureInteger(
+                  application["processIdentifier"]
+              ), appPID > 0,
+              captureString(
+                  application["version"], maximumUTF8Bytes: 64
+              ) != nil else {
+            throw captureFailure("CAPTURE_APPLICATION_RECEIPT_MISMATCH")
+        }
+
+        let worker = try exactCaptureObject(
+            receipt["worker"],
+            keys: [
+                "processIdentifier", "python",
+                "pythonExecutableSHA256", "runtimeManifestSHA256",
+                "script", "scriptSHA256", "terminationStatus"
+            ],
+            code: "CAPTURE_WORKER_RECEIPT_INVALID"
+        )
+        let workerDigestsValid = [
+            "pythonExecutableSHA256", "runtimeManifestSHA256",
+            "scriptSHA256"
+        ].allSatisfy { key in
+            guard let digest = worker[key] as? String else {
+                return false
+            }
+            return SecurityValidation.isLowercaseSHA256(digest)
+        }
+        guard let workerPID = captureInteger(worker["processIdentifier"]),
+              workerPID > 0,
+              worker["python"] as? String == "signed-runtime-manifest",
+              worker["script"] as? String
+                == "Resources/RealLLM/app_proof_runner.py",
+              captureInteger(worker["terminationStatus"]) == 0,
+              workerDigestsValid else {
+            throw captureFailure("CAPTURE_WORKER_RECEIPT_MISMATCH")
+        }
+
+        let protocolReceipt = try exactCaptureObject(
+            receipt["protocol"],
+            keys: [
+                "candidateIndex", "device", "hfHome", "offlineRequested",
+                "sanitizedChildEnvironment", "validationBlocks",
+                "validationStartBlock"
+            ],
+            code: "CAPTURE_PROTOCOL_RECEIPT_INVALID"
+        )
+        guard captureInteger(protocolReceipt["candidateIndex"]) == 32,
+              protocolReceipt["device"] as? String == "mps",
+              protocolReceipt["hfHome"] as? String == "configured",
+              protocolReceipt["offlineRequested"] as? Bool == true,
+              protocolReceipt["sanitizedChildEnvironment"] as? Bool
+                == true,
+              captureInteger(protocolReceipt["validationStartBlock"])
+                == CompressionProofRunPolicy.registeredStartBlock,
+              captureInteger(protocolReceipt["validationBlocks"])
+                == CompressionProofRunPolicy.registeredBlockCount else {
+            throw captureFailure("CAPTURE_PROTOCOL_RECEIPT_MISMATCH")
+        }
+
+        let build = try exactCaptureObject(
+            receipt["buildProvenance"],
+            keys: ["document", "path", "sha256"],
+            code: "CAPTURE_BUILD_RECEIPT_INVALID"
+        )
+        let document = try exactCaptureObject(
+            build["document"],
+            keys: ["schemaVersion", "source", "toolchain"],
+            code: "CAPTURE_BUILD_DOCUMENT_INVALID"
+        )
+        let source = try exactCaptureObject(
+            document["source"],
+            keys: [
+                "archiveManifestSHA256", "commit", "dirty", "exactTag",
+                "mode", "remote", "tree"
+            ],
+            code: "CAPTURE_SOURCE_IDENTITY_INVALID"
+        )
+        let buildDigest = build["sha256"] as? String ?? ""
+        let buildCanonical = try canonicalCaptureJSON(
+            document,
+            prettyPrinted: false,
+            trailingNewline: true
+        )
+        let sourceTag = source["exactTag"] as? String ?? ""
+        let sourceCommit = source["commit"] as? String ?? ""
+        let sourceTree = source["tree"] as? String ?? ""
+        guard build["path"] as? String
+                == "Resources/build-provenance.json",
+              SecurityValidation.isLowercaseSHA256(buildDigest),
+              SecurityValidation.sha256Hex(buildCanonical) == buildDigest,
+              document["schemaVersion"] as? String
+                == "corelm-build-provenance-v1",
+              document["toolchain"] is [String: Any],
+              source["archiveManifestSHA256"] is NSNull,
+              source["mode"] as? String == "git",
+              source["dirty"] as? Bool == false,
+              isSafeCaptureTag(sourceTag),
+              isLowercaseGitObjectID(sourceCommit),
+              isLowercaseGitObjectID(sourceTree),
+              captureString(source["remote"], maximumUTF8Bytes: 2_048)
+                != nil else {
+            throw captureFailure("CAPTURE_SOURCE_IDENTITY_MISMATCH")
+        }
+
+        let reportVerdicts = try validateCaptureReports(
+            PortfolioCaptureReportBytes(
+                structural: structuralReportData,
+                replay: replayReportData,
+                terminal: terminalReportData
+            ),
+            sourceCommit: sourceCommit,
+            sourceTree: sourceTree,
+            metricVerdict: metricVerdict,
+            receiptFileSHA256: receiptFileSHA256,
+            resultFileSHA256: resultFileSHA256
+        )
+        guard reportVerdicts.structural == "PASS",
+              reportVerdicts.replay
+                == "AUTHOR_RECORDED_HEAVY_REPLAY_INTEGRITY_PASS",
+              reportVerdicts.terminal != "NOT RETAINED" else {
+            throw captureFailure("CAPTURE_PROOF_REPORTS_REQUIRED")
+        }
+        return PortfolioCaptureSnapshot(
+            sourceTag: sourceTag,
+            sourceCommit: sourceCommit,
+            sourceTree: sourceTree,
+            challengeSHA256: SecurityValidation.sha256Hex(
+                Data(challenge.utf8)
+            ),
+            runIdentifier: runIdentifier,
+            resultSHA256: result.resultSHA256,
+            metricVerdict: metricVerdict,
+            compressionRatioVsBF16: aggregate.compressionRatioVsBF16,
+            deltaNLLNatPerToken: aggregate.deltaNLLNatPerToken,
+            top1Agreement: aggregate.top1Agreement,
+            moduleState: "COMPLETE",
+            heavyReplayState: "PASS",
+            verifierState: "PASS",
+            structuralVerdict: reportVerdicts.structural,
+            replayVerdict: reportVerdicts.replay,
+            terminalVerdict: reportVerdicts.terminal,
+            resultFileSHA256: resultFileSHA256,
+            receiptFileSHA256: receiptFileSHA256,
+            buildProvenanceSHA256: buildDigest,
+            applicationExecutableSHA256: appDigest
+        )
     }
 
     func runRealLLM() {
@@ -1615,6 +2663,229 @@ final class BenchmarkStore: ObservableObject {
         try SecurityValidation.ensurePrivateDirectory(directory)
     }
 
+    private func portfolioCaptureReportBytes(
+        in runDirectory: URL
+    ) throws -> PortfolioCaptureReportBytes {
+        let reportsDirectory = runDirectory.appendingPathComponent(
+            "proof-reports", isDirectory: true
+        )
+        var fileStatus = stat()
+        let status = reportsDirectory.path.withCString {
+            lstat($0, &fileStatus)
+        }
+        if status != 0 {
+            guard errno == ENOENT else {
+                throw Self.captureFailure(
+                    "CAPTURE_REPORT_DIRECTORY_INVALID"
+                )
+            }
+            return PortfolioCaptureReportBytes(
+                structural: nil, replay: nil, terminal: nil
+            )
+        }
+        try SecurityValidation.validateDirectory(
+            reportsDirectory, requireCurrentOwner: true
+        )
+        let entries = try FileManager.default.contentsOfDirectory(
+            at: reportsDirectory,
+            includingPropertiesForKeys: nil,
+            options: []
+        )
+        guard Set(entries.map(\.lastPathComponent)) == [
+            "fresh-model-replay.json",
+            "structural-verifier.json",
+            "terminal.log"
+        ] else {
+            throw Self.captureFailure("CAPTURE_REPORT_TOPOLOGY_INVALID")
+        }
+        return try PortfolioCaptureReportBytes(
+            structural: SecurityValidation.readRegularFile(
+                at: reportsDirectory.appendingPathComponent(
+                    "structural-verifier.json"
+                ),
+                maximumBytes: 64 * 1_024
+            ),
+            replay: SecurityValidation.readRegularFile(
+                at: reportsDirectory.appendingPathComponent(
+                    "fresh-model-replay.json"
+                ),
+                maximumBytes: 64 * 1_024
+            ),
+            terminal: SecurityValidation.readRegularFile(
+                at: reportsDirectory.appendingPathComponent("terminal.log"),
+                maximumBytes: 256
+            )
+        )
+    }
+
+    private func loadExactPortfolioCaptureResult(
+        runIdentifier: String,
+        readyFilePath: String
+    ) {
+        do {
+            portfolioReadinessPublishing = false
+            portfolioReadinessPublished = false
+            _ = try Self.validatedPortfolioReadyFileURL(
+                path: readyFilePath
+            )
+            guard let uuid = UUID(uuidString: runIdentifier),
+                  uuid.uuidString.lowercased() == runIdentifier else {
+                throw Self.captureFailure("CAPTURE_RESULT_ID_INVALID")
+            }
+            try SecurityValidation.validateDirectory(
+                realLLMResultsDirectory, requireCurrentOwner: true
+            )
+            let runDirectory = realLLMResultsDirectory.appendingPathComponent(
+                runIdentifier, isDirectory: true
+            )
+            try SecurityValidation.validateDirectory(
+                runDirectory, requireCurrentOwner: true
+            )
+            guard runDirectory.lastPathComponent == runIdentifier else {
+                throw Self.captureFailure("CAPTURE_RESULT_DIRECTORY_INVALID")
+            }
+
+            let resultURL = runDirectory.appendingPathComponent(
+                "validation-064-071.json"
+            )
+            let resultData = try SecurityValidation.readRegularFile(
+                at: resultURL,
+                maximumBytes: SecurityValidation.maximumRealLLMResultBytes
+            )
+            let canonicalDigest = try SecurityValidation
+                .verifiedCanonicalResultDigest(from: resultData)
+            let decoded = try JSONDecoder().decode(
+                RealLLMResult.self, from: resultData
+            )
+            guard decoded.schemaVersion
+                    == "corelm-voidtoken-v5-validation-development-v3",
+                  decoded.resultSHA256 == canonicalDigest,
+                  decoded.protocolInfo.validationStartBlock
+                    == CompressionProofRunPolicy.registeredStartBlock,
+                  decoded.protocolInfo.validationBlocks
+                    == CompressionProofRunPolicy.registeredBlockCount else {
+                throw Self.captureFailure("CAPTURE_RESULT_CONTRACT_INVALID")
+            }
+            let settings = RealLLMRunSettings(
+                validationStartBlock:
+                    CompressionProofRunPolicy.registeredStartBlock,
+                validationBlocks:
+                    CompressionProofRunPolicy.registeredBlockCount
+            )
+            try verifyRealLLMResult(decoded, expected: settings)
+            try verifyPrimaryEvidence(decoded, outputURL: resultURL)
+
+            let receiptURL = runDirectory.appendingPathComponent(
+                "app-run-receipt.json"
+            )
+            let receiptData = try SecurityValidation.readRegularFile(
+                at: receiptURL, maximumBytes: 64 * 1_024
+            )
+            let reports = try portfolioCaptureReportBytes(in: runDirectory)
+            let snapshot = try Self.validatedPortfolioCaptureSnapshot(
+                result: decoded,
+                resultFileSHA256: SecurityValidation.sha256Hex(resultData),
+                receiptData: receiptData,
+                receiptFileSHA256:
+                    SecurityValidation.sha256Hex(receiptData),
+                runIdentifier: runIdentifier,
+                structuralReportData: reports.structural,
+                replayReportData: reports.replay,
+                terminalReportData: reports.terminal
+            )
+
+            guard Bundle.main.bundleURL.pathExtension == "app",
+                  Bundle.main.bundleIdentifier == "com.corelm.benchmark",
+                  let resources = Bundle.main.resourceURL,
+                  let executable = Bundle.main.executableURL else {
+                throw Self.captureFailure("CAPTURE_APP_BUNDLE_INVALID")
+            }
+            try SecurityValidation.validateBundleSignature(
+                Bundle.main.bundleURL
+            )
+            let bundledProvenance = try SecurityValidation.readRegularFile(
+                at: resources.appendingPathComponent(
+                    "build-provenance.json"
+                ),
+                maximumBytes: 1 * 1_024 * 1_024,
+                requireCurrentOwner: false
+            )
+            let executableData = try SecurityValidation.readRegularFile(
+                at: executable,
+                maximumBytes: 256 * 1_024 * 1_024,
+                requireCurrentOwner: false
+            )
+            guard SecurityValidation.sha256Hex(bundledProvenance)
+                    == snapshot.buildProvenanceSHA256,
+                  SecurityValidation.sha256Hex(executableData)
+                    == snapshot.applicationExecutableSHA256 else {
+                throw Self.captureFailure("CAPTURE_APP_BINDING_MISMATCH")
+            }
+
+            realLLMSettings = settings
+            realLLMResult = decoded
+            realLLMResultURL = resultURL
+            realLLMVerified = true
+            realLLMVerificationMessage =
+                "Swift structural verification PASS"
+            progress = 1
+            portfolioCaptureSnapshot = snapshot
+            portfolioCaptureStatusCode = "CAPTURE_RESULT_READY"
+        } catch {
+            portfolioReadinessPublishing = false
+            portfolioReadinessPublished = false
+            realLLMResult = nil
+            realLLMResultURL = nil
+            realLLMVerified = false
+            portfolioCaptureSnapshot = nil
+            portfolioCaptureStatusCode = "CAPTURE_EVIDENCE_INVALID"
+        }
+    }
+
+    func publishPortfolioCaptureReadinessFromRenderedView() async {
+        guard !portfolioReadinessPublished,
+              !portfolioReadinessPublishing,
+              portfolioCaptureStatusCode == "CAPTURE_RESULT_READY",
+              let snapshot = portfolioCaptureSnapshot,
+              case let .result(runIdentifier, readyFilePath)
+                = portfolioCaptureRequest,
+              snapshot.runIdentifier == runIdentifier else {
+            return
+        }
+        portfolioReadinessPublishing = true
+        await Task.yield()
+        guard portfolioCaptureStatusCode == "CAPTURE_RESULT_READY",
+              portfolioCaptureSnapshot == snapshot else {
+            portfolioReadinessPublishing = false
+            return
+        }
+        do {
+            try Self.writePortfolioCaptureReadiness(
+                at: URL(fileURLWithPath: readyFilePath),
+                runIdentifier: runIdentifier,
+                resultFileSHA256: snapshot.resultFileSHA256,
+                receiptFileSHA256: snapshot.receiptFileSHA256,
+                applicationExecutableSHA256:
+                    snapshot.applicationExecutableSHA256,
+                metricVerdict: snapshot.metricVerdict,
+                compressionRatioVsBF16:
+                    snapshot.compressionRatioVsBF16,
+                deltaNLLNatPerToken: snapshot.deltaNLLNatPerToken,
+                top1Agreement: snapshot.top1Agreement
+            )
+            portfolioReadinessPublished = true
+            portfolioReadinessPublishing = false
+        } catch {
+            portfolioReadinessPublishing = false
+            portfolioReadinessPublished = false
+            realLLMResult = nil
+            realLLMResultURL = nil
+            realLLMVerified = false
+            portfolioCaptureSnapshot = nil
+            portfolioCaptureStatusCode = "CAPTURE_EVIDENCE_INVALID"
+        }
+    }
+
     func reloadLatestRealLLMResult() {
         do {
             try preparePrivateResultsDirectory(realLLMResultsDirectory)
@@ -1727,12 +2998,31 @@ final class BenchmarkStore: ObservableObject {
     }
 
     func automatedRunIfRequested() async {
-        if CommandLine.arguments.contains("--automated-compression-proof") {
+        switch portfolioCaptureRequest {
+        case .preflight:
+            await prepareAutomatedRunWindow()
+            return
+        case .live:
+            return
+        case let .result(runIdentifier, readyFilePath):
+            await prepareAutomatedRunWindow()
+            loadExactPortfolioCaptureResult(
+                runIdentifier: runIdentifier,
+                readyFilePath: readyFilePath
+            )
+            return
+        case .invalid:
+            await prepareAutomatedRunWindow()
+            return
+        case .none:
+            break
+        }
+        if commandLineArguments.contains("--automated-compression-proof") {
             await prepareAutomatedRunWindow()
             await runAutomatedCompressionProof()
             return
         }
-        guard CommandLine.arguments.contains("--app-launch-check") else {
+        guard commandLineArguments.contains("--app-launch-check") else {
             return
         }
         await prepareAutomatedRunWindow()

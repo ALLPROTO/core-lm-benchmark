@@ -1,0 +1,430 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/portfolio-runtime-assets.schema.json",
+  "title": "Core LM portfolio runtime and asset identity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tag",
+    "source",
+    "platform",
+    "python",
+    "toolchain",
+    "ffprobe",
+    "capture_tools",
+    "lockfiles",
+    "model",
+    "corpus",
+    "application",
+    "proof",
+    "verifiers"
+  ],
+  "properties": {
+    "schema_version": {"const": 2},
+    "tag": {"$ref": "#/$defs/tag"},
+    "source": {"$ref": "#/$defs/source"},
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system", "architecture"],
+      "properties": {
+        "system": {"const": "macOS"},
+        "architecture": {"const": "arm64"}
+      }
+    },
+    "python": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "executable_sha256"],
+      "properties": {
+        "version": {"const": "3.12.13"},
+        "executable_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "toolchain": {"$ref": "#/$defs/toolchain"},
+    "ffprobe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executable_sha256", "version"],
+      "properties": {
+        "executable_sha256": {"$ref": "#/$defs/sha256"},
+        "version": {
+          "type": "string",
+          "minLength": 17,
+          "maxLength": 1024,
+          "pattern": "^ffprobe version [^\\u0000\\r\\n]+$"
+        }
+      }
+    },
+    "capture_tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["window_helper", "screencapture", "ffmpeg", "ffprobe"],
+      "properties": {
+        "window_helper": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_sha256",
+            "executable_sha256",
+            "swift_version"
+          ],
+          "properties": {
+            "source_sha256": {"$ref": "#/$defs/sha256"},
+            "executable_sha256": {"$ref": "#/$defs/sha256"},
+            "swift_version": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 1024,
+              "pattern": "^Apple Swift version [^\\u0000\\r\\n]+$"
+            }
+          }
+        },
+        "screencapture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["executable_sha256", "codesign_identifier"],
+          "properties": {
+            "executable_sha256": {"$ref": "#/$defs/sha256"},
+            "codesign_identifier": {"const": "com.apple.screencapture"}
+          }
+        },
+        "ffmpeg": {"$ref": "#/$defs/ffmpegIdentity"},
+        "ffprobe": {"$ref": "#/$defs/ffprobeIdentity"}
+      }
+    },
+    "lockfiles": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {"$ref": "#/$defs/requirementsLockRow"},
+        {"$ref": "#/$defs/realLlmRequirementsRow"},
+        {"$ref": "#/$defs/rootRequirementsRow"}
+      ],
+      "items": false
+    },
+    "model": {"$ref": "#/$defs/model"},
+    "corpus": {"$ref": "#/$defs/corpus"},
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executable_sha256"],
+      "properties": {
+        "executable_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt_sha256", "result_sha256", "evidence_sha256"],
+      "properties": {
+        "receipt_sha256": {"$ref": "#/$defs/sha256"},
+        "result_sha256": {"$ref": "#/$defs/sha256"},
+        "evidence_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "verifiers": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/manifestRow"}
+    }
+  },
+  "$defs": {
+    "gitObject": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "tag": {
+      "type": "string",
+      "pattern": "^corelm-portfolio-v[1-9][0-9]*$"
+    },
+    "safeText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^[^\\u0000\\r\\n]+$"
+    },
+    "safeRelativePath": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._+@=-]+(?:/[A-Za-z0-9._+@=-]+)*$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "tree"],
+      "properties": {
+        "commit": {"$ref": "#/$defs/gitObject"},
+        "tree": {"$ref": "#/$defs/gitObject"}
+      }
+    },
+    "ffmpegIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executable_sha256", "version"],
+      "properties": {
+        "executable_sha256": {"$ref": "#/$defs/sha256"},
+        "version": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 1024,
+          "pattern": "^ffmpeg version [^\\u0000\\r\\n]+$"
+        }
+      }
+    },
+    "ffprobeIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executable_sha256", "version"],
+      "properties": {
+        "executable_sha256": {"$ref": "#/$defs/sha256"},
+        "version": {
+          "type": "string",
+          "minLength": 17,
+          "maxLength": 1024,
+          "pattern": "^ffprobe version [^\\u0000\\r\\n]+$"
+        }
+      }
+    },
+    "manifestRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/safeRelativePath"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "requirementsLockRow": {
+      "allOf": [
+        {"$ref": "#/$defs/manifestRow"},
+        {"properties": {"path": {"const": "RealLLM/requirements.lock"}}}
+      ]
+    },
+    "realLlmRequirementsRow": {
+      "allOf": [
+        {"$ref": "#/$defs/manifestRow"},
+        {"properties": {"path": {"const": "RealLLM/requirements.txt"}}}
+      ]
+    },
+    "rootRequirementsRow": {
+      "allOf": [
+        {"$ref": "#/$defs/manifestRow"},
+        {"properties": {"path": {"const": "requirements.txt"}}}
+      ]
+    },
+    "assetRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size_bytes"],
+      "properties": {
+        "path": {"$ref": "#/$defs/safeRelativePath"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision", "license", "files"],
+      "properties": {
+        "repository": {"const": "Qwen/Qwen2.5-0.5B"},
+        "revision": {"const": "060db6499f32faf8b98477b0a26969ef7d8b9987"},
+        "license": {"const": "Apache-2.0"},
+        "files": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "prefixItems": [
+            {"$ref": "#/$defs/modelConfig"},
+            {"$ref": "#/$defs/modelGenerationConfig"},
+            {"$ref": "#/$defs/modelMerges"},
+            {"$ref": "#/$defs/modelWeights"},
+            {"$ref": "#/$defs/modelTokenizer"},
+            {"$ref": "#/$defs/modelTokenizerConfig"},
+            {"$ref": "#/$defs/modelVocabulary"}
+          ],
+          "items": false
+        }
+      }
+    },
+    "modelConfig": {
+      "allOf": [
+        {"$ref": "#/$defs/assetRow"},
+        {
+          "properties": {
+            "path": {"const": "config.json"},
+            "sha256": {"const": "479dcf0c5286339e41ad3992cd08ae88a467c4187587936248e2b7c96283484b"},
+            "size_bytes": {"const": 681}
+          }
+        }
+      ]
+    },
+    "modelGenerationConfig": {
+      "allOf": [
+        {"$ref": "#/$defs/assetRow"},
+        {
+          "properties": {
+            "path": {"const": "generation_config.json"},
+            "sha256": {"const": "8c970692323e3ea0e9b8b0a4dca79388d31226e41f83c9fd6014804280ebf6e8"},
+            "size_bytes": {"const": 138}
+          }
+        }
+      ]
+    },
+    "modelMerges": {
+      "allOf": [
+        {"$ref": "#/$defs/assetRow"},
+        {
+          "properties": {
+            "path": {"const": "merges.txt"},
+            "sha256": {"const": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"},
+            "size_bytes": {"const": 1671839}
+          }
+        }
+      ]
+    },
+    "modelWeights": {
+      "allOf": [
+        {"$ref": "#/$defs/assetRow"},
+        {
+          "properties": {
+            "path": {"const": "model.safetensors"},
+            "sha256": {"const": "88c142557820ccad55bb59756bfcfcf891de9cc6202816bd346445188a0ed342"},
+            "size_bytes": {"const": 988097824}
+          }
+        }
+      ]
+    },
+    "modelTokenizer": {
+      "allOf": [
+        {"$ref": "#/$defs/assetRow"},
+        {
+          "properties": {
+            "path": {"const": "tokenizer.json"},
+            "sha256": {"const": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"},
+            "size_bytes": {"const": 7031645}
+          }
+        }
+      ]
+    },
+    "modelTokenizerConfig": {
+      "allOf": [
+        {"$ref": "#/$defs/assetRow"},
+        {
+          "properties": {
+            "path": {"const": "tokenizer_config.json"},
+            "sha256": {"const": "c91efca15ceff6e9ee9424db58a6f59cd41294e550a86cbd07e3c1fb500b34f9"},
+            "size_bytes": {"const": 7228}
+          }
+        }
+      ]
+    },
+    "modelVocabulary": {
+      "allOf": [
+        {"$ref": "#/$defs/assetRow"},
+        {
+          "properties": {
+            "path": {"const": "vocab.json"},
+            "sha256": {"const": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"},
+            "size_bytes": {"const": 2776833}
+          }
+        }
+      ]
+    },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "revision",
+        "path",
+        "size_bytes",
+        "sha256",
+        "license",
+        "source_url"
+      ],
+      "properties": {
+        "repository": {"const": "Salesforce/wikitext"},
+        "revision": {"const": "b08601e04326c79dfdd32d625aee71d232d685c3"},
+        "path": {"const": "wikitext-2-raw-v1/validation-00000-of-00001.parquet"},
+        "size_bytes": {"const": 657209},
+        "sha256": {"const": "204929b7ff9d6184953f867dedb860e40aa69c078fc1e54b3baaa8fb28511c4c"},
+        "license": {"const": "CC BY-SA 3.0 and GFDL"},
+        "source_url": {"const": "https://huggingface.co/datasets/Salesforce/wikitext"}
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["developerTools", "macOS", "sdk", "swift"],
+      "properties": {
+        "developerTools": {
+          "oneOf": [
+            {"$ref": "#/$defs/commandLineTools"},
+            {"$ref": "#/$defs/xcode"}
+          ]
+        },
+        "macOS": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["architecture", "buildVersion", "productName", "productVersion"],
+          "properties": {
+            "architecture": {"const": "arm64"},
+            "buildVersion": {"$ref": "#/$defs/safeText"},
+            "productName": {"const": "macOS"},
+            "productVersion": {"$ref": "#/$defs/safeText"}
+          }
+        },
+        "sdk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["buildVersion", "canonicalName", "version"],
+          "properties": {
+            "buildVersion": {"$ref": "#/$defs/safeText"},
+            "canonicalName": {"const": "macosx"},
+            "version": {"$ref": "#/$defs/safeText"}
+          }
+        },
+        "swift": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["compiler", "compilerSHA256", "target", "version"],
+          "properties": {
+            "compiler": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[^/\\\\\\u0000\\r\\n]+$"
+            },
+            "compilerSHA256": {"$ref": "#/$defs/sha256"},
+            "target": {"$ref": "#/$defs/safeText"},
+            "version": {"$ref": "#/$defs/safeText"}
+          }
+        }
+      }
+    },
+    "commandLineTools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["buildVersion", "identifier", "kind", "version"],
+      "properties": {
+        "buildVersion": {"const": null},
+        "identifier": {"const": "com.apple.pkg.CLTools_Executables"},
+        "kind": {"const": "command-line-tools"},
+        "version": {"$ref": "#/$defs/safeText"}
+      }
+    },
+    "xcode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["buildVersion", "identifier", "kind", "version"],
+      "properties": {
+        "buildVersion": {"$ref": "#/$defs/safeText"},
+        "identifier": {"const": "com.apple.dt.Xcode"},
+        "kind": {"const": "xcode"},
+        "version": {"$ref": "#/$defs/safeText"}
+      }
+    }
+  }
+}

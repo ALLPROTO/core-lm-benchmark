@@ -28,11 +28,60 @@ from typing import Any, Iterator, Mapping, Sequence
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _require_isolated_product_python() -> None:
+    """Reject a direct CLI before any checkout-local module can be imported."""
+
+    prefix_value = sys.pycache_prefix
+    if (
+        sys.flags.isolated != 1
+        or not sys.dont_write_bytecode
+        or not isinstance(prefix_value, str)
+        or not prefix_value
+    ):
+        raise SystemExit("portfolio tools require a tracked isolated Python launcher")
+    prefix = Path(prefix_value)
+    if not prefix.is_absolute():
+        raise SystemExit("portfolio Python cache prefix must be absolute")
+    try:
+        resolved = prefix.resolve(strict=True)
+    except OSError as error:
+        raise SystemExit("portfolio Python cache prefix is unavailable") from error
+    if resolved != prefix or resolved == ROOT or ROOT in resolved.parents:
+        raise SystemExit(
+            "portfolio Python cache prefix must be canonical and outside the checkout"
+        )
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(resolved, flags)
+    except OSError as error:
+        raise SystemExit("portfolio Python cache prefix is unsafe") from error
+    try:
+        status = os.fstat(descriptor)
+        if (
+            not stat.S_ISDIR(status.st_mode)
+            or status.st_uid != os.getuid()
+            or stat.S_IMODE(status.st_mode) != 0o700
+            or os.listdir(descriptor)
+        ):
+            raise SystemExit(
+                "portfolio Python cache prefix must be an empty owner-only directory"
+            )
+    finally:
+        os.close(descriptor)
+
+
+if __name__ == "__main__":
+    _require_isolated_product_python()
+
 sys.path[:] = [entry for entry in sys.path if entry != str(ROOT)]
 sys.path.insert(0, str(ROOT))
 
 from publication.build_portfolio_release import (  # noqa: E402
     CANONICAL_REPOSITORY,
+    CI_VALIDATION_SCOPE,
     GIT_OBJECT_RE,
     PortfolioReleaseError,
     SHA256_RE,
@@ -44,6 +93,7 @@ from publication.build_portfolio_release import (  # noqa: E402
     asset_size_caps,
     verify_release,
 )
+from security import automated_media  # noqa: E402
 
 
 REPOSITORY_SLUG = "ALLPROTO/core-lm-benchmark"
@@ -220,9 +270,13 @@ def _identity(directory: Path) -> tuple[str, Mapping[str, Any]]:
     if len(matches) != 1:
         raise PortfolioReleaseError("assets must contain exactly one portfolio source identity")
     tag, path = matches[0]
-    _exact_tag(tag)
+    _exact, version = _exact_tag(tag)
     value = _mapping(_read_canonical_json(path), "source identity")
-    if value.get("artifact_kind") != "corelm_portfolio_release":
+    if (
+        version < 3
+        or value.get("schema_version") != 2
+        or value.get("artifact_kind") != "corelm_portfolio_release"
+    ):
         raise PortfolioReleaseError("source identity artifact kind is not portfolio release")
 
     release = _mapping(value.get("release"), "source identity release")
@@ -257,9 +311,7 @@ def _identity(directory: Path) -> tuple[str, Mapping[str, Any]]:
     )
     if continuous.get("commit") != source["commit"]:
         raise PortfolioReleaseError("source identity CI is not bound to the source commit")
-    if continuous.get("validation") != (
-        "SIGNED_OPERATOR_ASSERTION_REQUIRES_LIVE_API_RECHECK"
-    ):
+    if continuous.get("validation") != CI_VALIDATION_SCOPE:
         raise PortfolioReleaseError("source identity CI scope is overstated")
     for platform in ("linux_x86_64", "macos_arm64"):
         run = _mapping(continuous.get(platform), f"source identity {platform} CI")
@@ -273,7 +325,12 @@ def _identity(directory: Path) -> tuple[str, Mapping[str, Any]]:
             raise PortfolioReleaseError(f"source identity {platform} CI URL is not canonical")
 
     demo = _mapping(value.get("demo"), "source identity demo")
-    for key in ("video_sha256", "evidence_sha256", "result_sha256"):
+    for key in (
+        "video_sha256",
+        "evidence_sha256",
+        "result_sha256",
+        "provenance_sha256",
+    ):
         _digest(demo.get(key), f"source identity demo {key}")
     if demo.get("synthetic_data") is not False:
         raise PortfolioReleaseError("source identity demo must be non-synthetic")
@@ -282,6 +339,24 @@ def _identity(directory: Path) -> tuple[str, Mapping[str, Any]]:
         != "AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION"
     ):
         raise PortfolioReleaseError("source identity demo classification is inconsistent")
+    if {
+        "media_classification": demo.get("media_classification"),
+        "automation_contract": demo.get("automation_contract"),
+        "automation_only": demo.get("automation_only"),
+        "human_reviewed": demo.get("human_reviewed"),
+        "manual_edits": demo.get("manual_edits"),
+        "machine_evidence": demo.get("machine_evidence"),
+        "pixel_semantics_verified": demo.get("pixel_semantics_verified"),
+    } != {
+        "media_classification": automated_media.MEDIA_CLASSIFICATION,
+        "automation_contract": automated_media.AUTOMATION_CONTRACT,
+        "automation_only": True,
+        "human_reviewed": False,
+        "manual_edits": False,
+        "machine_evidence": False,
+        "pixel_semantics_verified": False,
+    }:
+        raise PortfolioReleaseError("source identity automated presentation boundary is inconsistent")
 
     related = _mapping(value.get("related_sources"), "source identity related sources")
     blind = _mapping(related.get("blind_v1_draft"), "source identity Blind V1")
@@ -433,6 +508,11 @@ def release_body(identity: Mapping[str, Any], sha256sums_sha256: str) -> str:
             "Scientific status: `NOT_A_BLIND_OR_GENERALIZATION_RESULT`.",
             "Blind V1 remains `CHECKPOINT_MISSED_TERMINAL_DRAFT` and was not run.",
             "Independent human replication is not claimed by this release.",
+            "Presentation classification: "
+            f"`{automated_media.MEDIA_CLASSIFICATION}`.",
+            "The single-window media was accepted by automated checks only; signed "
+            "result/evidence files, not pixels, support the metrics. Semantic pixel "
+            "privacy and independent review are not claimed.",
             "",
             f"Source commit: `{source['commit']}`",
             f"Source tree: `{source['tree']}`",
@@ -1156,7 +1236,11 @@ def _expected_successor_readme(base: bytes, tag: str, source_commit: str) -> byt
         f"[`{source_commit}`]({CANONICAL_REPOSITORY}/commit/{source_commit}) at "
         f"annotated tag [`{tag}`]({CANONICAL_REPOSITORY}/releases/tag/{tag}). "
         "It is an `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION` on pinned "
-        "public data. This presentation-only successor does not alter the "
+        "public data, classified as "
+        f"`{automated_media.MEDIA_CLASSIFICATION}`. Signed result and evidence "
+        "files—not the pixels—support the metrics. Automated checks found no "
+        "configured violation; semantic pixel privacy and independent review are "
+        "not claimed. This presentation-only successor does not alter the "
         "released source or evidence and is **not** a blind/generalization "
         "result, model-weight-compression result, or independent human "
         "replication.\n"

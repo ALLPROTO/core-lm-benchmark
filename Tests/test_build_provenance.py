@@ -128,6 +128,28 @@ class BuildProvenanceTests(unittest.TestCase):
                 manifest = provenance.build_manifest(root, allow_dirty=True)
             self.assertTrue(manifest["source"]["dirty"])
 
+    def test_hidden_index_flags_cannot_forge_clean_git_provenance(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._repository(root)
+            self._git(root, "update-index", "--skip-worktree", "source.txt")
+            (root / "source.txt").write_text("hidden source\n", encoding="utf-8")
+            self.assertEqual(
+                self._git(root, "status", "--porcelain=v1", "--untracked-files=all"),
+                "",
+            )
+            source = provenance.inspect_git_source(root)
+            self.assertTrue(source["dirty"])
+            with (
+                mock.patch.object(
+                    provenance,
+                    "inspect_toolchain",
+                    return_value=copy.deepcopy(FAKE_TOOLCHAIN),
+                ),
+                self.assertRaisesRegex(ValueError, "source is dirty"),
+            ):
+                provenance.build_manifest(root)
+
     def test_documented_source_archive_is_verified_before_use(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

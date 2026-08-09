@@ -17,6 +17,13 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlsplit
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from security.verify_git_checkout import inspect_checkout  # noqa: E402
+
+
 BUILD_SCHEMA_VERSION = "corelm-build-provenance-v1"
 ARCHIVE_SCHEMA_VERSION = "corelm-source-archive-manifest-v1"
 DEFAULT_ARCHIVE_MANIFEST = "SOURCE_ARCHIVE_PROVENANCE.json"
@@ -350,22 +357,10 @@ def inspect_source_archive(project: Path, manifest_path: Path) -> Dict[str, Any]
 def inspect_git_source(project: Path) -> Dict[str, Any]:
     project = project.resolve(strict=True)
     git = "/usr/bin/git"
-    top_level = Path(
-        _command([git, "rev-parse", "--show-toplevel"], cwd=project)
-    ).resolve(strict=True)
-    if top_level != project:
-        raise ValueError("project is not the exact root of its Git worktree")
-    commit = _object_id(
-        _command([git, "rev-parse", "--verify", "HEAD^{commit}"], cwd=project),
-        "source commit",
-    )
-    tree = _object_id(
-        _command([git, "rev-parse", "--verify", "HEAD^{tree}"], cwd=project),
-        "source tree",
-    )
-    remote = _remote(
-        _command([git, "remote", "get-url", "origin"], cwd=project)
-    )
+    strict = inspect_checkout(project, require_clean=False)
+    commit = _object_id(strict.commit, "source commit")
+    tree = _object_id(strict.tree, "source tree")
+    remote = _remote(strict.origin)
     tags_output = subprocess.run(
         [git, "tag", "--points-at", "HEAD"],
         cwd=project,
@@ -381,27 +376,10 @@ def inspect_git_source(project: Path) -> Dict[str, Any]:
     if len(tags) > 1:
         raise ValueError("HEAD has multiple exact tags; provenance is ambiguous")
     exact_tag = _exact_tag(tags[0] if tags else None)
-    status = subprocess.run(
-        [
-            git,
-            "status",
-            "--porcelain=v1",
-            "--untracked-files=all",
-            "--ignored=no",
-            "--ignore-submodules=none",
-        ],
-        cwd=project,
-        check=False,
-        capture_output=True,
-        timeout=30,
-        env=clean_subprocess_environment(),
-    )
-    if status.returncode:
-        raise ValueError("cannot determine Git worktree state")
     return {
         "archiveManifestSHA256": None,
         "commit": commit,
-        "dirty": bool(status.stdout),
+        "dirty": strict.dirty,
         "exactTag": exact_tag,
         "mode": "git",
         "remote": remote,

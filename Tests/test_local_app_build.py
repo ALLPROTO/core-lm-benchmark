@@ -418,6 +418,148 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertNotIn("BenchmarkResult", models)
         self.assertNotIn("RunSettings", models)
 
+    def test_portfolio_capture_ui_is_isolated_and_preflight_is_model_free(
+        self,
+    ):
+        content = (MACOS_APP / "Sources" / "ContentView.swift").read_text(
+            encoding="utf-8"
+        )
+        store = (
+            MACOS_APP / "Sources" / "BenchmarkStore.swift"
+        ).read_text(encoding="utf-8")
+        capture_view = content.split("struct PortfolioCaptureView", 1)[1]
+        capture_view = capture_view.split("struct RealLLMControlsView", 1)[0]
+        self.assertIn(
+            "AUTOMATED PRESENTATION · NOT MACHINE EVIDENCE · ",
+            capture_view,
+        )
+        self.assertIn("portfolioCaptureIsLive", content)
+        self.assertIn("portfolioCaptureIsPreflight", capture_view)
+        self.assertIn('"AUTOMATED CAPTURE PREFLIGHT"', store)
+        self.assertIn('"AUTOMATED VALIDATION IN PROGRESS"', store)
+        self.assertIn('"--portfolio-ready-file"', store)
+        self.assertIn(
+            "FIXED PRESENTATION STATE · NOT MEASURED TELEMETRY",
+            capture_view,
+        )
+        for visible_result_field in (
+            "Compression ratio vs BF16",
+            "Delta NLL nat/token",
+            "Top-1 agreement",
+            "Qwen model",
+            "KV cache",
+            "Compression",
+            "Primary evidence",
+            "Heavy replay",
+            "Verifier",
+            "Result SHA-256",
+            "Canonical result SHA-256",
+            "Receipt SHA-256",
+            "Structural verifier",
+            "Replay outcome",
+            "Terminal outcome",
+        ):
+            self.assertIn(visible_result_field, capture_view)
+        for unsafe_surface in (
+            "store.log",
+            "errorMessage",
+            "LogView()",
+            "url.path",
+            "TextField(",
+            "Link(",
+            "Button(",
+        ):
+            self.assertNotIn(unsafe_surface, capture_view)
+
+        automation = store.split(
+            "func automatedRunIfRequested() async", 1
+        )[1]
+        automation = automation.split(
+            "private func prepareAutomatedRunWindow", 1
+        )[0]
+        preflight = automation.split("case .preflight:", 1)[1]
+        preflight = preflight.split("case .live", 1)[0]
+        self.assertIn("await prepareAutomatedRunWindow()", preflight)
+        self.assertIn("return", preflight)
+        self.assertNotIn("runRealLLM", preflight)
+        live = automation.split("case .live:", 1)[1]
+        live = live.split("case let .result", 1)[0]
+        self.assertNotIn("prepareAutomatedRunWindow", live)
+        self.assertNotIn("loadExactPortfolioCaptureResult", live)
+        self.assertNotIn("runRealLLM", live)
+        self.assertIn("return", live)
+        self.assertLess(
+            automation.index("switch portfolioCaptureRequest"),
+            automation.index('contains("--automated-compression-proof")'),
+        )
+
+        exact_loader = store.split(
+            "private func loadExactPortfolioCaptureResult", 1
+        )[1]
+        exact_loader = exact_loader.split(
+            "func publishPortfolioCaptureReadinessFromRenderedView", 1
+        )[0]
+        self.assertIn('"validation-064-071.json"', exact_loader)
+        self.assertIn('"app-run-receipt.json"', exact_loader)
+        self.assertIn('"CAPTURE_RESULT_READY"', exact_loader)
+        self.assertNotIn("reloadLatestRealLLMResult", exact_loader)
+        self.assertNotIn("runRealLLM", exact_loader)
+        self.assertNotIn("writePortfolioCaptureReadiness", exact_loader)
+
+        rendered_publisher = store.split(
+            "func publishPortfolioCaptureReadinessFromRenderedView() async",
+            1,
+        )[1].split("func reloadLatestRealLLMResult", 1)[0]
+        self.assertIn("writePortfolioCaptureReadiness", rendered_publisher)
+        self.assertIn('"CAPTURE_RESULT_READY"', rendered_publisher)
+        self.assertIn("await Task.yield()", rendered_publisher)
+        self.assertIn(
+            ".task(id: snapshot.runIdentifier)", capture_view
+        )
+        self.assertIn(
+            "publishPortfolioCaptureReadinessFromRenderedView",
+            capture_view,
+        )
+
+        readiness_writer = store.split(
+            "static func writePortfolioCaptureReadiness", 1
+        )[1].split("private static func canonicalCaptureObject", 1)[0]
+        for exact_key in (
+            '"application_executable_sha256"',
+            '"compression_ratio_vs_bf16"',
+            '"delta_nll_nat_per_token"',
+            '"metric_verdict"',
+            '"module_states"',
+            '"receipt_sha256"',
+            '"result_sha256"',
+            '"run_identifier"',
+            '"schema_version"',
+            '"status"',
+            '"top1_agreement"',
+            '"verifier_state"',
+        ):
+            self.assertIn(exact_key, readiness_writer)
+        self.assertIn("O_EXCL", readiness_writer)
+        self.assertIn("O_NOFOLLOW", readiness_writer)
+        self.assertIn("mode_t(0o600)", readiness_writer)
+        self.assertIn("fsync(descriptor)", readiness_writer)
+        self.assertIn("RENAME_EXCL", readiness_writer)
+        self.assertIn("RENAME_NOFOLLOW_ANY", readiness_writer)
+        self.assertIn("openat(", readiness_writer)
+        self.assertIn("fstatat(", readiness_writer)
+        self.assertIn("unlinkat(", readiness_writer)
+        self.assertLess(
+            readiness_writer.index("fsync(descriptor)"),
+            readiness_writer.index("renameatx_np"),
+        )
+
+        live_view_branch = content.split(
+            "if store.portfolioCaptureIsLive", 1
+        )[1].split("else if store.portfolioCaptureRequested", 1)[0]
+        self.assertIn("PortfolioCaptureView()", live_view_branch)
+        self.assertNotIn("automatedRunIfRequested", live_view_branch)
+        self.assertNotIn(".task", live_view_branch)
+
     def test_final_bundle_and_default_gates_exclude_legacy_benchmark(self):
         package = (MACOS_SCRIPTS / "package-app.sh").read_text(encoding="utf-8")
         verifier = (
@@ -742,48 +884,40 @@ class LocalAppBuildTests(unittest.TestCase):
         self.assertIn('"Fresh proof runtime ID: $PROOF_ID"', proof)
         self.assertNotIn("Fresh proof runtime retained at:", proof)
         self.assertNotIn("Fresh proof runtime retained under", proof)
-        for document in (demo, reproducer):
-            self.assertIn("s/^Fresh proof runtime ID: //p", document)
-            self.assertIn(uuid_pattern, document)
-            self.assertIn("END-TO-END PROOF PASS", document)
-            self.assertIn(
-                "END-TO-END PROOF VERIFIED — METRIC FAIL",
-                document,
-            )
+        self.assertIn("s/^Fresh proof runtime ID: //p", reproducer)
+        self.assertIn(uuid_pattern, reproducer)
+        self.assertIn("END-TO-END PROOF PASS", reproducer)
         self.assertIn(
-            'DEMO_RUNTIME="$HOME/.cache/corelm/macos/'
-            'proof-runtimes/$DEMO_PROOF_ID"',
-            demo,
+            "END-TO-END PROOF VERIFIED — METRIC FAIL",
+            reproducer,
         )
         self.assertIn(
             'PROOF_RUNTIME="$HOME/.cache/corelm/macos/'
             'proof-runtimes/$PROOF_ID"',
             reproducer,
         )
-        self.assertIn("FRESH LOCAL APP PROOF PASS:", demo)
         self.assertIn(
-            "FRESH LOCAL APP PROOF VERIFIED — METRIC FAIL:",
+            "AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE",
+            demo,
+        )
+        self.assertIn("automation_only:true", demo)
+        self.assertIn("human_reviewed:false", demo)
+        self.assertIn("manual_edits:false", demo)
+        self.assertIn("END-TO-END PROOF PASS", demo)
+        self.assertIn(
+            "END-TO-END PROOF VERIFIED — METRIC FAIL",
             demo,
         )
         self.assertIn(
-            "Do not rerun a verified metric FAIL in pursuit",
-            demo,
+            "does not rerun the model to seek a better outcome",
+            " ".join(demo.split()),
         )
         self.assertIn(
             "must not be rerun merely\nto obtain PASS",
             reproducer,
         )
-        self.assertIn('cd "$DEMO_CAPTURE_DIR"', demo)
-        self.assertIn('"$(/usr/bin/basename "$DEMO_VIDEO")"', demo)
-        self.assertIn('"$(/usr/bin/basename "$DEMO_SCREENSHOT")"', demo)
-        checksum_block = demo.split(
-            '  /usr/bin/shasum -a 256 \\\n', 1
-        )[1].split(") | tee", 1)[0]
-        self.assertNotIn("$DEMO_CAPTURE_DIR/", checksum_block)
-        self.assertIn(
-            "checksum manifest contains a home path",
-            demo,
-        )
+        self.assertIn("No `screencapture -i`", demo)
+        self.assertIn("no human-review or pixel-evidence claim", demo)
 
     def test_doctor_and_build_enforce_random_mac_prerequisites(self):
         doctor = (MACOS_SCRIPTS / "doctor.sh").read_text(encoding="utf-8")

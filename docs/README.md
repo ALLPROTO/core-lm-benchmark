@@ -11,8 +11,9 @@ additional product versions.
   native SwiftUI/MPS proof.
 - [Complete macOS walkthrough](../platforms/macos/BUILD_AND_VERIFY.md) — fresh
   clone, offline preparation, safety limits, and troubleshooting.
-- [Reproducible demo capture](DEMO.md) — clean-source real-model recording,
-  ≤90-second storyboard, verifier, provenance, and privacy checks.
+- [Automated reproducible demo](DEMO.md) — noninteractive single-window
+  real-model capture, durable one-attempt state, exact media/proof bindings,
+  and an explicit no-human-review/no-pixel-evidence boundary.
 - [Independent clean-clone replication](INDEPENDENT_REPLICATION.md) —
   privacy-safe human attestation, exact source/environment capture, terminal
   log, receipt/result bindings, and verifier report for portfolio gate G10.

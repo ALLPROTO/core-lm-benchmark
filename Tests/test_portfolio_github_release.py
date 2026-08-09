@@ -16,16 +16,17 @@ sys.path.insert(0, str(ROOT))
 
 from publication import build_portfolio_release as portfolio  # noqa: E402
 from publication import verify_portfolio_github_release as github_release  # noqa: E402
+from security import automated_media  # noqa: E402
 
 
-TAG = "corelm-portfolio-v2"
+TAG = "corelm-portfolio-v3"
 COMMIT = "1" * 40
 TREE = "2" * 40
 TAG_OBJECT = "3" * 40
 C1_COMMIT = "7" * 40
 C1_TREE = "8" * 40
 EXPECTED_TITLE = (
-    "Core LM Portfolio v2 — reproducible real-model KV-cache benchmark"
+    "Core LM Portfolio v3 — reproducible real-model KV-cache benchmark"
 )
 FAKE_SIGNATURE = (
     "-----BEGIN SSH SIGNATURE-----\n"
@@ -50,6 +51,7 @@ def _canonical(value):
 class PortfolioGitHubReleaseTests(unittest.TestCase):
     def _identity(self):
         return {
+            "schema_version": 2,
             "artifact_kind": "corelm_portfolio_release",
             "claims": {
                 "excluded": [
@@ -80,16 +82,24 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
                         "https://github.com/ALLPROTO/core-lm-benchmark/actions/runs/102"
                     ),
                 },
-                "validation": "SIGNED_OPERATOR_ASSERTION_REQUIRES_LIVE_API_RECHECK",
+                "validation": portfolio.CI_VALIDATION_SCOPE,
             },
             "demo": {
                 "evidence_sha256": "4" * 64,
+                "provenance_sha256": "7" * 64,
                 "result_sha256": "5" * 64,
                 "synthetic_data": False,
                 "video_sha256": "6" * 64,
                 "workload_classification": (
                     "AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION"
                 ),
+                "media_classification": automated_media.MEDIA_CLASSIFICATION,
+                "automation_contract": automated_media.AUTOMATION_CONTRACT,
+                "automation_only": True,
+                "human_reviewed": False,
+                "manual_edits": False,
+                "machine_evidence": False,
+                "pixel_semantics_verified": False,
             },
             "related_sources": {
                 "blind_v1_draft": {

@@ -21,8 +21,11 @@ The builder accepts only:
   ORCID, MIT license, and repository URL;
 - canonical input, demo-provenance, and runtime-assets JSON with no unknown
   keys or unresolved `@PLACEHOLDER@` values; and
-- real H.264/AAC-or-silent demo bytes, a PNG frame, and a safe evidence archive
-  for a non-synthetic `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION`.
+- real silent H.264 demo bytes, a PNG frame, a canonical automation receipt,
+  and a safe evidence archive for a non-synthetic
+  `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION`. The media classification is
+  exactly `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`; signed result and
+  evidence bytes, not pixels, support the metric.
 
 It produces exactly 14 regular files. `SHA256SUMS` covers exactly the first 12
 in bytewise filename order; both it and the canonical source identity receive
@@ -64,12 +67,16 @@ direct-dependency CycloneDX 1.5 SBOM is generated twice by
 `security/generate_direct_sbom.py`; it must be byte-identical and retain scope
 `direct-python-dependencies-only`.
 
-## Mandatory CI API preflight
+## Automated public tag-CI admission
 
-Online CI validation is deliberately outside this offline tool. This remains
-a release-time blocker, not a builder claim. Immediately before build, query
-both run IDs named in the input through the GitHub Actions API and confirm all
-of the following:
+Before the retained attempt is reserved or any model is loaded, the automation
+runner performs one bounded online admission against anonymous
+`api.github.com` endpoints. This is the sole network exception to the otherwise
+offline proof: model weights, corpus assets, app execution, replay, capture,
+collection, and release construction remain offline. Proxy, authentication,
+redirect, ambiguous response, timeout, or API failure stops before the durable
+attempt marker and is safely retryable. The admission verifies all of the
+following:
 
 1. each URL resolves in `ALLPROTO/core-lm-benchmark`;
 2. each run's `head_sha` equals the input source commit;
@@ -77,18 +84,19 @@ of the following:
 4. one run is the required Linux x86-64 gate and the other is the required
    macOS arm64 gate; and
 5. the tag object/target still equals the signed tag-object SHA and source
-   commit/tree; and
-6. cross-model-lab `main` and PR #5 head still equal the recorded related
-   commit/tree identities.
+   commit/tree.
 
-Retain the API responses with the release operator log. Only after this check
-may `--ci-api-preflight-confirmed` be supplied. The flag records operator
-acknowledgement; it does not turn a declaration into online verification.
-Public verify mode checks only a signed operator assertion containing canonical
-URLs and commit binding; it does not prove GitHub state without network access.
-The source identity labels this exact boundary
-`SIGNED_OPERATOR_ASSERTION_REQUIRES_LIVE_API_RECHECK`. Downloaded-run API
-validation must therefore be repeated as a separate logged-out release audit.
+The runner retains the exact eight bounded API responses, a canonical public
+admission receipt, and a separately hard-pinned local SSH trust receipt. The
+collector and release builder parse those raw bytes again, recompute the
+receipt, bind its exact Linux/macOS URLs and annotated tag-object identity, and
+archive the complete response bundle. There is no operator-confirmation
+Boolean. Retained responses prove what the public API returned at admission
+time; they are not a GitHub-signed attestation or a substitute for a later live
+current-state recheck.
+Cross-model-lab `main` and PR #5 are a separate local exact-ref boundary
+checked by collector and builder; these eight benchmark-repository responses
+do not claim current public lab state.
 
 ## Canonical input
 
@@ -105,17 +113,23 @@ target.write_bytes(
 
 It binds the tag/date, source commit/tree, two distinct successful Actions run
 URLs plus the same commit, lab main commit/tree, Blind V1 draft commit/tree and
-lifecycle, and absolute paths to five local recorded-demo assets. Absolute
-paths are input-only and never enter an output asset.
+lifecycle, the exact automation-only presentation contract, and absolute paths
+to five local automatically collected demo assets. Absolute paths are
+input-only and never enter an output asset.
 
-The canonical demo-provenance object has the exact keys documented by the
-builder: source/tag; video hash, duration, dimensions, H.264 and AAC/silent;
-poster hash, dimensions and frame timestamp; both media objects classified
-`HUMAN_REVIEWED_PRESENTATION_NOT_MACHINE_EVIDENCE`; macOS arm64 capture; executable,
-result, receipt and evidence hashes; classification; and
-`synthetic_data:false`. The canonical runtime-assets object binds source/tag,
-macOS arm64, Python 3.12.13, and the complete canonical Apple toolchain object
-copied from the run's validated `build-provenance.json`. That object records
+The canonical V3 demo-provenance object has the exact keys documented by the
+builder: source/tag; video hash, duration, dimensions, silent H.264;
+poster hash, dimensions and fixed frame timestamp; both media objects
+classified `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`; macOS arm64
+single-window capture; automation-receipt, executable, result, receipt and
+evidence hashes; workload classification; and `synthetic_data:false`. Its
+capture contract is `corelm-automated-presentation-v1` with
+`automation_only:true`, `human_reviewed:false`, `manual_edits:false`,
+`machine_evidence:false`, and `pixel_semantics_verified:false`. The canonical
+runtime-assets object binds source/tag, macOS arm64, Python 3.12.13, the exact
+window-helper, `screencapture`, FFmpeg, and ffprobe identities, and the complete
+canonical Apple toolchain object copied from the run's validated
+`build-provenance.json`. That object records
 either `developerTools.kind:command-line-tools` with the exact CLT package
 identifier/version and a null `buildVersion`, or `developerTools.kind:xcode`
 with the exact Xcode identifier/version/build. It never invents a separate
@@ -127,6 +141,14 @@ path/size/SHA-256 assets, pinned WikiText validation
 repository/revision/path/size/SHA-256/license/source URL, executable
 hash, and proof hashes. The builder verifies tracked lockfile/verifier hashes
 against the clean source.
+
+`AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION` is the exact workload enum for
+the public validation range fixed before this V3 execution. It is not a media
+selection or human-review state: the tagged proof-driver attempt and its first
+honest terminal outcome are retained once by the owner-local automation state.
+The proof driver also performs the required pinned-Qwen heavy replay; the
+contour does not describe that as zero additional model execution or claim
+global historical uniqueness.
 
 The evidence archive contains a canonical public runtime projection, not the
 private manifest's owner-specific absolute roots. The projection binds the
@@ -142,8 +164,14 @@ requires the recorded lab and Blind commits/trees to equal those refs.
 The evidence gzip tar has exact regular members
 `run/app-run-receipt.json`, `run/validation-064-071.json`,
 `run/build-provenance.json`, `run/runtime-provenance.json`,
-`reports/structural-verifier.json`, `reports/fresh-model-replay.json`, and
-`logs/terminal.log`, plus only raw files below `run/primary-evidence/`.
+`reports/structural-verifier.json`, `reports/fresh-model-replay.json`,
+`reports/automated-media.json`, `reports/result-readiness.json`,
+`reports/tag-ci-receipt.json`, `reports/local-tag-trust-receipt.json`,
+`session/attempt-state.jsonl`, `session/preflight-window.mov`,
+`session/live-presentation.mov`, `session/same-run-result.mov`,
+`session/find-proof-window`, `logs/terminal.log`, all nine exact files under
+`tag-ci-responses/` (eight raw API responses plus the recomputed public
+receipt), and only raw files below `run/primary-evidence/`.
 Receipt/result bytes are bound to demo provenance; canonical reports bind their
 hashes, source commit/tree, metric outcome, pinned model, raw-token digests and
 the author-recorded replay. The replay report is labelled
@@ -159,23 +187,98 @@ terminal log is one exact PASS-or-verified-metric-FAIL byte string. The archive
 must equal the deterministic reserialization of its sorted regular members
 with mode `0600`, zero uid/gid/mtime, and empty owner names.
 
-## Collect one completed demo proof
+## Run and collect one automated tagged proof
 
-`publication/collect_portfolio_demo.py` is the bounded offline bridge from one
-completed macOS proof and reviewed presentation media to the five release
-assets. It does not run a model or infer the newest result. The operator must
-pass the exact author-selected run UUID directory, exact app, one H.264 MOV/MP4,
-one PNG, signed portfolio tag,
-two exact CI URLs, and local lab checkout. It recomputes product evidence,
-requires both reports retained by `./corelm macos proof`, preserves an honest
-metric FAIL, checks privacy and archive topology, and writes canonical
+`platforms/macos/scripts/run-automated-portfolio-demo.py` is the only current
+V3 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
+the exact clean, signed tagged checkout. It checks the tag/main/source binding,
+AC power, offline runtime and assets, capture authorization, exact app/window,
+and tool identities before invoking the model. It then reserves one durable
+exclusive attempt for the tag, invokes the proof once, preserves its first
+honest terminal PASS or verified metric FAIL, reopens that same UUID, records
+a fixed 12-second `--portfolio-capture-live` presentation window while the
+proof runs and an 18-second capture-safe view of the exact retained result,
+creates one fixed silent H.264 composition, and derives the poster at exactly
+15.000000 seconds. The normal proof UI, worker log, and free-form error surface
+are never captured.
+
+```sh
+DEMO_TAG=corelm-portfolio-v3
+FFMPEG=/absolute/path/to/ffmpeg
+FFPROBE=/absolute/path/to/ffprobe
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v3-automated-demo
+
+CORELM_OFFLINE=1 \
+CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
+./corelm macos portfolio-demo \
+  --tag "$DEMO_TAG" \
+  --output "$DEMO_SESSION" \
+  --ffmpeg "$FFMPEG" \
+  --ffprobe "$FFPROBE"
+```
+
+The output used by collection is the final video/poster plus the fixed bounded
+session evidence: automation and readiness receipts, the nine-event state log,
+three raw window segments, compiled window helper, public/local tag trust
+receipts, and eight-response tag-CI bundle. The receipt binds the exact source,
+run UUID and challenge, result/receipt/app hashes, two window identities,
+capture tools, media bytes, decoded-frame and PTS digests, fixed poster,
+privacy boundary, and durable attempt-state digest. A capture or media failure
+after proof invocation consumes the tag attempt and cannot be retried to seek
+a preferred result.
+
+The same session may contain private driver/UI logs. Do not upload or publish
+the session directory as a whole. Only the explicitly named bounded inputs
+below enter collection; the collector revalidates them and embeds their exact
+public-safe subset into the signed evidence archive.
+
+`publication/collect_portfolio_demo.py` is the bounded offline bridge from
+that exact retained proof, media, and automation receipt to the five release
+assets. It does not run a model, choose a result, or infer the newest run. Pass
+the run UUID named by the receipt, the exact app, silent H.264 video, fixed PNG,
+receipts, raw segments, helper, tag-CI response bundle, FFmpeg/ffprobe, signed
+tag, and local lab checkout:
+
+```sh
+PORTFOLIO_PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
+LAB=/absolute/clean/core-lm-cross-model-lab
+RUN_DIRECTORY=/absolute/exact/run-directory-from-automation-receipt
+INPUTS=/absolute/absent/corelm-portfolio-v3-inputs
+
+publication/run_portfolio_python.sh \
+  "$PORTFOLIO_PYTHON" collect_portfolio_demo.py \
+  --repository "$PWD" \
+  --cross-model-lab "$LAB" \
+  --run-directory "$RUN_DIRECTORY" \
+  --app "$PWD/dist/CoreLMBenchmark.app" \
+  --video "$DEMO_SESSION/$DEMO_TAG-demo.mp4" \
+  --poster "$DEMO_SESSION/$DEMO_TAG-demo-poster.png" \
+  --automation-receipt "$DEMO_SESSION/automation-receipt.json" \
+  --result-readiness "$DEMO_SESSION/result-readiness.json" \
+  --attempt-state "$DEMO_SESSION/attempt-state.jsonl" \
+  --preflight-segment "$DEMO_SESSION/preflight-window.mov" \
+  --live-segment "$DEMO_SESSION/live-presentation.mov" \
+  --result-segment "$DEMO_SESSION/same-run-result.mov" \
+  --window-helper "$DEMO_SESSION/find-proof-window" \
+  --tag-ci-receipt "$DEMO_SESSION/tag-ci-receipt.json" \
+  --local-tag-trust-receipt "$DEMO_SESSION/local-tag-trust-receipt.json" \
+  --tag-ci-bundle "$DEMO_SESSION/tag-ci-bundle" \
+  --ffmpeg "$FFMPEG" \
+  --ffprobe "$FFPROBE" \
+  --tag "$DEMO_TAG" \
+  --release-date 2026-08-09 \
+  --output "$INPUTS"
+```
+
+The collector recomputes product evidence, fixed-poster and decoded-video
+identity, requires all proof and automation reports, preserves an honest metric
+FAIL, checks privacy and exact archive topology, and writes canonical
 provenance/runtime manifests, a deterministic evidence gzip tar, and a private
-release-input draft. See `docs/DEMO.md` for the exact capture and collector
-commands. Before verification/archiving it seals all run inputs into a private
-stable snapshot; later changes to the original run cannot alter the collected
-bytes. This classification makes no global first-attempt or no-rerun claim.
-Never publish `release-input.private.json`, because its local asset paths are
-input-only.
+release-input draft. Before verification and archiving it seals all run inputs
+into a private stable snapshot; later changes to the original run cannot alter
+the collected bytes. Never publish `release-input.private.json`, because its
+local asset paths are input-only. See `docs/DEMO.md` for the complete preflight
+and failure semantics.
 The live run has one additional non-evidence entry: the app-created
 `python-cache/`. It is mandatory, must be an empty owner-controlled mode-`0700`
 directory, is held open and rechecked throughout sealing, and is never copied
@@ -205,13 +308,13 @@ test "$("$PORTFOLIO_PYTHON" -I -B -c \
 FFPROBE=$(command -v ffprobe)
 test -x "$FFPROBE"
 export CORELM_PORTFOLIO_SIGNING_KEY=/absolute/private/path
-"$PORTFOLIO_PYTHON" -I -B publication/build_portfolio_release.py \
+publication/run_portfolio_python.sh \
+  "$PORTFOLIO_PYTHON" build_portfolio_release.py \
   --input /absolute/release-input.json \
   --repository /absolute/core-lm-benchmark \
   --cross-model-lab /absolute/core-lm-cross-model-lab \
   --ffprobe "$FFPROBE" \
-  --output /absolute/corelm-portfolio-vN-assets \
-  --ci-api-preflight-confirmed
+  --output /absolute/corelm-portfolio-vN-assets
 ```
 
 The output path must not exist. Build occurs in a private sibling staging
@@ -237,7 +340,8 @@ case "$(uname -s):$(uname -m)" in
 esac
 FFPROBE=$(command -v ffprobe)
 test -x "$FFPROBE"
-"$PORTFOLIO_PYTHON" -I -B publication/build_portfolio_release.py \
+publication/run_portfolio_python.sh \
+  "$PORTFOLIO_PYTHON" build_portfolio_release.py \
   --verify /absolute/downloaded-assets \
   --ffprobe "$FFPROBE"
 ```
@@ -268,13 +372,13 @@ checkout and the already verified fourteen-asset directory, generate the
 request into a new absolute path:
 
 ```sh
-TAG=corelm-portfolio-v2
-ASSET_DIR=/absolute/corelm-portfolio-v2-assets
-CREATE_REQUEST=/absolute/corelm-portfolio-v2-create-release.json
+TAG=corelm-portfolio-v3
+ASSET_DIR=/absolute/corelm-portfolio-v3-assets
+CREATE_REQUEST=/absolute/corelm-portfolio-v3-create-release.json
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
-"$PORTFOLIO_PYTHON" -I -B \
-  publication/verify_portfolio_github_release.py prepare \
+publication/run_portfolio_python.sh \
+  "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py prepare \
   --assets "$ASSET_DIR" \
   --ffprobe "$FFPROBE" \
   --output "$CREATE_REQUEST"
@@ -284,9 +388,9 @@ The canonical request has exactly these seven keys and values:
 
 ```json
 {
-  "tag_name": "corelm-portfolio-v2",
+  "tag_name": "corelm-portfolio-v3",
   "target_commitish": "main",
-  "name": "Core LM Portfolio v2 — reproducible real-model KV-cache benchmark",
+  "name": "Core LM Portfolio v3 — reproducible real-model KV-cache benchmark",
   "body": "generated exactly from the signed source identity and SHA256SUMS digest",
   "draft": false,
   "prerelease": false,
@@ -297,7 +401,9 @@ The canonical request has exactly these seven keys and values:
 The on-disk JSON is compact canonical JSON; the expanded object above is only
 a readable field contract. The exact body contains the supported engineering
 claim, scientific exclusions, source commit/tree/tag object, both CI URLs,
-demo hashes, `SHA256SUMS` hash, the fourteen-asset verification instruction,
+demo hashes, exact `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`
+classification, the pixels-versus-evidence and semantic-privacy boundaries,
+`SHA256SUMS` hash, the fourteen-asset verification instruction,
 caller-decoder boundary, preservation policy, and the explicit warning that
 policy is not GitHub's `immutable` API value.
 
@@ -329,8 +435,8 @@ Fetch five API views and all fourteen assets without a GitHub token, cookie,
 the exact commit and tag-object SHA come from the signed source identity:
 
 ```sh
-TAG=corelm-portfolio-v2
-ASSET_DIR=/absolute/corelm-portfolio-v2-assets
+TAG=corelm-portfolio-v3
+ASSET_DIR=/absolute/corelm-portfolio-v3-assets
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
 PUBLIC_AUDIT=/absolute/new-public-audit
@@ -412,9 +518,9 @@ and exact first version line written to the receipt; that identity describes
 the invocation and is not a release-signing, GitHub, or CI trust root.
 
 ```sh
-RECEIPT="$RECEIPT_DIRECTORY/corelm-portfolio-v2-github-release-receipt.json"
-"$PORTFOLIO_PYTHON" -I -B \
-  publication/verify_portfolio_github_release.py verify \
+RECEIPT="$RECEIPT_DIRECTORY/corelm-portfolio-v3-github-release-receipt.json"
+publication/run_portfolio_python.sh \
+  "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py verify \
   --assets "$DOWNLOADED" \
   --ffprobe "$FFPROBE" \
   --release-json "$API_SNAPSHOTS/release.json" \
@@ -440,8 +546,11 @@ project rule that tags and assets are never moved or replaced.
 
 The receipt binds the saved-response hashes but cannot prove that the fetch was
 logged out or that GitHub is still in the same state; those are transport and
-time boundaries. Confirm the release page in a private/logged-out browser as a
-separate human check. Keep the receipt and API files in the operator/design or
+time boundaries. The V3 acceptance contour uses the scrubbed logged-out API
+fetches and verifier receipt and has no browser inspection or human-review
+gate. A later viewer may inspect the public page, but that observation is not
+an input to V3 acceptance and cannot retroactively close independent-
+replication gate G10. Keep the receipt and API files in the operator/design or
 Zenodo evidence bundle. Do not upload them back into the same fourteen-asset
 release, edit its body after verification, or move its tag; doing so would
 create a self-reference and invalidate the recorded snapshot.
@@ -454,10 +563,12 @@ set.
 
 ## Presentation successor after publication
 
-Call the tagged release-source commit C0. The presentation successor C1 is
-optional for G12 artifact integrity, but it is mandatory for G03 and
-`CV_READY` while the public README has no current poster/video. It is allowed
-only after the saved release and latest APIs both report
+Call the automation-capable tagged release-source commit C0. C0 owns the
+signed source/evidence identity and the immutable fourteen-asset release. The
+presentation successor C1 is optional for G12 artifact integrity, but it is
+mandatory for G03 and `CV_READY` while the public README has no current
+poster/video. C1 adds no evidence and requires no human-review acceptance. It
+is allowed only after the saved release and latest APIs both report
 `immutable:true`, the signed tag still resolves to C0, and the full C0 artifact
 verification passes. C1 must be exactly one signed child of C0 and its public
 compare response must contain exactly these changes:
@@ -500,7 +611,7 @@ the shell variables with their exact values; do not edit the wording):
 
 [Watch the complete demo video](https://github.com/ALLPROTO/core-lm-benchmark/releases/download/$TAG/$TAG-demo.mp4)
 
-This presentation was recorded from SSH-signed release source [`$SOURCE_COMMIT`](https://github.com/ALLPROTO/core-lm-benchmark/commit/$SOURCE_COMMIT) at annotated tag [`$TAG`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/$TAG). It is an `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION` on pinned public data. This presentation-only successor does not alter the released source or evidence and is **not** a blind/generalization result, model-weight-compression result, or independent human replication.
+This presentation was recorded from SSH-signed release source [`$SOURCE_COMMIT`](https://github.com/ALLPROTO/core-lm-benchmark/commit/$SOURCE_COMMIT) at annotated tag [`$TAG`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/$TAG). It is an `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION` on pinned public data, classified as `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. Signed result and evidence files—not the pixels—support the metrics. Automated checks found no configured violation; semantic pixel privacy and independent review are not claimed. This presentation-only successor does not alter the released source or evidence and is **not** a blind/generalization result, model-weight-compression result, or independent human replication.
 <!-- corelm-portfolio-presentation-v1:end -->
 ```
 
@@ -521,8 +632,8 @@ SUCCESSOR_RECEIPT=/absolute/new-successor-receipts/presentation-successor.json
   "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/commits/$C1" \
   > "$API_SNAPSHOTS/successor-commit.json"
 
-"$PORTFOLIO_PYTHON" -I -B \
-  publication/verify_portfolio_github_release.py verify-successor \
+publication/run_portfolio_python.sh \
+  "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py verify-successor \
   --assets "$DOWNLOADED" \
   --ffprobe "$FFPROBE" \
   --release-json "$API_SNAPSHOTS/release.json" \
@@ -540,4 +651,6 @@ The verifier checks C1's API signature payload locally with `ssh-keygen -Y
 verify -n git`; GitHub's own `verified` boolean is recorded but does not replace
 that cryptographic check. C1 is presentation only, never release source or
 evidence. The C0 tag must remain unchanged. Keeping media links out of C0
-avoids a source-to-release-to-source self-reference.
+avoids a source-to-release-to-source self-reference. Neither the automated C0
+release nor C1 closes G10; that requires a later published clean-clone
+replication by a non-author, non-agent person.
