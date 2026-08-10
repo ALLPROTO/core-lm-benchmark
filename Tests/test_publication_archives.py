@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -705,10 +706,12 @@ class PublicationArchiveTests(unittest.TestCase):
         shell_blocks = re.findall(r"```sh\n(.*?)\n```", section, flags=re.DOTALL)
         self.assertGreaterEqual(len(shell_blocks), 4)
         self.assertNotIn("--clobber", "\n".join(shell_blocks))
+        shell = shutil.which("bash") or shutil.which("zsh")
+        self.assertIsNotNone(shell)
         for index, block in enumerate(shell_blocks):
             with self.subTest(shell_block=index):
                 parsed = subprocess.run(
-                    ["/bin/zsh", "-n"],
+                    [shell, "-n"],
                     input=block,
                     text=True,
                     stdout=subprocess.PIPE,
