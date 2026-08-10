@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """Prepare and verify the bounded GitHub portfolio-release contract.
 
-This tool is intentionally network-free.  ``prepare`` writes the exact JSON
-body for GitHub's create-release API.  ``verify`` checks saved public API
-responses and the exact fourteen downloaded assets, then writes a canonical
-receipt.  It neither creates nor mutates a Git tag or GitHub release.
+This tool is intentionally network-free.  ``verify-policy`` validates the
+saved immutable-release policy before draft creation.  ``prepare-draft``
+writes the exact JSON body for GitHub's create-release API.
+``verify-empty-draft`` validates the saved empty draft before any upload.
+``verify-draft`` validates the same authenticated draft after all fourteen
+assets are uploaded, revalidates a fresh policy response, and emits the exact
+publish PATCH body.  ``verify`` checks saved public API responses and the
+exact fourteen downloaded assets, then writes a canonical receipt.  The tool
+neither creates nor mutates a Git tag or GitHub release.
 
-The receipt records GitHub's ``immutable`` boolean without turning either
-value into an artifact-verification result.  Project preservation policy and
-GitHub's platform-reported immutability are deliberately separate facts.
+Draft gates require GitHub's ``immutable`` boolean to be false; the final
+published gate requires it to be true.  Project preservation policy and
+GitHub's platform-reported immutability remain deliberately separate facts.
 """
 
 from __future__ import annotations
@@ -98,8 +103,17 @@ from security import automated_media  # noqa: E402
 
 REPOSITORY_SLUG = "ALLPROTO/core-lm-benchmark"
 CREATE_RELEASE_ENDPOINT = f"https://api.github.com/repos/{REPOSITORY_SLUG}/releases"
+IMMUTABLE_RELEASES_ENDPOINT = (
+    f"https://api.github.com/repos/{REPOSITORY_SLUG}/immutable-releases"
+)
+UPDATE_RELEASE_ENDPOINT_PREFIX = CREATE_RELEASE_ENDPOINT + "/"
+UPLOAD_RELEASE_ENDPOINT_PREFIX = (
+    f"https://uploads.github.com/repos/{REPOSITORY_SLUG}/releases/"
+)
 PROJECT_PRESERVATION_POLICY = "TAG_AND_ASSETS_MUST_NOT_BE_MOVED_OR_REPLACED"
-IMMUTABILITY_SCOPE = "GITHUB_API_BOOLEAN_RECORDED_NOT_INFERRED_FROM_PROJECT_POLICY"
+IMMUTABILITY_SCOPE = (
+    "GITHUB_DRAFT_FALSE_AND_PUBLISHED_TRUE_REQUIRED_SEPARATE_FROM_PROJECT_POLICY"
+)
 API_TIMESTAMP_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
 IDENTITY_NAME_RE = re.compile(
     r"^(corelm-portfolio-v[1-9][0-9]*)-source-identity\.json$"
@@ -550,12 +564,177 @@ def expected_create_request(
         raise PortfolioReleaseError("SHA256SUMS is absent from the asset records")
     return {
         "body": release_body(identity, _digest(sums.get("sha256"), "SHA256SUMS digest")),
-        "draft": False,
-        "make_latest": "true",
+        "draft": True,
+        "make_latest": "false",
         "name": release_title(tag),
         "prerelease": False,
         "tag_name": tag,
         "target_commitish": "main",
+    }
+
+
+def expected_publish_request(
+    identity: Mapping[str, Any], records: Sequence[Mapping[str, Any]]
+) -> dict[str, Any]:
+    request = expected_create_request(identity, records)
+    return {
+        "body": request["body"],
+        "draft": False,
+        "make_latest": "true",
+        "name": request["name"],
+        "prerelease": False,
+        "tag_name": request["tag_name"],
+        "target_commitish": request["target_commitish"],
+    }
+
+
+def _validate_publish_request(
+    value: Any,
+    *,
+    identity: Mapping[str, Any],
+    records: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    request = _mapping(value, "publish PATCH request")
+    expected = expected_publish_request(identity, records)
+    if set(request) != set(expected) or request != expected:
+        raise PortfolioReleaseError("publish PATCH request is not exact")
+    return dict(request)
+
+
+def _immutable_release_policy(value: Any) -> dict[str, bool]:
+    policy = _mapping(value, "GitHub immutable-releases policy response")
+    if set(policy) != {"enabled"} or policy.get("enabled") is not True:
+        raise PortfolioReleaseError(
+            "GitHub immutable-releases policy response must be exact enabled:true"
+        )
+    return {"enabled": True}
+
+
+def _release_id(value: Any, label: str) -> int:
+    if type(value) is not int or value <= 0:
+        raise PortfolioReleaseError(f"{label} must be a positive integer")
+    return value
+
+
+def publish_release_endpoint(release_id: int) -> str:
+    exact = _release_id(release_id, "GitHub release id")
+    return f"{UPDATE_RELEASE_ENDPOINT_PREFIX}{exact}"
+
+
+def _expected_upload_url(release_id: int) -> str:
+    exact = _release_id(release_id, "GitHub release id")
+    return (
+        f"{UPLOAD_RELEASE_ENDPOINT_PREFIX}{exact}/assets"
+        "{?name,label}"
+    )
+
+
+def _api_assets(
+    value: Any,
+    *,
+    records: Sequence[Mapping[str, Any]],
+    tag: str,
+    label: str,
+) -> tuple[tuple[str, int], ...]:
+    observed_assets = value
+    if not isinstance(observed_assets, list):
+        raise PortfolioReleaseError(f"{label} assets must be an array")
+    expected_by_name = {record["name"]: record for record in records}
+    if len(expected_by_name) != len(records):
+        raise PortfolioReleaseError("local release asset records are duplicated")
+    seen: set[str] = set()
+    asset_ids: set[int] = set()
+    for asset_value in observed_assets:
+        asset = _mapping(asset_value, f"{label} asset")
+        asset_id = _release_id(asset.get("id"), f"{label} asset id")
+        if asset_id in asset_ids:
+            raise PortfolioReleaseError(f"duplicate {label} asset id")
+        asset_ids.add(asset_id)
+        name = _string(asset.get("name"), f"{label} asset name")
+        if name in seen:
+            raise PortfolioReleaseError(f"duplicate {label} asset: {name}")
+        seen.add(name)
+        expected = expected_by_name.get(name)
+        if expected is None:
+            raise PortfolioReleaseError(f"unexpected {label} asset: {name}")
+        if asset.get("state") != "uploaded":
+            raise PortfolioReleaseError(f"{label} asset is not uploaded: {name}")
+        if type(asset.get("size")) is not int or asset["size"] != expected["size_bytes"]:
+            raise PortfolioReleaseError(f"{label} asset size differs: {name}")
+        expected_url = (
+            f"{CANONICAL_REPOSITORY}/releases/download/{tag}/{name}"
+        )
+        if asset.get("browser_download_url") != expected_url:
+            raise PortfolioReleaseError(f"{label} asset URL differs: {name}")
+        if asset.get("digest") != f"sha256:{expected['sha256']}":
+            raise PortfolioReleaseError(f"{label} asset digest differs: {name}")
+    if seen != set(expected_by_name):
+        missing = sorted(set(expected_by_name) - seen)
+        raise PortfolioReleaseError(
+            f"{label} asset set is incomplete; missing={missing}"
+        )
+    return tuple(
+        sorted(
+            (
+                (_string(asset["name"], f"{label} asset name"), asset["id"])
+                for asset in observed_assets
+            ),
+            key=lambda item: item[0].encode("utf-8"),
+        )
+    )
+
+
+def _draft_release(
+    value: Any,
+    *,
+    request: Mapping[str, Any],
+    records: Sequence[Mapping[str, Any]] | None,
+    label: str,
+    expected_release_id: int | None = None,
+) -> dict[str, Any]:
+    release = _mapping(value, label)
+    expected_scalars = {
+        "tag_name": request["tag_name"],
+        "target_commitish": request["target_commitish"],
+        "name": request["name"],
+        "body": request["body"],
+        "draft": True,
+        "prerelease": False,
+    }
+    for key, expected in expected_scalars.items():
+        if release.get(key) != expected:
+            raise PortfolioReleaseError(f"{label} {key} is not exact")
+    release_id = _release_id(release.get("id"), f"{label} id")
+    if expected_release_id is not None and release_id != expected_release_id:
+        raise PortfolioReleaseError(f"{label} release id differs from create response")
+    if release.get("immutable") is not False:
+        raise PortfolioReleaseError(f"{label} must report immutable false")
+    if release.get("published_at") is not None:
+        raise PortfolioReleaseError(f"{label} published_at must be null")
+    upload_url = _expected_upload_url(release_id)
+    release_url = publish_release_endpoint(release_id)
+    assets_url = f"{release_url}/assets"
+    if release.get("url") != release_url:
+        raise PortfolioReleaseError(f"{label} url is not exact")
+    if release.get("assets_url") != assets_url:
+        raise PortfolioReleaseError(f"{label} assets_url is not exact")
+    if release.get("upload_url") != upload_url:
+        raise PortfolioReleaseError(f"{label} upload_url is not exact")
+    if records is None:
+        if release.get("assets") != []:
+            raise PortfolioReleaseError("GitHub create response assets must be empty")
+    else:
+        _api_assets(
+            release.get("assets"),
+            records=records,
+            tag=request["tag_name"],
+            label=label,
+        )
+    return {
+        "assets_url": assets_url,
+        "id": release_id,
+        "release_url": release_url,
+        "upload_url": upload_url,
     }
 
 
@@ -578,48 +757,27 @@ def _api_release(
     for key, expected in expected_scalars.items():
         if release.get(key) != expected:
             raise PortfolioReleaseError(f"GitHub release {key} is not exact")
-    release_id = release.get("id")
-    if type(release_id) is not int or release_id <= 0:
-        raise PortfolioReleaseError("GitHub release id must be a positive integer")
+    release_id = _release_id(release.get("id"), "GitHub release id")
     published_at = release.get("published_at")
     if not isinstance(published_at, str) or API_TIMESTAMP_RE.fullmatch(published_at) is None:
         raise PortfolioReleaseError("GitHub release published_at is not exact UTC seconds")
     immutable = release.get("immutable")
-    if type(immutable) is not bool:
-        raise PortfolioReleaseError("GitHub release immutable field must be an API boolean")
+    if immutable is not True:
+        raise PortfolioReleaseError("GitHub published release must report immutable true")
+    release_url = publish_release_endpoint(release_id)
+    if release.get("url") != release_url:
+        raise PortfolioReleaseError("GitHub release url is not exact")
+    if release.get("assets_url") != f"{release_url}/assets":
+        raise PortfolioReleaseError("GitHub release assets_url is not exact")
 
-    expected_by_name = {record["name"]: record for record in records}
-    observed_assets = release.get("assets")
-    if not isinstance(observed_assets, list):
-        raise PortfolioReleaseError("GitHub release assets must be an array")
-    seen: set[str] = set()
-    for asset_value in observed_assets:
-        asset = _mapping(asset_value, "GitHub release asset")
-        name = _string(asset.get("name"), "GitHub release asset name")
-        if name in seen:
-            raise PortfolioReleaseError(f"duplicate GitHub release asset: {name}")
-        seen.add(name)
-        expected = expected_by_name.get(name)
-        if expected is None:
-            raise PortfolioReleaseError(f"unexpected GitHub release asset: {name}")
-        if asset.get("state") != "uploaded":
-            raise PortfolioReleaseError(f"GitHub release asset is not uploaded: {name}")
-        if type(asset.get("size")) is not int or asset["size"] != expected["size_bytes"]:
-            raise PortfolioReleaseError(f"GitHub release asset size differs: {name}")
-        expected_url = (
-            f"{CANONICAL_REPOSITORY}/releases/download/{request['tag_name']}/{name}"
-        )
-        if asset.get("browser_download_url") != expected_url:
-            raise PortfolioReleaseError(f"GitHub release asset URL differs: {name}")
-        api_digest = asset.get("digest")
-        if api_digest != f"sha256:{expected['sha256']}":
-            raise PortfolioReleaseError(f"GitHub release asset digest differs: {name}")
-    if seen != set(expected_by_name):
-        missing = sorted(set(expected_by_name) - seen)
-        raise PortfolioReleaseError(
-            f"GitHub release asset set is incomplete; missing={missing}"
-        )
+    asset_ids = _api_assets(
+        release.get("assets"),
+        records=records,
+        tag=request["tag_name"],
+        label="GitHub release",
+    )
     return {
+        "asset_ids": asset_ids,
         "id": release_id,
         "immutable": immutable,
         "published_at": published_at,
@@ -760,11 +918,252 @@ def _snapshot(path: Path, label: str) -> tuple[Any, str]:
     return _single_fd_json(path, label)
 
 
+def verify_immutable_policy_response(
+    *, immutable_policy_json: Path
+) -> dict[str, Any]:
+    value, digest = _snapshot(
+        immutable_policy_json, "precreate immutable-policy JSON"
+    )
+    policy = _immutable_release_policy(value)
+    return {
+        "api_snapshot": {
+            "kind": "immutable_policy_precreate",
+            "sha256": digest,
+        },
+        "artifact_kind": "corelm_portfolio_github_immutable_policy_receipt",
+        "github_immutable_releases_policy": {
+            "enabled": policy["enabled"],
+            "endpoint": IMMUTABLE_RELEASES_ENDPOINT,
+        },
+        "repository": CANONICAL_REPOSITORY,
+        "schema_version": 1,
+        "status": "PRECREATE_IMMUTABLE_POLICY_BOUNDARY_PASS",
+        "verification_scope": {
+            "api_transport_authentication": (
+                "CALLER_MUST_RETAIN_AUTHENTICATED_POLICY_RESPONSE"
+            ),
+            "network": "NOT_PERFORMED_BY_VERIFIER",
+        },
+    }
+
+
+def verify_empty_draft_response(
+    *,
+    assets: Path,
+    ffprobe: Path,
+    create_response_json: Path,
+) -> dict[str, Any]:
+    with _verified_asset_snapshot(assets, ffprobe) as (
+        _snapshot_directory,
+        tag,
+        identity,
+        records,
+        decoder_identity,
+    ):
+        request = expected_create_request(identity, records)
+        publish_request = expected_publish_request(identity, records)
+        create_value, create_sha256 = _snapshot(
+            create_response_json, "draft create-response JSON"
+        )
+        draft = _draft_release(
+            create_value,
+            request=request,
+            records=None,
+            label="GitHub draft create response",
+        )
+        source = _mapping(identity.get("source"), "source identity source")
+        identity_record = next(
+            record
+            for record in records
+            if record["name"] == f"{tag}-source-identity.json"
+        )
+        return {
+            "api_snapshot": {
+                "kind": "draft_create_response",
+                "sha256": create_sha256,
+            },
+            "artifact_kind": "corelm_portfolio_github_empty_draft_receipt",
+            "artifact_verification": {
+                "caller_decoder": decoder_identity,
+                "ssh_detached_signatures": "OFFLINE_ARTIFACT_VERIFIER_PASS",
+                "status": "OFFLINE_ARTIFACT_PASS",
+            },
+            "assets": list(records),
+            "create_request_sha256": hashlib.sha256(
+                _canonical_json(request)
+            ).hexdigest(),
+            "publish_request_sha256": hashlib.sha256(
+                _canonical_json(publish_request)
+            ).hexdigest(),
+            "github_draft": {
+                "asset_count": 0,
+                "draft": True,
+                "id": draft["id"],
+                "immutable": False,
+                "prerelease": False,
+                "published_at": None,
+                "tag": tag,
+                "upload_url": draft["upload_url"],
+            },
+            "repository": CANONICAL_REPOSITORY,
+            "schema_version": 1,
+            "source": {
+                "commit": source["commit"],
+                "source_identity_sha256": identity_record["sha256"],
+                "tag_object": source["tag_object"],
+                "tree": source["tree"],
+            },
+            "status": "EMPTY_DRAFT_UPLOAD_BOUNDARY_PASS",
+            "verification_scope": {
+                "api_transport_authentication": (
+                    "CALLER_MUST_RETAIN_AUTHENTICATED_CREATE_RESPONSE"
+                ),
+                "network": "NOT_PERFORMED_BY_VERIFIER",
+            },
+        }
+
+
+def verify_draft_saved_responses(
+    *,
+    assets: Path,
+    ffprobe: Path,
+    create_response_json: Path,
+    draft_json: Path,
+    immutable_policy_json: Path,
+    tag_ref_json: Path,
+    tag_object_json: Path,
+    commit_object_json: Path,
+) -> dict[str, Any]:
+    with _verified_asset_snapshot(assets, ffprobe) as (
+        snapshot,
+        tag,
+        identity,
+        records,
+        decoder_identity,
+    ):
+        create_request = expected_create_request(identity, records)
+        publish_request = _validate_publish_request(
+            expected_publish_request(identity, records),
+            identity=identity,
+            records=records,
+        )
+        snapshots: dict[str, tuple[Any, str]] = {}
+        for kind, path in (
+            ("create_response", create_response_json),
+            ("draft", draft_json),
+            ("immutable_policy_prepublish", immutable_policy_json),
+            ("tag_ref", tag_ref_json),
+            ("tag_object", tag_object_json),
+            ("commit_object", commit_object_json),
+        ):
+            snapshots[kind] = _snapshot(path, f"{kind} JSON")
+
+        immutable_policy = _immutable_release_policy(
+            snapshots["immutable_policy_prepublish"][0]
+        )
+
+        empty = _draft_release(
+            snapshots["create_response"][0],
+            request=create_request,
+            records=None,
+            label="GitHub draft create response",
+        )
+        populated = _draft_release(
+            snapshots["draft"][0],
+            request=create_request,
+            records=records,
+            label="GitHub populated draft",
+            expected_release_id=empty["id"],
+        )
+        if populated["upload_url"] != empty["upload_url"]:
+            raise PortfolioReleaseError(
+                "GitHub populated draft upload_url differs from create response"
+            )
+
+        source = _mapping(identity.get("source"), "source identity source")
+        _tag_ref(snapshots["tag_ref"][0], tag, source["tag_object"])
+        tag_verification = _tag_object(
+            snapshots["tag_object"][0],
+            tag,
+            source["tag_object"],
+            source["commit"],
+            snapshot,
+        )
+        commit_verification = _commit_object(
+            snapshots["commit_object"][0], source["commit"], source["tree"]
+        )
+        identity_record = next(
+            record
+            for record in records
+            if record["name"] == f"{tag}-source-identity.json"
+        )
+        return {
+            "api_snapshots": [
+                {"kind": kind, "sha256": snapshots[kind][1]}
+                for kind in (
+                    "commit_object",
+                    "create_response",
+                    "draft",
+                    "immutable_policy_prepublish",
+                    "tag_object",
+                    "tag_ref",
+                )
+            ],
+            "artifact_kind": "corelm_portfolio_github_populated_draft_receipt",
+            "artifact_verification": {
+                "caller_decoder": decoder_identity,
+                "ssh_detached_signatures": "OFFLINE_ARTIFACT_VERIFIER_PASS",
+                "status": "OFFLINE_ARTIFACT_PASS",
+            },
+            "assets": list(records),
+            "create_request_sha256": hashlib.sha256(
+                _canonical_json(create_request)
+            ).hexdigest(),
+            "github_draft": {
+                "asset_count": len(records),
+                "draft": True,
+                "id": populated["id"],
+                "immutable": False,
+                "prerelease": False,
+                "published_at": None,
+                "tag": tag,
+                "tag_api_verification": tag_verification,
+                "upload_url": populated["upload_url"],
+            },
+            "github_immutable_releases_policy": {
+                "enabled": immutable_policy["enabled"],
+                "endpoint": IMMUTABLE_RELEASES_ENDPOINT,
+            },
+            "publish_endpoint": publish_release_endpoint(populated["id"]),
+            "publish_request": publish_request,
+            "publish_request_sha256": hashlib.sha256(
+                _canonical_json(publish_request)
+            ).hexdigest(),
+            "repository": CANONICAL_REPOSITORY,
+            "schema_version": 1,
+            "source": {
+                "commit": source["commit"],
+                "commit_api_verification": commit_verification,
+                "source_identity_sha256": identity_record["sha256"],
+                "tag_object": source["tag_object"],
+                "tree": source["tree"],
+            },
+            "status": "POPULATED_DRAFT_PUBLISH_BOUNDARY_PASS",
+            "verification_scope": {
+                "api_transport_authentication": (
+                    "CALLER_MUST_RETAIN_AUTHENTICATED_DRAFT_RESPONSES"
+                ),
+                "network": "NOT_PERFORMED_BY_VERIFIER",
+            },
+        }
+
+
 def verify_saved_responses(
     *,
     assets: Path,
     ffprobe: Path,
-    release_json: Path,
+    release_id_json: Path,
+    release_tag_json: Path,
     latest_json: Path,
     tag_ref_json: Path,
     tag_object_json: Path,
@@ -778,9 +1177,11 @@ def verify_saved_responses(
         decoder_identity,
     ):
         request = expected_create_request(identity, records)
+        publish_request = expected_publish_request(identity, records)
         snapshots: dict[str, tuple[Any, str]] = {}
         for kind, path in (
-            ("release", release_json),
+            ("release_id", release_id_json),
+            ("release_tag", release_tag_json),
             ("latest", latest_json),
             ("tag_ref", tag_ref_json),
             ("tag_object", tag_object_json),
@@ -788,16 +1189,20 @@ def verify_saved_responses(
         ):
             snapshots[kind] = _snapshot(path, f"{kind} JSON")
 
-        release = _api_release(
-            snapshots["release"][0], request=request, records=records
+        release_by_id = _api_release(
+            snapshots["release_id"][0], request=request, records=records
+        )
+        release_by_tag = _api_release(
+            snapshots["release_tag"][0], request=request, records=records
         )
         latest = _api_release(
             snapshots["latest"][0], request=request, records=records
         )
-        if latest != release:
+        if not (release_by_id == release_by_tag == latest):
             raise PortfolioReleaseError(
-                "GitHub latest-release response is not the exact published release"
+                "GitHub release by-id/by-tag/latest responses are not the same published release"
             )
+        release = release_by_id
         source = _mapping(identity.get("source"), "source identity source")
         _tag_ref(snapshots["tag_ref"][0], tag, source["tag_object"])
         tag_verification = _tag_object(
@@ -811,11 +1216,7 @@ def verify_saved_responses(
             snapshots["commit_object"][0], source["commit"], source["tree"]
         )
 
-        immutable_statement = (
-            "GITHUB_API_REPORTED_TRUE"
-            if release["immutable"]
-            else "GITHUB_API_REPORTED_FALSE"
-        )
+        immutable_statement = "GITHUB_API_REPORTED_TRUE"
         identity_record = next(
             record
             for record in records
@@ -827,7 +1228,8 @@ def verify_saved_responses(
                 for kind in (
                     "commit_object",
                     "latest",
-                    "release",
+                    "release_id",
+                    "release_tag",
                     "tag_object",
                     "tag_ref",
                 )
@@ -841,6 +1243,9 @@ def verify_saved_responses(
             "assets": list(records),
             "create_request_sha256": hashlib.sha256(
                 _canonical_json(request)
+            ).hexdigest(),
+            "publish_request_sha256": hashlib.sha256(
+                _canonical_json(publish_request)
             ).hexdigest(),
             "github_release": {
                 "asset_count": len(records),
@@ -1524,18 +1929,70 @@ def _write_new(path: Path, payload: bytes, label: str) -> None:
         os.close(descriptor)
 
 
+def _write_new_pair(
+    first: tuple[Path, bytes, str],
+    second: tuple[Path, bytes, str],
+) -> None:
+    created: list[tuple[Path, str]] = []
+    try:
+        for path, payload, label in (first, second):
+            _write_new(path, payload, label)
+            created.append((_absolute(path, label), label))
+    except BaseException:
+        for path, _label in reversed(created):
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+        raise
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
 
-    prepare = commands.add_parser("prepare", help="write the exact create-release API JSON")
+    policy = commands.add_parser(
+        "verify-policy",
+        help="verify the saved immutable-release policy before draft creation",
+    )
+    policy.add_argument("--immutable-policy-json", type=Path, required=True)
+    policy.add_argument("--receipt", type=Path, required=True)
+
+    prepare = commands.add_parser(
+        "prepare-draft", help="write the exact create-draft API JSON"
+    )
     prepare.add_argument("--assets", type=Path, required=True)
     prepare.add_argument("--ffprobe", type=Path, required=True)
     prepare.add_argument("--output", type=Path, required=True)
 
+    empty_draft = commands.add_parser(
+        "verify-empty-draft",
+        help="verify the saved empty draft response before any asset upload",
+    )
+    empty_draft.add_argument("--assets", type=Path, required=True)
+    empty_draft.add_argument("--ffprobe", type=Path, required=True)
+    empty_draft.add_argument("--create-response-json", type=Path, required=True)
+    empty_draft.add_argument("--receipt", type=Path, required=True)
+
+    draft = commands.add_parser(
+        "verify-draft",
+        help="verify the populated authenticated draft and write its publish PATCH JSON",
+    )
+    draft.add_argument("--assets", type=Path, required=True)
+    draft.add_argument("--ffprobe", type=Path, required=True)
+    draft.add_argument("--create-response-json", type=Path, required=True)
+    draft.add_argument("--draft-json", type=Path, required=True)
+    draft.add_argument("--immutable-policy-json", type=Path, required=True)
+    draft.add_argument("--tag-ref-json", type=Path, required=True)
+    draft.add_argument("--tag-object-json", type=Path, required=True)
+    draft.add_argument("--commit-object-json", type=Path, required=True)
+    draft.add_argument("--publish-request", type=Path, required=True)
+    draft.add_argument("--receipt", type=Path, required=True)
+
     verify = commands.add_parser("verify", help="verify saved public API JSON and assets")
     verify.add_argument("--assets", type=Path, required=True)
-    verify.add_argument("--release-json", type=Path, required=True)
+    verify.add_argument("--release-id-json", type=Path, required=True)
+    verify.add_argument("--release-tag-json", type=Path, required=True)
     verify.add_argument("--latest-json", type=Path, required=True)
     verify.add_argument("--tag-ref-json", type=Path, required=True)
     verify.add_argument("--tag-object-json", type=Path, required=True)
@@ -1564,7 +2021,26 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     options = _parser().parse_args(argv)
     try:
-        if options.command == "prepare":
+        if options.command == "verify-policy":
+            _reject_output_overlap(
+                options.receipt,
+                protected_directories=(options.immutable_policy_json.parent,),
+                label="precreate policy receipt output",
+            )
+            receipt = verify_immutable_policy_response(
+                immutable_policy_json=options.immutable_policy_json
+            )
+            _write_new(
+                options.receipt,
+                _canonical_json(receipt),
+                "precreate policy receipt output",
+            )
+            print(
+                "PORTFOLIO GITHUB IMMUTABLE POLICY PASS: "
+                f"enabled={str(receipt['github_immutable_releases_policy']['enabled']).lower()} "
+                f"endpoint={IMMUTABLE_RELEASES_ENDPOINT}"
+            )
+        elif options.command == "prepare-draft":
             _reject_output_overlap(
                 options.output,
                 protected_directories=(options.assets,),
@@ -1580,13 +2056,95 @@ def main(argv: Sequence[str] | None = None) -> int:
                 request = expected_create_request(identity, records)
             _write_new(options.output, _canonical_json(request), "create-request output")
             print(
-                "PORTFOLIO GITHUB RELEASE REQUEST PASS: "
+                "PORTFOLIO GITHUB DRAFT REQUEST PASS: "
                 f"tag={request['tag_name']} assets={len(records)} "
                 f"endpoint={CREATE_RELEASE_ENDPOINT}"
             )
+        elif options.command == "verify-empty-draft":
+            _reject_output_overlap(
+                options.receipt,
+                protected_directories=(
+                    options.assets,
+                    options.create_response_json.parent,
+                ),
+                label="empty-draft receipt output",
+            )
+            receipt = verify_empty_draft_response(
+                assets=options.assets,
+                ffprobe=options.ffprobe,
+                create_response_json=options.create_response_json,
+            )
+            _write_new(
+                options.receipt,
+                _canonical_json(receipt),
+                "empty-draft receipt output",
+            )
+            print(
+                "PORTFOLIO GITHUB EMPTY DRAFT PASS: "
+                f"tag={receipt['github_draft']['tag']} "
+                f"id={receipt['github_draft']['id']} "
+                f"upload_url={receipt['github_draft']['upload_url']}"
+            )
+        elif options.command == "verify-draft":
+            api_paths = (
+                options.create_response_json,
+                options.draft_json,
+                options.immutable_policy_json,
+                options.tag_ref_json,
+                options.tag_object_json,
+                options.commit_object_json,
+            )
+            _reject_output_overlap(
+                options.publish_request,
+                protected_directories=(
+                    options.assets,
+                    *(path.parent for path in api_paths),
+                    options.receipt.parent,
+                ),
+                label="publish-request output",
+            )
+            _reject_output_overlap(
+                options.receipt,
+                protected_directories=(
+                    options.assets,
+                    *(path.parent for path in api_paths),
+                    options.publish_request.parent,
+                ),
+                label="populated-draft receipt output",
+            )
+            receipt = verify_draft_saved_responses(
+                assets=options.assets,
+                ffprobe=options.ffprobe,
+                create_response_json=options.create_response_json,
+                draft_json=options.draft_json,
+                immutable_policy_json=options.immutable_policy_json,
+                tag_ref_json=options.tag_ref_json,
+                tag_object_json=options.tag_object_json,
+                commit_object_json=options.commit_object_json,
+            )
+            _write_new_pair(
+                (
+                    options.publish_request,
+                    _canonical_json(receipt["publish_request"]),
+                    "publish-request output",
+                ),
+                (
+                    options.receipt,
+                    _canonical_json(receipt),
+                    "populated-draft receipt output",
+                ),
+            )
+            print(
+                "PORTFOLIO GITHUB POPULATED DRAFT PASS: "
+                f"tag={receipt['github_draft']['tag']} "
+                f"id={receipt['github_draft']['id']} "
+                f"assets={receipt['github_draft']['asset_count']} "
+                f"endpoint={receipt['publish_endpoint']}"
+            )
         elif options.command == "verify":
             api_paths = (
-                options.release_json,
+                options.release_id_json,
+                options.release_tag_json,
                 options.latest_json,
                 options.tag_ref_json,
                 options.tag_object_json,
@@ -1603,7 +2161,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             receipt = verify_saved_responses(
                 assets=options.assets,
                 ffprobe=options.ffprobe,
-                release_json=options.release_json,
+                release_id_json=options.release_id_json,
+                release_tag_json=options.release_tag_json,
                 latest_json=options.latest_json,
                 tag_ref_json=options.tag_ref_json,
                 tag_object_json=options.tag_object_json,

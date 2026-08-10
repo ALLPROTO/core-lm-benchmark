@@ -35,7 +35,7 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
-    def test_current_portfolio_schemas_pin_automation_only_v12_identity(self):
+    def test_current_portfolio_schemas_pin_automation_only_v13_identity(self):
         release_input = json.loads(
             (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
                 encoding="utf-8"
@@ -167,7 +167,7 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v12")
+        self.assertEqual(release_tag, "corelm-portfolio-v13")
         self.assertRegex(citation, r"(?m)^date-released: 2026-08-10$")
 
         for relative in (
@@ -232,7 +232,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v5", text)
-                self.assertIn("corelm-portfolio-v12", text)
+                self.assertIn("corelm-portfolio-v13", text)
                 self.assertIn("HTTP 403", normalized)
                 self.assertIn("AttemptLog.reserve", text)
                 self.assertRegex(normalized, r"(?:signed 32-bit|above `2\^31`)")
@@ -258,7 +258,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v6", text)
-                self.assertIn("corelm-portfolio-v12", text)
+                self.assertIn("corelm-portfolio-v13", text)
                 self.assertIn("first-attempt tag CI", normalized)
                 self.assertIn("2.052384x", normalized)
                 self.assertIn("-0.00000846", normalized)
@@ -274,7 +274,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("collection", normalized)
                 self.assertIn("never", normalized.lower())
 
-    def test_v7_through_v11_history_and_v12_fix_are_preserved(self):
+    def test_v7_through_v12_history_and_v13_fix_are_preserved(self):
         historical_documents = (
             "docs/DEMO.md",
             "docs/ENGINEERING_CASE_STUDY.md",
@@ -529,6 +529,82 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertRegex(normalized, r"decoded(?:-frame| frames)")
                 self.assertIn("poster", normalized)
                 self.assertIn("V12", normalized)
+                self.assertIn("corelm-portfolio-v13", text)
+                for identity in (
+                    "6e49fc14244230227ed08820cdd295c28bf0e7ca",
+                    "9c6c4e5cf050d3a882faeaf8dfc55e7b94c70ee6",
+                    "f6166661047cb753e3a63230311fdd69bf357b80",
+                    "31379694116",
+                    "31379694145",
+                    "c42fdea1-d0d5-49b9-aed3-f44e0549c061",
+                    "014485f16de4f6ca2d7fd9f9b8472a6ee58fcd7338fee6953b91f272d1cad93a",
+                    "12ab1cbdd6a18b3dc0245d17c52eb2ebe925ebebfbef156d198f1c210afb3f44",
+                    "76d0f757faacbd92a20eda265a363ebcb7d5bf1f633951c4f46ab2922b5e50a4",
+                    "3aec174dfbc1f40a5176cf8b021346dc9045baad6450812ea1858b1fd6a02f9c",
+                    "cc59a374376c2562d0c76db10ebf055671033fbcf88ea5043efb171d34537d50",
+                    "4346bf3a8a9037481d6a99ef27180f81f6bad6b836e44b82a7bf8f68b543933e",
+                    "70fc0f97b3a4e0317667728deaa23e4758390c93617d9185caa534bf28a41654",
+                    "268013e6ac671b85ebac2d39fe9dce3b52d96f81378b8512c0a347560e633538",
+                    "2d3f0c00d2e7122b2d5b02c99e45be7e94e7332a588caf488df9266501446a40",
+                    "526130332ee358c52980cc339530ad1e67dc2e2e144d0b26779ae1b582f80dea",
+                    "f4217d69b4b715e61e4f2e5c3fca937a61117dbb1daf26a0f3b919da3a450a4f",
+                    "a311d0b25102d5eb1ce00e56ba98976f95071653e9ef97661ca43ae056244c04",
+                    "9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153",
+                    "96f940fed8d0470dae697133a8f191322a590798de4fd78bfa6b7a8980c2ddde",
+                    "1e648042f78433a7c952dd266d3e07480ce0a2a966eab346c21897e47f82b469",
+                    "accb52ae54b4e5ec279cc3c9456de0fdd1a665750c4e495e559d10c6e5915216",
+                    "bdf6c6d6e961b863d4b38df866e3b673cae5476cea6196df0f3875535bbae919",
+                    "479d7547b455adecaf8fa42ec47e04581994f13096346b82f40429b3fa5b2e5f",
+                    "c337cb166b44d567937d88bfebeaedb2dadaf18e5b5d1ab4a4a0a9492ae9305c",
+                    "dc1cb5436e87816a357c8cb88c3a8a590bcfdf2861af2df4fdc0dfeb2b85c5ce",
+                ):
+                    self.assertIn(identity, text)
+                for exact_fact in (
+                    "first local V12 runner invocation failed at tag-CI admission",
+                    "Exactly one later V12 attempt was consumed",
+                    "END-TO-END PROOF PASS",
+                    "2.0523837550538349x",
+                    "-8.4598101111055257e-06",
+                    "0.9951171875",
+                    "1,024/1,024",
+                    "zero maximum baseline/candidate loss error",
+                    "57 frames",
+                    "681 frames",
+                    "1,024 frames",
+                    "exactly fourteen signed local assets",
+                    "HTTP 422: Cannot upload assets to an immutable release.",
+                    "There was no partial upload, retry, deletion, metadata edit, retag, rerun, reuse, or relabel",
+                    "V12 GitHub Release contract is a terminal FAIL",
+                    "public V12 release remains empty and immutable",
+                    "No conforming fourteen-asset GitHub release receipt was produced.",
+                    "prepare-draft",
+                    "verify-policy",
+                    "verify-empty-draft",
+                    "verify-draft",
+                    "precreate",
+                    "prepublish",
+                    "logged-out final verification binds by-ID, by-tag, latest, and all downloads",
+                    "there is no delete/recreate, retry, retag, or V12 relabel",
+                ):
+                    self.assertIn(exact_fact, normalized)
+                self.assertNotIn("seven-stage", normalized)
+                self.assertIn(
+                    "ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL → "
+                    "REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY → "
+                    "POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → "
+                    "RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION",
+                    normalized,
+                )
+                self.assertIn("`draft:true`", text)
+                self.assertIn("`prerelease:false`", text)
+                self.assertIn("`immutable:false`", text)
+                self.assertIn("`published_at:null`", text)
+                self.assertIn("`make_latest:\"true\"`", text)
+                self.assertIn(
+                    "A separate authenticated `/releases/latest` GET then returned "
+                    "the same ID `367936819`",
+                    normalized,
+                )
 
         exact_documents = (
             "docs/DEMO.md",
@@ -546,6 +622,100 @@ class PublicationArchiveTests(unittest.TestCase):
                     "31328178525",
                 ):
                     self.assertIn(identity, text)
+
+    def test_v13_github_runbook_has_disjoint_fail_closed_path_topology(self):
+        text = (ROOT / "publication/PORTFOLIO_RELEASE.md").read_text(
+            encoding="utf-8"
+        )
+        section = text.split("## Exact GitHub publication contract", 1)[1]
+        section = section.split("## Presentation successor after publication", 1)[0]
+
+        required = (
+            'REQUESTS="$PUBLICATION_ROOT/requests"',
+            'API_INPUTS="$PUBLICATION_ROOT/api-inputs"',
+            'RECEIPTS="$PUBLICATION_ROOT/receipts"',
+            'DOWNLOADED="$PUBLICATION_ROOT/downloaded-assets"',
+            'CREATE_REQUEST="$REQUESTS/create-draft.json"',
+            'CREATE_RESPONSE="$API_INPUTS/create-response.json"',
+            'EMPTY_DRAFT_RECEIPT="$RECEIPTS/empty-draft.json"',
+            'POPULATED_DRAFT_RECEIPT="$RECEIPTS/populated-draft.json"',
+            'PRECREATE_IMMUTABLE_POLICY="$API_INPUTS/precreate-immutable-policy.json"',
+            'PRECREATE_POLICY_RECEIPT="$RECEIPTS/precreate-policy.json"',
+            'PREPUBLISH_IMMUTABLE_POLICY="$API_INPUTS/prepublish-immutable-policy.json"',
+            'PUBLISH_REQUEST="$REQUESTS/publish.json"',
+            'gh release upload "$TAG" "$asset"',
+            '--repo ALLPROTO/core-lm-benchmark',
+            '> "$API_INPUTS/draft-by-id.json"',
+            '> "$API_INPUTS/release-publish-response.json"',
+            'RECEIPT="$RECEIPTS/final-public-release.json"',
+            '--receipt "$POPULATED_DRAFT_RECEIPT"',
+            'verify_portfolio_github_release.py verify-policy',
+            '--immutable-policy-json "$PRECREATE_IMMUTABLE_POLICY"',
+            '--receipt "$PRECREATE_POLICY_RECEIPT"',
+            '--immutable-policy-json "$PREPUBLISH_IMMUTABLE_POLICY"',
+            '--release-id-json "$API_INPUTS/public-release-by-id.json"',
+            '--release-tag-json "$API_INPUTS/public-release-by-tag.json"',
+            '`immutable:true`; `immutable:false`, a missing value, or disagreement is a hard',
+        )
+        for exact in required:
+            with self.subTest(exact=exact):
+                self.assertIn(exact, section)
+        self.assertGreaterEqual(section.count("set -eu"), 4)
+        self.assertNotIn("/absolute/operator-log", section)
+        self.assertNotIn("--hostname uploads.github.com", section)
+        self.assertNotIn("$UPLOAD_RESPONSES", section)
+        self.assertEqual(section.count('gh release upload "$TAG" "$asset"'), 1)
+        self.assertLess(
+            section.index('> "$PRECREATE_IMMUTABLE_POLICY"'),
+            section.index('gh api --method POST'),
+        )
+        self.assertLess(
+            section.index('> "$PREPUBLISH_IMMUTABLE_POLICY"'),
+            section.index('verify_portfolio_github_release.py verify-draft'),
+        )
+        self.assertLess(
+            section.index('verify_portfolio_github_release.py verify-draft'),
+            section.index('gh api --method PATCH'),
+        )
+        self.assertLess(section.index("TAG_OBJECT=$("), section.index("draft-tag-object.json"))
+        self.assertLess(
+            section.index("SOURCE_COMMIT=$("),
+            section.index("draft-commit-object.json"),
+        )
+        self.assertIn(
+            'empty <= 0 or populated != empty',
+            section,
+        )
+        self.assertNotIn('${RELEASE_ID:?', section)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            parents = {
+                "requests": root / "requests",
+                "api_inputs": root / "api-inputs",
+                "receipts": root / "receipts",
+                "downloaded": root / "downloaded-assets",
+                "assets": root / "signed-assets",
+            }
+            self.assertEqual(len(set(parents.values())), len(parents))
+            for path in parents.values():
+                path.mkdir()
+            self.assertTrue(all(path.is_dir() for path in parents.values()))
+
+        shell_blocks = re.findall(r"```sh\n(.*?)\n```", section, flags=re.DOTALL)
+        self.assertGreaterEqual(len(shell_blocks), 4)
+        self.assertNotIn("--clobber", "\n".join(shell_blocks))
+        for index, block in enumerate(shell_blocks):
+            with self.subTest(shell_block=index):
+                parsed = subprocess.run(
+                    ["/bin/zsh", "-n"],
+                    input=block,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                )
+                self.assertEqual(parsed.returncode, 0, parsed.stderr)
 
     def test_current_publication_readmes_close_beacon_without_overclaim(self):
         evidence_commit = "85c2add1799652a818873a04310b75821728da11"

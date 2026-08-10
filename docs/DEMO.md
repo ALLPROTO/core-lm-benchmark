@@ -1,6 +1,6 @@
 # Automation-only macOS portfolio demo
 
-This is the current V12 product-media contour for portfolio gate G03 under
+This is the current V13 product-media contour for portfolio gate G03 under
 `corelm-automated-presentation-v2`. It has no interactive window selection,
 editor, manual trim, chosen poster frame, or human-review acceptance step. Its
 exact classification is:
@@ -208,19 +208,94 @@ directory, fourteen-asset directory, evidence archive, and GitHub Release
 remained absent. The V11 proof/tag/final media are never moved, rerun, reused,
 or relabelled; the bounded diagnostic did not invoke the model or alter them.
 
-V12 is the distinct corrected identity. It retains exact final-video
-byte/report binding and exact poster replay. Its replay parser requires a
-strict per-frame SHA-256 framemd5 manifest together with exact frame count and
-PTS SHA-256; MD5 and malformed manifests are rejected. It compares that exact
-decoded identity rather than nondeterministic encoded VideoToolbox bytes.
-V12 retains `corelm-automated-presentation-v2` and schema/state/report version
-2, and requires its own signed tag, first-attempt CI, and sole proof.
+The signed `corelm-portfolio-v12` identity is frozen at source commit
+`6e49fc14244230227ed08820cdd295c28bf0e7ca`, tree
+`9c6c4e5cf050d3a882faeaf8dfc55e7b94c70ee6`, and annotated tag object
+`f6166661047cb753e3a63230311fdd69bf357b80`. First tag CI Linux run
+`31379694116` and macOS run `31379694145` passed on attempt 1. The first local
+V12 runner invocation failed at tag-CI admission strictly before
+`AttemptLog.reserve`; durable attempt state/session remained absent and no
+proof or model attempt was consumed. Exactly one later V12 attempt was
+consumed, UUID `c42fdea1-d0d5-49b9-aed3-f44e0549c061`, as its sole proof/model
+invocation.
+
+That sole run completed `END-TO-END PROOF PASS` and 1,024/1,024 heavy-replay
+decisions at `2.0523837550538349x`, delta NLL
+`-8.4598101111055257e-06`, and top-1 `0.9951171875`, with zero maximum
+baseline/candidate loss error. Its proof receipt is
+`014485f16de4f6ca2d7fd9f9b8472a6ee58fcd7338fee6953b91f272d1cad93a`, result
+`12ab1cbdd6a18b3dc0245d17c52eb2ebe925ebebfbef156d198f1c210afb3f44`, and app
+executable
+`76d0f757faacbd92a20eda265a363ebcb7d5bf1f633951c4f46ab2922b5e50a4`. The
+exact state order is `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL →
+REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY →
+POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED →
+MEDIA_SEALED_FOR_COLLECTION`; state, automation-receipt, and readiness SHA-256
+values are respectively
+`3aec174dfbc1f40a5176cf8b021346dc9045baad6450812ea1858b1fd6a02f9c`,
+`cc59a374376c2562d0c76db10ebf055671033fbcf88ea5043efb171d34537d50`, and
+`4346bf3a8a9037481d6a99ef27180f81f6bad6b836e44b82a7bf8f68b543933e`.
+
+Raw preflight, post-proof, and same-run MOV identities are
+`70fc0f97b3a4e0317667728deaa23e4758390c93617d9185caa534bf28a41654`
+(57 frames),
+`268013e6ac671b85ebac2d39fe9dce3b52d96f81378b8512c0a347560e633538`
+(681 frames), and
+`2d3f0c00d2e7122b2d5b02c99e45be7e94e7332a588caf488df9266501446a40`
+(1,024 frames). Final video/poster SHA-256 values are
+`526130332ee358c52980cc339530ad1e67dc2e2e144d0b26779ae1b582f80dea` and
+`f4217d69b4b715e61e4f2e5c3fca937a61117dbb1daf26a0f3b919da3a450a4f`; exact
+strict per-frame SHA-256 framemd5 and PTS identities are
+`a311d0b25102d5eb1ce00e56ba98976f95071653e9ef97661ca43ae056244c04` and
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`.
+Collector and builder passed, retaining evidence
+`96f940fed8d0470dae697133a8f191322a590798de4fd78bfa6b7a8980c2ddde`, provenance
+`1e648042f78433a7c952dd266d3e07480ce0a2a966eab346c21897e47f82b469`, runtime
+`accb52ae54b4e5ec279cc3c9456de0fdd1a665750c4e495e559d10c6e5915216`, and
+exactly fourteen signed local assets with `SHA256SUMS`
+`bdf6c6d6e961b863d4b38df866e3b673cae5476cea6196df0f3875535bbae919`.
+
+Canonical create request
+`479d7547b455adecaf8fa42ec47e04581994f13096346b82f40429b3fa5b2e5f`
+required `draft:false`, `prerelease:false`, and `make_latest:"true"`. Its
+one POST created release ID `367936819`, published
+`2026-08-10T13:33:30Z`; response
+`c337cb166b44d567937d88bfebeaedb2dadaf18e5b5d1ab4a4a0a9492ae9305c`
+already reported the exact title/body/target, `immutable:true`, and `assets:[]`.
+A separate authenticated `/releases/latest` GET then returned the same ID
+`367936819`. The first upload, `REPRODUCE-corelm-portfolio-v12.md`, received
+exact `HTTP 422: Cannot upload assets to an immutable release.` Failure record
+`dc1cb5436e87816a357c8cb88c3a8a590bcfdf2861af2df4fdc0dfeb2b85c5ce`
+binds that boundary. There was no partial upload, retry, deletion, metadata
+edit, retag, rerun, reuse, or relabel. The fourteen local assets remain
+retained; the V12 GitHub Release contract is a terminal FAIL and the public
+V12 release remains empty and immutable.
+No conforming fourteen-asset GitHub release receipt was produced.
+
+V13 is the distinct corrected identity. It keeps presentation contract and
+schema/state/report version v2. Its media gate retains the exact frame count,
+PTS identity, and strict per-frame SHA-256 framemd5 manifest; MD5 and malformed
+manifests are rejected. It uses a fail-closed staged publication:
+`prepare-draft` emits the exact draft request; authenticated `verify-policy`
+binds an exact precreate `{"enabled":true}` immutable-release policy snapshot;
+POST runs once and its response
+is saved; `verify-empty-draft` requires the exact positive ID, tag, name, body,
+target, `draft:true`, `prerelease:false`, `immutable:false`,
+`published_at:null`, empty assets, and exact upload URL; exactly fourteen
+assets upload with no clobber; authenticated `verify-draft` requires the same
+ID, exact fourteen names/digests, and a fresh exact prepublish
+`{"enabled":true}` policy snapshot; its exact seven-field request PATCHes that
+same ID to `draft:false`, `prerelease:false`, and `make_latest:"true"`; then
+logged-out final verification binds by-ID, by-tag, latest, and all downloads.
+Any mismatch or partial operation stops; there is no delete/recreate, retry,
+retag, or V12 relabel. V13 requires its own signed tag, first-attempt CI, and
+sole proof.
 
 ## Fixed source and one-attempt boundary
 
 The command accepts only a clean canonical checkout whose `main`,
 `origin/main`, and already-created SSH-signed annotated
-`corelm-portfolio-v12` tag all resolve to the same commit/tree. The signed tag
+`corelm-portfolio-v13` tag all resolve to the same commit/tree. The signed tag
 and its first-attempt Linux/macOS Actions must already be green.
 
 Before model execution the command checks power, the offline doctor, pinned
@@ -236,7 +311,7 @@ than one pinned-Qwen model execution.
 `CORELM_OFFLINE=1` applies to the model, corpus, app proof, replay, and media
 pipeline. Before reserving the attempt, the runner makes the sole bounded
 online exception: eight anonymous, direct, no-proxy/no-redirect GitHub API
-requests that prove the exact public V12 tag/main and first-attempt Linux/macOS
+requests that prove the exact public V13 tag/main and first-attempt Linux/macOS
 tag CI. Failure remains pre-marker and safely retryable. Exact response bytes,
 the recomputed public receipt, and hard-pinned local tag-trust receipt are
 retained for collector and release verification; they record admission-time
@@ -264,10 +339,10 @@ providing both `ffmpeg` and `ffprobe`.
 ```sh
 set -eu
 
-DEMO_TAG=corelm-portfolio-v12
+DEMO_TAG=corelm-portfolio-v13
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v12-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v13-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -346,7 +421,7 @@ WINDOW_HELPER="$DEMO_SESSION/find-proof-window"
 TAG_CI_RECEIPT="$DEMO_SESSION/tag-ci-receipt.json"
 LOCAL_TAG_TRUST_RECEIPT="$DEMO_SESSION/local-tag-trust-receipt.json"
 TAG_CI_BUNDLE="$DEMO_SESSION/tag-ci-bundle"
-INPUTS=/absolute/absent/corelm-portfolio-v12-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v13-inputs
 PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 
 publication/run_portfolio_python.sh \

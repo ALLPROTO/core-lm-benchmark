@@ -112,7 +112,7 @@ RESPONSE_FILENAMES = {
 PUBLIC_RECEIPT_FILENAME = "github-tag-ci-admission-receipt.json"
 LOCAL_TRUST_RECEIPT_FILENAME = "local-tag-trust-receipt.json"
 TAG_REF_ASSERTION_STEP = "Require exact portfolio tag-push ref"
-CURRENT_PORTFOLIO_TAG = "corelm-portfolio-v12"
+CURRENT_PORTFOLIO_TAG = "corelm-portfolio-v13"
 
 
 def _reject_constant(value: str) -> None:
@@ -216,7 +216,7 @@ def _validate_inputs(
         raise TagCIAdmissionError("expected tag is not a safe single Git ref component")
     if expected_tag != CURRENT_PORTFOLIO_TAG:
         raise TagCIAdmissionError(
-            f"expected tag must be the active V12 contour {CURRENT_PORTFOLIO_TAG}"
+            f"expected tag must be the active V13 contour {CURRENT_PORTFOLIO_TAG}"
         )
     _sha1(expected_commit, "expected commit")
     _sha1(expected_tree, "expected tree")

@@ -238,12 +238,88 @@ evidence archive, and GitHub Release absent. Never move, rerun, reuse, or
 relabel V11 proof/tag/final media; the diagnostic invoked no model and changed
 no retained bytes.
 
-V12 retains exact final byte/report binding and byte-exact poster replay. Its
-replay parser requires a strict per-frame SHA-256 framemd5 manifest together
-with exact frame count and PTS SHA-256; MD5 and malformed manifests are
-rejected. This replaces comparison of nondeterministic encoded VideoToolbox
-bytes. Contract and schema/state/report version remain v2; V12 requires its
-own signed tag, first-attempt CI, and sole proof.
+The signed `corelm-portfolio-v12` identity is frozen at source commit
+`6e49fc14244230227ed08820cdd295c28bf0e7ca`, tree
+`9c6c4e5cf050d3a882faeaf8dfc55e7b94c70ee6`, and annotated tag object
+`f6166661047cb753e3a63230311fdd69bf357b80`. First tag CI Linux run
+`31379694116` and macOS run `31379694145` passed on attempt 1. The first local
+V12 runner invocation failed at tag-CI admission strictly before
+`AttemptLog.reserve`; durable attempt state/session remained absent and no
+proof or model attempt was consumed. Exactly one later V12 attempt was
+consumed, UUID `c42fdea1-d0d5-49b9-aed3-f44e0549c061`, as its sole proof/model
+invocation.
+
+That sole run completed `END-TO-END PROOF PASS` and 1,024/1,024 heavy-replay
+decisions at `2.0523837550538349x`, delta NLL
+`-8.4598101111055257e-06`, and top-1 `0.9951171875`, with zero maximum
+baseline/candidate loss error. Its proof receipt is
+`014485f16de4f6ca2d7fd9f9b8472a6ee58fcd7338fee6953b91f272d1cad93a`, result
+`12ab1cbdd6a18b3dc0245d17c52eb2ebe925ebebfbef156d198f1c210afb3f44`, and app
+executable
+`76d0f757faacbd92a20eda265a363ebcb7d5bf1f633951c4f46ab2922b5e50a4`. The
+exact state order is `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL →
+REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY →
+POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED →
+MEDIA_SEALED_FOR_COLLECTION`; state, automation-receipt, and readiness SHA-256
+values are respectively
+`3aec174dfbc1f40a5176cf8b021346dc9045baad6450812ea1858b1fd6a02f9c`,
+`cc59a374376c2562d0c76db10ebf055671033fbcf88ea5043efb171d34537d50`, and
+`4346bf3a8a9037481d6a99ef27180f81f6bad6b836e44b82a7bf8f68b543933e`.
+
+Raw preflight, post-proof, and same-run MOV identities are
+`70fc0f97b3a4e0317667728deaa23e4758390c93617d9185caa534bf28a41654`
+(57 frames),
+`268013e6ac671b85ebac2d39fe9dce3b52d96f81378b8512c0a347560e633538`
+(681 frames), and
+`2d3f0c00d2e7122b2d5b02c99e45be7e94e7332a588caf488df9266501446a40`
+(1,024 frames). Final video/poster SHA-256 values are
+`526130332ee358c52980cc339530ad1e67dc2e2e144d0b26779ae1b582f80dea` and
+`f4217d69b4b715e61e4f2e5c3fca937a61117dbb1daf26a0f3b919da3a450a4f`; exact
+strict per-frame SHA-256 framemd5 and PTS identities are
+`a311d0b25102d5eb1ce00e56ba98976f95071653e9ef97661ca43ae056244c04` and
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`.
+Collector and builder passed, retaining evidence
+`96f940fed8d0470dae697133a8f191322a590798de4fd78bfa6b7a8980c2ddde`, provenance
+`1e648042f78433a7c952dd266d3e07480ce0a2a966eab346c21897e47f82b469`, runtime
+`accb52ae54b4e5ec279cc3c9456de0fdd1a665750c4e495e559d10c6e5915216`, and
+exactly fourteen signed local assets with `SHA256SUMS`
+`bdf6c6d6e961b863d4b38df866e3b673cae5476cea6196df0f3875535bbae919`.
+
+Canonical create request
+`479d7547b455adecaf8fa42ec47e04581994f13096346b82f40429b3fa5b2e5f`
+required `draft:false`, `prerelease:false`, and `make_latest:"true"`. Its
+one POST created release ID `367936819`, published
+`2026-08-10T13:33:30Z`; response
+`c337cb166b44d567937d88bfebeaedb2dadaf18e5b5d1ab4a4a0a9492ae9305c`
+already reported the exact title/body/target, `immutable:true`, and `assets:[]`.
+A separate authenticated `/releases/latest` GET then returned the same ID
+`367936819`. The first upload, `REPRODUCE-corelm-portfolio-v12.md`, received
+exact `HTTP 422: Cannot upload assets to an immutable release.` Failure record
+`dc1cb5436e87816a357c8cb88c3a8a590bcfdf2861af2df4fdc0dfeb2b85c5ce`
+binds that boundary. There was no partial upload, retry, deletion, metadata
+edit, retag, rerun, reuse, or relabel. The fourteen local assets remain
+retained; the V12 GitHub Release contract is a terminal FAIL and the public
+V12 release remains empty and immutable.
+No conforming fourteen-asset GitHub release receipt was produced.
+
+V13 is the distinct corrected identity. It keeps presentation contract and
+schema/state/report version v2. Its media gate retains the exact frame count,
+PTS identity, and strict per-frame SHA-256 framemd5 manifest; MD5 and malformed
+manifests are rejected. It uses a fail-closed staged publication:
+`prepare-draft` emits the exact draft request; authenticated `verify-policy`
+binds an exact precreate `{"enabled":true}` immutable-release policy snapshot;
+POST runs once and its response
+is saved; `verify-empty-draft` requires the exact positive ID, tag, name, body,
+target, `draft:true`, `prerelease:false`, `immutable:false`,
+`published_at:null`, empty assets, and exact upload URL; exactly fourteen
+assets upload with no clobber; authenticated `verify-draft` requires the same
+ID, exact fourteen names/digests, and a fresh exact prepublish
+`{"enabled":true}` policy snapshot; its exact seven-field request PATCHes that
+same ID to `draft:false`, `prerelease:false`, and `make_latest:"true"`; then
+logged-out final verification binds by-ID, by-tag, latest, and all downloads.
+Any mismatch or partial operation stops; there is no delete/recreate, retry,
+retag, or V12 relabel. V13 requires its own signed tag, first-attempt CI, and
+sole proof.
 
 ## Automated public tag-CI admission
 
@@ -295,7 +371,7 @@ lifecycle, the exact automation-only presentation contract, and absolute paths
 to five local automatically collected demo assets. Absolute paths are
 input-only and never enter an output asset.
 
-The canonical V12 demo-provenance object has the exact keys documented by the
+The canonical V13 demo-provenance object has the exact keys documented by the
 builder: source/tag; video hash, duration, dimensions, silent H.264;
 poster hash, dimensions and fixed frame timestamp; both media objects
 classified `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`; macOS arm64
@@ -321,7 +397,7 @@ hash, and proof hashes. The builder verifies tracked lockfile/verifier hashes
 against the clean source.
 
 `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION` is the exact workload enum for
-the public validation range fixed before this V12 execution. It is not a media
+the public validation range fixed before this V13 execution. It is not a media
 selection or human-review state: the tagged proof-driver attempt and its first
 honest terminal outcome are retained once by the owner-local automation state.
 The proof driver also performs the required pinned-Qwen heavy replay; the
@@ -368,7 +444,7 @@ with mode `0600`, zero uid/gid/mtime, and empty owner names.
 ## Run and collect one automated tagged proof
 
 `platforms/macos/scripts/run-automated-portfolio-demo.py` is the only current
-V12 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
+V13 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
 the exact clean, signed tagged checkout. It checks the tag/main/source binding,
 AC power, offline runtime and assets, capture authorization, exact app/window,
 and tool identities before invoking the model. It then reserves one durable
@@ -382,10 +458,10 @@ creates one fixed silent H.264 composition, and derives the poster at exactly
 are never captured.
 
 ```sh
-DEMO_TAG=corelm-portfolio-v12
+DEMO_TAG=corelm-portfolio-v13
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v12-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v13-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -406,7 +482,7 @@ privacy boundary, and durable attempt-state digest. A capture or media failure
 after proof invocation consumes the tag attempt and cannot be retried to seek
 a preferred result.
 
-The exact V12 state order is
+The exact V13 state order is
 `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL → REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`.
 The first composed raw role is exactly `post_proof_presentation`; legacy
 live-role names, paths, and command-line options are not accepted by this
@@ -428,7 +504,7 @@ tag, and local lab checkout:
 PORTFOLIO_PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 LAB=/absolute/clean/core-lm-cross-model-lab
 RUN_DIRECTORY=/absolute/exact/run-directory-from-automation-receipt
-INPUTS=/absolute/absent/corelm-portfolio-v12-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v13-inputs
 
 publication/run_portfolio_python.sh \
   "$PORTFOLIO_PYTHON" collect_portfolio_demo.py \
@@ -557,13 +633,43 @@ checkout and the already verified fourteen-asset directory, generate the
 request into a new absolute path:
 
 ```sh
-TAG=corelm-portfolio-v12
-ASSET_DIR=/absolute/corelm-portfolio-v12-assets
-CREATE_REQUEST=/absolute/corelm-portfolio-v12-create-release.json
+set -eu
+TAG=corelm-portfolio-v13
+ASSET_DIR=/absolute/corelm-portfolio-v13-assets
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
+PUBLICATION_ROOT=/absolute/new-corelm-portfolio-v13-publication
+REQUESTS="$PUBLICATION_ROOT/requests"
+API_INPUTS="$PUBLICATION_ROOT/api-inputs"
+RECEIPTS="$PUBLICATION_ROOT/receipts"
+DOWNLOADED="$PUBLICATION_ROOT/downloaded-assets"
+test ! -e "$PUBLICATION_ROOT"
+mkdir -m 700 "$PUBLICATION_ROOT"
+mkdir -m 700 "$REQUESTS" "$API_INPUTS" "$RECEIPTS" \
+  "$DOWNLOADED"
+
+CREATE_REQUEST="$REQUESTS/create-draft.json"
+CREATE_RESPONSE="$API_INPUTS/create-response.json"
+EMPTY_DRAFT_RECEIPT="$RECEIPTS/empty-draft.json"
+POPULATED_DRAFT_RECEIPT="$RECEIPTS/populated-draft.json"
+PRECREATE_IMMUTABLE_POLICY="$API_INPUTS/precreate-immutable-policy.json"
+PRECREATE_POLICY_RECEIPT="$RECEIPTS/precreate-policy.json"
+PREPUBLISH_IMMUTABLE_POLICY="$API_INPUTS/prepublish-immutable-policy.json"
+PUBLISH_REQUEST="$REQUESTS/publish.json"
+TAG_OBJECT=$("$PORTFOLIO_PYTHON" -I -B - \
+  "$ASSET_DIR/$TAG-source-identity.json" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1], encoding="utf-8"))["source"]["tag_object"])
+PY
+)
+SOURCE_COMMIT=$("$PORTFOLIO_PYTHON" -I -B - \
+  "$ASSET_DIR/$TAG-source-identity.json" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1], encoding="utf-8"))["source"]["commit"])
+PY
+)
 publication/run_portfolio_python.sh \
-  "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py prepare \
+  "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py prepare-draft \
   --assets "$ASSET_DIR" \
   --ffprobe "$FFPROBE" \
   --output "$CREATE_REQUEST"
@@ -573,13 +679,13 @@ The canonical request has exactly these seven keys and values:
 
 ```json
 {
-  "tag_name": "corelm-portfolio-v12",
+  "tag_name": "corelm-portfolio-v13",
   "target_commitish": "main",
-  "name": "Core LM Portfolio v12 — reproducible real-model KV-cache benchmark",
+  "name": "Core LM Portfolio v13 — reproducible real-model KV-cache benchmark",
   "body": "generated exactly from the signed source identity and SHA256SUMS digest",
-  "draft": false,
+  "draft": true,
   "prerelease": false,
-  "make_latest": "true"
+  "make_latest": "false"
 }
 ```
 
@@ -592,48 +698,128 @@ classification, the pixels-versus-evidence and semantic-privacy boundaries,
 caller-decoder boundary, preservation policy, and the explicit warning that
 policy is not GitHub's `immutable` API value.
 
-After a final tag/ref and CI API recheck, the maintainer may create the release
-with that request and upload the already verified directory. A representative
-operator sequence is:
+After a final tag/ref and CI API recheck, the maintainer performs this exact
+fail-closed sequence. Immediately before create, fetch the authenticated
+immutable-release policy and use `verify-policy` to require exact
+`{"enabled":true}` and bind its snapshot SHA in a separate receipt. Then POST
+the draft request once, save the response, and verify the empty draft before
+uploading any asset:
 
 ```sh
+set -eu
 test -z "$(git status --short)"
 test "$(git rev-parse HEAD)" = "$(git rev-parse "$TAG^{commit}")"
+gh api "repos/ALLPROTO/core-lm-benchmark/immutable-releases" \
+  > "$PRECREATE_IMMUTABLE_POLICY"
+publication/run_portfolio_python.sh \
+  "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py verify-policy \
+  --immutable-policy-json "$PRECREATE_IMMUTABLE_POLICY" \
+  --receipt "$PRECREATE_POLICY_RECEIPT"
 gh api --method POST \
   "repos/ALLPROTO/core-lm-benchmark/releases" \
   --input "$CREATE_REQUEST" \
-  > /absolute/operator-log/release-create-response.json
-gh release upload "$TAG" "$ASSET_DIR"/* \
-  --repo ALLPROTO/core-lm-benchmark
+  > "$CREATE_RESPONSE"
+publication/run_portfolio_python.sh \
+  "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py verify-empty-draft \
+  --assets "$ASSET_DIR" \
+  --ffprobe "$FFPROBE" \
+  --create-response-json "$CREATE_RESPONSE" \
+  --receipt "$EMPTY_DRAFT_RECEIPT"
 ```
 
-Do not use `--clobber`; an existing name is a hard stop. The prepare tool has
-already rejected any extra or missing local asset, but the operator must also
-retain the exact command, response, and exit status. The `make_latest` input is
-the caller-side publication request; `/releases/latest` is checked separately
-after upload rather than inferred from that input.
+`verify-empty-draft` revalidates the signed fourteen-asset input and requires
+the saved response's exact positive release ID, tag, name, body, target,
+`draft:true`, `prerelease:false`, `immutable:false`, `published_at:null`, empty
+asset array, and exact ID-bound upload URL. Any mismatch stops before upload.
+Use that verified draft identity to upload exactly fourteen assets one file at
+a time with no clobber, then save the authoritative authenticated populated-
+draft, tag-ref, tag-object, and commit-object responses. A representative
+operator sequence is:
+
+```sh
+set -eu
+DRAFT_FIELDS=$("$PORTFOLIO_PYTHON" -I -B - "$EMPTY_DRAFT_RECEIPT" <<'PY'
+import json, sys
+value = json.load(open(sys.argv[1], encoding="utf-8"))["github_draft"]
+print(value["id"])
+print(value["upload_url"])
+PY
+)
+RELEASE_ID=$(printf '%s\n' "$DRAFT_FIELDS" | /usr/bin/sed -n '1p')
+UPLOAD_URL=$(printf '%s\n' "$DRAFT_FIELDS" | /usr/bin/sed -n '2p')
+test "$UPLOAD_URL" = \
+  "https://uploads.github.com/repos/ALLPROTO/core-lm-benchmark/releases/$RELEASE_ID/assets{?name,label}"
+for asset in "$ASSET_DIR"/*
+do
+  gh release upload "$TAG" "$asset" \
+    --repo ALLPROTO/core-lm-benchmark
+done
+gh api "repos/ALLPROTO/core-lm-benchmark/releases/$RELEASE_ID" \
+  > "$API_INPUTS/draft-by-id.json"
+gh api "repos/ALLPROTO/core-lm-benchmark/git/ref/tags/$TAG" \
+  > "$API_INPUTS/draft-tag-ref.json"
+gh api "repos/ALLPROTO/core-lm-benchmark/git/tags/$TAG_OBJECT" \
+  > "$API_INPUTS/draft-tag-object.json"
+gh api "repos/ALLPROTO/core-lm-benchmark/git/commits/$SOURCE_COMMIT" \
+  > "$API_INPUTS/draft-commit-object.json"
+gh api "repos/ALLPROTO/core-lm-benchmark/immutable-releases" \
+  > "$PREPUBLISH_IMMUTABLE_POLICY"
+
+publication/run_portfolio_python.sh \
+  "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py verify-draft \
+  --assets "$ASSET_DIR" \
+  --ffprobe "$FFPROBE" \
+  --create-response-json "$CREATE_RESPONSE" \
+  --draft-json "$API_INPUTS/draft-by-id.json" \
+  --tag-ref-json "$API_INPUTS/draft-tag-ref.json" \
+  --tag-object-json "$API_INPUTS/draft-tag-object.json" \
+  --commit-object-json "$API_INPUTS/draft-commit-object.json" \
+  --immutable-policy-json "$PREPUBLISH_IMMUTABLE_POLICY" \
+  --publish-request "$PUBLISH_REQUEST" \
+  --receipt "$POPULATED_DRAFT_RECEIPT"
+
+gh api --method PATCH \
+  "repos/ALLPROTO/core-lm-benchmark/releases/$RELEASE_ID" \
+  --input "$PUBLISH_REQUEST" \
+  > "$API_INPUTS/release-publish-response.json"
+```
+
+`verify-draft` requires the same release ID and upload URL, the exact fourteen
+asset names/sizes/digests, signed source/tag/commit bindings, and an immediate
+authenticated `/repos/ALLPROTO/core-lm-benchmark/immutable-releases` response
+whose exact canonical shape is `{"enabled":true}` with no extra key. It alone emits
+the compact canonical seven-key PATCH body, repeating exact metadata with
+`draft:false`, `prerelease:false`, and `make_latest:"true"`, and prints the
+exact same-ID PATCH endpoint. Do not use `--clobber`. An existing or partial
+name, unexpected count, digest mismatch, missing response, or changed ID is a
+hard stop. Retain every command, response, receipt, and exit status. Never
+delete/recreate, retry a failed stage, retag, or relabel this identity. The
+`make_latest` value is only a request; the logged-out `/releases/latest` view
+is verified independently after publication.
 
 ## Logged-out post-upload verification
 
-Fetch five API views and all fourteen assets without a GitHub token, cookie,
+Fetch six API views and all fourteen assets without a GitHub token, cookie,
 `.netrc`, or curl configuration. Use a new directory and a scrubbed environment;
 the exact commit and tag-object SHA come from the signed source identity:
 
 ```sh
-TAG=corelm-portfolio-v12
-ASSET_DIR=/absolute/corelm-portfolio-v12-assets
+set -eu
+TAG=corelm-portfolio-v13
+ASSET_DIR=/absolute/corelm-portfolio-v13-assets
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
-PUBLIC_AUDIT=/absolute/new-public-audit
-API_SNAPSHOTS="$PUBLIC_AUDIT/api"
-DOWNLOADED="$PUBLIC_AUDIT/assets"
-RECEIPT_DIRECTORY=/absolute/new-public-receipts
-test ! -e "$PUBLIC_AUDIT"
-test ! -e "$RECEIPT_DIRECTORY"
-mkdir -m 700 "$PUBLIC_AUDIT"
-mkdir -m 700 "$API_SNAPSHOTS"
-mkdir -m 700 "$DOWNLOADED"
-mkdir -m 700 "$RECEIPT_DIRECTORY"
+PUBLICATION_ROOT=/absolute/new-corelm-portfolio-v13-publication
+REQUESTS="$PUBLICATION_ROOT/requests"
+API_INPUTS="$PUBLICATION_ROOT/api-inputs"
+RECEIPTS="$PUBLICATION_ROOT/receipts"
+DOWNLOADED="$PUBLICATION_ROOT/downloaded-assets"
+EMPTY_DRAFT_RECEIPT="$RECEIPTS/empty-draft.json"
+POPULATED_DRAFT_RECEIPT="$RECEIPTS/populated-draft.json"
+test -d "$REQUESTS"
+test -d "$API_INPUTS"
+test -d "$RECEIPTS"
+test -d "$DOWNLOADED"
 
 PUBLIC_CURL=(/usr/bin/env -i \
   HOME=/nonexistent LANG=C LC_ALL=C \
@@ -655,22 +841,35 @@ import json, sys
 print(json.load(open(sys.argv[1], encoding="utf-8"))["source"]["commit"])
 PY
 )
+RELEASE_ID=$("$PORTFOLIO_PYTHON" -I -B - \
+  "$EMPTY_DRAFT_RECEIPT" "$POPULATED_DRAFT_RECEIPT" <<'PY'
+import json, sys
+empty = json.load(open(sys.argv[1], encoding="utf-8"))["github_draft"]["id"]
+populated = json.load(open(sys.argv[2], encoding="utf-8"))["github_draft"]["id"]
+if type(empty) is not int or empty <= 0 or populated != empty:
+    raise SystemExit("draft receipt release IDs do not match")
+print(empty)
+PY
+)
 
 "${PUBLIC_CURL[@]}" \
+  "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/releases/$RELEASE_ID" \
+  > "$API_INPUTS/public-release-by-id.json"
+"${PUBLIC_CURL[@]}" \
   "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/releases/tags/$TAG" \
-  > "$API_SNAPSHOTS/release.json"
+  > "$API_INPUTS/public-release-by-tag.json"
 "${PUBLIC_CURL[@]}" \
   "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/releases/latest" \
-  > "$API_SNAPSHOTS/latest.json"
+  > "$API_INPUTS/public-latest.json"
 "${PUBLIC_CURL[@]}" \
   "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/git/ref/tags/$TAG" \
-  > "$API_SNAPSHOTS/tag-ref.json"
+  > "$API_INPUTS/public-tag-ref.json"
 "${PUBLIC_CURL[@]}" \
   "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/git/tags/$TAG_OBJECT" \
-  > "$API_SNAPSHOTS/tag-object.json"
+  > "$API_INPUTS/public-tag-object.json"
 "${PUBLIC_CURL[@]}" \
   "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/git/commits/$SOURCE_COMMIT" \
-  > "$API_SNAPSHOTS/commit-object.json"
+  > "$API_INPUTS/public-commit-object.json"
 
 for name in \
   "REPRODUCE-$TAG.md" \
@@ -703,16 +902,17 @@ and exact first version line written to the receipt; that identity describes
 the invocation and is not a release-signing, GitHub, or CI trust root.
 
 ```sh
-RECEIPT="$RECEIPT_DIRECTORY/corelm-portfolio-v12-github-release-receipt.json"
+RECEIPT="$RECEIPTS/final-public-release.json"
 publication/run_portfolio_python.sh \
   "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py verify \
   --assets "$DOWNLOADED" \
   --ffprobe "$FFPROBE" \
-  --release-json "$API_SNAPSHOTS/release.json" \
-  --latest-json "$API_SNAPSHOTS/latest.json" \
-  --tag-ref-json "$API_SNAPSHOTS/tag-ref.json" \
-  --tag-object-json "$API_SNAPSHOTS/tag-object.json" \
-  --commit-object-json "$API_SNAPSHOTS/commit-object.json" \
+  --release-id-json "$API_INPUTS/public-release-by-id.json" \
+  --release-tag-json "$API_INPUTS/public-release-by-tag.json" \
+  --latest-json "$API_INPUTS/public-latest.json" \
+  --tag-ref-json "$API_INPUTS/public-tag-ref.json" \
+  --tag-object-json "$API_INPUTS/public-tag-object.json" \
+  --commit-object-json "$API_INPUTS/public-commit-object.json" \
   --receipt "$RECEIPT"
 ```
 
@@ -723,28 +923,32 @@ fourteen uploaded names, sizes, download URLs, and a mandatory exact
 `sha256:<local-hash>` API digest for every asset. A missing/null digest fails.
 GitHub's tag `verified` value remains informational; the SSH signature from its
 API payload must independently verify in namespace `git` under the attached
-`allowed_signers`. The receipt records `immutable:true` or `immutable:false`
-exactly as returned. Either boolean may coexist with a metadata-consistency
-PASS; only `GITHUB_API_REPORTED_TRUE` permits the narrower statement that the
-saved API response reported true at that moment. Neither value changes the
-project rule that tags and assets are never moved or replaced.
+`allowed_signers`. All three published release views must report
+`immutable:true`; `immutable:false`, a missing value, or disagreement is a hard
+failure. The receipt records `GITHUB_API_REPORTED_TRUE` only after that exact
+gate. GitHub's value does not change the separate project rule that tags and
+assets are never moved or replaced.
 
 The receipt binds the saved-response hashes but cannot prove that the fetch was
 logged out or that GitHub is still in the same state; those are transport and
-time boundaries. The V12 acceptance contour uses the scrubbed logged-out API
+time boundaries. The V13 acceptance contour uses the scrubbed logged-out API
 fetches and verifier receipt and has no browser inspection or human-review
 gate. A later viewer may inspect the public page, but that observation is not
-an input to V12 acceptance and cannot retroactively close independent-
+an input to V13 acceptance and cannot retroactively close independent-
 replication gate G10. Keep the receipt and API files in the operator/design or
 Zenodo evidence bundle. Do not upload them back into the same fourteen-asset
 release, edit its body after verification, or move its tag; doing so would
 create a self-reference and invalidate the recorded snapshot.
 
-Create request output and receipts must live in new directories disjoint from
-the asset directory and saved-API input directories. The tool rejects an
-output path that is equal to, inside, or an ancestor of any protected input
-directory; this prevents generated output from contaminating a verified input
-set.
+Draft/publish requests, saved API inputs, verification receipts, and downloaded
+assets live in four distinct new directories, all disjoint from the signed
+local asset directory. `set -eu` aborts the operator sequence on the first
+failed one-file `gh release upload`; `--clobber` is never used. The subsequent
+authenticated populated-draft GET and `verify-draft` gate—not an upload CLI
+response—authoritatively bind all fourteen remote names, sizes, and digests.
+The tool rejects an output path that is equal to, inside, or an ancestor of any
+protected input directory; this prevents generated output from contaminating a
+verified input set.
 
 ## Presentation successor after publication
 
@@ -774,7 +978,7 @@ The PNG bytes must equal the released `$TAG-demo-poster.png`. README must
 contain exactly once each of the immutable tagged poster and video download
 URLs; `/releases/latest/download/`, branch/raw links, additional release-media
 URLs, renames, or any third changed path fail. Fetch the public compare and C1
-commit responses logged out, retain the existing five C0 API snapshots, and
+commit responses logged out, retain the existing six C0 API snapshots, and
 run:
 
 The verifier does not trust `files[].sha` from that saved compare response as
@@ -812,22 +1016,22 @@ SUCCESSOR_RECEIPT=/absolute/new-successor-receipts/presentation-successor.json
 
 "${PUBLIC_CURL[@]}" \
   "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/compare/$C0...$C1" \
-  > "$API_SNAPSHOTS/compare-c0-c1.json"
+  > "$API_INPUTS/compare-c0-c1.json"
 "${PUBLIC_CURL[@]}" \
   "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/commits/$C1" \
-  > "$API_SNAPSHOTS/successor-commit.json"
+  > "$API_INPUTS/successor-commit.json"
 
 publication/run_portfolio_python.sh \
   "$PORTFOLIO_PYTHON" verify_portfolio_github_release.py verify-successor \
   --assets "$DOWNLOADED" \
   --ffprobe "$FFPROBE" \
-  --release-json "$API_SNAPSHOTS/release.json" \
-  --latest-json "$API_SNAPSHOTS/latest.json" \
-  --tag-ref-json "$API_SNAPSHOTS/tag-ref.json" \
-  --tag-object-json "$API_SNAPSHOTS/tag-object.json" \
-  --commit-object-json "$API_SNAPSHOTS/commit-object.json" \
-  --compare-json "$API_SNAPSHOTS/compare-c0-c1.json" \
-  --successor-commit-json "$API_SNAPSHOTS/successor-commit.json" \
+  --release-json "$API_INPUTS/public-release-by-tag.json" \
+  --latest-json "$API_INPUTS/public-latest.json" \
+  --tag-ref-json "$API_INPUTS/public-tag-ref.json" \
+  --tag-object-json "$API_INPUTS/public-tag-object.json" \
+  --commit-object-json "$API_INPUTS/public-commit-object.json" \
+  --compare-json "$API_INPUTS/compare-c0-c1.json" \
+  --successor-commit-json "$API_INPUTS/successor-commit.json" \
   --successor-root "$SUCCESSOR_ROOT" \
   --receipt "$SUCCESSOR_RECEIPT"
 ```

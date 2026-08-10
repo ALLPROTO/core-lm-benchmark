@@ -19,14 +19,15 @@ from publication import verify_portfolio_github_release as github_release  # noq
 from security import automated_media  # noqa: E402
 
 
-TAG = "corelm-portfolio-v12"
+TAG = "corelm-portfolio-v13"
+FUTURE_TAG = "corelm-portfolio-v14"
 COMMIT = "1" * 40
 TREE = "2" * 40
 TAG_OBJECT = "3" * 40
 C1_COMMIT = "7" * 40
 C1_TREE = "8" * 40
 EXPECTED_TITLE = (
-    "Core LM Portfolio v12 — reproducible real-model KV-cache benchmark"
+    "Core LM Portfolio v13 — reproducible real-model KV-cache benchmark"
 )
 FAKE_SIGNATURE = (
     "-----BEGIN SSH SIGNATURE-----\n"
@@ -126,9 +127,10 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
         base = Path(temporary)
         assets = base / "assets"
         api_dir = base / "api-inputs"
-        outputs = base / "outputs"
+        receipts = base / "receipts"
+        requests = base / "requests"
         successor = base / "successor"
-        for directory in (assets, api_dir, outputs, successor):
+        for directory in (assets, api_dir, receipts, requests, successor):
             directory.mkdir()
         ffprobe = base / "ffprobe"
         ffprobe.write_text(
@@ -148,6 +150,9 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
         observed_tag, observed_identity, records = github_release._asset_records(assets)
         self.assertEqual(observed_tag, TAG)
         request = github_release.expected_create_request(observed_identity, records)
+        publish_request = github_release.expected_publish_request(
+            observed_identity, records
+        )
         api_assets = [
             {
                 "browser_download_url": (
@@ -164,17 +169,48 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
         ]
         release = {
             "assets": api_assets,
+            "assets_url": (
+                "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/"
+                "releases/901/assets"
+            ),
             "body": request["body"],
             "draft": False,
             "html_url": f"{portfolio.CANONICAL_REPOSITORY}/releases/tag/{TAG}",
             "id": 901,
-            "immutable": False,
+            "immutable": True,
             "name": request["name"],
             "prerelease": False,
             "published_at": "2026-08-10T12:34:56Z",
             "tag_name": TAG,
             "target_commitish": "main",
+            "url": (
+                "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/"
+                "releases/901"
+            ),
         }
+        upload_url = (
+            "https://uploads.github.com/repos/ALLPROTO/core-lm-benchmark/"
+            "releases/901/assets{?name,label}"
+        )
+        create_response = {
+            "assets": [],
+            "assets_url": release["assets_url"],
+            "body": request["body"],
+            "draft": True,
+            "id": 901,
+            "immutable": False,
+            "name": request["name"],
+            "prerelease": False,
+            "published_at": None,
+            "tag_name": TAG,
+            "target_commitish": "main",
+            "upload_url": upload_url,
+            "url": release["url"],
+        }
+        draft = copy.deepcopy(create_response)
+        draft["assets"] = copy.deepcopy(api_assets)
+        release_id = copy.deepcopy(release)
+        release_tag = copy.deepcopy(release)
         latest = copy.deepcopy(release)
         tag_ref = {
             "object": {"sha": TAG_OBJECT, "type": "tag"},
@@ -204,7 +240,13 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             "verification": {"reason": "unsigned", "verified": False},
         }
         values = {
+            "create_response": create_response,
+            "draft": draft,
+            "immutable_policy_precreate": {"enabled": True},
+            "immutable_policy_prepublish": {"enabled": True},
             "release": release,
+            "release_id": release_id,
+            "release_tag": release_tag,
             "latest": latest,
             "tag_ref": tag_ref,
             "tag_object": tag_object,
@@ -221,10 +263,12 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             "base": base,
             "ffprobe": ffprobe,
             "identity": identity,
-            "outputs": outputs,
             "paths": paths,
+            "receipts": receipts,
             "records": records,
+            "publish_request": publish_request,
             "request": request,
+            "requests": requests,
             "successor": successor,
             "values": values,
         }
@@ -269,8 +313,31 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             return github_release.verify_saved_responses(
                 assets=fixture["assets"],
                 ffprobe=fixture["ffprobe"],
-                release_json=paths["release"],
+                release_id_json=paths["release_id"],
+                release_tag_json=paths["release_tag"],
                 latest_json=paths["latest"],
+                tag_ref_json=paths["tag_ref"],
+                tag_object_json=paths["tag_object"],
+                commit_object_json=paths["commit_object"],
+            )
+
+    def _verify_empty_draft(self, fixture):
+        with self._verification_patches():
+            return github_release.verify_empty_draft_response(
+                assets=fixture["assets"],
+                ffprobe=fixture["ffprobe"],
+                create_response_json=fixture["paths"]["create_response"],
+            )
+
+    def _verify_draft(self, fixture):
+        paths = fixture["paths"]
+        with self._verification_patches():
+            return github_release.verify_draft_saved_responses(
+                assets=fixture["assets"],
+                ffprobe=fixture["ffprobe"],
+                create_response_json=paths["create_response"],
+                draft_json=paths["draft"],
+                immutable_policy_json=paths["immutable_policy_prepublish"],
                 tag_ref_json=paths["tag_ref"],
                 tag_object_json=paths["tag_object"],
                 commit_object_json=paths["commit_object"],
@@ -287,8 +354,10 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             str(fixture["assets"]),
             "--ffprobe",
             str(fixture["ffprobe"]),
-            "--release-json",
-            str(paths["release"]),
+            "--release-id-json",
+            str(paths["release_id"]),
+            "--release-tag-json",
+            str(paths["release_tag"]),
             "--latest-json",
             str(paths["latest"]),
             "--tag-ref-json",
@@ -301,6 +370,54 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             str(receipt),
         ]
 
+    def _verify_empty_draft_cli_arguments(self, fixture, receipt):
+        return [
+            "verify-empty-draft",
+            "--assets",
+            str(fixture["assets"]),
+            "--ffprobe",
+            str(fixture["ffprobe"]),
+            "--create-response-json",
+            str(fixture["paths"]["create_response"]),
+            "--receipt",
+            str(receipt),
+        ]
+
+    def _verify_policy_cli_arguments(self, fixture, receipt):
+        return [
+            "verify-policy",
+            "--immutable-policy-json",
+            str(fixture["paths"]["immutable_policy_precreate"]),
+            "--receipt",
+            str(receipt),
+        ]
+
+    def _verify_draft_cli_arguments(self, fixture, publish_request, receipt):
+        paths = fixture["paths"]
+        return [
+            "verify-draft",
+            "--assets",
+            str(fixture["assets"]),
+            "--ffprobe",
+            str(fixture["ffprobe"]),
+            "--create-response-json",
+            str(paths["create_response"]),
+            "--draft-json",
+            str(paths["draft"]),
+            "--immutable-policy-json",
+            str(paths["immutable_policy_prepublish"]),
+            "--tag-ref-json",
+            str(paths["tag_ref"]),
+            "--tag-object-json",
+            str(paths["tag_object"]),
+            "--commit-object-json",
+            str(paths["commit_object"]),
+            "--publish-request",
+            str(publish_request),
+            "--receipt",
+            str(receipt),
+        ]
+
     def test_exact_title_and_request_contract(self):
         with tempfile.TemporaryDirectory() as temporary:
             fixture = self._fixture(temporary)
@@ -308,11 +425,286 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             self.assertEqual(request["name"], EXPECTED_TITLE)
             self.assertEqual(request["tag_name"], TAG)
             self.assertEqual(request["target_commitish"], "main")
-            self.assertEqual(request["make_latest"], "true")
-            self.assertIs(request["draft"], False)
+            self.assertEqual(request["make_latest"], "false")
+            self.assertIs(request["draft"], True)
             self.assertIs(request["prerelease"], False)
             self.assertIn(EXPECTED_TITLE, request["body"])
             self.assertIn("NOT_A_BLIND_OR_GENERALIZATION_RESULT", request["body"])
+            publish = fixture["publish_request"]
+            self.assertEqual(set(publish), set(request))
+            self.assertEqual(publish["name"], EXPECTED_TITLE)
+            self.assertEqual(publish["tag_name"], TAG)
+            self.assertEqual(publish["target_commitish"], "main")
+            self.assertEqual(publish["make_latest"], "true")
+            self.assertIs(publish["draft"], False)
+            self.assertIs(publish["prerelease"], False)
+            self.assertEqual(publish["body"], request["body"])
+
+    def test_precreate_policy_requires_exact_enabled_response(self):
+        cases = {
+            "false": {"enabled": False},
+            "missing": {},
+            "extra": {"enabled": True, "unexpected": True},
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(temporary)
+            receipt = github_release.verify_immutable_policy_response(
+                immutable_policy_json=fixture["paths"]["immutable_policy_precreate"]
+            )
+            self.assertEqual(
+                receipt["status"], "PRECREATE_IMMUTABLE_POLICY_BOUNDARY_PASS"
+            )
+            self.assertEqual(
+                receipt["api_snapshot"]["kind"], "immutable_policy_precreate"
+            )
+            self.assertEqual(
+                receipt["api_snapshot"]["sha256"],
+                hashlib.sha256(
+                    fixture["paths"]["immutable_policy_precreate"].read_bytes()
+                ).hexdigest(),
+            )
+            self.assertNotEqual(
+                fixture["paths"]["immutable_policy_precreate"],
+                fixture["paths"]["immutable_policy_prepublish"],
+            )
+        for case, value in cases.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary)
+                self._replace_json(
+                    fixture["paths"]["immutable_policy_precreate"], value
+                )
+                with self.assertRaisesRegex(
+                    portfolio.PortfolioReleaseError,
+                    "immutable-releases policy response",
+                ):
+                    github_release.verify_immutable_policy_response(
+                        immutable_policy_json=(
+                            fixture["paths"]["immutable_policy_precreate"]
+                        )
+                    )
+
+    def test_empty_and_populated_draft_boundaries_pass_exact_same_id(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(temporary)
+            empty = self._verify_empty_draft(fixture)
+            self.assertEqual(empty["status"], "EMPTY_DRAFT_UPLOAD_BOUNDARY_PASS")
+            self.assertEqual(empty["github_draft"]["asset_count"], 0)
+            self.assertEqual(empty["github_draft"]["id"], 901)
+            self.assertIs(empty["github_draft"]["immutable"], False)
+            self.assertEqual(
+                empty["github_draft"]["upload_url"],
+                fixture["values"]["create_response"]["upload_url"],
+            )
+
+            populated = self._verify_draft(fixture)
+            self.assertEqual(
+                populated["status"], "POPULATED_DRAFT_PUBLISH_BOUNDARY_PASS"
+            )
+            self.assertEqual(populated["github_draft"]["asset_count"], 14)
+            self.assertEqual(populated["github_draft"]["id"], 901)
+            self.assertIs(populated["github_draft"]["immutable"], False)
+            self.assertEqual(
+                populated["publish_endpoint"],
+                "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/releases/901",
+            )
+            self.assertEqual(populated["publish_request"], fixture["publish_request"])
+            self.assertEqual(
+                populated["github_immutable_releases_policy"],
+                {
+                    "enabled": True,
+                    "endpoint": github_release.IMMUTABLE_RELEASES_ENDPOINT,
+                },
+            )
+            self.assertIn(
+                "immutable_policy_prepublish",
+                {item["kind"] for item in populated["api_snapshots"]},
+            )
+
+    def test_empty_draft_rejects_nonempty_or_inexact_create_response(self):
+        cases = (
+            "asset",
+            "body",
+            "draft",
+            "id",
+            "immutable",
+            "published",
+            "tag",
+            "target",
+            "upload_url",
+            "url",
+            "assets_url",
+        )
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary)
+                value = fixture["values"]["create_response"]
+                if case == "asset":
+                    value["assets"] = [copy.deepcopy(fixture["values"]["draft"]["assets"][0])]
+                elif case == "body":
+                    value["body"] = "edited"
+                elif case == "draft":
+                    value["draft"] = False
+                elif case == "id":
+                    value["id"] = 0
+                elif case == "immutable":
+                    value["immutable"] = True
+                elif case == "published":
+                    value["published_at"] = "2026-08-10T12:34:56Z"
+                elif case == "tag":
+                    value["tag_name"] = FUTURE_TAG
+                elif case == "target":
+                    value["target_commitish"] = COMMIT
+                elif case == "upload_url":
+                    value["upload_url"] += "-wrong"
+                elif case == "url":
+                    value["url"] += "-wrong"
+                else:
+                    value["assets_url"] += "-wrong"
+                self._replace_json(fixture["paths"]["create_response"], value)
+                with self.assertRaises(portfolio.PortfolioReleaseError):
+                    self._verify_empty_draft(fixture)
+
+    def test_populated_draft_rejects_asset_set_and_identity_mismatches(self):
+        cases = (
+            "zero-assets",
+            "thirteen-assets",
+            "extra-asset",
+            "digest",
+            "release-id",
+            "tag",
+            "body",
+            "draft",
+            "immutable",
+            "asset-id-zero",
+            "asset-id-duplicate",
+            "url",
+            "assets-url",
+        )
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary)
+                value = fixture["values"]["draft"]
+                if case == "zero-assets":
+                    value["assets"] = []
+                elif case == "thirteen-assets":
+                    value["assets"] = value["assets"][:-1]
+                elif case == "extra-asset":
+                    extra = copy.deepcopy(value["assets"][0])
+                    extra["id"] = 99
+                    extra["name"] = "unexpected"
+                    value["assets"].append(extra)
+                elif case == "digest":
+                    value["assets"][0]["digest"] = "sha256:" + "0" * 64
+                elif case == "release-id":
+                    value["id"] = 902
+                elif case == "tag":
+                    value["tag_name"] = FUTURE_TAG
+                elif case == "body":
+                    value["body"] = "edited"
+                elif case == "draft":
+                    value["draft"] = False
+                elif case == "immutable":
+                    value["immutable"] = True
+                elif case == "asset-id-zero":
+                    value["assets"][0]["id"] = 0
+                elif case == "asset-id-duplicate":
+                    value["assets"][1]["id"] = value["assets"][0]["id"]
+                elif case == "url":
+                    value["url"] += "-wrong"
+                else:
+                    value["assets_url"] += "-wrong"
+                self._replace_json(fixture["paths"]["draft"], value)
+                with self.assertRaises(portfolio.PortfolioReleaseError):
+                    self._verify_draft(fixture)
+
+    def test_publish_patch_request_rejects_every_nonexact_variant(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(temporary)
+            cases = {
+                "draft": lambda value: value.__setitem__("draft", True),
+                "latest": lambda value: value.__setitem__("make_latest", "false"),
+                "tag": lambda value: value.__setitem__("tag_name", FUTURE_TAG),
+                "body": lambda value: value.__setitem__("body", "edited"),
+                "missing": lambda value: value.pop("target_commitish"),
+                "extra": lambda value: value.__setitem__("release_id", 901),
+            }
+            for case, mutate in cases.items():
+                with self.subTest(case=case):
+                    value = copy.deepcopy(fixture["publish_request"])
+                    mutate(value)
+                    with self.assertRaisesRegex(
+                        portfolio.PortfolioReleaseError,
+                        "publish PATCH request is not exact",
+                    ):
+                        github_release._validate_publish_request(
+                            value,
+                            identity=fixture["identity"],
+                            records=fixture["records"],
+                        )
+
+    def test_populated_draft_requires_exact_enabled_immutable_policy(self):
+        cases = {
+            "false": {"enabled": False},
+            "missing": {},
+            "extra": {"enabled": True, "unexpected": True},
+        }
+        for case, value in cases.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary)
+                self._replace_json(
+                    fixture["paths"]["immutable_policy_prepublish"], value
+                )
+                with self.assertRaisesRegex(
+                    portfolio.PortfolioReleaseError,
+                    "immutable-releases policy response",
+                ):
+                    self._verify_draft(fixture)
+
+    def test_draft_gates_require_artifact_and_tag_signature_boundaries(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(temporary)
+            with self._verification_patches(artifact={"status": "FAIL"}):
+                with self.assertRaisesRegex(
+                    portfolio.PortfolioReleaseError, "offline signed-artifact"
+                ):
+                    github_release.verify_empty_draft_response(
+                        assets=fixture["assets"],
+                        ffprobe=fixture["ffprobe"],
+                        create_response_json=fixture["paths"]["create_response"],
+                    )
+                with self.assertRaisesRegex(
+                    portfolio.PortfolioReleaseError, "offline signed-artifact"
+                ):
+                    github_release.verify_draft_saved_responses(
+                        assets=fixture["assets"],
+                        ffprobe=fixture["ffprobe"],
+                        create_response_json=fixture["paths"]["create_response"],
+                        draft_json=fixture["paths"]["draft"],
+                        immutable_policy_json=(
+                            fixture["paths"]["immutable_policy_prepublish"]
+                        ),
+                        tag_ref_json=fixture["paths"]["tag_ref"],
+                        tag_object_json=fixture["paths"]["tag_object"],
+                        commit_object_json=fixture["paths"]["commit_object"],
+                    )
+
+            fixture["values"]["tag_ref"]["object"]["sha"] = "0" * 40
+            self._replace_json(
+                fixture["paths"]["tag_ref"], fixture["values"]["tag_ref"]
+            )
+            publish_path = fixture["requests"] / "must-not-exist.json"
+            receipt_path = fixture["receipts"] / "must-not-exist.json"
+            with self._verification_patches():
+                self.assertEqual(
+                    github_release.main(
+                        self._verify_draft_cli_arguments(
+                            fixture, publish_path, receipt_path
+                        )
+                    ),
+                    2,
+                )
+            self.assertFalse(publish_path.exists())
+            self.assertFalse(receipt_path.exists())
 
     def test_full_artifact_verifier_runs_on_private_snapshot_before_pass(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -341,7 +733,8 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
                 receipt = github_release.verify_saved_responses(
                     assets=fixture["assets"],
                     ffprobe=fixture["ffprobe"],
-                    release_json=fixture["paths"]["release"],
+                    release_id_json=fixture["paths"]["release_id"],
+                    release_tag_json=fixture["paths"]["release_tag"],
                     latest_json=fixture["paths"]["latest"],
                     tag_ref_json=fixture["paths"]["tag_ref"],
                     tag_object_json=fixture["paths"]["tag_object"],
@@ -377,7 +770,8 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
                     github_release.verify_saved_responses(
                         assets=fixture["assets"],
                         ffprobe=fixture["ffprobe"],
-                        release_json=fixture["paths"]["release"],
+                        release_id_json=fixture["paths"]["release_id"],
+                        release_tag_json=fixture["paths"]["release_tag"],
                         latest_json=fixture["paths"]["latest"],
                         tag_ref_json=fixture["paths"]["tag_ref"],
                         tag_object_json=fixture["paths"]["tag_object"],
@@ -408,9 +802,9 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
         for replacement in (None, ""):
             with self.subTest(replacement=replacement), tempfile.TemporaryDirectory() as temporary:
                 fixture = self._fixture(temporary)
-                fixture["values"]["release"]["assets"][0]["digest"] = replacement
+                fixture["values"]["release_id"]["assets"][0]["digest"] = replacement
                 self._replace_json(
-                    fixture["paths"]["release"], fixture["values"]["release"]
+                    fixture["paths"]["release_id"], fixture["values"]["release_id"]
                 )
                 with self.assertRaisesRegex(
                     portfolio.PortfolioReleaseError, "asset digest differs"
@@ -460,17 +854,53 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             ):
                 self._verify(fixture)
 
-    def test_receipt_has_five_bound_api_snapshots(self):
+    def test_receipt_has_six_bound_api_snapshots(self):
         with tempfile.TemporaryDirectory() as temporary:
             fixture = self._fixture(temporary)
             receipt = self._verify(fixture)
             self.assertEqual(
                 {item["kind"] for item in receipt["api_snapshots"]},
-                {"release", "latest", "tag_ref", "tag_object", "commit_object"},
+                {
+                    "release_id",
+                    "release_tag",
+                    "latest",
+                    "tag_ref",
+                    "tag_object",
+                    "commit_object",
+                },
             )
             self.assertEqual(receipt["source"]["commit"], COMMIT)
             self.assertEqual(receipt["source"]["tree"], TREE)
             self.assertEqual(receipt["schema_version"], 2)
+
+    def test_final_release_requires_three_equal_immutable_views_and_asset_ids(self):
+        cases = (
+            "id",
+            "immutable",
+            "url",
+            "assets-url",
+            "asset-id-duplicate",
+            "asset-id-different",
+        )
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary)
+                value = fixture["values"]["release_tag"]
+                if case == "id":
+                    value["id"] = 902
+                elif case == "immutable":
+                    value["immutable"] = False
+                elif case == "url":
+                    value["url"] += "-wrong"
+                elif case == "assets-url":
+                    value["assets_url"] += "-wrong"
+                elif case == "asset-id-duplicate":
+                    value["assets"][1]["id"] = value["assets"][0]["id"]
+                else:
+                    value["assets"][0]["id"] = 99
+                self._replace_json(fixture["paths"]["release_tag"], value)
+                with self.assertRaises(portfolio.PortfolioReleaseError):
+                    self._verify(fixture)
 
     def test_output_and_receipt_cannot_overlap_inputs(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -479,7 +909,7 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             self.assertEqual(
                 github_release.main(
                     [
-                        "prepare",
+                        "prepare-draft",
                         "--assets",
                         str(fixture["assets"]),
                         "--ffprobe",
@@ -497,17 +927,64 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             )
             self.assertFalse(inside_assets.exists())
             self.assertFalse(inside_api.exists())
+            inside_policy_api = fixture["api_dir"] / "policy-receipt.json"
+            self.assertEqual(
+                github_release.main(
+                    self._verify_policy_cli_arguments(fixture, inside_policy_api)
+                ),
+                2,
+            )
+            self.assertFalse(inside_policy_api.exists())
+            inside_draft_api = fixture["api_dir"] / "publish.json"
+            outside_receipt = fixture["receipts"] / "populated.json"
+            self.assertEqual(
+                github_release.main(
+                    self._verify_draft_cli_arguments(
+                        fixture, inside_draft_api, outside_receipt
+                    )
+                ),
+                2,
+            )
+            self.assertFalse(inside_draft_api.exists())
+            self.assertFalse(outside_receipt.exists())
+
+            same_parent_publish = fixture["requests"] / "publish.json"
+            same_parent_receipt = fixture["requests"] / "populated-receipt.json"
+            self.assertEqual(
+                github_release.main(
+                    self._verify_draft_cli_arguments(
+                        fixture, same_parent_publish, same_parent_receipt
+                    )
+                ),
+                2,
+            )
+            self.assertFalse(same_parent_publish.exists())
+            self.assertFalse(same_parent_receipt.exists())
 
     def test_valid_cli_outputs_are_canonical_and_nonoverwriting(self):
         with tempfile.TemporaryDirectory() as temporary:
             fixture = self._fixture(temporary)
-            request_path = fixture["outputs"] / "request.json"
-            receipt_path = fixture["outputs"] / "receipt.json"
+            request_path = fixture["requests"] / "request.json"
+            policy_receipt_path = fixture["receipts"] / "policy-receipt.json"
+            empty_receipt_path = fixture["receipts"] / "empty-draft-receipt.json"
+            publish_path = fixture["requests"] / "publish.json"
+            populated_receipt_path = (
+                fixture["receipts"] / "populated-draft-receipt.json"
+            )
+            receipt_path = fixture["receipts"] / "receipt.json"
             with self._verification_patches():
                 self.assertEqual(
                     github_release.main(
+                        self._verify_policy_cli_arguments(
+                            fixture, policy_receipt_path
+                        )
+                    ),
+                    0,
+                )
+                self.assertEqual(
+                    github_release.main(
                         [
-                            "prepare",
+                            "prepare-draft",
                             "--assets",
                             str(fixture["assets"]),
                             "--ffprobe",
@@ -520,20 +997,97 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     github_release.main(
+                        self._verify_empty_draft_cli_arguments(
+                            fixture, empty_receipt_path
+                        )
+                    ),
+                    0,
+                )
+                self.assertEqual(
+                    github_release.main(
+                        self._verify_draft_cli_arguments(
+                            fixture, publish_path, populated_receipt_path
+                        )
+                    ),
+                    0,
+                )
+                self.assertEqual(
+                    github_release.main(
                         self._verify_cli_arguments(fixture, receipt_path)
                     ),
                     0,
                 )
             self.assertEqual(request_path.read_bytes(), _canonical(fixture["request"]))
+            policy_receipt = json.loads(
+                policy_receipt_path.read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                policy_receipt_path.read_bytes(), _canonical(policy_receipt)
+            )
+            empty_receipt = json.loads(
+                empty_receipt_path.read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                empty_receipt_path.read_bytes(), _canonical(empty_receipt)
+            )
+            self.assertEqual(
+                empty_receipt["status"], "EMPTY_DRAFT_UPLOAD_BOUNDARY_PASS"
+            )
+            self.assertEqual(
+                publish_path.read_bytes(), _canonical(fixture["publish_request"])
+            )
+            populated_receipt = json.loads(
+                populated_receipt_path.read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                populated_receipt_path.read_bytes(), _canonical(populated_receipt)
+            )
+            self.assertEqual(
+                populated_receipt["status"],
+                "POPULATED_DRAFT_PUBLISH_BOUNDARY_PASS",
+            )
+            self.assertEqual(
+                policy_receipt["api_snapshot"]["kind"],
+                "immutable_policy_precreate",
+            )
+            self.assertIn(
+                "immutable_policy_prepublish",
+                {
+                    item["kind"]
+                    for item in populated_receipt["api_snapshots"]
+                },
+            )
+            self.assertNotEqual(policy_receipt_path, populated_receipt_path)
             parsed = json.loads(receipt_path.read_text(encoding="utf-8"))
             self.assertEqual(receipt_path.read_bytes(), _canonical(parsed))
             with self._verification_patches():
                 self.assertEqual(
                     github_release.main(
-                        self._verify_cli_arguments(fixture, receipt_path)
+                        self._verify_draft_cli_arguments(
+                            fixture, publish_path, populated_receipt_path
+                        )
                     ),
                     2,
                 )
+
+    def test_populated_draft_pair_output_failure_removes_new_peer(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(temporary)
+            publish_path = fixture["requests"] / "publish.json"
+            receipt_path = fixture["receipts"] / "already-exists.json"
+            existing = b"operator-owned receipt\n"
+            receipt_path.write_bytes(existing)
+            with self._verification_patches():
+                self.assertEqual(
+                    github_release.main(
+                        self._verify_draft_cli_arguments(
+                            fixture, publish_path, receipt_path
+                        )
+                    ),
+                    2,
+                )
+            self.assertFalse(publish_path.exists())
+            self.assertEqual(receipt_path.read_bytes(), existing)
 
     def test_local_ssh_git_signature_passes_when_api_says_false(self):
         with tempfile.TemporaryDirectory() as temporary:

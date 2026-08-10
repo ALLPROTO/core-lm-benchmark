@@ -20,7 +20,7 @@ documentation.
 | Beacon freeze tag | `corelm-beacon-heldout-v1` | Public pre-reveal protocol anchor |
 | Beacon artifacts | `corelm-beacon-attempt-v1`, `corelm-beacon-resolution-v1`, `corelm-beacon-outcome-v1` | Irreversible state and result compatibility |
 | Publication tag | `voidtoken-v5-paper-v5` | Immutable archive provenance |
-| Portfolio software tag | `corelm-portfolio-v12` | Automation-only engineering release identity; signing and public status are verified separately |
+| Portfolio software tag | `corelm-portfolio-v13` | Automation-only engineering release identity; signing and public status are verified separately |
 | Automated presentation contract | `corelm-automated-presentation-v2` | Deterministic post-proof explanatory and exact-result capture, assembly, and validation with no required human acceptance step |
 | Portfolio media classification | `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE` | Author-controlled presentation bytes; scientific evidence remains the receipt, result, retained containers, and replay reports |
 | Bundle metadata | `CFBundleShortVersionString`, `CFBundleVersion` | macOS identity and receipt field |
@@ -34,7 +34,7 @@ The upstream model identifier `Qwen/Qwen2.5-0.5B` must also remain visible. It
 identifies the exact model family being measured and is not application
 branding.
 
-The V12 automation contour does not close independent-replication gate G10.
+The V13 automation contour does not close independent-replication gate G10.
 That gate remains **OPEN** until a non-author, non-agent person completes and
 publishes the specified clean-clone replication. Automated capture and
 verification remove a required human acceptance step from media production;
@@ -213,11 +213,90 @@ were byte-distinct but had exact decoded framemd5
 `7270ca303e891bdd6aaac18a50a518209c7365f794869bb5a974cc5e111f784d`
 and PTS identity; only packet-zero type-6 `user_data_unregistered` SEI differed.
 Cleanup left inputs/assets/evidence/release absent. Never rerun, move, reuse, or
-relabel V11 proof/tag/final media. V12 retains final byte/report binding and
-byte-exact poster replay. Its replay parser requires a strict per-frame SHA-256
-framemd5 manifest together with exact frame count and PTS SHA-256; MD5 and
-malformed manifests are rejected. Contract and schema/state/report version stay
-v2. V12 requires its own signed identity, tag, first-attempt CI, and sole proof.
+relabel V11 proof/tag/final media.
+
+The signed `corelm-portfolio-v12` identity is frozen at source commit
+`6e49fc14244230227ed08820cdd295c28bf0e7ca`, tree
+`9c6c4e5cf050d3a882faeaf8dfc55e7b94c70ee6`, and annotated tag object
+`f6166661047cb753e3a63230311fdd69bf357b80`. First tag CI Linux run
+`31379694116` and macOS run `31379694145` passed on attempt 1. The first local
+V12 runner invocation failed at tag-CI admission strictly before
+`AttemptLog.reserve`; durable attempt state/session remained absent and no
+proof or model attempt was consumed. Exactly one later V12 attempt was
+consumed, UUID `c42fdea1-d0d5-49b9-aed3-f44e0549c061`, as its sole proof/model
+invocation.
+
+That sole run completed `END-TO-END PROOF PASS` and 1,024/1,024 heavy-replay
+decisions at `2.0523837550538349x`, delta NLL
+`-8.4598101111055257e-06`, and top-1 `0.9951171875`, with zero maximum
+baseline/candidate loss error. Its proof receipt is
+`014485f16de4f6ca2d7fd9f9b8472a6ee58fcd7338fee6953b91f272d1cad93a`, result
+`12ab1cbdd6a18b3dc0245d17c52eb2ebe925ebebfbef156d198f1c210afb3f44`, and app
+executable
+`76d0f757faacbd92a20eda265a363ebcb7d5bf1f633951c4f46ab2922b5e50a4`. The
+exact state order is `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL →
+REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY →
+POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED →
+MEDIA_SEALED_FOR_COLLECTION`; state, automation-receipt, and readiness SHA-256
+values are respectively
+`3aec174dfbc1f40a5176cf8b021346dc9045baad6450812ea1858b1fd6a02f9c`,
+`cc59a374376c2562d0c76db10ebf055671033fbcf88ea5043efb171d34537d50`, and
+`4346bf3a8a9037481d6a99ef27180f81f6bad6b836e44b82a7bf8f68b543933e`.
+
+Raw preflight, post-proof, and same-run MOV identities are
+`70fc0f97b3a4e0317667728deaa23e4758390c93617d9185caa534bf28a41654`
+(57 frames),
+`268013e6ac671b85ebac2d39fe9dce3b52d96f81378b8512c0a347560e633538`
+(681 frames), and
+`2d3f0c00d2e7122b2d5b02c99e45be7e94e7332a588caf488df9266501446a40`
+(1,024 frames). Final video/poster SHA-256 values are
+`526130332ee358c52980cc339530ad1e67dc2e2e144d0b26779ae1b582f80dea` and
+`f4217d69b4b715e61e4f2e5c3fca937a61117dbb1daf26a0f3b919da3a450a4f`; exact
+strict per-frame SHA-256 framemd5 and PTS identities are
+`a311d0b25102d5eb1ce00e56ba98976f95071653e9ef97661ca43ae056244c04` and
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`.
+Collector and builder passed, retaining evidence
+`96f940fed8d0470dae697133a8f191322a590798de4fd78bfa6b7a8980c2ddde`, provenance
+`1e648042f78433a7c952dd266d3e07480ce0a2a966eab346c21897e47f82b469`, runtime
+`accb52ae54b4e5ec279cc3c9456de0fdd1a665750c4e495e559d10c6e5915216`, and
+exactly fourteen signed local assets with `SHA256SUMS`
+`bdf6c6d6e961b863d4b38df866e3b673cae5476cea6196df0f3875535bbae919`.
+
+Canonical create request
+`479d7547b455adecaf8fa42ec47e04581994f13096346b82f40429b3fa5b2e5f`
+required `draft:false`, `prerelease:false`, and `make_latest:"true"`. Its
+one POST created release ID `367936819`, published
+`2026-08-10T13:33:30Z`; response
+`c337cb166b44d567937d88bfebeaedb2dadaf18e5b5d1ab4a4a0a9492ae9305c`
+already reported the exact title/body/target, `immutable:true`, and `assets:[]`.
+A separate authenticated `/releases/latest` GET then returned the same ID
+`367936819`. The first upload, `REPRODUCE-corelm-portfolio-v12.md`, received
+exact `HTTP 422: Cannot upload assets to an immutable release.` Failure record
+`dc1cb5436e87816a357c8cb88c3a8a590bcfdf2861af2df4fdc0dfeb2b85c5ce`
+binds that boundary. There was no partial upload, retry, deletion, metadata
+edit, retag, rerun, reuse, or relabel. The fourteen local assets remain
+retained; the V12 GitHub Release contract is a terminal FAIL and the public
+V12 release remains empty and immutable.
+No conforming fourteen-asset GitHub release receipt was produced.
+
+V13 is the distinct corrected identity. It keeps presentation contract and
+schema/state/report version v2. Its media gate retains the exact frame count,
+PTS identity, and strict per-frame SHA-256 framemd5 manifest; MD5 and malformed
+manifests are rejected. It uses a fail-closed staged publication:
+`prepare-draft` emits the exact draft request; authenticated `verify-policy`
+binds an exact precreate `{"enabled":true}` immutable-release policy snapshot;
+POST runs once and its response
+is saved; `verify-empty-draft` requires the exact positive ID, tag, name, body,
+target, `draft:true`, `prerelease:false`, `immutable:false`,
+`published_at:null`, empty assets, and exact upload URL; exactly fourteen
+assets upload with no clobber; authenticated `verify-draft` requires the same
+ID, exact fourteen names/digests, and a fresh exact prepublish
+`{"enabled":true}` policy snapshot; its exact seven-field request PATCHes that
+same ID to `draft:false`, `prerelease:false`, and `make_latest:"true"`; then
+logged-out final verification binds by-ID, by-tag, latest, and all downloads.
+Any mismatch or partial operation stops; there is no delete/recreate, retry,
+retag, or V12 relabel. V13 requires its own signed tag, first-attempt CI, and
+sole proof.
 
 ## User-facing rule
 
