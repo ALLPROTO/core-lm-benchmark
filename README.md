@@ -1,5 +1,15 @@
 # Core LM Benchmark
 
+<!-- corelm-portfolio-presentation-v1:start -->
+## Verified real-model demo
+
+![Core LM benchmark result](https://github.com/ALLPROTO/core-lm-benchmark/releases/download/corelm-portfolio-v15/corelm-portfolio-v15-demo-poster.png)
+
+[Watch the complete demo video](https://github.com/ALLPROTO/core-lm-benchmark/releases/download/corelm-portfolio-v15/corelm-portfolio-v15-demo.mp4)
+
+This presentation was recorded from SSH-signed release source [`d3782b887cc07bee8074cccab79981c6d21767c6`](https://github.com/ALLPROTO/core-lm-benchmark/commit/d3782b887cc07bee8074cccab79981c6d21767c6) at annotated tag [`corelm-portfolio-v15`](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-portfolio-v15). It is an `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION` on pinned public data, classified as `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. Signed result and evidence files—not the pixels—support the metrics. Automated checks found no configured violation; semantic pixel privacy and independent review are not claimed. This presentation-only successor does not alter the released source or evidence and is **not** a blind/generalization result, model-weight-compression result, or independent human replication.
+<!-- corelm-portfolio-presentation-v1:end -->
+
 [![Linux](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-linux.yml/badge.svg)](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-linux.yml)
 [![macOS](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-macos.yml/badge.svg)](https://github.com/ALLPROTO/core-lm-benchmark/actions/workflows/verify-macos.yml)
 
