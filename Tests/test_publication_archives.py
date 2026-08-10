@@ -36,7 +36,7 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
-    def test_current_portfolio_schemas_pin_automation_only_v14_identity(self):
+    def test_current_portfolio_schemas_pin_automation_only_v15_identity(self):
         release_input = json.loads(
             (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
                 encoding="utf-8"
@@ -168,7 +168,7 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v14")
+        self.assertEqual(release_tag, "corelm-portfolio-v15")
         self.assertRegex(citation, r"(?m)^date-released: 2026-08-10$")
 
         for relative in (
@@ -233,7 +233,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v5", text)
-                self.assertIn("corelm-portfolio-v14", text)
+                self.assertIn("corelm-portfolio-v15", text)
                 self.assertIn("HTTP 403", normalized)
                 self.assertIn("AttemptLog.reserve", text)
                 self.assertRegex(normalized, r"(?:signed 32-bit|above `2\^31`)")
@@ -259,7 +259,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v6", text)
-                self.assertIn("corelm-portfolio-v14", text)
+                self.assertIn("corelm-portfolio-v15", text)
                 self.assertIn("first-attempt tag CI", normalized)
                 self.assertIn("2.052384x", normalized)
                 self.assertIn("-0.00000846", normalized)
@@ -275,7 +275,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("collection", normalized)
                 self.assertIn("never", normalized.lower())
 
-    def test_v7_through_v13_history_and_v14_fix_are_preserved(self):
+    def test_v7_through_v14_history_and_v15_fix_are_preserved(self):
         historical_documents = (
             "docs/DEMO.md",
             "docs/ENGINEERING_CASE_STUDY.md",
@@ -531,7 +531,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("poster", normalized)
                 self.assertIn("V12", normalized)
                 self.assertIn("corelm-portfolio-v13", text)
-                self.assertIn("corelm-portfolio-v14", text)
+                self.assertIn("corelm-portfolio-v15", text)
                 for identity in (
                     "6e49fc14244230227ed08820cdd295c28bf0e7ca",
                     "9c6c4e5cf050d3a882faeaf8dfc55e7b94c70ee6",
@@ -590,6 +590,88 @@ class PublicationArchiveTests(unittest.TestCase):
                 ):
                     self.assertIn(exact_fact, normalized)
                 self.assertNotIn("seven-stage", normalized)
+                self.assertIn(
+                    "ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL → "
+                    "REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY → "
+                    "POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → "
+                    "RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION",
+                    normalized,
+                )
+                self.assertIn("corelm-portfolio-v14", text)
+                for identity in (
+                    "3d3273674d854a825636ec49ddc18be04cb82b05",
+                    "df363235a8945838a3f1aadd936df78498e471c8",
+                    "7b92d0cd5852a2f75fa72d664965a7b51b9c6217",
+                    "31408473142",
+                    "31408473015",
+                    "2b098099-1588-438e-922c-b88eae2b1803",
+                    "a74fe758ea8de046dd14cc492669e7b096e0d0619c8e0ec5042f208944e8f315",
+                    "3605fefa0916a0d5e88d537f3138c7e28fa69dbd21cf7521d63d86f5f9d7429a",
+                    "be274ee658294f6b24d660ddfe879abb6865ba67d2de4fa84994af412750ff53",
+                    "ac342977affbde1bb0c2d7ef1cb206799d44d6582f3faa2c3e3622948fcfa58c",
+                    "cdf5c0ba4b5f6a09bea66045dd6dfa2fb56fb1af758206cbae350da817b4c25e",
+                    "d110fc2d9fb23407043a6f9ca382a50646002789e4e3531d6e8f7b2cd580595c",
+                    "5aeffe89b450dfe47e46a017487909a11fc160f25146b1db335a5b004b1bdd75",
+                    "1cd8880d169f6897c9a199b899b5140ba3a95a61c009ced1728dc3fcdc6c8405",
+                    "4ad3d8fc5471289cb96354c41c26efc3529267e7b672b544d46fac447c8fd184",
+                    "db790f6518a9fea5533dff1744d5889f7bad0b332dba3080014f32ebe3164618",
+                    "b84fee40f7093b7a062d36ec332ff1a4bb0461e1cea4675c12c9e1f1a626ebb1",
+                    "6a21df99c238d365a88d0aede78c3b3daeb79d6e277cc90e69179d56938cd23d",
+                    "9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153",
+                    "37703b9e727ff4568cd3504aa49ef9e0bac6abeb2668372dab7d4deb6751a33c",
+                    "05232ae09a61976a701acd685fa1321bb5cb38d14bf30474812928185705bd67",
+                    "3870bd9d1cf64f9123994e2e205a393c5b92c0e7639694d8ada646a8dbc9d1a0",
+                    "1fb631d76c0057a7ad5144f061ecd8408b7a4d9764ee8e99a761c6396ed9b4c6",
+                    "8c505e0e6e1ed0f727c75d9602054b060158b6fcc8c3fe1462b17bf3ff7de89c",
+                    "a5955010e5002d466677d2b4e495c9d4c157edfdbd495dc364dfcf511838d0e9",
+                    "83fd1800d6bacb3d2882df73ff499c78827f90ad1d51b19cccdc7eb03fb2d036",
+                    "f4b2b8919d556de186d7b4afe009126b30c99e3edefb005e4e56ab17069b52dd",
+                    "f306618afaf01d1becc80c42a9a327d6465b1bdaef1ce68bd59df638051bd781",
+                    "368090960",
+                    "5e9db42406e4b4a4d95a741270544c696874a11071c8bdcaf8f8d7639b97a68c",
+                    "fc1df0643d987e86aa695fa3f84daf531d63d9588189d91e3f22aacb7f7bd010",
+                    "be3b0937acdf0515f0ad97743f62bf3d468257dbca7c6beaea3b1f578273f2a0",
+                    "b403017080419bc7e3613df4027312928a7de6e9cadf4be1da9078afe9b4c46a",
+                    "1040c4bb9e730d20602bf4d9774d65582dbc7c8c89bf7a1ca9151f137034ced4",
+                    "634c98fe6e23bde35fab60235daec42298dd5074fad58eedb38292788009e74d",
+                    "untagged-b7af7777ad2ad1f2cd20",
+                ):
+                    self.assertIn(identity, text)
+                for exact_fact in (
+                    "Exactly one V14 attempt was consumed",
+                    "sole proof/model invocation",
+                    "END-TO-END PROOF PASS",
+                    "2.0523837550538349x",
+                    "-8.4598101111055257e-06",
+                    "0.9951171875",
+                    "1,024/1,024",
+                    "zero maximum baseline/candidate loss error",
+                    "58 frames",
+                    "685 frames",
+                    "1,030 frames",
+                    "exactly fourteen signed local assets",
+                    "independent offline verifier returned exact-fourteen-asset PASS",
+                    '`{"enabled":true,"enforced_by_owner":false}`',
+                    "Exactly fourteen no-clobber uploads completed",
+                    "all fourteen `browser_download_url` values",
+                    "PORTFOLIO GITHUB RELEASE FAIL: GitHub populated draft asset URL "
+                    "differs: allowed_signers",
+                    "This was the sole populated-draft mismatch",
+                    "No `publish.json`, populated-draft receipt, PATCH, publish "
+                    "response, logged-out download, public GitHub Release, or "
+                    "conforming fourteen-asset GitHub release receipt was produced",
+                    "exact14 draft and local assets remain retained and unmodified",
+                    "There was no retry, deletion, recreation, metadata edit, retag, "
+                    "rerun, reuse, relabel, or V14 publication",
+                    "V14 will never be moved, rerun, published, or relabelled",
+                    "V15 is the distinct corrected identity",
+                    "untagged-[0-9a-f]{20}",
+                    "Mixed slugs, tagged draft URLs",
+                    "final logged-out verifier still requires exact tagged "
+                    "`corelm-portfolio-v15` download URLs",
+                    "there is no delete/recreate, retry, retag, or V14 relabel",
+                ):
+                    self.assertIn(exact_fact, normalized)
                 self.assertIn(
                     "ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL → "
                     "REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY → "
@@ -691,7 +773,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 ):
                     self.assertIn(identity, text)
 
-    def test_v14_github_runbook_has_disjoint_fail_closed_path_topology(self):
+    def test_v15_github_runbook_has_disjoint_fail_closed_path_topology(self):
         text = (ROOT / "publication/PORTFOLIO_RELEASE.md").read_text(
             encoding="utf-8"
         )
@@ -729,10 +811,21 @@ class PublicationArchiveTests(unittest.TestCase):
             "both fields and the raw snapshot SHA-256",
             "schema-v2 receipt",
             "schema-v2 populated-draft receipt",
+            "populated draft `html_url` and all fourteen",
+            "`browser_download_url` values must share that slug",
+            "mixed/wrong draft slug, tagged draft URL",
         )
         for exact in required:
             with self.subTest(exact=exact):
                 self.assertIn(exact, section)
+        normalized_section = " ".join(section.split())
+        for exact in (
+            "`html_url` whose download slug matches `untagged-[0-9a-f]{20}`",
+            "exact create-response `untagged-[0-9a-f]{20}` slug",
+            "exact tagged `corelm-portfolio-v15` download URLs",
+        ):
+            with self.subTest(normalized_exact=exact):
+                self.assertIn(exact, normalized_section)
         self.assertGreaterEqual(section.count("set -eu"), 4)
         self.assertNotIn("/absolute/operator-log", section)
         self.assertNotIn("--hostname uploads.github.com", section)

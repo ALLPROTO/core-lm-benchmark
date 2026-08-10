@@ -67,7 +67,7 @@ direct-dependency CycloneDX 1.5 SBOM is generated twice by
 `security/generate_direct_sbom.py`; it must be byte-identical and retain scope
 `direct-python-dependencies-only`.
 
-This V14 contract does not reopen a failed historical candidate. V3 remains
+This V15 contract does not reopen a failed historical candidate. V3 remains
 frozen at its first tag-push assertion failure. V4 remains frozen after its
 automation stopped in pre-model FFprobe frame-PTS field validation, before
 `AttemptLog.reserve`; no V4 model attempt was invoked or consumed. V5 passed
@@ -383,6 +383,136 @@ latest, and all downloads. Any mismatch or partial operation stops; there is no
 delete/recreate, retry, retag, or V13 relabel. V14 requires its own signed
 tag, first-attempt CI, and sole proof.
 
+The signed `corelm-portfolio-v14` identity is frozen at source commit
+`3d3273674d854a825636ec49ddc18be04cb82b05`, tree
+`df363235a8945838a3f1aadd936df78498e471c8`, and annotated tag object
+`7b92d0cd5852a2f75fa72d664965a7b51b9c6217`. First tag CI Linux run
+`31408473142` and macOS run `31408473015` passed on attempt 1. Exactly one
+V14 attempt was consumed, UUID `2b098099-1588-438e-922c-b88eae2b1803`, as
+its sole proof/model invocation.
+
+That sole run completed `END-TO-END PROOF PASS` and 1,024/1,024 heavy-replay
+decisions at `2.0523837550538349x`, delta NLL `-8.4598101111055257e-06`,
+and top-1 `0.9951171875`, with zero maximum baseline/candidate loss error.
+Its proof receipt is
+`a74fe758ea8de046dd14cc492669e7b096e0d0619c8e0ec5042f208944e8f315`,
+result `3605fefa0916a0d5e88d537f3138c7e28fa69dbd21cf7521d63d86f5f9d7429a`,
+and app executable
+`be274ee658294f6b24d660ddfe879abb6865ba67d2de4fa84994af412750ff53`.
+
+The exact state order is `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL →
+REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY →
+POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED →
+MEDIA_SEALED_FOR_COLLECTION`; state, automation-receipt, and readiness
+SHA-256 values are respectively
+`ac342977affbde1bb0c2d7ef1cb206799d44d6582f3faa2c3e3622948fcfa58c`,
+`cdf5c0ba4b5f6a09bea66045dd6dfa2fb56fb1af758206cbae350da817b4c25e`,
+and `d110fc2d9fb23407043a6f9ca382a50646002789e4e3531d6e8f7b2cd580595c`.
+
+Raw preflight, post-proof-presentation, and same-run MOV identities are
+`5aeffe89b450dfe47e46a017487909a11fc160f25146b1db335a5b004b1bdd75`
+(58 frames),
+`1cd8880d169f6897c9a199b899b5140ba3a95a61c009ced1728dc3fcdc6c8405`
+(685 frames), and
+`4ad3d8fc5471289cb96354c41c26efc3529267e7b672b544d46fac447c8fd184`
+(1,030 frames). Final video/poster SHA-256 values are
+`db790f6518a9fea5533dff1744d5889f7bad0b332dba3080014f32ebe3164618`
+and `b84fee40f7093b7a062d36ec332ff1a4bb0461e1cea4675c12c9e1f1a626ebb1`;
+exact strict per-frame SHA-256 framemd5 and PTS identities are
+`6a21df99c238d365a88d0aede78c3b3daeb79d6e277cc90e69179d56938cd23d`
+and `9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`.
+
+Collector and builder both passed, retaining evidence
+`37703b9e727ff4568cd3504aa49ef9e0bac6abeb2668372dab7d4deb6751a33c`,
+provenance
+`05232ae09a61976a701acd685fa1321bb5cb38d14bf30474812928185705bd67`,
+runtime
+`3870bd9d1cf64f9123994e2e205a393c5b92c0e7639694d8ada646a8dbc9d1a0`,
+private release-input manifest
+`1fb631d76c0057a7ad5144f061ecd8408b7a4d9764ee8e99a761c6396ed9b4c6`,
+and exactly fourteen signed local assets with `SHA256SUMS`
+`8c505e0e6e1ed0f727c75d9602054b060158b6fcc8c3fe1462b17bf3ff7de89c`.
+The independent offline verifier returned exact-fourteen-asset PASS.
+
+The canonical create-draft request SHA-256 was
+`a5955010e5002d466677d2b4e495c9d4c157edfdbd495dc364dfcf511838d0e9`;
+its exact body SHA-256 was
+`83fd1800d6bacb3d2882df73ff499c78827f90ad1d51b19cccdc7eb03fb2d036`.
+The authenticated precreate immutable-policy snapshot was exact raw JSON
+`{"enabled":true,"enforced_by_owner":false}` at
+`f4b2b8919d556de186d7b4afe009126b30c99e3edefb005e4e56ab17069b52dd`,
+and its schema-v2 receipt was
+`f306618afaf01d1becc80c42a9a327d6465b1bdaef1ce68bd59df638051bd781`.
+One POST created draft ID `368090960`; create response
+`5e9db42406e4b4a4d95a741270544c696874a11071c8bdcaf8f8d7639b97a68c`
+and empty-draft receipt
+`fc1df0643d987e86aa695fa3f84daf531d63d9588189d91e3f22aacb7f7bd010`
+passed before upload.
+
+Exactly fourteen no-clobber uploads completed. The authenticated populated
+draft snapshot
+`be3b0937acdf0515f0ad97743f62bf3d468257dbca7c6beaea3b1f578273f2a0`
+remained `draft:true`, `prerelease:false`, `immutable:false`, and
+`published_at:null`. All fourteen unique assets were `uploaded` with exact
+names, sizes, and `sha256:` digests and no missing, extra, or partial asset.
+Tag-ref, tag-object, and commit-object snapshots were respectively
+`b403017080419bc7e3613df4027312928a7de6e9cadf4be1da9078afe9b4c46a`,
+`1040c4bb9e730d20602bf4d9774d65582dbc7c8c89bf7a1ca9151f137034ced4`,
+and `634c98fe6e23bde35fab60235daec42298dd5074fad58eedb38292788009e74d`;
+the fresh prepublish policy snapshot repeated the exact
+`f4b2b8919d556de186d7b4afe009126b30c99e3edefb005e4e56ab17069b52dd`
+bytes.
+
+GitHub truthfully assigned the common draft download slug
+`untagged-b7af7777ad2ad1f2cd20` to all fourteen
+`browser_download_url` values. The signed V14 verifier prematurely required
+the final tagged URL form at the mandatory prepublish gate and failed with
+exact terminal line `PORTFOLIO GITHUB RELEASE FAIL: GitHub populated draft
+asset URL differs: allowed_signers`. This was the sole populated-draft
+mismatch; every scalar and non-URL asset field passed independently.
+
+No `publish.json`, populated-draft receipt, PATCH, publish response, logged-out
+download, public GitHub Release, or conforming fourteen-asset GitHub release
+receipt was produced. The exact14 draft and local assets remain retained and
+unmodified. There was no retry, deletion, recreation, metadata edit, retag,
+rerun, reuse, relabel, or V14 publication. V14 will never be moved, rerun,
+published, or relabelled.
+
+V15 is the distinct corrected identity. It keeps presentation contract and
+schema/state/report version v2. Its media gate retains the exact frame count, PTS
+identity, and strict per-frame SHA-256 framemd5 manifest; MD5 and malformed manifests
+are rejected.
+
+Its GitHub operator boundary accepts an immutable-policy response with exactly the keys
+`enabled` and `enforced_by_owner`. Both values must be strict JSON booleans, `enabled`
+must be `true`, and `enforced_by_owner` may honestly be either boolean; missing, extra,
+projected, or non-boolean fields fail. The raw snapshot SHA-256 and both values are
+bound into the precreate and populated-draft operator receipts, whose schema version is
+2. Public portfolio schemas and automation/presentation contract v2 do not change.
+
+The V15 draft URL gate distinguishes authenticated prepublication URLs from
+public postpublication URLs without weakening either boundary. Both the saved
+create response and populated draft must expose one exact canonical
+`html_url` slug matching `untagged-[0-9a-f]{20}`; those slugs must be
+identical, and every one of the exact fourteen draft
+`browser_download_url` values must use that same slug and its exact asset
+name. Mixed slugs, tagged draft URLs, a wrong host/prefix/path, or a changed
+create/populated slug fail closed. The final logged-out verifier still
+requires exact tagged `corelm-portfolio-v15` download URLs. Empty-draft
+receipt schema v1 and populated-draft receipt schema v2 remain unchanged
+because their raw API snapshot digests already bind the URL facts.
+
+The fail-closed staged publication remains `prepare-draft` → fresh authenticated
+precreate policy GET and `verify-policy` → one saved draft POST → `verify-empty-draft` →
+exactly fourteen no-clobber uploads → fresh authenticated prepublish policy GET and
+`verify-draft` → same-ID seven-field publish PATCH → logged-out
+by-ID/by-tag/latest/download verification. The empty-draft snapshot binds `draft:true`,
+`prerelease:false`, `immutable:false`, and `published_at:null`; the publish request binds
+`make_latest:"true"`. In that flow, logged-out final verification binds by-ID, by-tag,
+latest, and all downloads. Any mismatch or partial operation stops; there is no
+delete/recreate, retry, retag, or V14 relabel. V15 requires its own signed
+tag, first-attempt CI, and sole proof.
+
 ## Automated public tag-CI admission
 
 Before the retained attempt is reserved or any model is loaded, the automation
@@ -433,7 +563,7 @@ lifecycle, the exact automation-only presentation contract, and absolute paths
 to five local automatically collected demo assets. Absolute paths are
 input-only and never enter an output asset.
 
-The canonical V14 demo-provenance object has the exact keys documented by the
+The canonical V15 demo-provenance object has the exact keys documented by the
 builder: source/tag; video hash, duration, dimensions, silent H.264;
 poster hash, dimensions and fixed frame timestamp; both media objects
 classified `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`; macOS arm64
@@ -459,7 +589,7 @@ hash, and proof hashes. The builder verifies tracked lockfile/verifier hashes
 against the clean source.
 
 `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION` is the exact workload enum for
-the public validation range fixed before this V14 execution. It is not a media
+the public validation range fixed before this V15 execution. It is not a media
 selection or human-review state: the tagged proof-driver attempt and its first
 honest terminal outcome are retained once by the owner-local automation state.
 The proof driver also performs the required pinned-Qwen heavy replay; the
@@ -506,7 +636,7 @@ with mode `0600`, zero uid/gid/mtime, and empty owner names.
 ## Run and collect one automated tagged proof
 
 `platforms/macos/scripts/run-automated-portfolio-demo.py` is the only current
-V14 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
+V15 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
 the exact clean, signed tagged checkout. It checks the tag/main/source binding,
 AC power, offline runtime and assets, capture authorization, exact app/window,
 and tool identities before invoking the model. It then reserves one durable
@@ -520,10 +650,10 @@ creates one fixed silent H.264 composition, and derives the poster at exactly
 are never captured.
 
 ```sh
-DEMO_TAG=corelm-portfolio-v14
+DEMO_TAG=corelm-portfolio-v15
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v14-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v15-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -544,7 +674,7 @@ privacy boundary, and durable attempt-state digest. A capture or media failure
 after proof invocation consumes the tag attempt and cannot be retried to seek
 a preferred result.
 
-The exact V14 state order is
+The exact V15 state order is
 `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL → REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`.
 The first composed raw role is exactly `post_proof_presentation`; legacy
 live-role names, paths, and command-line options are not accepted by this
@@ -566,7 +696,7 @@ tag, and local lab checkout:
 PORTFOLIO_PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 LAB=/absolute/clean/core-lm-cross-model-lab
 RUN_DIRECTORY=/absolute/exact/run-directory-from-automation-receipt
-INPUTS=/absolute/absent/corelm-portfolio-v14-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v15-inputs
 
 publication/run_portfolio_python.sh \
   "$PORTFOLIO_PYTHON" collect_portfolio_demo.py \
@@ -696,11 +826,11 @@ request into a new absolute path:
 
 ```sh
 set -eu
-TAG=corelm-portfolio-v14
-ASSET_DIR=/absolute/corelm-portfolio-v14-assets
+TAG=corelm-portfolio-v15
+ASSET_DIR=/absolute/corelm-portfolio-v15-assets
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
-PUBLICATION_ROOT=/absolute/new-corelm-portfolio-v14-publication
+PUBLICATION_ROOT=/absolute/new-corelm-portfolio-v15-publication
 REQUESTS="$PUBLICATION_ROOT/requests"
 API_INPUTS="$PUBLICATION_ROOT/api-inputs"
 RECEIPTS="$PUBLICATION_ROOT/receipts"
@@ -741,9 +871,9 @@ The canonical request has exactly these seven keys and values:
 
 ```json
 {
-  "tag_name": "corelm-portfolio-v14",
+  "tag_name": "corelm-portfolio-v15",
   "target_commitish": "main",
-  "name": "Core LM Portfolio v14 — reproducible real-model KV-cache benchmark",
+  "name": "Core LM Portfolio v15 — reproducible real-model KV-cache benchmark",
   "body": "generated exactly from the signed source identity and SHA256SUMS digest",
   "draft": true,
   "prerelease": false,
@@ -793,7 +923,8 @@ publication/run_portfolio_python.sh \
 `verify-empty-draft` revalidates the signed fourteen-asset input and requires
 the saved response's exact positive release ID, tag, name, body, target,
 `draft:true`, `prerelease:false`, `immutable:false`, `published_at:null`, empty
-asset array, and exact ID-bound upload URL. Any mismatch stops before upload.
+asset array, exact ID-bound upload URL, and one canonical `html_url` whose
+download slug matches `untagged-[0-9a-f]{20}`. Any mismatch stops before upload.
 Use that verified draft identity to upload exactly fourteen assets one file at
 a time with no clobber, then save the authoritative authenticated populated-
 draft, tag-ref, tag-object, and commit-object responses. A representative
@@ -847,8 +978,11 @@ gh api --method PATCH \
   > "$API_INPUTS/release-publish-response.json"
 ```
 
-`verify-draft` requires the same release ID and upload URL, the exact fourteen
-asset names/sizes/digests, signed source/tag/commit bindings, and an immediate
+`verify-draft` requires the same release ID, upload URL, and exact create-response
+`untagged-[0-9a-f]{20}` slug; the populated draft `html_url` and all fourteen
+`browser_download_url` values must share that slug and exact asset names. It
+also requires the exact fourteen asset names/sizes/digests, signed
+source/tag/commit bindings, and an immediate
 authenticated `/repos/ALLPROTO/core-lm-benchmark/immutable-releases` response
 with exactly the strict-boolean keys `enabled` and `enforced_by_owner` and
 `enabled:true`. It binds both fields and the raw snapshot SHA-256 in the
@@ -856,8 +990,11 @@ schema-v2 populated-draft receipt, then emits the compact canonical seven-key
 PATCH body, repeating exact metadata with `draft:false`, `prerelease:false`,
 and `make_latest:"true"`, and prints the exact same-ID PATCH endpoint. Do not
 use `--clobber`. An existing or partial name, unexpected count, digest mismatch,
-missing response, extra policy field, non-boolean policy value, or changed ID
-is a hard stop. Retain every command, response, receipt, and exit status. Never
+missing response, extra policy field, non-boolean policy value, changed ID,
+mixed/wrong draft slug, tagged draft URL, or wrong URL host/prefix/path is a
+hard stop. The logged-out final verifier separately requires exact tagged
+`corelm-portfolio-v15` download URLs. Retain every command, response, receipt,
+and exit status. Never
 delete/recreate, retry a failed stage, retag, or relabel this identity. The
 `make_latest` value is only a request; the logged-out `/releases/latest` view is
 verified independently after publication.
@@ -870,11 +1007,11 @@ the exact commit and tag-object SHA come from the signed source identity:
 
 ```sh
 set -eu
-TAG=corelm-portfolio-v14
-ASSET_DIR=/absolute/corelm-portfolio-v14-assets
+TAG=corelm-portfolio-v15
+ASSET_DIR=/absolute/corelm-portfolio-v15-assets
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
-PUBLICATION_ROOT=/absolute/new-corelm-portfolio-v14-publication
+PUBLICATION_ROOT=/absolute/new-corelm-portfolio-v15-publication
 REQUESTS="$PUBLICATION_ROOT/requests"
 API_INPUTS="$PUBLICATION_ROOT/api-inputs"
 RECEIPTS="$PUBLICATION_ROOT/receipts"
@@ -996,10 +1133,10 @@ assets are never moved or replaced.
 
 The receipt binds the saved-response hashes but cannot prove that the fetch was
 logged out or that GitHub is still in the same state; those are transport and
-time boundaries. The V14 acceptance contour uses the scrubbed logged-out API
+time boundaries. The V15 acceptance contour uses the scrubbed logged-out API
 fetches and verifier receipt and has no browser inspection or human-review
 gate. A later viewer may inspect the public page, but that observation is not
-an input to V14 acceptance and cannot retroactively close independent-
+an input to V15 acceptance and cannot retroactively close independent-
 replication gate G10. Keep the receipt and API files in the operator/design or
 Zenodo evidence bundle. Do not upload them back into the same fourteen-asset
 release, edit its body after verification, or move its tag; doing so would

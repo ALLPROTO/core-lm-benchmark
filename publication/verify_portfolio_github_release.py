@@ -115,6 +115,7 @@ IMMUTABILITY_SCOPE = (
     "GITHUB_DRAFT_FALSE_AND_PUBLISHED_TRUE_REQUIRED_SEPARATE_FROM_PROJECT_POLICY"
 )
 API_TIMESTAMP_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
+DRAFT_DOWNLOAD_SLUG_RE = re.compile(r"^untagged-[0-9a-f]{20}$")
 IDENTITY_NAME_RE = re.compile(
     r"^(corelm-portfolio-v[1-9][0-9]*)-source-identity\.json$"
 )
@@ -644,7 +645,7 @@ def _api_assets(
     value: Any,
     *,
     records: Sequence[Mapping[str, Any]],
-    tag: str,
+    download_ref: str,
     label: str,
 ) -> tuple[tuple[str, int], ...]:
     observed_assets = value
@@ -673,7 +674,7 @@ def _api_assets(
         if type(asset.get("size")) is not int or asset["size"] != expected["size_bytes"]:
             raise PortfolioReleaseError(f"{label} asset size differs: {name}")
         expected_url = (
-            f"{CANONICAL_REPOSITORY}/releases/download/{tag}/{name}"
+            f"{CANONICAL_REPOSITORY}/releases/download/{download_ref}/{name}"
         )
         if asset.get("browser_download_url") != expected_url:
             raise PortfolioReleaseError(f"{label} asset URL differs: {name}")
@@ -693,6 +694,20 @@ def _api_assets(
             key=lambda item: item[0].encode("utf-8"),
         )
     )
+
+
+def _draft_download_slug(release: Mapping[str, Any], label: str) -> str:
+    html_url = _string(release.get("html_url"), f"{label} html_url")
+    prefix = f"{CANONICAL_REPOSITORY}/releases/tag/"
+    if not html_url.startswith(prefix):
+        raise PortfolioReleaseError(f"{label} html_url is not exact")
+    slug = html_url[len(prefix) :]
+    if (
+        DRAFT_DOWNLOAD_SLUG_RE.fullmatch(slug) is None
+        or html_url != f"{prefix}{slug}"
+    ):
+        raise PortfolioReleaseError(f"{label} html_url is not an exact draft URL")
+    return slug
 
 
 def _draft_release(
@@ -731,6 +746,7 @@ def _draft_release(
         raise PortfolioReleaseError(f"{label} assets_url is not exact")
     if release.get("upload_url") != upload_url:
         raise PortfolioReleaseError(f"{label} upload_url is not exact")
+    download_slug = _draft_download_slug(release, label)
     if records is None:
         if release.get("assets") != []:
             raise PortfolioReleaseError("GitHub create response assets must be empty")
@@ -738,12 +754,14 @@ def _draft_release(
         _api_assets(
             release.get("assets"),
             records=records,
-            tag=request["tag_name"],
+            download_ref=download_slug,
             label=label,
         )
     return {
         "assets_url": assets_url,
+        "download_slug": download_slug,
         "id": release_id,
+        "html_url": f"{CANONICAL_REPOSITORY}/releases/tag/{download_slug}",
         "release_url": release_url,
         "upload_url": upload_url,
     }
@@ -784,7 +802,7 @@ def _api_release(
     asset_ids = _api_assets(
         release.get("assets"),
         records=records,
-        tag=request["tag_name"],
+        download_ref=request["tag_name"],
         label="GitHub release",
     )
     return {
@@ -1090,6 +1108,10 @@ def verify_draft_saved_responses(
         if populated["upload_url"] != empty["upload_url"]:
             raise PortfolioReleaseError(
                 "GitHub populated draft upload_url differs from create response"
+            )
+        if populated["download_slug"] != empty["download_slug"]:
+            raise PortfolioReleaseError(
+                "GitHub populated draft html_url differs from create response"
             )
 
         source = _mapping(identity.get("source"), "source identity source")

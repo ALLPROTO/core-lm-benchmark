@@ -399,7 +399,7 @@ class IndependentReplicationTests(unittest.TestCase):
             "commit": "1" * 40,
             "tree": "2" * 40,
             "origin": replication.CANONICAL_REMOTE,
-            "releaseTag": "corelm-portfolio-v14",
+            "releaseTag": "corelm-portfolio-v15",
             "releaseTagObject": "3" * 40,
         }
         with tempfile.TemporaryDirectory() as temporary, mock.patch.object(

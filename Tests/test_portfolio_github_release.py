@@ -19,15 +19,16 @@ from publication import verify_portfolio_github_release as github_release  # noq
 from security import automated_media  # noqa: E402
 
 
-TAG = "corelm-portfolio-v14"
-FUTURE_TAG = "corelm-portfolio-v15"
+TAG = "corelm-portfolio-v15"
+FUTURE_TAG = "corelm-portfolio-v16"
+DRAFT_SLUG = "untagged-0123456789abcdefabcd"
 COMMIT = "1" * 40
 TREE = "2" * 40
 TAG_OBJECT = "3" * 40
 C1_COMMIT = "7" * 40
 C1_TREE = "8" * 40
 EXPECTED_TITLE = (
-    "Core LM Portfolio v14 — reproducible real-model KV-cache benchmark"
+    "Core LM Portfolio v15 — reproducible real-model KV-cache benchmark"
 )
 FAKE_SIGNATURE = (
     "-----BEGIN SSH SIGNATURE-----\n"
@@ -153,7 +154,7 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
         publish_request = github_release.expected_publish_request(
             observed_identity, records
         )
-        api_assets = [
+        published_assets = [
             {
                 "browser_download_url": (
                     f"{portfolio.CANONICAL_REPOSITORY}/releases/download/{TAG}/"
@@ -167,8 +168,14 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             }
             for index, record in enumerate(records, start=1)
         ]
+        draft_assets = copy.deepcopy(published_assets)
+        for asset in draft_assets:
+            asset["browser_download_url"] = (
+                f"{portfolio.CANONICAL_REPOSITORY}/releases/download/"
+                f"{DRAFT_SLUG}/{asset['name']}"
+            )
         release = {
-            "assets": api_assets,
+            "assets": published_assets,
             "assets_url": (
                 "https://api.github.com/repos/ALLPROTO/core-lm-benchmark/"
                 "releases/901/assets"
@@ -197,6 +204,9 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             "assets_url": release["assets_url"],
             "body": request["body"],
             "draft": True,
+            "html_url": (
+                f"{portfolio.CANONICAL_REPOSITORY}/releases/tag/{DRAFT_SLUG}"
+            ),
             "id": 901,
             "immutable": False,
             "name": request["name"],
@@ -208,7 +218,7 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             "url": release["url"],
         }
         draft = copy.deepcopy(create_response)
-        draft["assets"] = copy.deepcopy(api_assets)
+        draft["assets"] = draft_assets
         release_id = copy.deepcopy(release)
         release_tag = copy.deepcopy(release)
         latest = copy.deepcopy(release)
@@ -626,6 +636,52 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
                 with self.assertRaises(portfolio.PortfolioReleaseError):
                     self._verify_empty_draft(fixture)
 
+    def test_draft_html_url_requires_exact_lowercase_untagged_slug(self):
+        repository = portfolio.CANONICAL_REPOSITORY
+        cases = {
+            "published-tag": f"{repository}/releases/tag/{TAG}",
+            "uppercase": (
+                f"{repository}/releases/tag/"
+                "untagged-0123456789ABCDEFABCD"
+            ),
+            "nonhex": (
+                f"{repository}/releases/tag/"
+                "untagged-g123456789abcdefabcd"
+            ),
+            "short": f"{repository}/releases/tag/{DRAFT_SLUG[:-1]}",
+            "long": f"{repository}/releases/tag/{DRAFT_SLUG}0",
+            "query": f"{repository}/releases/tag/{DRAFT_SLUG}?draft=1",
+            "fragment": f"{repository}/releases/tag/{DRAFT_SLUG}#draft",
+            "foreign-repository": (
+                f"https://github.com/ALLPROTO/other/releases/tag/{DRAFT_SLUG}"
+            ),
+            "download-path": (
+                f"{repository}/releases/download/{DRAFT_SLUG}"
+            ),
+        }
+        for case, html_url in cases.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary)
+                fixture["values"]["create_response"]["html_url"] = html_url
+                self._replace_json(
+                    fixture["paths"]["create_response"],
+                    fixture["values"]["create_response"],
+                )
+                with self.assertRaisesRegex(
+                    portfolio.PortfolioReleaseError, "html_url"
+                ):
+                    self._verify_empty_draft(fixture)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(temporary)
+            fixture["values"]["create_response"].pop("html_url")
+            self._replace_json(
+                fixture["paths"]["create_response"],
+                fixture["values"]["create_response"],
+            )
+            with self.assertRaisesRegex(portfolio.PortfolioReleaseError, "html_url"):
+                self._verify_empty_draft(fixture)
+
     def test_populated_draft_rejects_asset_set_and_identity_mismatches(self):
         cases = (
             "zero-assets",
@@ -678,6 +734,78 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
                 self._replace_json(fixture["paths"]["draft"], value)
                 with self.assertRaises(portfolio.PortfolioReleaseError):
                     self._verify_draft(fixture)
+
+    def test_populated_draft_requires_one_create_bound_asset_slug(self):
+        replacement_slug = "untagged-fedcba9876543210fedc"
+
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(temporary)
+            draft = fixture["values"]["draft"]
+            draft["html_url"] = (
+                f"{portfolio.CANONICAL_REPOSITORY}/releases/tag/"
+                f"{replacement_slug}"
+            )
+            for asset in draft["assets"]:
+                asset["browser_download_url"] = (
+                    f"{portfolio.CANONICAL_REPOSITORY}/releases/download/"
+                    f"{replacement_slug}/{asset['name']}"
+                )
+            self._replace_json(fixture["paths"]["draft"], draft)
+            with self.assertRaisesRegex(
+                portfolio.PortfolioReleaseError,
+                "html_url differs from create response",
+            ):
+                self._verify_draft(fixture)
+
+        asset_urls = {
+            "different-untagged": (
+                f"{portfolio.CANONICAL_REPOSITORY}/releases/download/"
+                f"{replacement_slug}/{{name}}"
+            ),
+            "published-tag": (
+                f"{portfolio.CANONICAL_REPOSITORY}/releases/download/"
+                f"{TAG}/{{name}}"
+            ),
+            "uppercase": (
+                f"{portfolio.CANONICAL_REPOSITORY}/releases/download/"
+                "untagged-0123456789ABCDEFABCD/{name}"
+            ),
+            "foreign-repository": (
+                "https://github.com/ALLPROTO/other/releases/download/"
+                f"{DRAFT_SLUG}/{{name}}"
+            ),
+            "query": (
+                f"{portfolio.CANONICAL_REPOSITORY}/releases/download/"
+                f"{DRAFT_SLUG}/{{name}}?download=1"
+            ),
+        }
+        for case, template in asset_urls.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary)
+                first = fixture["values"]["draft"]["assets"][0]
+                first["browser_download_url"] = template.format(name=first["name"])
+                self._replace_json(
+                    fixture["paths"]["draft"], fixture["values"]["draft"]
+                )
+                with self.assertRaisesRegex(
+                    portfolio.PortfolioReleaseError, "asset URL differs"
+                ):
+                    self._verify_draft(fixture)
+
+    def test_published_release_rejects_draft_untagged_asset_url(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(temporary)
+            release = fixture["values"]["release_id"]
+            first = release["assets"][0]
+            first["browser_download_url"] = (
+                f"{portfolio.CANONICAL_REPOSITORY}/releases/download/"
+                f"{DRAFT_SLUG}/{first['name']}"
+            )
+            self._replace_json(fixture["paths"]["release_id"], release)
+            with self.assertRaisesRegex(
+                portfolio.PortfolioReleaseError, "asset URL differs"
+            ):
+                self._verify(fixture)
 
     def test_publish_patch_request_rejects_every_nonexact_variant(self):
         with tempfile.TemporaryDirectory() as temporary:

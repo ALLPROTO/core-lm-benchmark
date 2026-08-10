@@ -20,7 +20,7 @@ documentation.
 | Beacon freeze tag | `corelm-beacon-heldout-v1` | Public pre-reveal protocol anchor |
 | Beacon artifacts | `corelm-beacon-attempt-v1`, `corelm-beacon-resolution-v1`, `corelm-beacon-outcome-v1` | Irreversible state and result compatibility |
 | Publication tag | `voidtoken-v5-paper-v5` | Immutable archive provenance |
-| Portfolio software tag | `corelm-portfolio-v14` | Automation-only engineering release identity; signing and public status are verified separately |
+| Portfolio software tag | `corelm-portfolio-v15` | Automation-only engineering release identity; signing and public status are verified separately |
 | Automated presentation contract | `corelm-automated-presentation-v2` | Deterministic post-proof explanatory and exact-result capture, assembly, and validation with no required human acceptance step |
 | Portfolio media classification | `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE` | Author-controlled presentation bytes; scientific evidence remains the receipt, result, retained containers, and replay reports |
 | Bundle metadata | `CFBundleShortVersionString`, `CFBundleVersion` | macOS identity and receipt field |
@@ -34,7 +34,7 @@ The upstream model identifier `Qwen/Qwen2.5-0.5B` must also remain visible. It
 identifies the exact model family being measured and is not application
 branding.
 
-The V14 automation contour does not close independent-replication gate G10.
+The V15 automation contour does not close independent-replication gate G10.
 That gate remains **OPEN** until a non-author, non-agent person completes and
 publishes the specified clean-clone replication. Automated capture and
 verification remove a required human acceptance step from media production;
@@ -358,6 +358,136 @@ by-ID/by-tag/latest/download verification. The empty-draft snapshot binds `draft
 `make_latest:"true"`. In that flow, logged-out final verification binds by-ID, by-tag,
 latest, and all downloads. Any mismatch or partial operation stops; there is no
 delete/recreate, retry, retag, or V13 relabel. V14 requires its own signed
+tag, first-attempt CI, and sole proof.
+
+The signed `corelm-portfolio-v14` identity is frozen at source commit
+`3d3273674d854a825636ec49ddc18be04cb82b05`, tree
+`df363235a8945838a3f1aadd936df78498e471c8`, and annotated tag object
+`7b92d0cd5852a2f75fa72d664965a7b51b9c6217`. First tag CI Linux run
+`31408473142` and macOS run `31408473015` passed on attempt 1. Exactly one
+V14 attempt was consumed, UUID `2b098099-1588-438e-922c-b88eae2b1803`, as
+its sole proof/model invocation.
+
+That sole run completed `END-TO-END PROOF PASS` and 1,024/1,024 heavy-replay
+decisions at `2.0523837550538349x`, delta NLL `-8.4598101111055257e-06`,
+and top-1 `0.9951171875`, with zero maximum baseline/candidate loss error.
+Its proof receipt is
+`a74fe758ea8de046dd14cc492669e7b096e0d0619c8e0ec5042f208944e8f315`,
+result `3605fefa0916a0d5e88d537f3138c7e28fa69dbd21cf7521d63d86f5f9d7429a`,
+and app executable
+`be274ee658294f6b24d660ddfe879abb6865ba67d2de4fa84994af412750ff53`.
+
+The exact state order is `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL →
+REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY →
+POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED →
+MEDIA_SEALED_FOR_COLLECTION`; state, automation-receipt, and readiness
+SHA-256 values are respectively
+`ac342977affbde1bb0c2d7ef1cb206799d44d6582f3faa2c3e3622948fcfa58c`,
+`cdf5c0ba4b5f6a09bea66045dd6dfa2fb56fb1af758206cbae350da817b4c25e`,
+and `d110fc2d9fb23407043a6f9ca382a50646002789e4e3531d6e8f7b2cd580595c`.
+
+Raw preflight, post-proof-presentation, and same-run MOV identities are
+`5aeffe89b450dfe47e46a017487909a11fc160f25146b1db335a5b004b1bdd75`
+(58 frames),
+`1cd8880d169f6897c9a199b899b5140ba3a95a61c009ced1728dc3fcdc6c8405`
+(685 frames), and
+`4ad3d8fc5471289cb96354c41c26efc3529267e7b672b544d46fac447c8fd184`
+(1,030 frames). Final video/poster SHA-256 values are
+`db790f6518a9fea5533dff1744d5889f7bad0b332dba3080014f32ebe3164618`
+and `b84fee40f7093b7a062d36ec332ff1a4bb0461e1cea4675c12c9e1f1a626ebb1`;
+exact strict per-frame SHA-256 framemd5 and PTS identities are
+`6a21df99c238d365a88d0aede78c3b3daeb79d6e277cc90e69179d56938cd23d`
+and `9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`.
+
+Collector and builder both passed, retaining evidence
+`37703b9e727ff4568cd3504aa49ef9e0bac6abeb2668372dab7d4deb6751a33c`,
+provenance
+`05232ae09a61976a701acd685fa1321bb5cb38d14bf30474812928185705bd67`,
+runtime
+`3870bd9d1cf64f9123994e2e205a393c5b92c0e7639694d8ada646a8dbc9d1a0`,
+private release-input manifest
+`1fb631d76c0057a7ad5144f061ecd8408b7a4d9764ee8e99a761c6396ed9b4c6`,
+and exactly fourteen signed local assets with `SHA256SUMS`
+`8c505e0e6e1ed0f727c75d9602054b060158b6fcc8c3fe1462b17bf3ff7de89c`.
+The independent offline verifier returned exact-fourteen-asset PASS.
+
+The canonical create-draft request SHA-256 was
+`a5955010e5002d466677d2b4e495c9d4c157edfdbd495dc364dfcf511838d0e9`;
+its exact body SHA-256 was
+`83fd1800d6bacb3d2882df73ff499c78827f90ad1d51b19cccdc7eb03fb2d036`.
+The authenticated precreate immutable-policy snapshot was exact raw JSON
+`{"enabled":true,"enforced_by_owner":false}` at
+`f4b2b8919d556de186d7b4afe009126b30c99e3edefb005e4e56ab17069b52dd`,
+and its schema-v2 receipt was
+`f306618afaf01d1becc80c42a9a327d6465b1bdaef1ce68bd59df638051bd781`.
+One POST created draft ID `368090960`; create response
+`5e9db42406e4b4a4d95a741270544c696874a11071c8bdcaf8f8d7639b97a68c`
+and empty-draft receipt
+`fc1df0643d987e86aa695fa3f84daf531d63d9588189d91e3f22aacb7f7bd010`
+passed before upload.
+
+Exactly fourteen no-clobber uploads completed. The authenticated populated
+draft snapshot
+`be3b0937acdf0515f0ad97743f62bf3d468257dbca7c6beaea3b1f578273f2a0`
+remained `draft:true`, `prerelease:false`, `immutable:false`, and
+`published_at:null`. All fourteen unique assets were `uploaded` with exact
+names, sizes, and `sha256:` digests and no missing, extra, or partial asset.
+Tag-ref, tag-object, and commit-object snapshots were respectively
+`b403017080419bc7e3613df4027312928a7de6e9cadf4be1da9078afe9b4c46a`,
+`1040c4bb9e730d20602bf4d9774d65582dbc7c8c89bf7a1ca9151f137034ced4`,
+and `634c98fe6e23bde35fab60235daec42298dd5074fad58eedb38292788009e74d`;
+the fresh prepublish policy snapshot repeated the exact
+`f4b2b8919d556de186d7b4afe009126b30c99e3edefb005e4e56ab17069b52dd`
+bytes.
+
+GitHub truthfully assigned the common draft download slug
+`untagged-b7af7777ad2ad1f2cd20` to all fourteen
+`browser_download_url` values. The signed V14 verifier prematurely required
+the final tagged URL form at the mandatory prepublish gate and failed with
+exact terminal line `PORTFOLIO GITHUB RELEASE FAIL: GitHub populated draft
+asset URL differs: allowed_signers`. This was the sole populated-draft
+mismatch; every scalar and non-URL asset field passed independently.
+
+No `publish.json`, populated-draft receipt, PATCH, publish response, logged-out
+download, public GitHub Release, or conforming fourteen-asset GitHub release
+receipt was produced. The exact14 draft and local assets remain retained and
+unmodified. There was no retry, deletion, recreation, metadata edit, retag,
+rerun, reuse, relabel, or V14 publication. V14 will never be moved, rerun,
+published, or relabelled.
+
+V15 is the distinct corrected identity. It keeps presentation contract and
+schema/state/report version v2. Its media gate retains the exact frame count, PTS
+identity, and strict per-frame SHA-256 framemd5 manifest; MD5 and malformed manifests
+are rejected.
+
+Its GitHub operator boundary accepts an immutable-policy response with exactly the keys
+`enabled` and `enforced_by_owner`. Both values must be strict JSON booleans, `enabled`
+must be `true`, and `enforced_by_owner` may honestly be either boolean; missing, extra,
+projected, or non-boolean fields fail. The raw snapshot SHA-256 and both values are
+bound into the precreate and populated-draft operator receipts, whose schema version is
+2. Public portfolio schemas and automation/presentation contract v2 do not change.
+
+The V15 draft URL gate distinguishes authenticated prepublication URLs from
+public postpublication URLs without weakening either boundary. Both the saved
+create response and populated draft must expose one exact canonical
+`html_url` slug matching `untagged-[0-9a-f]{20}`; those slugs must be
+identical, and every one of the exact fourteen draft
+`browser_download_url` values must use that same slug and its exact asset
+name. Mixed slugs, tagged draft URLs, a wrong host/prefix/path, or a changed
+create/populated slug fail closed. The final logged-out verifier still
+requires exact tagged `corelm-portfolio-v15` download URLs. Empty-draft
+receipt schema v1 and populated-draft receipt schema v2 remain unchanged
+because their raw API snapshot digests already bind the URL facts.
+
+The fail-closed staged publication remains `prepare-draft` → fresh authenticated
+precreate policy GET and `verify-policy` → one saved draft POST → `verify-empty-draft` →
+exactly fourteen no-clobber uploads → fresh authenticated prepublish policy GET and
+`verify-draft` → same-ID seven-field publish PATCH → logged-out
+by-ID/by-tag/latest/download verification. The empty-draft snapshot binds `draft:true`,
+`prerelease:false`, `immutable:false`, and `published_at:null`; the publish request binds
+`make_latest:"true"`. In that flow, logged-out final verification binds by-ID, by-tag,
+latest, and all downloads. Any mismatch or partial operation stops; there is no
+delete/recreate, retry, retag, or V14 relabel. V15 requires its own signed
 tag, first-attempt CI, and sole proof.
 
 ## User-facing rule

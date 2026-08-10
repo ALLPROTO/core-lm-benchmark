@@ -171,16 +171,16 @@
         "pkg:pypi/torch@2.13.0",
         "pkg:pypi/transformers@5.14.1"
       ],
-      "ref": "pkg:github/ALLPROTO/core-lm-benchmark@corelm-portfolio-v14"
+      "ref": "pkg:github/ALLPROTO/core-lm-benchmark@corelm-portfolio-v15"
     }
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pkg:github/ALLPROTO/core-lm-benchmark@corelm-portfolio-v14",
+      "bom-ref": "pkg:github/ALLPROTO/core-lm-benchmark@corelm-portfolio-v15",
       "name": "CoreLMBenchmark",
-      "purl": "pkg:github/ALLPROTO/core-lm-benchmark@corelm-portfolio-v14",
+      "purl": "pkg:github/ALLPROTO/core-lm-benchmark@corelm-portfolio-v15",
       "type": "application",
-      "version": "corelm-portfolio-v14"
+      "version": "corelm-portfolio-v15"
     },
     "properties": [
       {
