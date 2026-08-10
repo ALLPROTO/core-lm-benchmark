@@ -1,6 +1,6 @@
 # Automation-only macOS portfolio demo
 
-This is the current V13 product-media contour for portfolio gate G03 under
+This is the current V14 product-media contour for portfolio gate G03 under
 `corelm-automated-presentation-v2`. It has no interactive window selection,
 editor, manual trim, chosen poster frame, or human-review acceptance step. Its
 exact classification is:
@@ -271,31 +271,93 @@ edit, retag, rerun, reuse, or relabel. The fourteen local assets remain
 retained; the V12 GitHub Release contract is a terminal FAIL and the public
 V12 release remains empty and immutable.
 No conforming fourteen-asset GitHub release receipt was produced.
+The fail-closed successor rule was explicit: there is no delete/recreate, retry, retag, or V12 relabel.
 
-V13 is the distinct corrected identity. It keeps presentation contract and
-schema/state/report version v2. Its media gate retains the exact frame count,
-PTS identity, and strict per-frame SHA-256 framemd5 manifest; MD5 and malformed
-manifests are rejected. It uses a fail-closed staged publication:
-`prepare-draft` emits the exact draft request; authenticated `verify-policy`
-binds an exact precreate `{"enabled":true}` immutable-release policy snapshot;
-POST runs once and its response
-is saved; `verify-empty-draft` requires the exact positive ID, tag, name, body,
-target, `draft:true`, `prerelease:false`, `immutable:false`,
-`published_at:null`, empty assets, and exact upload URL; exactly fourteen
-assets upload with no clobber; authenticated `verify-draft` requires the same
-ID, exact fourteen names/digests, and a fresh exact prepublish
-`{"enabled":true}` policy snapshot; its exact seven-field request PATCHes that
-same ID to `draft:false`, `prerelease:false`, and `make_latest:"true"`; then
-logged-out final verification binds by-ID, by-tag, latest, and all downloads.
-Any mismatch or partial operation stops; there is no delete/recreate, retry,
-retag, or V12 relabel. V13 requires its own signed tag, first-attempt CI, and
-sole proof.
+The signed `corelm-portfolio-v13` identity is frozen at source commit
+`b1fa1298971548eef8c2e0afa00d8c661812b16f`, tree
+`29ee5d1b152bc8f2ef156664023ae4cd878dea2f`, and annotated tag object
+`908c0913d5e7ca98dfb217287430fd251fa13994`. First tag CI Linux run `31398790350` and
+macOS run `31398790626` passed on attempt 1. Exactly one V13 attempt was consumed, UUID
+`51c4ebae-44ee-4cc8-b4e3-4a57fc170d83`, as its sole proof/model invocation.
+
+That sole run completed `END-TO-END PROOF PASS` and 1,024/1,024 heavy-replay decisions
+at `2.052383755053835x`, delta NLL `-8.459810111105526e-06`, and top-1 `0.9951171875`,
+with zero maximum baseline/candidate loss error. Its proof receipt is
+`1a3444f223cab3a95a626d2061def0c9a2814fadc22c173d1881e1803e3f3694`, result
+`ad8724e0270be366703f38c874bb43dc1eed4387fd44e8b86e9a5cea7684a8e1`, and app executable
+`504c0d137da22c4d39c6d380ca39126f0b82b855e3ff6a9873ee123f3b2a96f9`.
+
+The exact state order is `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL →
+REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY →
+POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED →
+MEDIA_SEALED_FOR_COLLECTION`; state, automation-receipt, and readiness SHA-256 values
+are respectively `35d149c1c0e7cd5342153b69c37d09b3630489a687e0c63fcfe4de3c8d5d326b`,
+`58a58a069a9327c969a7ee58f1f86bd9e0ff7be1e8fdceec8161bd76fb0220ea`, and
+`8f05d45aa7a3847bdf557437b9da3d69ba507038cba3656c6a1a0ba909b3be07`.
+
+Raw preflight, post-proof-presentation, and same-run MOV identities are
+`afb6f14ad49a09be84c68a89e09183852805d1411b0cdf7baa2e8b2c61ef757c` (56 frames),
+`bc0f549683c0a510f38302de9b89db273461bab1c18da044fc86ef03ac16177b` (685 frames), and
+`7c6bdc3a18d691e6172df4815af4aa0b0e654377798c3376f7a2e9cdac50fad7` (1,027 frames). Final
+video/poster SHA-256 values are
+`4e23449ff2be2ad8c0dc868f85d768f0867cc393a45f9c0b04ff8475c67787f1` and
+`1328d02715a7926612b3547f8fdd01697c1fc3d087a36f134fe399dec3022fda`; exact strict
+per-frame SHA-256 framemd5 and PTS identities are
+`391fd7b93d0a619240b55ad343bc310d69419f43a5f8ec0add58de5b3c3ec84d` and
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`.
+
+Collector and builder both passed, retaining evidence
+`123dcf8fbf0833fcac1a634952807151bed69b4dbded482331a04843a108f2d4`, provenance
+`d2aca3293107bbca9f1648a0c36fd3f56f81d9efb0ca528217d4f7c9085e2bcd`, runtime
+`a0243322187fb29fb475b63b910ffef699ea1386b3caff71b65649c0a389e8d3`, private
+release-input manifest
+`c765cf5584d1271bbfaa335bd42517ff0cbc315f18cf5766eab95cb97dfc385f`, and exactly fourteen
+signed local assets with `SHA256SUMS`
+`f30f6d60c4ca27bab7cbbde10d5428b27cea2501fd9f80f3ef18dfe7caef963a`. The independent
+offline verifier returned exact-fourteen-asset PASS.
+
+The exact canonical create-draft request bytes were derived at SHA-256
+`521ed09b11c5946a2728384d6052e37ee1ee424d330fec48a8af96e05ccae919`. Before any POST, the
+authenticated immutable-policy GET returned exact raw JSON
+`{"enabled":true,"enforced_by_owner":false}` with SHA-256
+`f4b2b8919d556de186d7b4afe009126b30c99e3edefb005e4e56ab17069b52dd`. The frozen V13
+verifier rejected that official two-field response and exited 2 with exact terminal line
+`PORTFOLIO GITHUB RELEASE FAIL: GitHub immutable-releases policy response must be exact
+enabled:true`.
+
+No precreate policy receipt, draft, GitHub Release, upload, PATCH, or publication
+receipt was produced. There was no retry, deletion, retag, rerun, reuse, or relabel. The
+fourteen signed local assets remain retained, and no conforming fourteen-asset GitHub
+release receipt was produced.
+
+V14 is the distinct corrected identity. It keeps presentation contract and
+schema/state/report version v2. Its media gate retains the exact frame count, PTS
+identity, and strict per-frame SHA-256 framemd5 manifest; MD5 and malformed manifests
+are rejected.
+
+Its GitHub operator boundary accepts an immutable-policy response with exactly the keys
+`enabled` and `enforced_by_owner`. Both values must be strict JSON booleans, `enabled`
+must be `true`, and `enforced_by_owner` may honestly be either boolean; missing, extra,
+projected, or non-boolean fields fail. The raw snapshot SHA-256 and both values are
+bound into the precreate and populated-draft operator receipts, whose schema version is
+2. Public portfolio schemas and automation/presentation contract v2 do not change.
+
+The fail-closed staged publication remains `prepare-draft` → fresh authenticated
+precreate policy GET and `verify-policy` → one saved draft POST → `verify-empty-draft` →
+exactly fourteen no-clobber uploads → fresh authenticated prepublish policy GET and
+`verify-draft` → same-ID seven-field publish PATCH → logged-out
+by-ID/by-tag/latest/download verification. The empty-draft snapshot binds `draft:true`,
+`prerelease:false`, `immutable:false`, and `published_at:null`; the publish request binds
+`make_latest:"true"`. In that flow, logged-out final verification binds by-ID, by-tag,
+latest, and all downloads. Any mismatch or partial operation stops; there is no
+delete/recreate, retry, retag, or V13 relabel. V14 requires its own signed
+tag, first-attempt CI, and sole proof.
 
 ## Fixed source and one-attempt boundary
 
 The command accepts only a clean canonical checkout whose `main`,
 `origin/main`, and already-created SSH-signed annotated
-`corelm-portfolio-v13` tag all resolve to the same commit/tree. The signed tag
+`corelm-portfolio-v14` tag all resolve to the same commit/tree. The signed tag
 and its first-attempt Linux/macOS Actions must already be green.
 
 Before model execution the command checks power, the offline doctor, pinned
@@ -311,7 +373,7 @@ than one pinned-Qwen model execution.
 `CORELM_OFFLINE=1` applies to the model, corpus, app proof, replay, and media
 pipeline. Before reserving the attempt, the runner makes the sole bounded
 online exception: eight anonymous, direct, no-proxy/no-redirect GitHub API
-requests that prove the exact public V13 tag/main and first-attempt Linux/macOS
+requests that prove the exact public V14 tag/main and first-attempt Linux/macOS
 tag CI. Failure remains pre-marker and safely retryable. Exact response bytes,
 the recomputed public receipt, and hard-pinned local tag-trust receipt are
 retained for collector and release verification; they record admission-time
@@ -339,10 +401,10 @@ providing both `ffmpeg` and `ffprobe`.
 ```sh
 set -eu
 
-DEMO_TAG=corelm-portfolio-v13
+DEMO_TAG=corelm-portfolio-v14
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v13-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v14-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -421,7 +483,7 @@ WINDOW_HELPER="$DEMO_SESSION/find-proof-window"
 TAG_CI_RECEIPT="$DEMO_SESSION/tag-ci-receipt.json"
 LOCAL_TAG_TRUST_RECEIPT="$DEMO_SESSION/local-tag-trust-receipt.json"
 TAG_CI_BUNDLE="$DEMO_SESSION/tag-ci-bundle"
-INPUTS=/absolute/absent/corelm-portfolio-v13-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v14-inputs
 PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 
 publication/run_portfolio_python.sh \

@@ -67,7 +67,7 @@ direct-dependency CycloneDX 1.5 SBOM is generated twice by
 `security/generate_direct_sbom.py`; it must be byte-identical and retain scope
 `direct-python-dependencies-only`.
 
-This V12 contract does not reopen a failed historical candidate. V3 remains
+This V14 contract does not reopen a failed historical candidate. V3 remains
 frozen at its first tag-push assertion failure. V4 remains frozen after its
 automation stopped in pre-model FFprobe frame-PTS field validation, before
 `AttemptLog.reserve`; no V4 model attempt was invoked or consumed. V5 passed
@@ -301,25 +301,87 @@ edit, retag, rerun, reuse, or relabel. The fourteen local assets remain
 retained; the V12 GitHub Release contract is a terminal FAIL and the public
 V12 release remains empty and immutable.
 No conforming fourteen-asset GitHub release receipt was produced.
+The fail-closed successor rule was explicit: there is no delete/recreate, retry, retag, or V12 relabel.
 
-V13 is the distinct corrected identity. It keeps presentation contract and
-schema/state/report version v2. Its media gate retains the exact frame count,
-PTS identity, and strict per-frame SHA-256 framemd5 manifest; MD5 and malformed
-manifests are rejected. It uses a fail-closed staged publication:
-`prepare-draft` emits the exact draft request; authenticated `verify-policy`
-binds an exact precreate `{"enabled":true}` immutable-release policy snapshot;
-POST runs once and its response
-is saved; `verify-empty-draft` requires the exact positive ID, tag, name, body,
-target, `draft:true`, `prerelease:false`, `immutable:false`,
-`published_at:null`, empty assets, and exact upload URL; exactly fourteen
-assets upload with no clobber; authenticated `verify-draft` requires the same
-ID, exact fourteen names/digests, and a fresh exact prepublish
-`{"enabled":true}` policy snapshot; its exact seven-field request PATCHes that
-same ID to `draft:false`, `prerelease:false`, and `make_latest:"true"`; then
-logged-out final verification binds by-ID, by-tag, latest, and all downloads.
-Any mismatch or partial operation stops; there is no delete/recreate, retry,
-retag, or V12 relabel. V13 requires its own signed tag, first-attempt CI, and
-sole proof.
+The signed `corelm-portfolio-v13` identity is frozen at source commit
+`b1fa1298971548eef8c2e0afa00d8c661812b16f`, tree
+`29ee5d1b152bc8f2ef156664023ae4cd878dea2f`, and annotated tag object
+`908c0913d5e7ca98dfb217287430fd251fa13994`. First tag CI Linux run `31398790350` and
+macOS run `31398790626` passed on attempt 1. Exactly one V13 attempt was consumed, UUID
+`51c4ebae-44ee-4cc8-b4e3-4a57fc170d83`, as its sole proof/model invocation.
+
+That sole run completed `END-TO-END PROOF PASS` and 1,024/1,024 heavy-replay decisions
+at `2.052383755053835x`, delta NLL `-8.459810111105526e-06`, and top-1 `0.9951171875`,
+with zero maximum baseline/candidate loss error. Its proof receipt is
+`1a3444f223cab3a95a626d2061def0c9a2814fadc22c173d1881e1803e3f3694`, result
+`ad8724e0270be366703f38c874bb43dc1eed4387fd44e8b86e9a5cea7684a8e1`, and app executable
+`504c0d137da22c4d39c6d380ca39126f0b82b855e3ff6a9873ee123f3b2a96f9`.
+
+The exact state order is `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL →
+REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY →
+POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED →
+MEDIA_SEALED_FOR_COLLECTION`; state, automation-receipt, and readiness SHA-256 values
+are respectively `35d149c1c0e7cd5342153b69c37d09b3630489a687e0c63fcfe4de3c8d5d326b`,
+`58a58a069a9327c969a7ee58f1f86bd9e0ff7be1e8fdceec8161bd76fb0220ea`, and
+`8f05d45aa7a3847bdf557437b9da3d69ba507038cba3656c6a1a0ba909b3be07`.
+
+Raw preflight, post-proof-presentation, and same-run MOV identities are
+`afb6f14ad49a09be84c68a89e09183852805d1411b0cdf7baa2e8b2c61ef757c` (56 frames),
+`bc0f549683c0a510f38302de9b89db273461bab1c18da044fc86ef03ac16177b` (685 frames), and
+`7c6bdc3a18d691e6172df4815af4aa0b0e654377798c3376f7a2e9cdac50fad7` (1,027 frames). Final
+video/poster SHA-256 values are
+`4e23449ff2be2ad8c0dc868f85d768f0867cc393a45f9c0b04ff8475c67787f1` and
+`1328d02715a7926612b3547f8fdd01697c1fc3d087a36f134fe399dec3022fda`; exact strict
+per-frame SHA-256 framemd5 and PTS identities are
+`391fd7b93d0a619240b55ad343bc310d69419f43a5f8ec0add58de5b3c3ec84d` and
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`.
+
+Collector and builder both passed, retaining evidence
+`123dcf8fbf0833fcac1a634952807151bed69b4dbded482331a04843a108f2d4`, provenance
+`d2aca3293107bbca9f1648a0c36fd3f56f81d9efb0ca528217d4f7c9085e2bcd`, runtime
+`a0243322187fb29fb475b63b910ffef699ea1386b3caff71b65649c0a389e8d3`, private
+release-input manifest
+`c765cf5584d1271bbfaa335bd42517ff0cbc315f18cf5766eab95cb97dfc385f`, and exactly fourteen
+signed local assets with `SHA256SUMS`
+`f30f6d60c4ca27bab7cbbde10d5428b27cea2501fd9f80f3ef18dfe7caef963a`. The independent
+offline verifier returned exact-fourteen-asset PASS.
+
+The exact canonical create-draft request bytes were derived at SHA-256
+`521ed09b11c5946a2728384d6052e37ee1ee424d330fec48a8af96e05ccae919`. Before any POST, the
+authenticated immutable-policy GET returned exact raw JSON
+`{"enabled":true,"enforced_by_owner":false}` with SHA-256
+`f4b2b8919d556de186d7b4afe009126b30c99e3edefb005e4e56ab17069b52dd`. The frozen V13
+verifier rejected that official two-field response and exited 2 with exact terminal line
+`PORTFOLIO GITHUB RELEASE FAIL: GitHub immutable-releases policy response must be exact
+enabled:true`.
+
+No precreate policy receipt, draft, GitHub Release, upload, PATCH, or publication
+receipt was produced. There was no retry, deletion, retag, rerun, reuse, or relabel. The
+fourteen signed local assets remain retained, and no conforming fourteen-asset GitHub
+release receipt was produced.
+
+V14 is the distinct corrected identity. It keeps presentation contract and
+schema/state/report version v2. Its media gate retains the exact frame count, PTS
+identity, and strict per-frame SHA-256 framemd5 manifest; MD5 and malformed manifests
+are rejected.
+
+Its GitHub operator boundary accepts an immutable-policy response with exactly the keys
+`enabled` and `enforced_by_owner`. Both values must be strict JSON booleans, `enabled`
+must be `true`, and `enforced_by_owner` may honestly be either boolean; missing, extra,
+projected, or non-boolean fields fail. The raw snapshot SHA-256 and both values are
+bound into the precreate and populated-draft operator receipts, whose schema version is
+2. Public portfolio schemas and automation/presentation contract v2 do not change.
+
+The fail-closed staged publication remains `prepare-draft` → fresh authenticated
+precreate policy GET and `verify-policy` → one saved draft POST → `verify-empty-draft` →
+exactly fourteen no-clobber uploads → fresh authenticated prepublish policy GET and
+`verify-draft` → same-ID seven-field publish PATCH → logged-out
+by-ID/by-tag/latest/download verification. The empty-draft snapshot binds `draft:true`,
+`prerelease:false`, `immutable:false`, and `published_at:null`; the publish request binds
+`make_latest:"true"`. In that flow, logged-out final verification binds by-ID, by-tag,
+latest, and all downloads. Any mismatch or partial operation stops; there is no
+delete/recreate, retry, retag, or V13 relabel. V14 requires its own signed
+tag, first-attempt CI, and sole proof.
 
 ## Automated public tag-CI admission
 
@@ -371,7 +433,7 @@ lifecycle, the exact automation-only presentation contract, and absolute paths
 to five local automatically collected demo assets. Absolute paths are
 input-only and never enter an output asset.
 
-The canonical V13 demo-provenance object has the exact keys documented by the
+The canonical V14 demo-provenance object has the exact keys documented by the
 builder: source/tag; video hash, duration, dimensions, silent H.264;
 poster hash, dimensions and fixed frame timestamp; both media objects
 classified `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`; macOS arm64
@@ -397,7 +459,7 @@ hash, and proof hashes. The builder verifies tracked lockfile/verifier hashes
 against the clean source.
 
 `AUTHOR_SELECTED_PUBLIC_VALIDATION_REGRESSION` is the exact workload enum for
-the public validation range fixed before this V13 execution. It is not a media
+the public validation range fixed before this V14 execution. It is not a media
 selection or human-review state: the tagged proof-driver attempt and its first
 honest terminal outcome are retained once by the owner-local automation state.
 The proof driver also performs the required pinned-Qwen heavy replay; the
@@ -444,7 +506,7 @@ with mode `0600`, zero uid/gid/mtime, and empty owner names.
 ## Run and collect one automated tagged proof
 
 `platforms/macos/scripts/run-automated-portfolio-demo.py` is the only current
-V13 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
+V14 capture entry point. Invoke it through `./corelm macos portfolio-demo` from
 the exact clean, signed tagged checkout. It checks the tag/main/source binding,
 AC power, offline runtime and assets, capture authorization, exact app/window,
 and tool identities before invoking the model. It then reserves one durable
@@ -458,10 +520,10 @@ creates one fixed silent H.264 composition, and derives the poster at exactly
 are never captured.
 
 ```sh
-DEMO_TAG=corelm-portfolio-v13
+DEMO_TAG=corelm-portfolio-v14
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v13-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v14-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -482,7 +544,7 @@ privacy boundary, and durable attempt-state digest. A capture or media failure
 after proof invocation consumes the tag attempt and cannot be retried to seek
 a preferred result.
 
-The exact V13 state order is
+The exact V14 state order is
 `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL → REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`.
 The first composed raw role is exactly `post_proof_presentation`; legacy
 live-role names, paths, and command-line options are not accepted by this
@@ -504,7 +566,7 @@ tag, and local lab checkout:
 PORTFOLIO_PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 LAB=/absolute/clean/core-lm-cross-model-lab
 RUN_DIRECTORY=/absolute/exact/run-directory-from-automation-receipt
-INPUTS=/absolute/absent/corelm-portfolio-v13-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v14-inputs
 
 publication/run_portfolio_python.sh \
   "$PORTFOLIO_PYTHON" collect_portfolio_demo.py \
@@ -634,11 +696,11 @@ request into a new absolute path:
 
 ```sh
 set -eu
-TAG=corelm-portfolio-v13
-ASSET_DIR=/absolute/corelm-portfolio-v13-assets
+TAG=corelm-portfolio-v14
+ASSET_DIR=/absolute/corelm-portfolio-v14-assets
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
-PUBLICATION_ROOT=/absolute/new-corelm-portfolio-v13-publication
+PUBLICATION_ROOT=/absolute/new-corelm-portfolio-v14-publication
 REQUESTS="$PUBLICATION_ROOT/requests"
 API_INPUTS="$PUBLICATION_ROOT/api-inputs"
 RECEIPTS="$PUBLICATION_ROOT/receipts"
@@ -679,9 +741,9 @@ The canonical request has exactly these seven keys and values:
 
 ```json
 {
-  "tag_name": "corelm-portfolio-v13",
+  "tag_name": "corelm-portfolio-v14",
   "target_commitish": "main",
-  "name": "Core LM Portfolio v13 — reproducible real-model KV-cache benchmark",
+  "name": "Core LM Portfolio v14 — reproducible real-model KV-cache benchmark",
   "body": "generated exactly from the signed source identity and SHA256SUMS digest",
   "draft": true,
   "prerelease": false,
@@ -700,10 +762,11 @@ policy is not GitHub's `immutable` API value.
 
 After a final tag/ref and CI API recheck, the maintainer performs this exact
 fail-closed sequence. Immediately before create, fetch the authenticated
-immutable-release policy and use `verify-policy` to require exact
-`{"enabled":true}` and bind its snapshot SHA in a separate receipt. Then POST
-the draft request once, save the response, and verify the empty draft before
-uploading any asset:
+immutable-release policy and use `verify-policy` to require exactly the two
+strict-boolean keys `enabled` and `enforced_by_owner`, with `enabled:true` and
+either honest boolean owner-enforcement value. Bind both fields and the raw
+snapshot SHA-256 in a separate schema-v2 receipt. Then POST the draft request
+once, save the response, and verify the empty draft before uploading any asset:
 
 ```sh
 set -eu
@@ -787,15 +850,17 @@ gh api --method PATCH \
 `verify-draft` requires the same release ID and upload URL, the exact fourteen
 asset names/sizes/digests, signed source/tag/commit bindings, and an immediate
 authenticated `/repos/ALLPROTO/core-lm-benchmark/immutable-releases` response
-whose exact canonical shape is `{"enabled":true}` with no extra key. It alone emits
-the compact canonical seven-key PATCH body, repeating exact metadata with
-`draft:false`, `prerelease:false`, and `make_latest:"true"`, and prints the
-exact same-ID PATCH endpoint. Do not use `--clobber`. An existing or partial
-name, unexpected count, digest mismatch, missing response, or changed ID is a
-hard stop. Retain every command, response, receipt, and exit status. Never
+with exactly the strict-boolean keys `enabled` and `enforced_by_owner` and
+`enabled:true`. It binds both fields and the raw snapshot SHA-256 in the
+schema-v2 populated-draft receipt, then emits the compact canonical seven-key
+PATCH body, repeating exact metadata with `draft:false`, `prerelease:false`,
+and `make_latest:"true"`, and prints the exact same-ID PATCH endpoint. Do not
+use `--clobber`. An existing or partial name, unexpected count, digest mismatch,
+missing response, extra policy field, non-boolean policy value, or changed ID
+is a hard stop. Retain every command, response, receipt, and exit status. Never
 delete/recreate, retry a failed stage, retag, or relabel this identity. The
-`make_latest` value is only a request; the logged-out `/releases/latest` view
-is verified independently after publication.
+`make_latest` value is only a request; the logged-out `/releases/latest` view is
+verified independently after publication.
 
 ## Logged-out post-upload verification
 
@@ -805,11 +870,11 @@ the exact commit and tag-object SHA come from the signed source identity:
 
 ```sh
 set -eu
-TAG=corelm-portfolio-v13
-ASSET_DIR=/absolute/corelm-portfolio-v13-assets
+TAG=corelm-portfolio-v14
+ASSET_DIR=/absolute/corelm-portfolio-v14-assets
 PORTFOLIO_PYTHON=/absolute/locked/python
 FFPROBE=/absolute/caller-selected/ffprobe
-PUBLICATION_ROOT=/absolute/new-corelm-portfolio-v13-publication
+PUBLICATION_ROOT=/absolute/new-corelm-portfolio-v14-publication
 REQUESTS="$PUBLICATION_ROOT/requests"
 API_INPUTS="$PUBLICATION_ROOT/api-inputs"
 RECEIPTS="$PUBLICATION_ROOT/receipts"
@@ -931,10 +996,10 @@ assets are never moved or replaced.
 
 The receipt binds the saved-response hashes but cannot prove that the fetch was
 logged out or that GitHub is still in the same state; those are transport and
-time boundaries. The V13 acceptance contour uses the scrubbed logged-out API
+time boundaries. The V14 acceptance contour uses the scrubbed logged-out API
 fetches and verifier receipt and has no browser inspection or human-review
 gate. A later viewer may inspect the public page, but that observation is not
-an input to V13 acceptance and cannot retroactively close independent-
+an input to V14 acceptance and cannot retroactively close independent-
 replication gate G10. Keep the receipt and API files in the operator/design or
 Zenodo evidence bundle. Do not upload them back into the same fourteen-asset
 release, edit its body after verification, or move its tag; doing so would

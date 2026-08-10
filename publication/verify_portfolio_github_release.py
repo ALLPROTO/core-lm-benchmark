@@ -603,11 +603,22 @@ def _validate_publish_request(
 
 def _immutable_release_policy(value: Any) -> dict[str, bool]:
     policy = _mapping(value, "GitHub immutable-releases policy response")
-    if set(policy) != {"enabled"} or policy.get("enabled") is not True:
+    enabled = policy.get("enabled")
+    enforced_by_owner = policy.get("enforced_by_owner")
+    if (
+        set(policy) != {"enabled", "enforced_by_owner"}
+        or type(enabled) is not bool
+        or type(enforced_by_owner) is not bool
+        or enabled is not True
+    ):
         raise PortfolioReleaseError(
-            "GitHub immutable-releases policy response must be exact enabled:true"
+            "GitHub immutable-releases policy response must contain exact boolean "
+            "enabled:true and enforced_by_owner"
         )
-    return {"enabled": True}
+    return {
+        "enabled": enabled,
+        "enforced_by_owner": enforced_by_owner,
+    }
 
 
 def _release_id(value: Any, label: str) -> int:
@@ -933,10 +944,11 @@ def verify_immutable_policy_response(
         "artifact_kind": "corelm_portfolio_github_immutable_policy_receipt",
         "github_immutable_releases_policy": {
             "enabled": policy["enabled"],
+            "enforced_by_owner": policy["enforced_by_owner"],
             "endpoint": IMMUTABLE_RELEASES_ENDPOINT,
         },
         "repository": CANONICAL_REPOSITORY,
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "PRECREATE_IMMUTABLE_POLICY_BOUNDARY_PASS",
         "verification_scope": {
             "api_transport_authentication": (
@@ -1132,6 +1144,7 @@ def verify_draft_saved_responses(
             },
             "github_immutable_releases_policy": {
                 "enabled": immutable_policy["enabled"],
+                "enforced_by_owner": immutable_policy["enforced_by_owner"],
                 "endpoint": IMMUTABLE_RELEASES_ENDPOINT,
             },
             "publish_endpoint": publish_release_endpoint(populated["id"]),
@@ -1140,7 +1153,7 @@ def verify_draft_saved_responses(
                 _canonical_json(publish_request)
             ).hexdigest(),
             "repository": CANONICAL_REPOSITORY,
-            "schema_version": 1,
+            "schema_version": 2,
             "source": {
                 "commit": source["commit"],
                 "commit_api_verification": commit_verification,
@@ -2038,6 +2051,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(
                 "PORTFOLIO GITHUB IMMUTABLE POLICY PASS: "
                 f"enabled={str(receipt['github_immutable_releases_policy']['enabled']).lower()} "
+                "enforced_by_owner="
+                f"{str(receipt['github_immutable_releases_policy']['enforced_by_owner']).lower()} "
                 f"endpoint={IMMUTABLE_RELEASES_ENDPOINT}"
             )
         elif options.command == "prepare-draft":

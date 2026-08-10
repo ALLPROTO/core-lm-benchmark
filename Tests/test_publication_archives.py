@@ -36,7 +36,7 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
-    def test_current_portfolio_schemas_pin_automation_only_v13_identity(self):
+    def test_current_portfolio_schemas_pin_automation_only_v14_identity(self):
         release_input = json.loads(
             (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
                 encoding="utf-8"
@@ -168,7 +168,7 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v13")
+        self.assertEqual(release_tag, "corelm-portfolio-v14")
         self.assertRegex(citation, r"(?m)^date-released: 2026-08-10$")
 
         for relative in (
@@ -233,7 +233,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v5", text)
-                self.assertIn("corelm-portfolio-v13", text)
+                self.assertIn("corelm-portfolio-v14", text)
                 self.assertIn("HTTP 403", normalized)
                 self.assertIn("AttemptLog.reserve", text)
                 self.assertRegex(normalized, r"(?:signed 32-bit|above `2\^31`)")
@@ -259,7 +259,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v6", text)
-                self.assertIn("corelm-portfolio-v13", text)
+                self.assertIn("corelm-portfolio-v14", text)
                 self.assertIn("first-attempt tag CI", normalized)
                 self.assertIn("2.052384x", normalized)
                 self.assertIn("-0.00000846", normalized)
@@ -275,7 +275,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("collection", normalized)
                 self.assertIn("never", normalized.lower())
 
-    def test_v7_through_v12_history_and_v13_fix_are_preserved(self):
+    def test_v7_through_v13_history_and_v14_fix_are_preserved(self):
         historical_documents = (
             "docs/DEMO.md",
             "docs/ENGINEERING_CASE_STUDY.md",
@@ -531,6 +531,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("poster", normalized)
                 self.assertIn("V12", normalized)
                 self.assertIn("corelm-portfolio-v13", text)
+                self.assertIn("corelm-portfolio-v14", text)
                 for identity in (
                     "6e49fc14244230227ed08820cdd295c28bf0e7ca",
                     "9c6c4e5cf050d3a882faeaf8dfc55e7b94c70ee6",
@@ -606,6 +607,72 @@ class PublicationArchiveTests(unittest.TestCase):
                     "the same ID `367936819`",
                     normalized,
                 )
+                for identity in (
+                    "b1fa1298971548eef8c2e0afa00d8c661812b16f",
+                    "29ee5d1b152bc8f2ef156664023ae4cd878dea2f",
+                    "908c0913d5e7ca98dfb217287430fd251fa13994",
+                    "31398790350",
+                    "31398790626",
+                    "51c4ebae-44ee-4cc8-b4e3-4a57fc170d83",
+                    "1a3444f223cab3a95a626d2061def0c9a2814fadc22c173d1881e1803e3f3694",
+                    "ad8724e0270be366703f38c874bb43dc1eed4387fd44e8b86e9a5cea7684a8e1",
+                    "504c0d137da22c4d39c6d380ca39126f0b82b855e3ff6a9873ee123f3b2a96f9",
+                    "35d149c1c0e7cd5342153b69c37d09b3630489a687e0c63fcfe4de3c8d5d326b",
+                    "58a58a069a9327c969a7ee58f1f86bd9e0ff7be1e8fdceec8161bd76fb0220ea",
+                    "8f05d45aa7a3847bdf557437b9da3d69ba507038cba3656c6a1a0ba909b3be07",
+                    "afb6f14ad49a09be84c68a89e09183852805d1411b0cdf7baa2e8b2c61ef757c",
+                    "bc0f549683c0a510f38302de9b89db273461bab1c18da044fc86ef03ac16177b",
+                    "7c6bdc3a18d691e6172df4815af4aa0b0e654377798c3376f7a2e9cdac50fad7",
+                    "4e23449ff2be2ad8c0dc868f85d768f0867cc393a45f9c0b04ff8475c67787f1",
+                    "1328d02715a7926612b3547f8fdd01697c1fc3d087a36f134fe399dec3022fda",
+                    "391fd7b93d0a619240b55ad343bc310d69419f43a5f8ec0add58de5b3c3ec84d",
+                    "9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153",
+                    "123dcf8fbf0833fcac1a634952807151bed69b4dbded482331a04843a108f2d4",
+                    "d2aca3293107bbca9f1648a0c36fd3f56f81d9efb0ca528217d4f7c9085e2bcd",
+                    "a0243322187fb29fb475b63b910ffef699ea1386b3caff71b65649c0a389e8d3",
+                    "c765cf5584d1271bbfaa335bd42517ff0cbc315f18cf5766eab95cb97dfc385f",
+                    "f30f6d60c4ca27bab7cbbde10d5428b27cea2501fd9f80f3ef18dfe7caef963a",
+                    "521ed09b11c5946a2728384d6052e37ee1ee424d330fec48a8af96e05ccae919",
+                    "f4b2b8919d556de186d7b4afe009126b30c99e3edefb005e4e56ab17069b52dd",
+                ):
+                    self.assertIn(identity, text)
+                for exact_fact in (
+                    "Exactly one V13 attempt was consumed",
+                    "sole proof/model invocation",
+                    "END-TO-END PROOF PASS",
+                    "2.052383755053835x",
+                    "-8.459810111105526e-06",
+                    "0.9951171875",
+                    "1,024/1,024",
+                    "zero maximum baseline/candidate loss error",
+                    "56 frames",
+                    "685 frames",
+                    "1,027 frames",
+                    "exactly fourteen signed local assets",
+                    "independent offline verifier returned exact-fourteen-asset PASS",
+                    '`{"enabled":true,"enforced_by_owner":false}`',
+                    "exited 2 with exact terminal line `PORTFOLIO GITHUB RELEASE "
+                    "FAIL: GitHub immutable-releases policy response must be exact "
+                    "enabled:true`",
+                    "No precreate policy receipt, draft, GitHub Release, upload, "
+                    "PATCH, or publication receipt was produced",
+                    "no conforming fourteen-asset GitHub release receipt was produced",
+                    "exactly the keys `enabled` and `enforced_by_owner`",
+                    "Both values must be strict JSON booleans",
+                    "precreate and populated-draft operator receipts, whose schema "
+                    "version is 2",
+                    "Public portfolio schemas and automation/presentation contract v2 "
+                    "do not change",
+                    "there is no delete/recreate, retry, retag, or V13 relabel",
+                ):
+                    self.assertIn(exact_fact, normalized)
+                self.assertIn(
+                    "ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL → "
+                    "REPLAY_VERIFIED → POST_PROOF_PRESENTATION_SURFACE_READY → "
+                    "POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → "
+                    "RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION",
+                    normalized,
+                )
 
         exact_documents = (
             "docs/DEMO.md",
@@ -624,7 +691,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 ):
                     self.assertIn(identity, text)
 
-    def test_v13_github_runbook_has_disjoint_fail_closed_path_topology(self):
+    def test_v14_github_runbook_has_disjoint_fail_closed_path_topology(self):
         text = (ROOT / "publication/PORTFOLIO_RELEASE.md").read_text(
             encoding="utf-8"
         )
@@ -657,6 +724,11 @@ class PublicationArchiveTests(unittest.TestCase):
             '--release-id-json "$API_INPUTS/public-release-by-id.json"',
             '--release-tag-json "$API_INPUTS/public-release-by-tag.json"',
             '`immutable:true`; `immutable:false`, a missing value, or disagreement is a hard',
+            "exactly the two",
+            "strict-boolean keys `enabled` and `enforced_by_owner`",
+            "both fields and the raw snapshot SHA-256",
+            "schema-v2 receipt",
+            "schema-v2 populated-draft receipt",
         )
         for exact in required:
             with self.subTest(exact=exact):
@@ -665,6 +737,7 @@ class PublicationArchiveTests(unittest.TestCase):
         self.assertNotIn("/absolute/operator-log", section)
         self.assertNotIn("--hostname uploads.github.com", section)
         self.assertNotIn("$UPLOAD_RESPONSES", section)
+        self.assertNotIn('exact canonical shape is `{"enabled":true}`', section)
         self.assertEqual(section.count('gh release upload "$TAG" "$asset"'), 1)
         self.assertLess(
             section.index('> "$PRECREATE_IMMUTABLE_POLICY"'),

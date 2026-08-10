@@ -19,15 +19,15 @@ from publication import verify_portfolio_github_release as github_release  # noq
 from security import automated_media  # noqa: E402
 
 
-TAG = "corelm-portfolio-v13"
-FUTURE_TAG = "corelm-portfolio-v14"
+TAG = "corelm-portfolio-v14"
+FUTURE_TAG = "corelm-portfolio-v15"
 COMMIT = "1" * 40
 TREE = "2" * 40
 TAG_OBJECT = "3" * 40
 C1_COMMIT = "7" * 40
 C1_TREE = "8" * 40
 EXPECTED_TITLE = (
-    "Core LM Portfolio v13 — reproducible real-model KV-cache benchmark"
+    "Core LM Portfolio v14 — reproducible real-model KV-cache benchmark"
 )
 FAKE_SIGNATURE = (
     "-----BEGIN SSH SIGNATURE-----\n"
@@ -242,8 +242,14 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
         values = {
             "create_response": create_response,
             "draft": draft,
-            "immutable_policy_precreate": {"enabled": True},
-            "immutable_policy_prepublish": {"enabled": True},
+            "immutable_policy_precreate": {
+                "enabled": True,
+                "enforced_by_owner": False,
+            },
+            "immutable_policy_prepublish": {
+                "enabled": True,
+                "enforced_by_owner": True,
+            },
             "release": release,
             "release_id": release_id,
             "release_tag": release_tag,
@@ -440,33 +446,79 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             self.assertIs(publish["prerelease"], False)
             self.assertEqual(publish["body"], request["body"])
 
-    def test_precreate_policy_requires_exact_enabled_response(self):
+    def test_precreate_policy_requires_exact_two_boolean_response(self):
         cases = {
-            "false": {"enabled": False},
+            "false": {"enabled": False, "enforced_by_owner": False},
             "missing": {},
-            "extra": {"enabled": True, "unexpected": True},
+            "missing-owner": {"enabled": True},
+            "missing-enabled": {"enforced_by_owner": True},
+            "extra": {
+                "enabled": True,
+                "enforced_by_owner": True,
+                "unexpected": True,
+            },
+            "nonboolean-enabled-integer": {
+                "enabled": 1,
+                "enforced_by_owner": True,
+            },
+            "nonboolean-enabled-string": {
+                "enabled": "true",
+                "enforced_by_owner": True,
+            },
+            "nonboolean-owner-integer": {
+                "enabled": True,
+                "enforced_by_owner": 1,
+            },
+            "nonboolean-owner-string": {
+                "enabled": True,
+                "enforced_by_owner": "false",
+            },
+            "nonboolean-owner-null": {
+                "enabled": True,
+                "enforced_by_owner": None,
+            },
         }
-        with tempfile.TemporaryDirectory() as temporary:
-            fixture = self._fixture(temporary)
-            receipt = github_release.verify_immutable_policy_response(
-                immutable_policy_json=fixture["paths"]["immutable_policy_precreate"]
-            )
-            self.assertEqual(
-                receipt["status"], "PRECREATE_IMMUTABLE_POLICY_BOUNDARY_PASS"
-            )
-            self.assertEqual(
-                receipt["api_snapshot"]["kind"], "immutable_policy_precreate"
-            )
-            self.assertEqual(
-                receipt["api_snapshot"]["sha256"],
-                hashlib.sha256(
-                    fixture["paths"]["immutable_policy_precreate"].read_bytes()
-                ).hexdigest(),
-            )
-            self.assertNotEqual(
-                fixture["paths"]["immutable_policy_precreate"],
-                fixture["paths"]["immutable_policy_prepublish"],
-            )
+        for enforced_by_owner in (False, True):
+            with self.subTest(
+                enforced_by_owner=enforced_by_owner
+            ), tempfile.TemporaryDirectory() as temporary:
+                fixture = self._fixture(temporary)
+                policy_path = fixture["paths"]["immutable_policy_precreate"]
+                self._replace_json(
+                    policy_path,
+                    {
+                        "enabled": True,
+                        "enforced_by_owner": enforced_by_owner,
+                    },
+                )
+                receipt = github_release.verify_immutable_policy_response(
+                    immutable_policy_json=policy_path
+                )
+                self.assertEqual(
+                    receipt["status"],
+                    "PRECREATE_IMMUTABLE_POLICY_BOUNDARY_PASS",
+                )
+                self.assertEqual(receipt["schema_version"], 2)
+                self.assertEqual(
+                    receipt["api_snapshot"]["kind"],
+                    "immutable_policy_precreate",
+                )
+                self.assertEqual(
+                    receipt["api_snapshot"]["sha256"],
+                    hashlib.sha256(policy_path.read_bytes()).hexdigest(),
+                )
+                self.assertEqual(
+                    receipt["github_immutable_releases_policy"],
+                    {
+                        "enabled": True,
+                        "enforced_by_owner": enforced_by_owner,
+                        "endpoint": github_release.IMMUTABLE_RELEASES_ENDPOINT,
+                    },
+                )
+                self.assertNotEqual(
+                    policy_path,
+                    fixture["paths"]["immutable_policy_prepublish"],
+                )
         for case, value in cases.items():
             with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
                 fixture = self._fixture(temporary)
@@ -488,6 +540,7 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             fixture = self._fixture(temporary)
             empty = self._verify_empty_draft(fixture)
             self.assertEqual(empty["status"], "EMPTY_DRAFT_UPLOAD_BOUNDARY_PASS")
+            self.assertEqual(empty["schema_version"], 1)
             self.assertEqual(empty["github_draft"]["asset_count"], 0)
             self.assertEqual(empty["github_draft"]["id"], 901)
             self.assertIs(empty["github_draft"]["immutable"], False)
@@ -500,6 +553,7 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
             self.assertEqual(
                 populated["status"], "POPULATED_DRAFT_PUBLISH_BOUNDARY_PASS"
             )
+            self.assertEqual(populated["schema_version"], 2)
             self.assertEqual(populated["github_draft"]["asset_count"], 14)
             self.assertEqual(populated["github_draft"]["id"], 901)
             self.assertIs(populated["github_draft"]["immutable"], False)
@@ -512,12 +566,20 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
                 populated["github_immutable_releases_policy"],
                 {
                     "enabled": True,
+                    "enforced_by_owner": True,
                     "endpoint": github_release.IMMUTABLE_RELEASES_ENDPOINT,
                 },
             )
-            self.assertIn(
-                "immutable_policy_prepublish",
-                {item["kind"] for item in populated["api_snapshots"]},
+            policy_snapshot = next(
+                item
+                for item in populated["api_snapshots"]
+                if item["kind"] == "immutable_policy_prepublish"
+            )
+            self.assertEqual(
+                policy_snapshot["sha256"],
+                hashlib.sha256(
+                    fixture["paths"]["immutable_policy_prepublish"].read_bytes()
+                ).hexdigest(),
             )
 
     def test_empty_draft_rejects_nonempty_or_inexact_create_response(self):
@@ -642,11 +704,60 @@ class PortfolioGitHubReleaseTests(unittest.TestCase):
                             records=fixture["records"],
                         )
 
-    def test_populated_draft_requires_exact_enabled_immutable_policy(self):
+    def test_populated_draft_accepts_false_owner_enforcement_and_binds_snapshot(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self._fixture(temporary)
+            policy_path = fixture["paths"]["immutable_policy_prepublish"]
+            self._replace_json(
+                policy_path,
+                {"enabled": True, "enforced_by_owner": False},
+            )
+            populated = self._verify_draft(fixture)
+            self.assertEqual(
+                populated["github_immutable_releases_policy"],
+                {
+                    "enabled": True,
+                    "enforced_by_owner": False,
+                    "endpoint": github_release.IMMUTABLE_RELEASES_ENDPOINT,
+                },
+            )
+            policy_snapshot = next(
+                item
+                for item in populated["api_snapshots"]
+                if item["kind"] == "immutable_policy_prepublish"
+            )
+            self.assertEqual(
+                policy_snapshot["sha256"],
+                hashlib.sha256(policy_path.read_bytes()).hexdigest(),
+            )
+
+    def test_populated_draft_requires_exact_two_boolean_immutable_policy(self):
         cases = {
-            "false": {"enabled": False},
+            "false": {"enabled": False, "enforced_by_owner": True},
             "missing": {},
-            "extra": {"enabled": True, "unexpected": True},
+            "missing-owner": {"enabled": True},
+            "missing-enabled": {"enforced_by_owner": False},
+            "extra": {
+                "enabled": True,
+                "enforced_by_owner": False,
+                "unexpected": True,
+            },
+            "nonboolean-enabled": {
+                "enabled": 1,
+                "enforced_by_owner": False,
+            },
+            "nonboolean-owner-integer": {
+                "enabled": True,
+                "enforced_by_owner": 0,
+            },
+            "nonboolean-owner-string": {
+                "enabled": True,
+                "enforced_by_owner": "true",
+            },
+            "nonboolean-owner-null": {
+                "enabled": True,
+                "enforced_by_owner": None,
+            },
         }
         for case, value in cases.items():
             with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
