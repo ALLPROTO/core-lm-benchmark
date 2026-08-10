@@ -150,6 +150,24 @@ class ProofReportTests(unittest.TestCase):
 
 
 class PortfolioDemoCollectorTests(unittest.TestCase):
+    def _sha256_framemd5(self, *digests):
+        return (
+            b"#format: frame checksums\n"
+            b"#version: 2\n"
+            b"#hash: SHA256\n"
+            b"#stream#, dts, pts, duration, size, hash\n"
+            + b"".join(
+                b"0, "
+                + str(index).encode("ascii")
+                + b", "
+                + str(index).encode("ascii")
+                + b", 1, 3, "
+                + digest.encode("ascii")
+                + b"\n"
+                for index, digest in enumerate(digests)
+            )
+        )
+
     def _native_quicktime_segment(self):
         def atom(kind, payload):
             return struct.pack(">I4s", 8 + len(payload), kind) + payload
@@ -247,7 +265,7 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
             },
         ]
         frame_bytes = json.dumps({"frames": frames}).encode("utf-8")
-        decoded_bytes = b"#format: frame checksums\n0, 0, 0, 1, 1, deadbeef\n"
+        decoded_bytes = self._sha256_framemd5("1" * 64, "2" * 64)
         observed_arguments = []
 
         def fake_run(arguments, **_kwargs):
@@ -275,6 +293,26 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
         self.assertEqual(
             observed["decoded_frames_sha256"],
             hashlib.sha256(decoded_bytes).hexdigest(),
+        )
+        self.assertEqual(
+            collector._framemd5_argv(
+                Path("/fixture/final.mp4"),
+                Path("/fixture/ffmpeg"),
+            ),
+            (
+                "/fixture/ffmpeg",
+                "-v",
+                "error",
+                "-i",
+                "/fixture/final.mp4",
+                "-map",
+                "0:v:0",
+                "-f",
+                "framemd5",
+                "-hash",
+                "sha256",
+                "-",
+            ),
         )
 
         invalid = json.loads(json.dumps(frames))
@@ -324,7 +362,7 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
             }
         ).encode("utf-8")
         frame_bytes = json.dumps({"frames": frames}).encode("utf-8")
-        decoded_bytes = b"#format: frame checksums\n0, 0, 0, 1, 1, deadbeef\n"
+        decoded_bytes = self._sha256_framemd5("1" * 64, "2" * 64)
 
         def fake_run(arguments, **_kwargs):
             if "-show_chapters" in arguments:
@@ -363,7 +401,7 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
         self.assertEqual(observed["frame_count"], expected_count)
         self.assertEqual(observed["pts_sha256"], expected_pts)
 
-    def test_fixed_composition_replay_rejects_byte_tamper(self):
+    def test_fixed_composition_replay_accepts_decode_neutral_encoder_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve(strict=True)
             post_proof_presentation = root / "post-proof-presentation.mov"
@@ -373,33 +411,295 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
             for path, payload in (
                 (post_proof_presentation, b"presentation"),
                 (result, b"result"),
-                (video, b"expected-video"), (poster, b"expected-poster"),
+                (video, b"retained-video"), (poster, b"expected-poster"),
             ):
                 path.write_bytes(payload)
 
             def fake_run(arguments, **_kwargs):
                 output = Path(arguments[-1])
                 if output.suffix == ".mp4":
-                    output.write_bytes(b"tampered-video")
+                    output.write_bytes(b"different-decode-neutral-encoder-bytes")
                 else:
                     output.write_bytes(b"expected-poster")
                 return subprocess.CompletedProcess(arguments, 0, b"", b"")
 
-            with patch.object(portfolio, "_run", side_effect=fake_run):
-                with self.assertRaisesRegex(
-                    collector.CollectionError, "exact raw composition"
+            identity = {
+                "frame_count": 900,
+                "pts_sha256": "1" * 64,
+                "decoded_frames_sha256": "2" * 64,
+            }
+            with (
+                patch.object(portfolio, "_run", side_effect=fake_run),
+                patch.object(
+                    collector,
+                    "_decoded_video_identity",
+                    side_effect=(dict(identity), dict(identity)),
+                ) as decoded_identity,
+            ):
+                collector._verify_composition_from_raw(
+                    post_proof_presentation=post_proof_presentation,
+                    result=result,
+                    video=video,
+                    poster=poster,
+                    ffmpeg=Path("/fixture/ffmpeg"),
+                    ffprobe=Path("/fixture/ffprobe"),
+                )
+            self.assertEqual(decoded_identity.call_count, 2)
+
+    def test_fixed_composition_replay_rejects_each_decoded_identity_mismatch(self):
+        identity = {
+            "frame_count": 900,
+            "pts_sha256": "1" * 64,
+            "decoded_frames_sha256": "2" * 64,
+        }
+        mismatches = {
+            "frame_count": 899,
+            "pts_sha256": "3" * 64,
+            "decoded_frames_sha256": "4" * 64,
+        }
+        for field, mismatch in mismatches.items():
+            with (
+                self.subTest(field=field),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                root = Path(temporary).resolve(strict=True)
+                presentation = root / "post-proof-presentation.mov"
+                result = root / "result.mov"
+                video = root / "video.mp4"
+                poster = root / "poster.png"
+                for path in (presentation, result, video, poster):
+                    path.write_bytes(b"fixture")
+
+                def fake_run(arguments, **_kwargs):
+                    output = Path(arguments[-1])
+                    output.write_bytes(b"fixture")
+                    return subprocess.CompletedProcess(arguments, 0, b"", b"")
+
+                replay_identity = dict(identity)
+                replay_identity[field] = mismatch
+                with (
+                    patch.object(portfolio, "_run", side_effect=fake_run),
+                    patch.object(
+                        collector,
+                        "_decoded_video_identity",
+                        side_effect=(dict(identity), replay_identity),
+                    ),
+                    self.assertRaisesRegex(
+                        collector.CollectionError, "exact raw composition"
+                    ),
                 ):
                     collector._verify_composition_from_raw(
-                        post_proof_presentation=post_proof_presentation,
+                        post_proof_presentation=presentation,
                         result=result,
                         video=video,
                         poster=poster,
                         ffmpeg=Path("/fixture/ffmpeg"),
+                        ffprobe=Path("/fixture/ffprobe"),
                     )
+
+    def test_fixed_composition_replay_rejects_poster_byte_mismatch(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(strict=True)
+            presentation = root / "post-proof-presentation.mov"
+            result = root / "result.mov"
+            video = root / "video.mp4"
+            poster = root / "poster.png"
+            for path, payload in (
+                (presentation, b"presentation"),
+                (result, b"result"),
+                (video, b"retained-video"),
+                (poster, b"retained-poster"),
+            ):
+                path.write_bytes(payload)
+
+            def fake_run(arguments, **_kwargs):
+                output = Path(arguments[-1])
+                if output.suffix == ".mp4":
+                    output.write_bytes(b"decode-neutral-video-bytes")
+                else:
+                    output.write_bytes(b"different-poster")
+                return subprocess.CompletedProcess(arguments, 0, b"", b"")
+
+            identity = {
+                "frame_count": 900,
+                "pts_sha256": "1" * 64,
+                "decoded_frames_sha256": "2" * 64,
+            }
+            with (
+                patch.object(portfolio, "_run", side_effect=fake_run),
+                patch.object(
+                    collector,
+                    "_decoded_video_identity",
+                    side_effect=(dict(identity), dict(identity)),
+                ),
+                self.assertRaisesRegex(
+                    collector.CollectionError,
+                    "poster bytes are not derived from raw composition",
+                ),
+            ):
+                collector._verify_composition_from_raw(
+                    post_proof_presentation=presentation,
+                    result=result,
+                    video=video,
+                    poster=poster,
+                    ffmpeg=Path("/fixture/ffmpeg"),
+                    ffprobe=Path("/fixture/ffprobe"),
+                )
+
+    def test_fixed_composition_rejects_differing_sha256_frame_row(self):
+        frames = {
+            "frames": [
+                {
+                    "best_effort_timestamp_time": "0.000000",
+                    "duration_time": "0.033333",
+                    "width": 1280,
+                    "height": 720,
+                }
+            ]
+        }
+        frame_bytes = json.dumps(frames).encode("utf-8")
+        retained_manifest = self._sha256_framemd5("1" * 64)
+        replay_manifest = self._sha256_framemd5("2" * 64)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(strict=True)
+            presentation = root / "post-proof-presentation.mov"
+            result = root / "result.mov"
+            video = root / "video.mp4"
+            poster = root / "poster.png"
+            for path in (presentation, result, video, poster):
+                path.write_bytes(b"fixture")
+
+            def fake_run(arguments, **_kwargs):
+                if "-filter_complex" in arguments:
+                    Path(arguments[-1]).write_bytes(b"recomposed")
+                    stdout = b""
+                elif "-show_frames" in arguments:
+                    stdout = frame_bytes
+                elif "framemd5" in arguments:
+                    input_path = Path(arguments[arguments.index("-i") + 1])
+                    stdout = (
+                        retained_manifest if input_path == video else replay_manifest
+                    )
+                else:
+                    self.fail(f"unexpected replay command: {arguments}")
+                return subprocess.CompletedProcess(arguments, 0, stdout, b"")
+
+            with (
+                patch.object(portfolio, "_run", side_effect=fake_run),
+                self.assertRaisesRegex(
+                    collector.CollectionError,
+                    "exact raw composition",
+                ),
+            ):
+                collector._verify_composition_from_raw(
+                    post_proof_presentation=presentation,
+                    result=result,
+                    video=video,
+                    poster=poster,
+                    ffmpeg=Path("/fixture/ffmpeg"),
+                    ffprobe=Path("/fixture/ffprobe"),
+                )
+
+    def test_decoded_video_identity_rejects_probe_and_decode_failure(self):
+        failed = subprocess.CompletedProcess((), 1, b"", b"failed")
+        with patch.object(portfolio, "_run", return_value=failed):
+            with self.assertRaisesRegex(
+                collector.CollectionError, "frame enumeration failed"
+            ):
+                collector._decoded_video_identity(
+                    Path("/fixture/video.mp4"),
+                    Path("/fixture/ffmpeg"),
+                    Path("/fixture/ffprobe"),
+                    width=1280,
+                    height=720,
+                )
+
+        frames = {
+            "frames": [
+                {
+                    "best_effort_timestamp_time": "0.000000",
+                    "duration_time": "0.033333",
+                    "width": 1280,
+                    "height": 720,
+                }
+            ]
+        }
+        successful_probe = subprocess.CompletedProcess(
+            (), 0, json.dumps(frames).encode("utf-8"), b""
+        )
+        with patch.object(
+            portfolio,
+            "_run",
+            side_effect=(successful_probe, failed),
+        ):
+            with self.assertRaisesRegex(
+                collector.CollectionError, "frame digest replay failed"
+            ):
+                collector._decoded_video_identity(
+                    Path("/fixture/video.mp4"),
+                    Path("/fixture/ffmpeg"),
+                    Path("/fixture/ffprobe"),
+                    width=1280,
+                    height=720,
+                )
+
+        legacy_md5 = subprocess.CompletedProcess(
+            (),
+            0,
+            (
+                b"#format: frame checksums\n"
+                b"#hash: MD5\n"
+                b"0, 0, 0, 1, 3, " + b"1" * 32 + b"\n"
+            ),
+            b"",
+        )
+        with patch.object(
+            portfolio,
+            "_run",
+            side_effect=(successful_probe, legacy_md5),
+        ):
+            with self.assertRaisesRegex(
+                collector.CollectionError,
+                "digest manifest is invalid",
+            ):
+                collector._decoded_video_identity(
+                    Path("/fixture/video.mp4"),
+                    Path("/fixture/ffmpeg"),
+                    Path("/fixture/ffprobe"),
+                    width=1280,
+                    height=720,
+                )
+
+    def test_keyboard_interrupt_closes_python_cache_descriptor(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            cache = Path(temporary).resolve(strict=True) / "python-cache"
+            cache.mkdir(mode=0o700)
+            with (
+                patch.object(collector.os, "listdir", side_effect=KeyboardInterrupt),
+                patch.object(
+                    collector.os,
+                    "close",
+                    wraps=os.close,
+                ) as close,
+                self.assertRaises(KeyboardInterrupt),
+            ):
+                collector._open_empty_python_cache(cache)
+            close.assert_called_once()
 
     def test_collector_cli_and_archive_surface_require_full_session_evidence(self):
         source = (ROOT / "publication/collect_portfolio_demo.py").read_text(
             encoding="utf-8"
+        )
+        collect_snapshot = source[
+            source.index("def _collect_snapshot(") : source.index("def collect(")
+        ]
+        self.assertIn(
+            "except BaseException:\n        if staging.exists():",
+            collect_snapshot,
+        )
+        self.assertNotIn(
+            "except Exception:\n        if staging.exists():",
+            collect_snapshot,
         )
         for required in (
             'parser.add_argument("--result-readiness", type=Path, required=True)',

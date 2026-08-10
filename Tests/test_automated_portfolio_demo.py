@@ -1,4 +1,5 @@
 import ast
+import hashlib
 import importlib.util
 import json
 import os
@@ -56,7 +57,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
         wheelhouse.mkdir(mode=0o700)
         output = root / "output"
         return demo.Configuration(
-            tag="corelm-portfolio-v11",
+            tag="corelm-portfolio-v12",
             output=output,
             ffmpeg=Path("/fixture/ffmpeg"),
             ffprobe=Path("/fixture/ffprobe"),
@@ -219,7 +220,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 "macos",
                 "portfolio-demo",
                 "--tag",
-                "corelm-portfolio-v11",
+                "corelm-portfolio-v12",
             )
             accepted = subprocess.run(
                 command,
@@ -393,8 +394,8 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             )
 
     def test_configuration_rejects_future_tag_without_running_preflight(self):
-        arguments = mock.Mock(tag="corelm-portfolio-v12")
-        with self.assertRaisesRegex(demo.AutomatedDemoError, "exact corelm-portfolio-v11"):
+        arguments = mock.Mock(tag="corelm-portfolio-v13")
+        with self.assertRaisesRegex(demo.AutomatedDemoError, "exact corelm-portfolio-v12"):
             demo._validate_configuration(arguments)
 
     def test_preflight_is_nonprompting_and_precedes_attempt_and_proof(self):
@@ -891,6 +892,31 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 popen.assert_not_called()
                 self.assertFalse(configuration.output.exists())
 
+    def test_pre_attempt_keyboard_interrupt_removes_staging(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve(strict=True)
+            configuration = self._configuration(root)
+            source = demo.SourceIdentity(
+                tag=configuration.tag,
+                commit="1" * 40,
+                tree="2" * 40,
+            )
+            with mock.patch.object(
+                demo, "_source_preflight", return_value=source
+            ), mock.patch.object(
+                demo,
+                "_host_and_tool_preflight",
+                side_effect=KeyboardInterrupt,
+            ), mock.patch.object(demo.AttemptLog, "reserve") as reserve:
+                with self.assertRaises(KeyboardInterrupt):
+                    demo.orchestrate(configuration)
+            reserve.assert_not_called()
+            self.assertFalse(configuration.output.exists())
+            self.assertEqual(
+                list(root.glob(f".{configuration.tag}-automation-*")),
+                [],
+            )
+
     def test_ui_preflight_uses_safe_mode_exact_pid_and_one_second_capture(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve(strict=True)
@@ -1325,11 +1351,47 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 "0:v:0",
                 "-f",
                 "framemd5",
+                "-hash",
+                "sha256",
                 "-",
             ),
         )
 
-        source = demo.SourceIdentity("corelm-portfolio-v11", "1" * 40, "2" * 40)
+        manifest = (
+            b"#format: frame checksums\n"
+            b"#version: 2\n"
+            b"#hash: SHA256\n"
+            b"#stream#, dts, pts, duration, size, hash\n"
+            + b"0, 0, 0, 1, 3, " + b"1" * 64 + b"\n"
+        )
+        with mock.patch.object(
+            demo,
+            "_run",
+            return_value=subprocess.CompletedProcess((), 0, manifest, b""),
+        ):
+            self.assertEqual(
+                demo._decoded_frames_digest(video, ffmpeg, 1),
+                hashlib.sha256(manifest).hexdigest(),
+            )
+        for invalid, frame_count in (
+            (manifest.replace(b"#hash: SHA256", b"#hash: MD5"), 1),
+            (manifest, 2),
+        ):
+            with (
+                self.subTest(invalid=invalid, frame_count=frame_count),
+                mock.patch.object(
+                    demo,
+                    "_run",
+                    return_value=subprocess.CompletedProcess((), 0, invalid, b""),
+                ),
+                self.assertRaisesRegex(
+                    demo.AutomatedDemoError,
+                    "decoded-frame manifest is invalid",
+                ),
+            ):
+                demo._decoded_frames_digest(video, ffmpeg, frame_count)
+
+        source = demo.SourceIdentity("corelm-portfolio-v12", "1" * 40, "2" * 40)
         proof = demo.ProofIdentity(
             Path("/private/run"),
             "12345678-1234-4234-8234-123456789abc",

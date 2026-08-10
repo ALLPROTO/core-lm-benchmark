@@ -35,7 +35,7 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
-    def test_current_portfolio_schemas_pin_automation_only_v11_contract(self):
+    def test_current_portfolio_schemas_pin_automation_only_v12_identity(self):
         release_input = json.loads(
             (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
                 encoding="utf-8"
@@ -167,7 +167,7 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v11")
+        self.assertEqual(release_tag, "corelm-portfolio-v12")
         self.assertRegex(citation, r"(?m)^date-released: 2026-08-10$")
 
         for relative in (
@@ -232,7 +232,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v5", text)
-                self.assertIn("corelm-portfolio-v11", text)
+                self.assertIn("corelm-portfolio-v12", text)
                 self.assertIn("HTTP 403", normalized)
                 self.assertIn("AttemptLog.reserve", text)
                 self.assertRegex(normalized, r"(?:signed 32-bit|above `2\^31`)")
@@ -258,7 +258,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v6", text)
-                self.assertIn("corelm-portfolio-v11", text)
+                self.assertIn("corelm-portfolio-v12", text)
                 self.assertIn("first-attempt tag CI", normalized)
                 self.assertIn("2.052384x", normalized)
                 self.assertIn("-0.00000846", normalized)
@@ -274,7 +274,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("collection", normalized)
                 self.assertIn("never", normalized.lower())
 
-    def test_v7_through_v10_history_and_v11_fix_are_preserved(self):
+    def test_v7_through_v11_history_and_v12_fix_are_preserved(self):
         historical_documents = (
             "docs/DEMO.md",
             "docs/ENGINEERING_CASE_STUDY.md",
@@ -295,6 +295,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("corelm-portfolio-v9", text)
                 self.assertIn("corelm-portfolio-v10", text)
                 self.assertIn("corelm-portfolio-v11", text)
+                self.assertIn("corelm-portfolio-v12", text)
                 self.assertIn("three V7 runner invocations", normalized)
                 self.assertIn("two", normalized.lower())
                 self.assertIn("50%", normalized)
@@ -471,6 +472,63 @@ class PublicationArchiveTests(unittest.TestCase):
                     self.assertIn(forbidden_option, text)
                 self.assertIn("unavailable wrapper failed before the attempt marker", normalized)
                 self.assertIn("corelm-automated-presentation-v2", text)
+                for identity in (
+                    "0071b1c9cbfffdb591a103fcc836a250d3d405e1",
+                    "4fb72d1dd73b8824f77f562620c16aa6481fc6a4",
+                    "2bddc12667f3fac6901f982969003b38abcc3d3e",
+                    "31371667051",
+                    "31371667048",
+                    "6bc357a8-4fc6-4f7c-b73f-0718af818952",
+                    "9c24a9c629f43b114ddc3766718079a0ba6b7160ff98e0d2c8339a6b53d6d61c",
+                    "635a1347ae93365ab5c03e14c56f329938d4164e353fe5b65690ccdd9a6f4675",
+                    "0192341765bf5e30f9a103e5b2b39d46d3eb35278a942b51d1747055ebf3b9fb",
+                    "a569802b3a7c76a5ca7283b56227b0730c5f420b80c4d8f2cfb49b727ab78805",
+                    "ca671a98c4476de5db1927bf2114693e9901aa96335642b227e55024924dd80d",
+                    "f99b32ce5e47cf26c1abe784c7b992fc448aa3f8faadbfe8432d7baca17def20",
+                    "6d9363fee0a84967a4b9ba474743d8d1a5501f3ce7c53fecf57eb0fd65fd6241",
+                    "356b96e96d2310cb561ed96bc0246428e30bdcd7ac32ac49e47d0d4d7a014169",
+                    "1661a2c7e087087de3848518eae9c95809c3ea5b10361a50f7817061844ef848",
+                    "bb7caa9c0874ac17d259de25ac952f13c9cd832b8dd83bceba94d30772ffe744",
+                    "7270ca303e891bdd6aaac18a50a518209c7365f794869bb5a974cc5e111f784d",
+                    "9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153",
+                    "6e5c774b9f6adba9cd5fe68681a246f01a3f7163aac428f36dff29affb9c5919",
+                    "6e64ff46721b81f8c45e1dfbbac41a6b7595ec8d5b4e101128bbc2f27860ee91",
+                    "131953d94a53bd26e5b8d624267df7c88ee96c96cf86671511eaedd07e597ecc",
+                ):
+                    self.assertIn(identity, text)
+                for exact_fact in (
+                    "2.0523837550538349x",
+                    "-8.4598101111055257e-06",
+                    "0.9951171875",
+                    "1,024/1,024",
+                    "maximum errors 0",
+                    "PORTFOLIO DEMO COLLECTION FAIL: final video bytes are not "
+                    "the exact raw composition",
+                    "byte-distinct",
+                    "user_data_unregistered",
+                    "decoded framemd5",
+                ):
+                    self.assertIn(exact_fact, normalized)
+                self.assertIn(
+                    "ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → "
+                    "REPLAY_VERIFIED PASS → POST_PROOF_PRESENTATION_SURFACE_READY "
+                    "→ POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → "
+                    "RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION",
+                    normalized,
+                )
+                self.assertRegex(normalized, r"inputs(?: directory)?(?:,|/)?.*assets")
+                self.assertRegex(normalized, r"(?:GitHub Release|release absent)")
+                self.assertIn("exact frame count", normalized)
+                self.assertIn("PTS", normalized)
+                self.assertIn(
+                    "strict per-frame SHA-256 framemd5 manifest",
+                    normalized,
+                )
+                self.assertIn("MD5", normalized)
+                self.assertIn("malformed manifests are rejected", normalized)
+                self.assertRegex(normalized, r"decoded(?:-frame| frames)")
+                self.assertIn("poster", normalized)
+                self.assertIn("V12", normalized)
 
         exact_documents = (
             "docs/DEMO.md",

@@ -110,7 +110,7 @@ orchestrator in
 does not print end-to-end PASS until the app, structural verifier, and heavy
 model replay have all returned successfully.
 
-The `corelm-portfolio-v11` `corelm-automated-presentation-v2` contour is also
+The `corelm-portfolio-v12` `corelm-automated-presentation-v2` contour is also
 automation-only: after proof and replay it records a fixed model-free
 explanatory overview from the exact verified proof app, reopens the exact
 retained run, derives the poster at a fixed timestamp,
@@ -121,7 +121,7 @@ support remains in signed result/evidence bytes and the heavy replay. The
 capture-safe view and metadata scans reduce disclosure risk but do not prove
 that no private glyph exists.
 
-This V11 contour does not rewrite the failed V4 candidate. V4 stopped during
+This V12 contour does not rewrite the failed V4 candidate. V4 stopped during
 pre-model tool admission when its FFprobe frame-PTS field validator rejected
 n8.1.2's `duration_time`/SEI output grammar, before the durable attempt marker
 and before any model invocation; no V4 model attempt was consumed. V5 then
@@ -243,6 +243,61 @@ requiring a valid nonempty `avcC`; nonzero, wrong-length, misplaced, and
 missing-`avcC` cases fail, without generically relaxing atom parsing. V11 keeps
 presentation contract v2 and requires its own signed tag, first-attempt CI,
 and sole proof.
+
+The signed `corelm-portfolio-v11` candidate is frozen at source commit
+`0071b1c9cbfffdb591a103fcc836a250d3d405e1`, tree
+`4fb72d1dd73b8824f77f562620c16aa6481fc6a4`, and annotated tag object
+`2bddc12667f3fac6901f982969003b38abcc3d3e`; first-attempt tag CI passed in
+Linux run `31371667051` and macOS run `31371667048`. Exactly one V11 attempt
+was consumed, UUID `6bc357a8-4fc6-4f7c-b73f-0718af818952`. Its sole proof and
+heavy replay passed at 2.0523837550538349x compression, delta NLL
+-8.4598101111055257e-06, top-1 agreement 0.9951171875, and 1,024/1,024 replay
+decisions with maximum errors 0. Its exact nine-event order was
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED →
+SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`.
+State SHA-256 was `9c24a9c629f43b114ddc3766718079a0ba6b7160ff98e0d2c8339a6b53d6d61c`;
+automation-report SHA-256 was
+`635a1347ae93365ab5c03e14c56f329938d4164e353fe5b65690ccdd9a6f4675`;
+app executable, app-run receipt, result, and readiness SHA-256 values were
+`0192341765bf5e30f9a103e5b2b39d46d3eb35278a942b51d1747055ebf3b9fb`,
+`a569802b3a7c76a5ca7283b56227b0730c5f420b80c4d8f2cfb49b727ab78805`,
+`ca671a98c4476de5db1927bf2114693e9901aa96335642b227e55024924dd80d`, and
+`f99b32ce5e47cf26c1abe784c7b992fc448aa3f8faadbfe8432d7baca17def20`.
+The receipt-bound preflight, post-proof-presentation, and same-run-result MOV
+SHA-256 values were
+`6d9363fee0a84967a4b9ba474743d8d1a5501f3ce7c53fecf57eb0fd65fd6241`,
+`356b96e96d2310cb561ed96bc0246428e30bdcd7ac32ac49e47d0d4d7a014169`, and
+`1661a2c7e087087de3848518eae9c95809c3ea5b10361a50f7817061844ef848`.
+The sealed 30-second, 900-frame 1280x720 MP4, decoded frames, PTS, and poster
+SHA-256 values were
+`bb7caa9c0874ac17d259de25ac952f13c9cd832b8dd83bceba94d30772ffe744`,
+`7270ca303e891bdd6aaac18a50a518209c7365f794869bb5a974cc5e111f784d`,
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`, and
+`6e5c774b9f6adba9cd5fe68681a246f01a3f7163aac428f36dff29affb9c5919`.
+
+Collection then failed exactly with `PORTFOLIO DEMO COLLECTION FAIL: final
+video bytes are not the exact raw composition`. A bounded exact-composition
+diagnostic produced retained/replay SHA-256 values
+`bb7caa9c0874ac17d259de25ac952f13c9cd832b8dd83bceba94d30772ffe744`,
+`6e64ff46721b81f8c45e1dfbbac41a6b7595ec8d5b4e101128bbc2f27860ee91`, and
+`131953d94a53bd26e5b8d624267df7c88ee96c96cf86671511eaedd07e597ecc`:
+three byte-distinct, equal-size MP4s with the exact same 900-frame decoded
+framemd5 SHA-256 `7270ca303e891bdd6aaac18a50a518209c7365f794869bb5a974cc5e111f784d`
+and PTS identity. Only packet zero's type-6 `user_data_unregistered` SEI
+payload differed. This was a false encoded-byte reject, not a decoded
+composition difference. Cleanup removed staging; V11 inputs, fourteen assets,
+evidence archive, and GitHub Release remained absent. Never move, rerun, reuse,
+or relabel the V11 proof/tag/final media; the diagnostic invoked no model and
+altered no retained bytes.
+
+V12 is the distinct correction: final video bytes remain exactly report-bound
+and poster replay remains byte-exact. Replay requires a strict per-frame
+SHA-256 framemd5 manifest together with exact frame count and PTS SHA-256; MD5
+and malformed manifests are rejected. This exact decoded identity replaces
+comparison of nondeterministic VideoToolbox encoded bytes.
+Presentation contract and schema/state/report version remain v2; V12 requires
+its own signed tag, first-attempt CI, and sole proof.
 
 This is **implementation/process separation**, not independent scientific
 review. The project is currently author-operated and

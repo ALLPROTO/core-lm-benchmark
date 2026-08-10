@@ -439,28 +439,41 @@ def _decoded_video_identity(
     except automated_media.AutomatedMediaError as error:
         raise CollectionError("decoded frame PTS identity is invalid") from error
     decoded = portfolio._run(
-        (
-            str(ffmpeg),
-            "-v",
-            "error",
-            "-i",
-            str(video),
-            "-map",
-            "0:v:0",
-            "-f",
-            "framemd5",
-            "-",
-        ),
+        _framemd5_argv(video, ffmpeg),
         cwd=video.parent,
         timeout=120,
     )
-    if decoded.returncode != 0 or not decoded.stdout:
+    if decoded.returncode != 0:
         raise CollectionError("decoded frame digest replay failed")
+    try:
+        decoded_frames_sha256 = automated_media.decoded_frame_manifest_sha256(
+            decoded.stdout,
+            expected_frame_count=frame_count,
+        )
+    except automated_media.AutomatedMediaError as error:
+        raise CollectionError("decoded frame digest manifest is invalid") from error
     return {
         "frame_count": frame_count,
         "pts_sha256": pts_sha256,
-        "decoded_frames_sha256": _sha256_bytes(decoded.stdout),
+        "decoded_frames_sha256": decoded_frames_sha256,
     }
+
+
+def _framemd5_argv(video: Path, ffmpeg: Path) -> tuple[str, ...]:
+    return (
+        str(ffmpeg),
+        "-v",
+        "error",
+        "-i",
+        str(video),
+        "-map",
+        "0:v:0",
+        "-f",
+        "framemd5",
+        "-hash",
+        "sha256",
+        "-",
+    )
 
 
 def _raw_segment_identity(
@@ -570,6 +583,7 @@ def _verify_composition_from_raw(
     video: Path,
     poster: Path,
     ffmpeg: Path,
+    ffprobe: Path,
 ) -> None:
     with tempfile.TemporaryDirectory(prefix="corelm-composition-replay-") as temporary:
         root = Path(temporary).resolve(strict=True)
@@ -584,8 +598,27 @@ def _verify_composition_from_raw(
         if completed.returncode != 0 or not replay_video.is_file():
             raise CollectionError("fixed raw-segment composition replay failed")
         portfolio._require_regular_file(replay_video, portfolio.MAX_VIDEO_BYTES)
-        if replay_video.read_bytes() != video.read_bytes():
-            raise CollectionError("final video bytes are not the exact raw composition")
+        retained_identity = _decoded_video_identity(
+            video,
+            ffmpeg,
+            ffprobe,
+            width=automated_media.OUTPUT_WIDTH,
+            height=automated_media.OUTPUT_HEIGHT,
+        )
+        replay_identity = _decoded_video_identity(
+            replay_video,
+            ffmpeg,
+            ffprobe,
+            width=automated_media.OUTPUT_WIDTH,
+            height=automated_media.OUTPUT_HEIGHT,
+        )
+        if any(
+            retained_identity[key] != replay_identity[key]
+            for key in ("frame_count", "pts_sha256", "decoded_frames_sha256")
+        ):
+            raise CollectionError(
+                "final video decoded-frame identity is not the exact raw composition"
+            )
         replay_poster = root / "poster.png"
         poster_result = portfolio._run(
             (
@@ -732,7 +765,7 @@ def _open_empty_python_cache(path: Path) -> tuple[int, tuple[int, ...]]:
         if os.listdir(descriptor):
             raise CollectionError("proof python-cache must be empty")
         return descriptor, identity
-    except Exception:
+    except BaseException:
         os.close(descriptor)
         raise
 
@@ -1485,6 +1518,7 @@ def _collect_snapshot(
             video=video,
             poster=poster,
             ffmpeg=ffmpeg,
+            ffprobe=ffprobe,
         )
         for retained_session_asset in (
             attempt_state_path,
@@ -1730,7 +1764,7 @@ def _collect_snapshot(
             "evidence_sha256": evidence_sha256,
             "video_sha256": provenance["video"]["sha256"],
         }
-    except Exception:
+    except BaseException:
         if staging.exists():
             shutil.rmtree(staging)
         raise

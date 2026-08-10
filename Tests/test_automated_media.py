@@ -10,6 +10,57 @@ from security import verify_portfolio_tag_ci as tag_ci
 
 
 class AutomatedMediaContractTests(unittest.TestCase):
+    def _sha256_framemd5(self, *digests):
+        headers = (
+            "#format: frame checksums\n"
+            "#version: 2\n"
+            "#hash: SHA256\n"
+            "#stream#, dts, pts, duration, size, hash\n"
+        )
+        rows = "".join(
+            f"0, {index}, {index}, 1, 3, {digest}\n"
+            for index, digest in enumerate(digests)
+        )
+        return (headers + rows).encode("ascii")
+
+    def test_sha256_framemd5_manifest_is_strict_and_byte_bound(self):
+        manifest = self._sha256_framemd5("1" * 64, "2" * 64)
+        self.assertEqual(
+            automated_media.decoded_frame_manifest_sha256(
+                manifest,
+                expected_frame_count=2,
+            ),
+            hashlib.sha256(manifest).hexdigest(),
+        )
+
+        malformed = (
+            manifest.replace(b"#hash: SHA256", b"#hash: MD5"),
+            self._sha256_framemd5("1" * 32),
+            self._sha256_framemd5("A" * 64),
+            manifest.replace(b"0, 0, 0, 1, 3,", b"0, 0, 1, 3,"),
+            manifest.replace(b"0, 0, 0, 1, 3,", b"0, 0, 0, 1, 3, 4,"),
+            manifest[:-1],
+            manifest.replace(b"#version: 2\n", b"#version: 2\r\n"),
+            manifest + b"\xff",
+        )
+        for payload in malformed:
+            with self.subTest(payload=payload), self.assertRaises(
+                automated_media.AutomatedMediaError
+            ):
+                automated_media.decoded_frame_manifest_sha256(
+                    payload,
+                    expected_frame_count=2,
+                )
+
+        with self.assertRaisesRegex(
+            automated_media.AutomatedMediaError,
+            "row count is not exact",
+        ):
+            automated_media.decoded_frame_manifest_sha256(
+                manifest,
+                expected_frame_count=1,
+            )
+
     def _ffprobe_frames(self):
         return [
             {
@@ -136,7 +187,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
             "machine_evidence": False,
             "pixel_semantics_verified": False,
             "source": {
-                "tag": "corelm-portfolio-v11",
+                "tag": "corelm-portfolio-v12",
                 "commit": "1" * 40,
                 "tree": "2" * 40,
             },
@@ -261,7 +312,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
         return b"".join(automated_media.canonical_json_bytes(event) for event in events)
 
     def _tag_ci_receipt(self):
-        tag = "corelm-portfolio-v11"
+        tag = "corelm-portfolio-v12"
         commit = "1" * 40
         tree = "2" * 40
         workflows = []
@@ -488,8 +539,8 @@ class AutomatedMediaContractTests(unittest.TestCase):
             with self.assertRaises(automated_media.AutomatedMediaError):
                 automated_media.validate_attempt_state_bytes(tampered, report=report)
         wrong_tag_state = state.replace(
-            b'"tag":"corelm-portfolio-v11"',
             b'"tag":"corelm-portfolio-v12"',
+            b'"tag":"corelm-portfolio-v13"',
         )
         wrong_tag_report = copy.deepcopy(report)
         wrong_tag_report["attempt"]["state_log_sha256"] = hashlib.sha256(
@@ -511,7 +562,7 @@ class AutomatedMediaContractTests(unittest.TestCase):
             automated_media.validate_tag_ci_receipt_bytes(
                 payload,
                 expected={"repository": "ALLPROTO/core-lm-benchmark",
-                          "tag": "corelm-portfolio-v11", "commit": "1" * 40,
+                          "tag": "corelm-portfolio-v12", "commit": "1" * 40,
                           "tree": "2" * 40},
             ),
             receipt,

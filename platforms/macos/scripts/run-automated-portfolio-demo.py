@@ -380,8 +380,8 @@ def _resolve_tool(path: Path, label: str) -> Path:
 
 def _validate_configuration(arguments: argparse.Namespace) -> Configuration:
     match = TAG_PATTERN.fullmatch(arguments.tag)
-    if match is None or arguments.tag != "corelm-portfolio-v11":
-        raise AutomatedDemoError("tag must be exact corelm-portfolio-v11")
+    if match is None or arguments.tag != "corelm-portfolio-v12":
+        raise AutomatedDemoError("tag must be exact corelm-portfolio-v12")
     if os.environ.get("CORELM_OFFLINE") != "1":
         raise AutomatedDemoError("CORELM_OFFLINE=1 is mandatory")
     wheelhouse_value = os.environ.get("CORELM_WHEELHOUSE", "")
@@ -1889,6 +1889,8 @@ def _framemd5_argv(video: Path, ffmpeg: Path) -> tuple[str, ...]:
         "0:v:0",
         "-f",
         "framemd5",
+        "-hash",
+        "sha256",
         "-",
     )
 
@@ -1902,16 +1904,12 @@ def _decoded_frames_digest(video: Path, ffmpeg: Path, frame_count: int) -> str:
     if completed.returncode != 0:
         raise AutomatedDemoError("decoded-frame hashing failed")
     try:
-        rows = [
-            line
-            for line in completed.stdout.decode("ascii").splitlines()
-            if line and not line.startswith("#")
-        ]
-    except UnicodeDecodeError as error:
-        raise AutomatedDemoError("decoded-frame manifest is not ASCII") from error
-    if len(rows) != frame_count or any(len(row.split(",")) != 6 for row in rows):
-        raise AutomatedDemoError("decoded-frame manifest has unexpected topology")
-    return hashlib.sha256(completed.stdout).hexdigest()
+        return automated_media.decoded_frame_manifest_sha256(
+            completed.stdout,
+            expected_frame_count=frame_count,
+        )
+    except automated_media.AutomatedMediaError as error:
+        raise AutomatedDemoError("decoded-frame manifest is invalid") from error
 
 
 def _validate_png(path: Path) -> None:
@@ -2415,7 +2413,7 @@ def orchestrate(configuration: Configuration) -> dict[str, Any]:
             except Exception:
                 pass
             raise
-    except Exception:
+    except BaseException:
         if attempt is None and staging.exists():
             shutil.rmtree(staging)
         raise

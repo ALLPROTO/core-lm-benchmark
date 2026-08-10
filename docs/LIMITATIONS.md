@@ -84,7 +84,7 @@ does not turn that claim into a general model-compression result.
     release metadata, manifests, checksums, and current evidence. Private keys,
     tokens, credential-like bytes, model weights, and new author-local paths
     remain release blockers.
-17. `corelm-portfolio-v11` demo pixels are an automatically captured product
+17. `corelm-portfolio-v12` demo pixels are an automatically captured product
     presentation, not metric evidence or independent review. Single-window
     isolation, a
     capture-safe allowlisted view, metadata/byte scans, fixed-frame replay, and
@@ -220,6 +220,52 @@ does not turn that claim into a general model-compression result.
     missing-`avcC` cases remain failures. The generic atom parser and
     `corelm-automated-presentation-v2` contract remain unchanged; V11 requires
     its own signed tag, first-attempt CI, and sole proof.
+25. `corelm-portfolio-v11` is a frozen consumed proof/replay/media PASS whose
+    collector failed. Exact signed source commit/tree/tag-object IDs are
+    `0071b1c9cbfffdb591a103fcc836a250d3d405e1`,
+    `4fb72d1dd73b8824f77f562620c16aa6481fc6a4`, and
+    `2bddc12667f3fac6901f982969003b38abcc3d3e`; first-attempt tag CI passed in
+    Linux run `31371667051` and macOS run `31371667048`. Exactly one V11
+    attempt was consumed, UUID `6bc357a8-4fc6-4f7c-b73f-0718af818952`.
+    Its sole proof and heavy replay passed at 2.0523837550538349x compression,
+    delta NLL -8.4598101111055257e-06, top-1 agreement 0.9951171875, and
+    1,024/1,024 decisions with maximum errors 0. Its exact nine-event order was
+    `ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED
+    PASS → POST_PROOF_PRESENTATION_SURFACE_READY →
+    POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → RESULT_CAPTURED →
+    MEDIA_SEALED_FOR_COLLECTION`. State/report SHA-256 values were
+    `9c24a9c629f43b114ddc3766718079a0ba6b7160ff98e0d2c8339a6b53d6d61c` and
+    `635a1347ae93365ab5c03e14c56f329938d4164e353fe5b65690ccdd9a6f4675`.
+    App, receipt, result, and readiness SHA-256 values were
+    `0192341765bf5e30f9a103e5b2b39d46d3eb35278a942b51d1747055ebf3b9fb`,
+    `a569802b3a7c76a5ca7283b56227b0730c5f420b80c4d8f2cfb49b727ab78805`,
+    `ca671a98c4476de5db1927bf2114693e9901aa96335642b227e55024924dd80d`, and
+    `f99b32ce5e47cf26c1abe784c7b992fc448aa3f8faadbfe8432d7baca17def20`.
+    Preflight/post-proof/result MOV SHA-256 values were
+    `6d9363fee0a84967a4b9ba474743d8d1a5501f3ce7c53fecf57eb0fd65fd6241`,
+    `356b96e96d2310cb561ed96bc0246428e30bdcd7ac32ac49e47d0d4d7a014169`, and
+    `1661a2c7e087087de3848518eae9c95809c3ea5b10361a50f7817061844ef848`.
+    Final MP4/decoded/PTS/poster SHA-256 values were
+    `bb7caa9c0874ac17d259de25ac952f13c9cd832b8dd83bceba94d30772ffe744`,
+    `7270ca303e891bdd6aaac18a50a518209c7365f794869bb5a974cc5e111f784d`,
+    `9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`, and
+    `6e5c774b9f6adba9cd5fe68681a246f01a3f7163aac428f36dff29affb9c5919`.
+    Collection failed exactly: `PORTFOLIO DEMO COLLECTION FAIL: final video
+    bytes are not the exact raw composition`. Retained/replay SHA-256 values
+    `bb7caa9c0874ac17d259de25ac952f13c9cd832b8dd83bceba94d30772ffe744`,
+    `6e64ff46721b81f8c45e1dfbbac41a6b7595ec8d5b4e101128bbc2f27860ee91`, and
+    `131953d94a53bd26e5b8d624267df7c88ee96c96cf86671511eaedd07e597ecc`
+    were byte-distinct but had exact 900-frame decoded framemd5 SHA-256
+    `7270ca303e891bdd6aaac18a50a518209c7365f794869bb5a974cc5e111f784d`
+    and PTS identity; only packet-zero type-6 `user_data_unregistered` SEI
+    differed. Cleanup left inputs, fourteen assets, evidence archive, and
+    GitHub Release absent. Never move, rerun, reuse, or relabel V11 proof/tag/
+    final media. V12 keeps final bytes report-bound and poster replay
+    byte-exact. Its replay parser requires a strict per-frame SHA-256 framemd5
+    manifest together with exact frame count and PTS SHA-256; MD5 and malformed
+    manifests are rejected. This replaces comparison of encoded VideoToolbox
+    bytes. Contract and schema/state/report version remain v2; V12 requires its
+    own signed tag, first-attempt CI, and sole proof.
 
 The detailed versioned research record is preserved under `docs/development/`
 and in immutable publication tags.

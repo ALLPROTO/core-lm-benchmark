@@ -67,7 +67,7 @@ one another:
   from a checkout whose historical `CITATION.cff` names the same paper tag,
   verifies that the tag is lightweight, points to clean `HEAD`, and is visible
   on the canonical public origin. The current default branch instead names the
-  current `corelm-portfolio-v11` software identity.
+  current `corelm-portfolio-v12` software identity.
 - `corelm-portfolio-vN` is the SSH-signed annotated portfolio and source-
   verification contour. Its signed-source identity is verified against the
   pinned signer policy and canonical remote; the separate
@@ -106,11 +106,11 @@ A preview from a dirty working tree is intentionally not upload-ready.
 `PROVENANCE.json` records the source-state mode.
 
 On the default branch that preview includes the current
-`corelm-portfolio-v11` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
+`corelm-portfolio-v12` CFF/SBOM identity and is an `UNRELEASED_PREVIEW`; it is
 not a byte claim about the historical paper-v5 package. Exact paper-v5
 reproduction requires the detached tag below.
 
-The V11 portfolio media path is governed by
+The V12 portfolio media path is governed by
 `corelm-automated-presentation-v2` and is classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. It requires no human review or
 manual edit to accept generated media, but it does not verify pixel semantics
@@ -118,7 +118,7 @@ and does not make the video or poster scientific machine evidence. Gate G10
 remains **OPEN** until a non-author, non-agent person publishes the required
 clean-clone replication.
 
-V11 is distinct from the preserved V3, V4, V5, and V6 failures. V3 failed its
+V12 is distinct from the preserved V3, V4, V5, and V6 failures. V3 failed its
 first tag-push assertion. V4 passed tag CI but stopped in pre-model FFprobe
 frame-PTS field validation before `AttemptLog.reserve`, so no V4 model attempt was
 invoked or consumed. V5 also passed first-attempt tag CI. Its first local
@@ -238,6 +238,49 @@ zero padding bytes only at the end of an `avc1` child region while requiring a
 valid nonempty `avcC`; nonzero, wrong-length, misplaced, and missing-`avcC`
 cases fail. The generic parser and presentation contract v2 remain unchanged.
 V11 requires its own signed tag, first-attempt CI, and sole proof.
+
+The frozen `corelm-portfolio-v11` source commit/tree/tag-object IDs are
+`0071b1c9cbfffdb591a103fcc836a250d3d405e1`,
+`4fb72d1dd73b8824f77f562620c16aa6481fc6a4`, and
+`2bddc12667f3fac6901f982969003b38abcc3d3e`; first-attempt Linux/macOS tag-CI
+runs `31371667051`/`31371667048` passed. Exactly one attempt was consumed,
+UUID `6bc357a8-4fc6-4f7c-b73f-0718af818952`; sole proof/replay passed at
+2.0523837550538349x, delta NLL -8.4598101111055257e-06, top-1 0.9951171875,
+and 1,024/1,024 decisions with maximum errors 0. Its exact nine events were
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED →
+SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`.
+State/report SHA-256 values were
+`9c24a9c629f43b114ddc3766718079a0ba6b7160ff98e0d2c8339a6b53d6d61c` and
+`635a1347ae93365ab5c03e14c56f329938d4164e353fe5b65690ccdd9a6f4675`;
+app/receipt/result/readiness values were
+`0192341765bf5e30f9a103e5b2b39d46d3eb35278a942b51d1747055ebf3b9fb`,
+`a569802b3a7c76a5ca7283b56227b0730c5f420b80c4d8f2cfb49b727ab78805`,
+`ca671a98c4476de5db1927bf2114693e9901aa96335642b227e55024924dd80d`, and
+`f99b32ce5e47cf26c1abe784c7b992fc448aa3f8faadbfe8432d7baca17def20`.
+Raw preflight/post-proof/result hashes were
+`6d9363fee0a84967a4b9ba474743d8d1a5501f3ce7c53fecf57eb0fd65fd6241`,
+`356b96e96d2310cb561ed96bc0246428e30bdcd7ac32ac49e47d0d4d7a014169`, and
+`1661a2c7e087087de3848518eae9c95809c3ea5b10361a50f7817061844ef848`;
+final MP4/decoded/PTS/poster hashes were
+`bb7caa9c0874ac17d259de25ac952f13c9cd832b8dd83bceba94d30772ffe744`,
+`7270ca303e891bdd6aaac18a50a518209c7365f794869bb5a974cc5e111f784d`,
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`, and
+`6e5c774b9f6adba9cd5fe68681a246f01a3f7163aac428f36dff29affb9c5919`.
+Collection failed exactly: `PORTFOLIO DEMO COLLECTION FAIL: final video bytes
+are not the exact raw composition`. Retained/replay hashes
+`bb7caa9c0874ac17d259de25ac952f13c9cd832b8dd83bceba94d30772ffe744`,
+`6e64ff46721b81f8c45e1dfbbac41a6b7595ec8d5b4e101128bbc2f27860ee91`, and
+`131953d94a53bd26e5b8d624267df7c88ee96c96cf86671511eaedd07e597ecc`
+were byte-distinct but had exact decoded framemd5
+`7270ca303e891bdd6aaac18a50a518209c7365f794869bb5a974cc5e111f784d`
+and PTS identity; only packet-zero type-6 `user_data_unregistered` SEI differed.
+Cleanup left inputs/assets/evidence/release absent. Never rerun, move, reuse, or
+relabel V11 proof/tag/final media. V12 keeps final byte/report binding and
+byte-exact poster replay. Its replay parser requires a strict per-frame SHA-256
+framemd5 manifest together with exact frame count and PTS SHA-256; MD5 and
+malformed manifests are rejected. Contract and schema/state/report version stay
+v2. V12 requires its own signed identity, tag, first-attempt CI, and sole proof.
 
 ## Reproduce the existing tagged package
 

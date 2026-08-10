@@ -19,14 +19,14 @@ from publication import verify_portfolio_github_release as github_release  # noq
 from security import automated_media  # noqa: E402
 
 
-TAG = "corelm-portfolio-v11"
+TAG = "corelm-portfolio-v12"
 COMMIT = "1" * 40
 TREE = "2" * 40
 TAG_OBJECT = "3" * 40
 C1_COMMIT = "7" * 40
 C1_TREE = "8" * 40
 EXPECTED_TITLE = (
-    "Core LM Portfolio v11 — reproducible real-model KV-cache benchmark"
+    "Core LM Portfolio v12 — reproducible real-model KV-cache benchmark"
 )
 FAKE_SIGNATURE = (
     "-----BEGIN SSH SIGNATURE-----\n"

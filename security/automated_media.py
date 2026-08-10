@@ -71,6 +71,8 @@ _FRAME_SIDE_DATA_FIELD = "side_data_list"
 _FRAME_SEI_SIDE_DATA = [
     {"side_data_type": "H.26[45] User Data Unregistered SEI message"}
 ]
+_FRAME_MANIFEST_INTEGER_RE = re.compile(r"^-?(?:0|[1-9][0-9]*)$")
+_FRAME_MANIFEST_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class AutomatedMediaError(ValueError):
@@ -634,6 +636,69 @@ def frame_pts_identity(
     if any(right <= left for left, right in zip(timestamps, timestamps[1:])):
         raise AutomatedMediaError("frame PTS sequence is not strictly monotonic")
     return len(projected), sha256_bytes(canonical_json_bytes({"frames": projected}))
+
+
+def decoded_frame_manifest_sha256(
+    value: bytes,
+    *,
+    expected_frame_count: int,
+) -> str:
+    """Validate a pure FFmpeg SHA-256 framemd5 manifest and hash its bytes."""
+
+    frame_count = _positive_int(
+        expected_frame_count,
+        "decoded frame manifest row count",
+        maximum=MAX_DECODED_FRAME_COUNT,
+    )
+    maximum_bytes = MAX_DECODED_FRAME_COUNT * 256 + 4096
+    if type(value) is not bytes or not value or len(value) > maximum_bytes:
+        raise AutomatedMediaError("decoded frame manifest bytes are not bounded")
+    try:
+        text = value.decode("ascii")
+    except UnicodeDecodeError as error:
+        raise AutomatedMediaError("decoded frame manifest is not ASCII") from error
+    if "\r" in text or not text.endswith("\n"):
+        raise AutomatedMediaError("decoded frame manifest line endings are not exact")
+    lines = text[:-1].split("\n")
+    if not lines or any(not line for line in lines):
+        raise AutomatedMediaError("decoded frame manifest contains an empty line")
+
+    headers: list[str] = []
+    rows: list[str] = []
+    saw_row = False
+    for line in lines:
+        if line.startswith("#"):
+            if saw_row:
+                raise AutomatedMediaError(
+                    "decoded frame manifest header follows a frame row"
+                )
+            headers.append(line)
+        else:
+            saw_row = True
+            rows.append(line)
+    if (
+        headers.count("#hash: SHA256") != 1
+        or any(
+            header.startswith("#hash:") and header != "#hash: SHA256"
+            for header in headers
+        )
+    ):
+        raise AutomatedMediaError("decoded frame manifest hash is not SHA256")
+    if len(rows) != frame_count:
+        raise AutomatedMediaError("decoded frame manifest row count is not exact")
+    for row in rows:
+        fields = tuple(field.strip() for field in row.split(","))
+        if (
+            len(fields) != 6
+            or any(not field for field in fields)
+            or any(
+                _FRAME_MANIFEST_INTEGER_RE.fullmatch(field) is None
+                for field in fields[:5]
+            )
+            or _FRAME_MANIFEST_SHA256_RE.fullmatch(fields[5]) is None
+        ):
+            raise AutomatedMediaError("decoded frame manifest row is malformed")
+    return sha256_bytes(value)
 
 
 def validate_readiness(

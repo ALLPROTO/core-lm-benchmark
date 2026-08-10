@@ -1,6 +1,6 @@
 # Automation-only macOS portfolio demo
 
-This is the current V11 product-media contour for portfolio gate G03 under
+This is the current V12 product-media contour for portfolio gate G03 under
 `corelm-automated-presentation-v2`. It has no interactive window selection,
 editor, manual trim, chosen poster frame, or human-review acceptance step. Its
 exact classification is:
@@ -150,11 +150,77 @@ missing-`avcC` cases remain failures. It does not generically relax atom
 parsing. V11 retains `corelm-automated-presentation-v2` and requires its own
 signed tag, first-attempt CI, and sole proof.
 
+The signed `corelm-portfolio-v11` candidate is frozen at exact source commit
+`0071b1c9cbfffdb591a103fcc836a250d3d405e1`, tree
+`4fb72d1dd73b8824f77f562620c16aa6481fc6a4`, and annotated tag object
+`2bddc12667f3fac6901f982969003b38abcc3d3e`. Its first tag CI was green on
+attempt one: Linux run `31371667051` and macOS run `31371667048`. Exactly one
+V11 attempt was consumed, UUID `6bc357a8-4fc6-4f7c-b73f-0718af818952`. Its
+sole proof and heavy replay passed at 2.0523837550538349x compression, delta NLL
+-8.4598101111055257e-06, top-1 agreement 0.9951171875, and 1,024/1,024 replay
+decisions with maximum errors 0. Its exact nine-event durable state order was
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED →
+SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`, with
+state SHA-256 `9c24a9c629f43b114ddc3766718079a0ba6b7160ff98e0d2c8339a6b53d6d61c`
+and automation-report SHA-256
+`635a1347ae93365ab5c03e14c56f329938d4164e353fe5b65690ccdd9a6f4675`.
+The bound app executable SHA-256 was
+`0192341765bf5e30f9a103e5b2b39d46d3eb35278a942b51d1747055ebf3b9fb`, the
+app-run receipt SHA-256 was
+`a569802b3a7c76a5ca7283b56227b0730c5f420b80c4d8f2cfb49b727ab78805`, the
+result SHA-256 was
+`ca671a98c4476de5db1927bf2114693e9901aa96335642b227e55024924dd80d`, and
+the readiness SHA-256 was
+`f99b32ce5e47cf26c1abe784c7b992fc448aa3f8faadbfe8432d7baca17def20`.
+The receipt bound all three raw captures: preflight SHA-256
+`6d9363fee0a84967a4b9ba474743d8d1a5501f3ce7c53fecf57eb0fd65fd6241`,
+post-proof presentation SHA-256
+`356b96e96d2310cb561ed96bc0246428e30bdcd7ac32ac49e47d0d4d7a014169`, and
+same-run result SHA-256
+`1661a2c7e087087de3848518eae9c95809c3ea5b10361a50f7817061844ef848`.
+The sealed 30-second, 900-frame 1280x720 MP4 SHA-256 was
+`bb7caa9c0874ac17d259de25ac952f13c9cd832b8dd83bceba94d30772ffe744`,
+its decoded-frame SHA-256 was
+`7270ca303e891bdd6aaac18a50a518209c7365f794869bb5a974cc5e111f784d`,
+its PTS SHA-256 was
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`, and
+its fixed poster SHA-256 was
+`6e5c774b9f6adba9cd5fe68681a246f01a3f7163aac428f36dff29affb9c5919`.
+
+The later collector stopped before publishing with exact terminal line
+`PORTFOLIO DEMO COLLECTION FAIL: final video bytes are not the exact raw
+composition`. A bounded diagnostic repeated the exact pinned composition and
+produced two temporary replay MP4s. The retained, replay-one, and replay-two
+SHA-256 values were respectively
+`bb7caa9c0874ac17d259de25ac952f13c9cd832b8dd83bceba94d30772ffe744`,
+`6e64ff46721b81f8c45e1dfbbac41a6b7595ec8d5b4e101128bbc2f27860ee91`, and
+`131953d94a53bd26e5b8d624267df7c88ee96c96cf86671511eaedd07e597ecc`.
+All three byte-distinct files were 3,793,619 bytes and had the exact same
+900-frame decoded
+framemd5 SHA-256
+`7270ca303e891bdd6aaac18a50a518209c7365f794869bb5a974cc5e111f784d`
+and exact PTS identity; only packet zero's type-6
+`user_data_unregistered` SEI payload differed. Thus the collector's encoded
+VideoToolbox-byte equality was a false reject, not a decoded composition
+difference. Failed collection removed transient staging; the V11 inputs
+directory, fourteen-asset directory, evidence archive, and GitHub Release
+remained absent. The V11 proof/tag/final media are never moved, rerun, reused,
+or relabelled; the bounded diagnostic did not invoke the model or alter them.
+
+V12 is the distinct corrected identity. It retains exact final-video
+byte/report binding and exact poster replay. Its replay parser requires a
+strict per-frame SHA-256 framemd5 manifest together with exact frame count and
+PTS SHA-256; MD5 and malformed manifests are rejected. It compares that exact
+decoded identity rather than nondeterministic encoded VideoToolbox bytes.
+V12 retains `corelm-automated-presentation-v2` and schema/state/report version
+2, and requires its own signed tag, first-attempt CI, and sole proof.
+
 ## Fixed source and one-attempt boundary
 
 The command accepts only a clean canonical checkout whose `main`,
 `origin/main`, and already-created SSH-signed annotated
-`corelm-portfolio-v11` tag all resolve to the same commit/tree. The signed tag
+`corelm-portfolio-v12` tag all resolve to the same commit/tree. The signed tag
 and its first-attempt Linux/macOS Actions must already be green.
 
 Before model execution the command checks power, the offline doctor, pinned
@@ -170,7 +236,7 @@ than one pinned-Qwen model execution.
 `CORELM_OFFLINE=1` applies to the model, corpus, app proof, replay, and media
 pipeline. Before reserving the attempt, the runner makes the sole bounded
 online exception: eight anonymous, direct, no-proxy/no-redirect GitHub API
-requests that prove the exact public V11 tag/main and first-attempt Linux/macOS
+requests that prove the exact public V12 tag/main and first-attempt Linux/macOS
 tag CI. Failure remains pre-marker and safely retryable. Exact response bytes,
 the recomputed public receipt, and hard-pinned local tag-trust receipt are
 retained for collector and release verification; they record admission-time
@@ -198,10 +264,10 @@ providing both `ffmpeg` and `ffprobe`.
 ```sh
 set -eu
 
-DEMO_TAG=corelm-portfolio-v11
+DEMO_TAG=corelm-portfolio-v12
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v11-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v12-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -280,7 +346,7 @@ WINDOW_HELPER="$DEMO_SESSION/find-proof-window"
 TAG_CI_RECEIPT="$DEMO_SESSION/tag-ci-receipt.json"
 LOCAL_TAG_TRUST_RECEIPT="$DEMO_SESSION/local-tag-trust-receipt.json"
 TAG_CI_BUNDLE="$DEMO_SESSION/tag-ci-bundle"
-INPUTS=/absolute/absent/corelm-portfolio-v11-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v12-inputs
 PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 
 publication/run_portfolio_python.sh \
