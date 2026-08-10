@@ -380,8 +380,8 @@ def _resolve_tool(path: Path, label: str) -> Path:
 
 def _validate_configuration(arguments: argparse.Namespace) -> Configuration:
     match = TAG_PATTERN.fullmatch(arguments.tag)
-    if match is None or arguments.tag != "corelm-portfolio-v10":
-        raise AutomatedDemoError("tag must be exact corelm-portfolio-v10")
+    if match is None or arguments.tag != "corelm-portfolio-v11":
+        raise AutomatedDemoError("tag must be exact corelm-portfolio-v11")
     if os.environ.get("CORELM_OFFLINE") != "1":
         raise AutomatedDemoError("CORELM_OFFLINE=1 is mandatory")
     wheelhouse_value = os.environ.get("CORELM_WHEELHOUSE", "")

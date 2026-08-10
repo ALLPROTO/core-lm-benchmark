@@ -1,6 +1,6 @@
 # Automation-only macOS portfolio demo
 
-This is the current V10 product-media contour for portfolio gate G03 under
+This is the current V11 product-media contour for portfolio gate G03 under
 `corelm-automated-presentation-v2`. It has no interactive window selection,
 editor, manual trim, chosen poster frame, or human-review acceptance step. Its
 exact classification is:
@@ -94,17 +94,67 @@ off at 23:00:00, idle sleep at 23:00:30, capture beginning during DarkWake at
 finalization at 23:09:19. The app remained alive; the launcher lacked a
 display/system-sleep assertion. No result capture/readiness asset, final media,
 automation receipt, or release was produced. Never move, rerun, reuse, or
-relabel V9.
-V10 is the distinct successor: exact `/usr/bin/caffeinate -dis` wraps the full
-sterile runner lifetime, `-u`, `-t`, and `-w` are forbidden, and an unavailable
-wrapper fails before the attempt marker. V10 retains presentation contract
-`corelm-automated-presentation-v2`.
+relabel V9. V10 was its distinct successor: exact `/usr/bin/caffeinate -dis`
+wrapped the full sterile runner lifetime, `-u`, `-t`, and `-w` were forbidden,
+and an unavailable wrapper failed before the attempt marker.
+
+The signed `corelm-portfolio-v10` candidate is frozen at exact source commit
+`bb53cd81d9e9ece92a078d823e6bf07474ff762b`, tree
+`d840e2a2112fc5ee0cdae0c1f0bf1e5fb2c875da`, and annotated tag object
+`27419a0b91934bd76d430ac7c0eadf073389e26c`. Its first tag CI was green on
+attempt one: Linux run `31338205386` and macOS run `31338205397`. Exactly one
+V10 attempt was consumed, UUID `7cad5bc5-57dd-4778-b00f-528ae3ba7936`. Its
+sole proof and heavy replay passed at 2.0523837550538349x compression, delta NLL
+-8.4598101111055257e-06, top-1 agreement 0.9951171875, and 1,024/1,024 replay
+decisions with maximum errors 0. Its exact durable state order was
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED →
+SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`, with state
+SHA-256 `2fe562b4026bbbda3944d194e05f9ce20a4ebfebbccf58c769a53a198e13cd24`
+and automation-report SHA-256
+`2183f16f2f81584a7c13a05a2509df4f1b7bbc2a445edcb34fa77d532ace7ee2`.
+All three raw single-window capture hashes were bound in the automation receipt,
+and independent FFprobe inspection and full decode passed: preflight SHA-256
+`3d6e2cda34e5c0a044c93a28d41160161920cdc75b887e16e7718968760ae22e`,
+post-proof presentation SHA-256
+`e761c829f153411f6cd2f7b28cbed2d7a6770da24c4450c18c0a110f07c3dc10`,
+and same-run result SHA-256
+`07c076d38fe3500011526df2a19441fd771b98875fb42f1e76a164881931cdca`.
+The sealed 30-second, 900-frame 1280x720 MP4 SHA-256 was
+`e353625bbc923916a07746a9cc7cdfca0579f06e5baae36088c09b37b255dc6a`,
+its decoded-frame SHA-256 was
+`10222e090bb6fa9d10a5443b3879337141ce225dc666ae5dcbc4c159705b0646`,
+its PTS SHA-256 was
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`,
+and its fixed poster SHA-256 was
+`d47be9cb975767b5a6f89c0e54d66f5182675c3a0e871245f2838170e8708a61`.
+
+The later collector stopped before publishing with exact terminal line
+`PORTFOLIO DEMO COLLECTION FAIL: demo MP4 has a truncated atom header`. This
+was a false reject of valid QuickTime MOV
+structure: each raw ScreenCaptureKit MOV's `avc1` sample entry contained a
+valid nonempty `avcC` and `colr`, followed by exactly four NUL padding bytes at
+the end of that child region. The generic nested-box parser treated those four
+bytes as another atom header. Top-level atoms ended exactly at EOF; FFprobe and
+full decode passed all three raw segments; their bound hashes matched the
+report and state; and the final MP4 passed the atom and decode checks. This
+does not justify weakening the generic box parser. V10's bound raw segments
+cannot be remuxed, trimmed, or replaced. Failed collection removed transient
+staging; the V10 inputs directory, fourteen-asset directory, and GitHub Release
+remained absent. V10 is never moved, rerun, reused, or relabelled.
+
+V11 is the distinct corrected identity. Its collector accepts exactly four
+zero padding bytes only at the end of an `avc1` child region while still
+requiring a valid nonempty `avcC`; nonzero, wrong-length, misplaced, or
+missing-`avcC` cases remain failures. It does not generically relax atom
+parsing. V11 retains `corelm-automated-presentation-v2` and requires its own
+signed tag, first-attempt CI, and sole proof.
 
 ## Fixed source and one-attempt boundary
 
 The command accepts only a clean canonical checkout whose `main`,
 `origin/main`, and already-created SSH-signed annotated
-`corelm-portfolio-v10` tag all resolve to the same commit/tree. The signed tag
+`corelm-portfolio-v11` tag all resolve to the same commit/tree. The signed tag
 and its first-attempt Linux/macOS Actions must already be green.
 
 Before model execution the command checks power, the offline doctor, pinned
@@ -120,7 +170,7 @@ than one pinned-Qwen model execution.
 `CORELM_OFFLINE=1` applies to the model, corpus, app proof, replay, and media
 pipeline. Before reserving the attempt, the runner makes the sole bounded
 online exception: eight anonymous, direct, no-proxy/no-redirect GitHub API
-requests that prove the exact public V10 tag/main and first-attempt Linux/macOS
+requests that prove the exact public V11 tag/main and first-attempt Linux/macOS
 tag CI. Failure remains pre-marker and safely retryable. Exact response bytes,
 the recomputed public receipt, and hard-pinned local tag-trust receipt are
 retained for collector and release verification; they record admission-time
@@ -148,10 +198,10 @@ providing both `ffmpeg` and `ffprobe`.
 ```sh
 set -eu
 
-DEMO_TAG=corelm-portfolio-v10
+DEMO_TAG=corelm-portfolio-v11
 FFMPEG=/absolute/path/to/ffmpeg
 FFPROBE=/absolute/path/to/ffprobe
-DEMO_SESSION=/absolute/absent/corelm-portfolio-v10-automated-demo
+DEMO_SESSION=/absolute/absent/corelm-portfolio-v11-automated-demo
 
 CORELM_OFFLINE=1 \
 CORELM_WHEELHOUSE="$HOME/.cache/corelm/macos/wheelhouse" \
@@ -230,7 +280,7 @@ WINDOW_HELPER="$DEMO_SESSION/find-proof-window"
 TAG_CI_RECEIPT="$DEMO_SESSION/tag-ci-receipt.json"
 LOCAL_TAG_TRUST_RECEIPT="$DEMO_SESSION/local-tag-trust-receipt.json"
 TAG_CI_BUNDLE="$DEMO_SESSION/tag-ci-bundle"
-INPUTS=/absolute/absent/corelm-portfolio-v10-inputs
+INPUTS=/absolute/absent/corelm-portfolio-v11-inputs
 PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
 
 publication/run_portfolio_python.sh \
@@ -254,7 +304,7 @@ publication/run_portfolio_python.sh \
   --ffmpeg "$FFMPEG" \
   --ffprobe "$FFPROBE" \
   --tag "$DEMO_TAG" \
-  --release-date 2026-08-09 \
+  --release-date 2026-08-10 \
   --output "$INPUTS"
 ```
 

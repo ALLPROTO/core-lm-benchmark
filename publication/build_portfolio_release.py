@@ -229,7 +229,7 @@ LEGACY_PRIVATE_PATH_ALLOWLIST = {
     "RealLLM/verify_voidtoken_v5_development.py": "9645dd4a456a9c7e35c0f91dc613ea4cbad97bea8b0e6d3f6090c9604cd7308b",
     "Tests/test_app_real_llm_evidence.py": "ff0419672b46fea6a77f48ec89c7b60ebab5b71362b52593534391219a100a97",
     "Tests/test_local_app_build.py": "ea69d5eee3b6553374717880699cc8b1711deeed3adb683f6565b0fce3d7b5de",
-    "platforms/macos/Tests/SecurityValidationTests.swift": "3be9d23b271b9d6b67845581c3496929d3ea654e998b8192505e1763eae3fb8e",
+    "platforms/macos/Tests/SecurityValidationTests.swift": "16ff878f23d0c906e77c501d3891255653eecf60864c18b5662620f0e1478774",
     "real-llm-results/aggregate.json": "ebf3bb9558282bf23265989df82a9b18c599654b5bb05d82c4e4d400f1f62265",
     "real-llm-v5-development/validation-000-007.json": "f8c900246c8dafe50ffea309ce86793822cf6fb93e438e3f16b7450bd1f9f224",
     "real-llm-v5-development/validation-008-015.json": "04ef609cf32f0828de70e6adc47eefc717b6c7c67240035d856f047450860d34",
@@ -1156,11 +1156,18 @@ def _mp4_boxes(
     start: int,
     end: int,
     counter: list[int],
+    *,
+    allow_trailing_four_nuls: bool = False,
 ) -> list[tuple[bytes, int, int]]:
     boxes: list[tuple[bytes, int, int]] = []
     offset = start
     while offset < end:
         if end - offset < 8:
+            if allow_trailing_four_nuls and end - offset == 4:
+                source.seek(offset)
+                if source.read(4) == b"\0" * 4:
+                    offset = end
+                    continue
             raise PortfolioReleaseError("demo MP4 has a truncated atom header")
         source.seek(offset)
         header = source.read(8)
@@ -1175,6 +1182,10 @@ def _mp4_boxes(
             size = struct.unpack(">Q", extended)[0]
             header_bytes = 16
         elif size == 0:
+            if allow_trailing_four_nuls:
+                raise PortfolioReleaseError(
+                    "demo MP4 avc1 trailing padding is not exactly four NUL bytes"
+                )
             size = end - offset
         if size < header_bytes or offset + size > end:
             raise PortfolioReleaseError("demo MP4 atom size is invalid")
@@ -1195,6 +1206,17 @@ def _validate_mp4_atoms(path: Path) -> None:
         top = _mp4_boxes(source, 0, status.st_size, counter)
         if not top or top[0][0] != b"ftyp":
             raise PortfolioReleaseError("demo MP4 does not start with ftyp")
+        ftyp_start, ftyp_end = top[0][1:]
+        source.seek(ftyp_start)
+        ftyp = source.read(ftyp_end - ftyp_start)
+        native_quicktime = (
+            len(ftyp) >= 12
+            and (len(ftyp) - 8) % 4 == 0
+            and ftyp[:4] == b"qt  "
+            and b"qt  " in (
+                ftyp[offset : offset + 4] for offset in range(8, len(ftyp), 4)
+            )
+        )
         moov_boxes = [box for box in top if box[0] == b"moov"]
         mdat_boxes = [box for box in top if box[0] == b"mdat"]
         if len(moov_boxes) != 1 or not mdat_boxes or not all(
@@ -1246,7 +1268,11 @@ def _validate_mp4_atoms(path: Path) -> None:
                                             "demo MP4 avc1 sample entry is truncated"
                                         )
                                     children = _mp4_boxes(
-                                        source, entry_start + 78, entry_end, counter
+                                        source,
+                                        entry_start + 78,
+                                        entry_end,
+                                        counter,
+                                        allow_trailing_four_nuls=native_quicktime,
                                     )
                                     avcc = [
                                         box

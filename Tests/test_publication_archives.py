@@ -35,7 +35,7 @@ def _completed(
 
 
 class PublicationArchiveTests(unittest.TestCase):
-    def test_current_portfolio_schemas_pin_automation_only_v10_contract(self):
+    def test_current_portfolio_schemas_pin_automation_only_v11_contract(self):
         release_input = json.loads(
             (ROOT / "schemas/portfolio-release-input.schema.json").read_text(
                 encoding="utf-8"
@@ -167,8 +167,8 @@ class PublicationArchiveTests(unittest.TestCase):
         match = re.search(r'(?m)^version: "([^"]+)"$', citation)
         self.assertIsNotNone(match)
         release_tag = match.group(1)
-        self.assertEqual(release_tag, "corelm-portfolio-v10")
-        self.assertRegex(citation, r"(?m)^date-released: 2026-08-09$")
+        self.assertEqual(release_tag, "corelm-portfolio-v11")
+        self.assertRegex(citation, r"(?m)^date-released: 2026-08-10$")
 
         for relative in (
             "publication/README.md",
@@ -232,7 +232,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v5", text)
-                self.assertIn("corelm-portfolio-v10", text)
+                self.assertIn("corelm-portfolio-v11", text)
                 self.assertIn("HTTP 403", normalized)
                 self.assertIn("AttemptLog.reserve", text)
                 self.assertRegex(normalized, r"(?:signed 32-bit|above `2\^31`)")
@@ -258,7 +258,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 normalized = " ".join(text.split())
                 self.assertIn("corelm-portfolio-v6", text)
-                self.assertIn("corelm-portfolio-v10", text)
+                self.assertIn("corelm-portfolio-v11", text)
                 self.assertIn("first-attempt tag CI", normalized)
                 self.assertIn("2.052384x", normalized)
                 self.assertIn("-0.00000846", normalized)
@@ -274,7 +274,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("collection", normalized)
                 self.assertIn("never", normalized.lower())
 
-    def test_v7_v8_v9_history_and_v10_sleep_assertion_are_preserved(self):
+    def test_v7_through_v10_history_and_v11_fix_are_preserved(self):
         historical_documents = (
             "docs/DEMO.md",
             "docs/ENGINEERING_CASE_STUDY.md",
@@ -294,6 +294,7 @@ class PublicationArchiveTests(unittest.TestCase):
                 self.assertIn("corelm-portfolio-v8", text)
                 self.assertIn("corelm-portfolio-v9", text)
                 self.assertIn("corelm-portfolio-v10", text)
+                self.assertIn("corelm-portfolio-v11", text)
                 self.assertIn("three V7 runner invocations", normalized)
                 self.assertIn("two", normalized.lower())
                 self.assertIn("50%", normalized)
@@ -402,11 +403,73 @@ class PublicationArchiveTests(unittest.TestCase):
                     "receipt, or release was produced",
                     normalized,
                 )
+                for identity in (
+                    "bb53cd81d9e9ece92a078d823e6bf07474ff762b",
+                    "d840e2a2112fc5ee0cdae0c1f0bf1e5fb2c875da",
+                    "27419a0b91934bd76d430ac7c0eadf073389e26c",
+                    "31338205386",
+                    "31338205397",
+                    "7cad5bc5-57dd-4778-b00f-528ae3ba7936",
+                    "2fe562b4026bbbda3944d194e05f9ce20a4ebfebbccf58c769a53a198e13cd24",
+                    "2183f16f2f81584a7c13a05a2509df4f1b7bbc2a445edcb34fa77d532ace7ee2",
+                    "3d6e2cda34e5c0a044c93a28d41160161920cdc75b887e16e7718968760ae22e",
+                    "e761c829f153411f6cd2f7b28cbed2d7a6770da24c4450c18c0a110f07c3dc10",
+                    "07c076d38fe3500011526df2a19441fd771b98875fb42f1e76a164881931cdca",
+                    "e353625bbc923916a07746a9cc7cdfca0579f06e5baae36088c09b37b255dc6a",
+                    "10222e090bb6fa9d10a5443b3879337141ce225dc666ae5dcbc4c159705b0646",
+                    "9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153",
+                    "d47be9cb975767b5a6f89c0e54d66f5182675c3a0e871245f2838170e8708a61",
+                ):
+                    self.assertIn(identity, text)
+                self.assertIn("Exactly one V10 attempt was consumed", normalized)
+                self.assertIn("sole proof and heavy replay passed", normalized)
+                for metric in (
+                    "2.0523837550538349x",
+                    "-8.4598101111055257e-06",
+                    "0.9951171875",
+                    "1,024/1,024",
+                    "maximum errors 0",
+                ):
+                    self.assertIn(metric, normalized)
+                self.assertIn(
+                    "ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → "
+                    "REPLAY_VERIFIED PASS → POST_PROOF_PRESENTATION_SURFACE_READY "
+                    "→ POST_PROOF_PRESENTATION_CAPTURED → SAME_RUN_REOPENED → "
+                    "RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION",
+                    normalized,
+                )
+                self.assertIn("All three raw", normalized)
+                self.assertIn("bound in the automation receipt", normalized)
+                self.assertIn("independent ffprobe", normalized.lower())
+                self.assertIn("full decode passed", normalized)
+                self.assertIn("30-second, 900-frame 1280x720", normalized)
+                self.assertIn(
+                    "PORTFOLIO DEMO COLLECTION FAIL: demo MP4 has a truncated "
+                    "atom header",
+                    normalized,
+                )
+                self.assertIn("false reject", normalized)
+                self.assertIn("valid nonempty `avcC`", normalized)
+                self.assertIn("exactly four NUL padding bytes", normalized)
+                self.assertIn("generic", normalized.lower())
+                self.assertIn("Top-level atoms ended exactly at EOF", normalized)
+                self.assertIn("cannot be remuxed, trimmed, or replaced", normalized)
+                self.assertIn(
+                    "V10 inputs directory, fourteen-asset directory, and GitHub "
+                    "Release remained absent",
+                    normalized,
+                )
+                self.assertIn("V11", normalized)
+                self.assertIn("only at the end of an `avc1` child region", normalized)
+                self.assertIn("nonzero", normalized)
+                self.assertIn("wrong-length", normalized)
+                self.assertIn("missing-`avcC`", normalized)
+                self.assertIn("sole proof", normalized)
                 self.assertIn("/usr/bin/caffeinate -dis", text)
                 self.assertIn("full sterile runner lifetime", normalized)
                 for forbidden_option in ("`-u`", "`-t`", "`-w`"):
                     self.assertIn(forbidden_option, text)
-                self.assertIn("unavailable wrapper fails before the attempt marker", normalized)
+                self.assertIn("unavailable wrapper failed before the attempt marker", normalized)
                 self.assertIn("corelm-automated-presentation-v2", text)
 
         exact_documents = (

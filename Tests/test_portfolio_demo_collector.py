@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import struct
 import subprocess
 import tarfile
 import tempfile
@@ -149,6 +150,38 @@ class ProofReportTests(unittest.TestCase):
 
 
 class PortfolioDemoCollectorTests(unittest.TestCase):
+    def _native_quicktime_segment(self):
+        def atom(kind, payload):
+            return struct.pack(">I4s", 8 + len(payload), kind) + payload
+
+        visual_sample_entry = (
+            b"\0" * 6
+            + struct.pack(">H", 1)
+            + b"\0" * 16
+            + struct.pack(">HH", 1280, 720)
+            + struct.pack(">II", 0x00480000, 0x00480000)
+            + b"\0" * 4
+            + struct.pack(">H", 1)
+            + b"\0" * 32
+            + struct.pack(">Hh", 24, -1)
+        )
+        avcc = atom(b"avcC", b"\x01" + b"\0" * 30)
+        colr = atom(b"colr", b"nclc" + struct.pack(">HHH", 1, 1, 1))
+        avc1 = atom(
+            b"avc1",
+            visual_sample_entry + avcc + colr + b"\0" * 4,
+        )
+        stsd = atom(b"stsd", b"\0" * 4 + struct.pack(">I", 1) + avc1)
+        moov = atom(
+            b"moov",
+            atom(b"trak", atom(b"mdia", atom(b"minf", atom(b"stbl", stsd)))),
+        )
+        return (
+            atom(b"ftyp", b"qt  " + b"\0" * 4 + b"qt  ")
+            + moov
+            + atom(b"mdat", b"\0" * 1024)
+        )
+
     def _readiness(self):
         return {
             "schema_version": 1,
@@ -265,6 +298,70 @@ class PortfolioDemoCollectorTests(unittest.TestCase):
                     width=1280,
                     height=720,
                 )
+
+    def test_raw_segment_accepts_native_quicktime_avc1_padding_via_shared_parser(self):
+        frames = [
+            {
+                "best_effort_timestamp_time": "0.000000",
+                "duration_time": "0.016667",
+                "width": 1280,
+                "height": 720,
+            },
+            {
+                "best_effort_timestamp_time": "0.016667",
+                "duration_time": "0.016667",
+                "width": 1280,
+                "height": 720,
+            },
+        ]
+        metadata = json.dumps(
+            {
+                "format": {"duration": "1.0"},
+                "streams": [
+                    {"codec_type": "video", "width": 1280, "height": 720}
+                ],
+                "chapters": [],
+            }
+        ).encode("utf-8")
+        frame_bytes = json.dumps({"frames": frames}).encode("utf-8")
+        decoded_bytes = b"#format: frame checksums\n0, 0, 0, 1, 1, deadbeef\n"
+
+        def fake_run(arguments, **_kwargs):
+            if "-show_chapters" in arguments:
+                stdout = metadata
+            elif "-show_frames" in arguments:
+                stdout = frame_bytes
+            else:
+                stdout = decoded_bytes
+            return subprocess.CompletedProcess(arguments, 0, stdout, b"")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            segment = Path(temporary) / "post-proof-presentation.mov"
+            segment.write_bytes(self._native_quicktime_segment())
+            with (
+                patch.object(
+                    portfolio,
+                    "_validate_mp4_atoms",
+                    wraps=portfolio._validate_mp4_atoms,
+                ) as shared_parser,
+                patch.object(portfolio, "_run", side_effect=fake_run),
+            ):
+                observed = collector._raw_segment_identity(
+                    segment,
+                    Path("/fixture/ffmpeg"),
+                    Path("/fixture/ffprobe"),
+                )
+            shared_parser.assert_called_once_with(segment)
+
+        expected_count, expected_pts = automated_media.frame_pts_identity(
+            frames,
+            width=1280,
+            height=720,
+        )
+        self.assertEqual(observed["width"], 1280)
+        self.assertEqual(observed["height"], 720)
+        self.assertEqual(observed["frame_count"], expected_count)
+        self.assertEqual(observed["pts_sha256"], expected_pts)
 
     def test_fixed_composition_replay_rejects_byte_tamper(self):
         with tempfile.TemporaryDirectory() as temporary:

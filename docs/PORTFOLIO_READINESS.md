@@ -39,7 +39,7 @@ CV_READY = G01 AND G02 AND G03 AND G04 AND G05 AND G06
 | G11 Engineering ownership | A public code tour covers codec format, model replay, verifier separation, failure-state semantics, and the supply-chain threat model; AI assistance is disclosed. |
 | G12 Stable release | One obvious signed current portfolio release binds source identity, checksums, public key, SBOM, reproduce command, release notes, and demo. Historical releases are clearly archival. |
 
-The `corelm-portfolio-v10` `corelm-automated-presentation-v2` product-media path
+The `corelm-portfolio-v11` `corelm-automated-presentation-v2` product-media path
 may satisfy G03 with a deterministic, single-window automation receipt
 classified
 `AUTOMATED_PRESENTATION_NOT_MACHINE_EVIDENCE`. Its signed result, raw evidence,
@@ -48,7 +48,7 @@ agent audit never satisfy G10. Later passive viewing by a CV recipient does
 not satisfy it either; that gate still requires the specified non-author,
 non-agent clean-clone publication.
 
-V10 is a new identity rather than a relabel of any failed candidate. V3
+V11 is a new identity rather than a relabel of any failed candidate. V3
 remains frozen at its first tag-push assertion failure. V4 remains frozen at a
 pre-model FFprobe frame-PTS field-validation failure that occurred before
 `AttemptLog.reserve`; no V4 model attempt was invoked or consumed. V5 passed
@@ -116,10 +116,61 @@ off at 23:00:00, idle sleep at 23:00:30, capture beginning during DarkWake at
 finalization at 23:09:19. The app remained alive; the launcher lacked a
 display/system-sleep assertion. No result capture/readiness asset, final media,
 automation receipt, or release was produced. V9 is never moved, rerun, reused, or
-relabelled. The distinct V10 identity wraps the full sterile runner lifetime
-with exact `/usr/bin/caffeinate -dis`; `-u`, `-t`, and `-w` are forbidden, and
-an unavailable wrapper fails before the attempt marker. Presentation contract
-v2 remains unchanged; no evidence or G10 boundary is weakened.
+relabelled. V10 was its distinct successor and wrapped the full sterile runner
+lifetime with exact `/usr/bin/caffeinate -dis`; `-u`, `-t`, and `-w` were
+forbidden, and an unavailable wrapper failed before the attempt marker.
+
+The signed `corelm-portfolio-v10` candidate is frozen at exact source commit
+`bb53cd81d9e9ece92a078d823e6bf07474ff762b`, tree
+`d840e2a2112fc5ee0cdae0c1f0bf1e5fb2c875da`, and annotated tag object
+`27419a0b91934bd76d430ac7c0eadf073389e26c`. Its first tag CI was green on
+attempt one: Linux run `31338205386` and macOS run `31338205397`. Exactly one
+V10 attempt was consumed, UUID `7cad5bc5-57dd-4778-b00f-528ae3ba7936`. Its
+sole proof and heavy replay passed at 2.0523837550538349x compression, delta NLL
+-8.4598101111055257e-06, top-1 agreement 0.9951171875, and 1,024/1,024 replay
+decisions with maximum errors 0. Its exact durable state order was
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED →
+SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`, with state
+SHA-256 `2fe562b4026bbbda3944d194e05f9ce20a4ebfebbccf58c769a53a198e13cd24`
+and automation-report SHA-256
+`2183f16f2f81584a7c13a05a2509df4f1b7bbc2a445edcb34fa77d532ace7ee2`.
+All three raw capture hashes were bound in the automation receipt, and
+independent FFprobe inspection and full decode passed: preflight SHA-256
+`3d6e2cda34e5c0a044c93a28d41160161920cdc75b887e16e7718968760ae22e`,
+post-proof presentation SHA-256
+`e761c829f153411f6cd2f7b28cbed2d7a6770da24c4450c18c0a110f07c3dc10`,
+and same-run result SHA-256
+`07c076d38fe3500011526df2a19441fd771b98875fb42f1e76a164881931cdca`.
+The sealed 30-second, 900-frame 1280x720 MP4 SHA-256 was
+`e353625bbc923916a07746a9cc7cdfca0579f06e5baae36088c09b37b255dc6a`,
+its decoded-frame SHA-256 was
+`10222e090bb6fa9d10a5443b3879337141ce225dc666ae5dcbc4c159705b0646`,
+its PTS SHA-256 was
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`,
+and its fixed poster SHA-256 was
+`d47be9cb975767b5a6f89c0e54d66f5182675c3a0e871245f2838170e8708a61`.
+
+The later collector stopped before publishing with exact terminal line
+`PORTFOLIO DEMO COLLECTION FAIL: demo MP4 has a truncated atom header`. This
+was a false reject of valid QuickTime MOV
+structure: each raw ScreenCaptureKit MOV's `avc1` sample entry contained a
+valid nonempty `avcC` and `colr`, followed by exactly four NUL padding bytes at
+the end of that child region. The generic nested-box parser treated those four
+bytes as another atom header. Top-level atoms ended exactly at EOF; FFprobe and
+full decode passed all three raw segments; bound hashes matched the report and
+state; and the final MP4 passed atom and decode checks. This does not justify
+weakening the generic parser. V10's bound raw segments cannot be remuxed,
+trimmed, or replaced. Failed collection removed transient staging; the V10
+inputs directory, fourteen-asset directory, and GitHub Release remained
+absent. V10 is never moved, rerun, reused, or relabelled.
+
+V11 is the distinct corrected identity. Its collector accepts exactly four
+zero padding bytes only at the end of an `avc1` child region while still
+requiring a valid nonempty `avcC`; nonzero, wrong-length, misplaced, or
+missing-`avcC` cases remain failures, and atom parsing is not generically
+relaxed. V11 keeps presentation contract v2 and requires its own signed tag,
+first-attempt CI, and sole proof; no evidence or G10 boundary is weakened.
 
 No gate can be replaced by a large test count, an author-controlled agent
 review, an uncommitted local run, or a future promise.

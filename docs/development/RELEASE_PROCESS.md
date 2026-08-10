@@ -15,7 +15,7 @@ than inferred from this preservation policy.
 The existing publication snapshot uses `voidtoken-v5-paper-v5`. At that
 immutable tag, its CFF version, manuscript reference, SBOM component, archive
 provenance, and canonical asset names are synchronized. The current default
-branch instead uses the `corelm-portfolio-v10` software CFF/SBOM identity and
+branch instead uses the `corelm-portfolio-v11` software CFF/SBOM identity and
 the `corelm-automated-presentation-v2` automation contract.
 Check GitHub's live
 `immutable` API field before making a platform-immutability statement; do not
@@ -67,7 +67,7 @@ packager for the other.
    canonical receipt outside the same release; and
 6. never pass a portfolio tag to `publication/build_archives.py`.
 
-For V10, post-proof recording, deterministic poster extraction, media assembly,
+For V11, post-proof recording, deterministic poster extraction, media assembly,
 metadata checks, and evidence collection must complete through the tracked
 automation contract without a required human review or manual-edit acceptance
 step. Both media assets are classified
@@ -169,12 +169,64 @@ off at 23:00:00, idle sleep at 23:00:30, capture beginning during DarkWake at
 23:01:36, maintenance sleep at 23:01:42, human wake at 23:09:18, and file
 finalization at 23:09:19. The app remained alive; the launcher lacked a
 display/system-sleep assertion. No result capture/readiness asset, final media,
-automation receipt, or release was produced. Never rerun the V9 contour, move or replace
-its tag, or relabel it as V10. The distinct V10 identity wraps the full sterile
-runner lifetime with exact `/usr/bin/caffeinate -dis`; `-u`, `-t`, and `-w`
-are forbidden, and an unavailable wrapper fails before the attempt marker.
-V10 retains `corelm-automated-presentation-v2` and requires its own signed
-commit, tag, first-attempt tag CI, and proof.
+automation receipt, or release was produced. Never rerun the V9 contour, move
+or replace its tag, or relabel it. V10 was the distinct successor and wrapped
+the full sterile runner lifetime with exact `/usr/bin/caffeinate -dis`; `-u`,
+`-t`, and `-w` were forbidden, and an unavailable wrapper failed before the
+attempt marker.
+
+The signed annotated `corelm-portfolio-v10` tag is an eighth preserved
+candidate. Its exact source commit is
+`bb53cd81d9e9ece92a078d823e6bf07474ff762b`, tree
+`d840e2a2112fc5ee0cdae0c1f0bf1e5fb2c875da`, and tag object
+`27419a0b91934bd76d430ac7c0eadf073389e26c`. First-attempt tag CI was green:
+Linux run `31338205386` and macOS run `31338205397`. Exactly one V10 attempt
+was consumed, UUID `7cad5bc5-57dd-4778-b00f-528ae3ba7936`. Its sole proof and
+heavy replay passed at 2.0523837550538349x compression, delta NLL
+-8.4598101111055257e-06, top-1 agreement 0.9951171875, and 1,024/1,024 replay
+decisions with maximum errors 0. Its exact durable state order was
+`ATTEMPT_STARTED → PROOF_INVOKED → PROOF_TERMINAL PASS → REPLAY_VERIFIED PASS →
+POST_PROOF_PRESENTATION_SURFACE_READY → POST_PROOF_PRESENTATION_CAPTURED →
+SAME_RUN_REOPENED → RESULT_CAPTURED → MEDIA_SEALED_FOR_COLLECTION`, with state
+SHA-256 `2fe562b4026bbbda3944d194e05f9ce20a4ebfebbccf58c769a53a198e13cd24`
+and automation-report SHA-256
+`2183f16f2f81584a7c13a05a2509df4f1b7bbc2a445edcb34fa77d532ace7ee2`.
+All three raw capture hashes were bound in the automation receipt: preflight
+`3d6e2cda34e5c0a044c93a28d41160161920cdc75b887e16e7718968760ae22e`,
+post-proof presentation
+`e761c829f153411f6cd2f7b28cbed2d7a6770da24c4450c18c0a110f07c3dc10`, and
+same-run result
+`07c076d38fe3500011526df2a19441fd771b98875fb42f1e76a164881931cdca`.
+Independent FFprobe inspection and full decode passed. The sealed 30-second,
+900-frame 1280x720
+MP4 SHA-256 was
+`e353625bbc923916a07746a9cc7cdfca0579f06e5baae36088c09b37b255dc6a`,
+decoded-frame SHA-256 was
+`10222e090bb6fa9d10a5443b3879337141ce225dc666ae5dcbc4c159705b0646`,
+PTS SHA-256 was
+`9a5c0b20f1042d8a05df930c927b87b3676b0ec932474807356c140b5d36c153`,
+and poster SHA-256 was
+`d47be9cb975767b5a6f89c0e54d66f5182675c3a0e871245f2838170e8708a61`.
+
+The collector later stopped before publishing with exact terminal line
+`PORTFOLIO DEMO COLLECTION FAIL: demo MP4 has a truncated atom header`. Each
+valid raw ScreenCaptureKit QuickTime MOV's `avc1` sample entry contained a
+valid nonempty `avcC` and `colr`, then exactly four NUL padding bytes at the end
+of that child region. This was a false reject: the generic nested-box parser
+treated those bytes as a truncated atom header. Top-level atoms ended exactly at EOF; independent
+FFprobe and full decode passed all raw segments; their hashes remained bound
+in state/report; and the final MP4 passed atom/decode validation. This does not
+justify generic parser weakening. V10's bound raw segments cannot be remuxed,
+trimmed, or replaced. Failed collection removed transient staging; the V10
+inputs directory, fourteen-asset directory, and GitHub Release remained
+absent. Never move, rerun, reuse, or relabel V10.
+
+V11 is the distinct corrected identity. Its collector accepts exactly four
+zero padding bytes only at the end of an `avc1` child region while requiring a
+valid nonempty `avcC`; nonzero, wrong-length, misplaced, and missing-`avcC`
+cases fail. The generic parser and `corelm-automated-presentation-v2` contract
+remain unchanged. V11 requires its own signed commit/tag, first-attempt tag CI,
+and sole proof.
 
 This contour leaves independent-replication gate G10 **OPEN**. An author-run
 automation, including an agent-run audit, cannot satisfy it. Only a later

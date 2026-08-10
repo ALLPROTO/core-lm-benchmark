@@ -56,7 +56,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
         wheelhouse.mkdir(mode=0o700)
         output = root / "output"
         return demo.Configuration(
-            tag="corelm-portfolio-v10",
+            tag="corelm-portfolio-v11",
             output=output,
             ffmpeg=Path("/fixture/ffmpeg"),
             ffprobe=Path("/fixture/ffprobe"),
@@ -219,7 +219,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
                 "macos",
                 "portfolio-demo",
                 "--tag",
-                "corelm-portfolio-v10",
+                "corelm-portfolio-v11",
             )
             accepted = subprocess.run(
                 command,
@@ -393,8 +393,8 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             )
 
     def test_configuration_rejects_future_tag_without_running_preflight(self):
-        arguments = mock.Mock(tag="corelm-portfolio-v11")
-        with self.assertRaisesRegex(demo.AutomatedDemoError, "exact corelm-portfolio-v10"):
+        arguments = mock.Mock(tag="corelm-portfolio-v12")
+        with self.assertRaisesRegex(demo.AutomatedDemoError, "exact corelm-portfolio-v11"):
             demo._validate_configuration(arguments)
 
     def test_preflight_is_nonprompting_and_precedes_attempt_and_proof(self):
@@ -1329,7 +1329,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             ),
         )
 
-        source = demo.SourceIdentity("corelm-portfolio-v10", "1" * 40, "2" * 40)
+        source = demo.SourceIdentity("corelm-portfolio-v11", "1" * 40, "2" * 40)
         proof = demo.ProofIdentity(
             Path("/private/run"),
             "12345678-1234-4234-8234-123456789abc",

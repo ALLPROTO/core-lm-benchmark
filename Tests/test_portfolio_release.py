@@ -25,7 +25,7 @@ from security import verify_portfolio_tag_ci as tag_ci  # noqa: E402
 from Tests import test_portfolio_tag_ci as tag_ci_fixture  # noqa: E402
 
 
-TAG = "corelm-portfolio-v10"
+TAG = "corelm-portfolio-v11"
 COMMIT = "1" * 40
 TAG_OBJECT = "0" * 40
 LAB_COMMIT = "3" * 40
@@ -87,7 +87,7 @@ class PortfolioReleaseTests(unittest.TestCase):
         return {
             "schema_version": 2,
             "tag": TAG,
-            "release_date": "2026-08-09",
+            "release_date": "2026-08-10",
             "source": {"commit": COMMIT, "tag_object": TAG_OBJECT, "tree": TREE},
             "continuous_integration": {
                 "linux_x86_64": {
@@ -569,11 +569,8 @@ class PortfolioReleaseTests(unittest.TestCase):
             + chunk(b"IEND", b"")
         )
 
-    def _mp4(self, marker=0):
-        def atom(kind, payload):
-            return struct.pack(">I4s", 8 + len(payload), kind) + payload
-
-        visual_sample_entry = (
+    def _visual_sample_entry(self):
+        return (
             b"\x00" * 6
             + struct.pack(">H", 1)
             + b"\x00" * 16
@@ -584,8 +581,13 @@ class PortfolioReleaseTests(unittest.TestCase):
             + b"\x00" * 32
             + struct.pack(">Hh", 24, -1)
         )
+
+    def _mp4(self, marker=0):
+        def atom(kind, payload):
+            return struct.pack(">I4s", 8 + len(payload), kind) + payload
+
         avcc = atom(b"avcC", b"\x01\x64\x00\x1f\xff\xe1\x00")
-        avc1 = atom(b"avc1", visual_sample_entry + avcc)
+        avc1 = atom(b"avc1", self._visual_sample_entry() + avcc)
         stsd = atom(b"stsd", b"\x00" * 4 + struct.pack(">I", 1) + avc1)
         moov = atom(
             b"moov",
@@ -596,6 +598,34 @@ class PortfolioReleaseTests(unittest.TestCase):
             + moov
             + atom(b"mdat", bytes([marker]) * 1024)
         )
+
+    def _quicktime_mp4(
+        self,
+        *,
+        major_brand=b"qt  ",
+        compatible_brands=(b"qt  ",),
+        avc1_padding=b"\0" * 4,
+        top_level_padding=b"",
+    ):
+        def atom(kind, payload):
+            return struct.pack(">I4s", 8 + len(payload), kind) + payload
+
+        ftyp = atom(
+            b"ftyp",
+            major_brand + b"\0" * 4 + b"".join(compatible_brands),
+        )
+        avcc = atom(b"avcC", b"\x01" + b"\0" * 30)
+        colr = atom(b"colr", b"nclc" + struct.pack(">HHH", 1, 1, 1))
+        avc1 = atom(
+            b"avc1",
+            self._visual_sample_entry() + avcc + colr + avc1_padding,
+        )
+        stsd = atom(b"stsd", b"\0" * 4 + struct.pack(">I", 1) + avc1)
+        moov = atom(
+            b"moov",
+            atom(b"trak", atom(b"mdia", atom(b"minf", atom(b"stbl", stsd)))),
+        )
+        return ftyp + moov + atom(b"mdat", b"\0" * 1024) + top_level_padding
 
     def _ffprobe(self, root):
         target = root / "ffprobe-fixture"
@@ -1122,9 +1152,9 @@ class PortfolioReleaseTests(unittest.TestCase):
             root = Path(temporary)
             (root / "CITATION.cff").write_text(
                 "cff-version: 1.2.0\n"
-                "version: corelm-portfolio-v10\n"
-                "version: corelm-portfolio-v10\n"
-                "date-released: 2026-08-09\n"
+                "version: corelm-portfolio-v11\n"
+                "version: corelm-portfolio-v11\n"
+                "date-released: 2026-08-10\n"
                 "license: MIT\n"
                 "repository-code: https://github.com/ALLPROTO/core-lm-benchmark\n"
                 "url: https://github.com/ALLPROTO/core-lm-benchmark\n"
@@ -1135,7 +1165,7 @@ class PortfolioReleaseTests(unittest.TestCase):
                 encoding="utf-8",
             )
             with self.assertRaises(portfolio.PortfolioReleaseError):
-                portfolio._validate_citation(root, TAG, "2026-08-09")
+                portfolio._validate_citation(root, TAG, "2026-08-10")
 
     def test_asset_contract_is_exact_and_checksum_is_sorted_over_twelve(self):
         names = portfolio.asset_names(TAG)
@@ -2042,6 +2072,49 @@ class PortfolioReleaseTests(unittest.TestCase):
                 portfolio.PortfolioReleaseError, "forbidden metadata"
             ):
                 portfolio._png_dimensions(metadata_png)
+
+    def test_native_quicktime_avc1_accepts_only_exact_four_nul_tail(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            valid = root / "native-quicktime-exact-four.mov"
+            valid.write_bytes(self._quicktime_mp4())
+            portfolio._validate_mp4_atoms(valid)
+
+            invalid_payloads = {
+                "isom-major": self._quicktime_mp4(
+                    major_brand=b"isom",
+                    compatible_brands=(b"isom", b"qt  "),
+                ),
+                "quicktime-without-compatible-quicktime": self._quicktime_mp4(
+                    compatible_brands=(b"isom",),
+                ),
+                "nonzero-four": self._quicktime_mp4(
+                    avc1_padding=b"\0\0\0\x01",
+                ),
+                "misplaced-four-before-valid-child": self._quicktime_mp4(
+                    avc1_padding=(
+                        b"\0" * 4
+                        + struct.pack(">I4sII", 16, b"pasp", 1, 1)
+                    ),
+                ),
+                **{
+                    f"wrong-length-{length}": self._quicktime_mp4(
+                        avc1_padding=b"\0" * length,
+                    )
+                    for length in (1, 2, 3, 5, 6, 7, 8, 12)
+                },
+                "top-level-four": self._quicktime_mp4(
+                    avc1_padding=b"",
+                    top_level_padding=b"\0" * 4,
+                ),
+            }
+            for label, payload in invalid_payloads.items():
+                path = root / f"{label}.mov"
+                path.write_bytes(payload)
+                with self.subTest(label=label), self.assertRaises(
+                    portfolio.PortfolioReleaseError
+                ):
+                    portfolio._validate_mp4_atoms(path)
 
     def test_video_free_text_metadata_is_rejected(self):
         base = {

@@ -6,8 +6,8 @@ authors:
   - family-names: "Tyshchenko"
     given-names: "Ivan"
     orcid: "https://orcid.org/0009-0000-7935-6090"
-version: "corelm-portfolio-v10"
-date-released: 2026-08-09
+version: "corelm-portfolio-v11"
+date-released: 2026-08-10
 license: MIT
 repository-code: "https://github.com/ALLPROTO/core-lm-benchmark"
 url: "https://github.com/ALLPROTO/core-lm-benchmark"
