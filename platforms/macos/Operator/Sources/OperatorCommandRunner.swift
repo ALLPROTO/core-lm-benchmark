@@ -17,6 +17,7 @@ struct OperatorCommandResult: Equatable {
     let finalSequence: UInt64
     let exitStatus: Int32
     let output: String
+    let standardOutput: String
     let terminalObservation: OperatorTerminalObservation
     let integrityError: String?
 }
@@ -212,6 +213,10 @@ private final class OperatorCombinedOutput: @unchecked Sendable {
             sections.append("[stderr]\n" + stderr)
         }
         return sections.joined(separator: "\n")
+    }
+
+    func standardOutputSnapshot() -> String {
+        standardOutput.snapshot()
     }
 }
 
@@ -639,6 +644,7 @@ final class OperatorCommandRunner {
                         finalSequence: finalSequence,
                         exitStatus: status,
                         output: output.rendered(),
+                        standardOutput: output.standardOutputSnapshot(),
                         terminalObservation: terminalObserver.observation(),
                         integrityError: integrityErrors.isEmpty
                             ? nil

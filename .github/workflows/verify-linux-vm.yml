@@ -1,0 +1,69 @@
+name: Verify Linux VMs
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+permissions:
+  contents: read
+
+# This workflow is deliberately separate from Verify Linux. Portfolio tag
+# admission requires that historical workflow to retain its exact two-job set.
+concurrency:
+  group: verify-linux-vms-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-cli-vm-smoke:
+    name: Linux CLI VM smoke (Ubuntu ${{ matrix.version }})
+    # GitHub-hosted labels are fresh VMs but rolling, non-digest-hermetic images.
+    # The scientific CPU run remains the separate manual real-Qwen workflow.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            version: "22.04"
+          - runner: ubuntu-24.04
+            version: "24.04"
+    runs-on: ${{ matrix.runner }}
+    # bootstrap curl can consume three bounded 10-minute attempts on failure.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Require branch or pull-request execution
+        run: |
+          set -eu
+          case "$GITHUB_EVENT_NAME" in
+            push) test "$GITHUB_REF_TYPE" = branch ;;
+            pull_request)
+              case "$GITHUB_REF" in
+                refs/pull/*/merge) ;;
+                *) exit 1 ;;
+              esac
+              ;;
+            *) exit 1 ;;
+          esac
+      - name: Require a booted Ubuntu x86_64 VM, not a container
+        run: ./platforms/linux/scripts/verify-vm-host.sh '${{ matrix.version }}'
+      - name: Bootstrap the pinned Linux Python
+        run: ./corelm linux bootstrap
+      - name: Exercise the real Linux doctor on the VM
+        env:
+          CORELM_LINUX_RUNTIME: ${{ runner.temp }}/corelm-linux-vm-runtime
+          CORELM_LINUX_HF_HOME: ${{ runner.temp }}/corelm-linux-vm-model-assets
+          CORELM_RUN_DIR: ${{ runner.temp }}/corelm-linux-vm-run
+        run: ./corelm linux doctor
+      - name: Run Linux host, runtime, and platform boundary tests
+        run: >-
+          PYTHON_BIN="$HOME/.local/share/corelm/linux-x86_64/python-3.12.13+20260718/bin/python3.12"
+          ./scripts/verify-python.sh
+          Tests.test_linux_vm_host
+          Tests.test_linux_runtime_hardening
+          Tests.test_platform_boundaries

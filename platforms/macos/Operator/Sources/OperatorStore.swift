@@ -122,6 +122,7 @@ final class OperatorStore: ObservableObject {
                 action: action,
                 exitStatus: result.exitStatus,
                 observation: result.terminalObservation,
+                modelInventoryOutput: result.standardOutput,
                 builtApplicationAvailable: builtApplicationAvailable
             )
             if action == .openBuiltApplication {

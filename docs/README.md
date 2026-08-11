@@ -13,6 +13,9 @@ additional product versions.
   clone, offline preparation, safety limits, and troubleshooting.
 - [Interactive full-system demo](SYSTEM_DEMO.md) — manual Verify/Build/Proof
   buttons, strict real-Qwen progress, and stage-following verified code.
+- [Causal-LM compatibility inventory](MODEL_COMPATIBILITY.md) — metadata-only
+  inspection for known cache architectures, with an explicit no-model/no-evidence
+  boundary.
 - [Automated reproducible demo](DEMO.md) — noninteractive single-window
   real-model capture, durable one-attempt state, exact media/proof bindings,
   and an explicit no-human-review/no-pixel-evidence boundary.

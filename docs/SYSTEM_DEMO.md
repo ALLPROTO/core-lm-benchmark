@@ -7,7 +7,8 @@ The interactive demo has two deliberately separate windows:
   verified source excerpt for the most recently confirmed stage. It does not
   claim to expose a synthetic instruction-by-instruction program counter.
 - `Core LM Operator` provides manual repository **Verify**, application
-  **Build**, **Full System Proof**, and **Open Built App** controls.
+  **Model Inventory**, **Build**, **Full System Proof**, and **Open Built App**
+  controls.
 
 This separation is a safety boundary. The signed benchmark application can
 run and verify the pinned scientific workload, but it cannot execute arbitrary
@@ -27,12 +28,21 @@ On Apple Silicon macOS 14 or newer, from a clean checkout:
 In the Operator window:
 
 1. Select **Verify Repository** to run the normal repository gate.
-2. Select **Build App** to build, sign, and verify
+2. Select **Model Inventory** to display the closed metadata-only causal-LM
+   adapter list without loading model weights.
+3. Select **Build App** to build, sign, and verify
    `dist/CoreLMBenchmark.app`.
-3. Select **Open Built App**, then choose **Run Compression Proof** in the
+4. Select **Open Built App**, then choose **Run Compression Proof** in the
    benchmark window for the live in-app view.
-4. Select **Full System Proof** when the complete outer proof, independent
+5. Select **Full System Proof** when the complete outer proof, independent
    replay, and terminal result are required in one command log.
+
+To display the broader causal-LM architecture inventory next to the demo, use
+`./corelm models list` in a terminal. To inspect an already-local configuration
+without loading it, use `./corelm models inspect-config` with an absolute
+`config.json` path. These are metadata-only admission tools: only the Qwen
+button path executes a real registered model. See the
+[compatibility inventory](MODEL_COMPATIBILITY.md).
 
 Only one Operator action may run at a time. Its output is bounded and
 sanitized. The buttons map exactly to:
@@ -40,6 +50,7 @@ sanitized. The buttons map exactly to:
 | Button | Fixed command |
 |---|---|
 | Verify Repository | `./corelm verify` |
+| Model Inventory | `./corelm models list` |
 | Build App | `./corelm macos build` |
 | Full System Proof | `./corelm macos proof` |
 | Open Built App | canonical `dist/CoreLMBenchmark.app` |

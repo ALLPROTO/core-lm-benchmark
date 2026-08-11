@@ -98,6 +98,8 @@ Usage:
   ./corelm linux bootstrap [options]
   ./corelm linux build [options]
   ./corelm linux run [options]
+  ./corelm models list
+  ./corelm models inspect-config ABSOLUTE_CONFIG_JSON
   ./corelm beacon verify-tag
   ./corelm verify
 
@@ -105,6 +107,8 @@ macOS builds the native SwiftUI application and runs the real Qwen proof on
 Apple MPS. Linux builds an isolated CPU runtime and runs the same registered
 public-validation regression without claiming a new blind result. Beacon is a
 read-only compatibility contour; it cannot launch the one-shot experiment.
+Models inspects local causal-LM config metadata only; it never loads weights,
+executes a model, or produces benchmark evidence.
 EOF
 }
 
@@ -122,6 +126,40 @@ case "${1:-}" in
         "$PROJECT_DIR/scripts/verify-python.sh"
         exec "$PROJECT_DIR/scripts/verify-python.sh" \
             Tests.test_publication_archives
+        ;;
+    models)
+        shift
+        model_command=${1:-}
+        case "$model_command:$#" in
+            list:1|inspect-config:2) ;;
+            *)
+                printf '%s\n' \
+                    'usage: ./corelm models list' \
+                    '   or: ./corelm models inspect-config ABSOLUTE_CONFIG_JSON' >&2
+                exit 2
+                ;;
+        esac
+        case "$(/usr/bin/uname -s)" in
+            Darwin) model_python_finder=security/find_python312.sh ;;
+            Linux) model_python_finder=platforms/linux/scripts/find-python312.sh ;;
+            *)
+                printf '%s\n' \
+                    'model metadata inspection supports macOS and Linux only' >&2
+                exit 1
+                ;;
+        esac
+        model_python=$("$PROJECT_DIR/$model_python_finder") || {
+            printf '%s\n' \
+                'model metadata inspection requires the registered Python 3.12.13' >&2
+            exit 1
+        }
+        exec /usr/bin/env -i \
+            HOME="$HOME" \
+            PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+            LANG=C \
+            LC_ALL=C \
+            "$model_python" -I -B \
+            "$PROJECT_DIR/RealLLM/model_compatibility.py" "$@"
         ;;
     macos|linux|beacon)
         platform=$1

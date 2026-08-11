@@ -96,9 +96,11 @@ if [ "$#" -eq 0 ]; then
         Tests.test_build_provenance \
         Tests.test_independent_replication \
         Tests.test_linux_runtime_hardening \
+        Tests.test_linux_vm_host \
         Tests.test_live_proof_events \
         Tests.test_local_app_build \
         Tests.test_macos_operator \
+        Tests.test_model_compatibility \
         Tests.test_platform_boundaries \
         Tests.test_paper_v5_release_receipt \
         Tests.test_portfolio_demo_collector \

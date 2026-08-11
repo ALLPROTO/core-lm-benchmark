@@ -25,6 +25,8 @@ What a reviewer can inspect:
   on Apple MPS;
 - a [Linux CPU path](platforms/linux/README.md) that retains containers and
   per-token evidence;
+- a [causal-LM compatibility inventory](docs/MODEL_COMPATIBILITY.md) that
+  inspects local model metadata without loading weights or claiming evidence;
 - [producer, parser, Swift verifier, standard-library verifier, and fresh
   real-model replay boundaries](docs/ARCHITECTURE.md); and
 - a [cross-model diagnostic](https://github.com/ALLPROTO/core-lm-cross-model-lab)
@@ -84,9 +86,9 @@ Build without starting the full proof:
 open dist/CoreLMBenchmark.app
 ```
 
-For a visual full-system walkthrough with manual Verify, Build, Full Proof,
-and Open App buttons, plus live real-Qwen layer progress and verified code
-inside the benchmark window:
+For a visual full-system walkthrough with manual Verify, Model Inventory,
+Build, Full Proof, and Open App buttons, plus live real-Qwen layer progress
+and verified code inside the benchmark window:
 
 ```sh
 ./corelm macos operator
@@ -95,6 +97,19 @@ inside the benchmark window:
 See the [interactive full-system demo guide](docs/SYSTEM_DEMO.md). This is a
 manual developer surface, not a replacement for the immutable V15 evidence or
 its automated presentation contract.
+
+List the closed multi-model metadata adapters, or inspect one private local
+`config.json`, without loading a model:
+
+```sh
+./corelm models list
+./corelm models inspect-config /absolute/private/path/config.json
+```
+
+Known Qwen2, Llama/SmolLM2, Mistral, GPT-NeoX, GPT-2, OPT, and Gemma metadata
+layouts are admission candidates only. The exact Qwen profile remains the only
+registered evidence model; this command produces no model execution, metric,
+or PASS claim.
 
 If Python 3.12.13 is missing, the optional owner-local bootstrap downloads the
 fixed `astral-sh/python-build-standalone` archive and verifies SHA-256

@@ -29,8 +29,9 @@ visual, full-system walkthrough are useful:
 ./corelm macos operator
 ```
 
-The Operator exposes only fixed Verify Repository, Build App, Full System
-Proof, and Open Built App actions. The normal benchmark window shows strict
+The Operator exposes only fixed Verify Repository, Model Inventory, Build App,
+Full System Proof, and Open Built App actions. Model Inventory lists closed
+metadata-only causal-LM adapters without loading weights. The normal benchmark window shows strict
 hash-chained progress from the real offline Qwen/MPS worker and a read-only
 excerpt of the verified code for the most recently confirmed stage. See
 [Interactive full-system demo](../../docs/SYSTEM_DEMO.md) for the exact

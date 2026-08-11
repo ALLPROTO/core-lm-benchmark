@@ -29,6 +29,16 @@ private func parseOperatorTestProcessID(_ bytes: Data) -> pid_t? {
 // each individual stress test.
 @Suite(.serialized)
 struct OperatorTests {
+    private static let canonicalModelInventory =
+        "{\"acceptedAsBenchmarkEvidence\":false,\"action\":\"list\","
+        + "\"adapters\":[{},{},{},{},{},{},{}],"
+        + "\"classification\":\"MODEL_METADATA_ADMISSION_NOT_BENCHMARK_EVIDENCE\","
+        + "\"countsTowardScientificVerdict\":false,"
+        + "\"limitations\":[\"a\",\"b\",\"c\",\"d\"],"
+        + "\"modelExecuted\":false,\"profiles\":[{}],"
+        + "\"registrySHA256\":\"05b1900a44462902a1a823a7e4213043cca3613a63c53f042ededa72dcbb9680\","
+        + "\"schemaVersion\":\"corelm-model-compatibility-inspection-v1\"}\n"
+
     private final class LockedRunCapture: @unchecked Sendable {
         private let lock = NSLock()
         private var retainedSnapshots: [OperatorOutputSnapshot] = []
@@ -370,12 +380,18 @@ struct OperatorTests {
         #expect(
             OperatorAction.allCases == [
                 .verifyRepository,
+                .modelCompatibility,
                 .buildApp,
                 .fullSystemProof,
                 .openBuiltApplication
             ]
         )
         #expect(OperatorAction.verifyRepository.coreLMArguments == ["verify"])
+        #expect(
+            OperatorAction.modelCompatibility.coreLMArguments
+                == ["models", "list"]
+        )
+        #expect(OperatorAction.modelCompatibility.launcherToken == "models")
         #expect(OperatorAction.buildApp.coreLMArguments == ["macos", "build"])
         #expect(
             OperatorAction.fullSystemProof.coreLMArguments
@@ -640,6 +656,27 @@ struct OperatorTests {
                 builtApplicationAvailable: false
             ) == .repositoryVerified
         )
+        #expect(
+            try OperatorTerminalClassifier.outcome(
+                action: .modelCompatibility,
+                exitStatus: 0,
+                observation: OperatorTerminalObservation(proof: .none),
+                modelInventoryOutput: Self.canonicalModelInventory,
+                builtApplicationAvailable: false
+            ) == .modelInventoryListed
+        )
+        #expect(throws: OperatorValidationError.self) {
+            _ = try OperatorTerminalClassifier.outcome(
+                action: .modelCompatibility,
+                exitStatus: 0,
+                observation: OperatorTerminalObservation(proof: .none),
+                modelInventoryOutput: Self.canonicalModelInventory.replacingOccurrences(
+                    of: "\"modelExecuted\":false",
+                    with: "\"modelExecuted\":true"
+                ),
+                builtApplicationAvailable: false
+            )
+        }
         #expect(
             try OperatorTerminalClassifier.outcome(
                 action: .fullSystemProof,

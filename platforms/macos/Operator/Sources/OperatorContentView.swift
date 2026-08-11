@@ -22,6 +22,9 @@ struct OperatorContentView: View {
                 Button("Verify Repository") {
                     store.start(.verifyRepository)
                 }
+                Button("Model Inventory") {
+                    store.start(.modelCompatibility)
+                }
                 Button("Build App") {
                     store.start(.buildApp)
                 }

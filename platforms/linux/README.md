@@ -67,6 +67,23 @@ and 1,024 token decisions.
 This is a regression on real, already-public validation input. It is not a
 blind, held-out, prospective, or beacon-selected scientific result.
 
+## Booted-VM test matrix
+
+Every branch push and pull request also exercises the Linux CLI boundary on two
+separate GitHub-hosted x86_64 virtual machines: Ubuntu 22.04 and Ubuntu 24.04.
+Before the smoke test starts, `verify-vm-host.sh` requires Linux, x86_64, the
+exact expected Ubuntu version, a non-container hardware-VM identity from
+`systemd-detect-virt --vm`, and no container identity. Each VM then runs the
+pinned Python bootstrap, the real `linux doctor`, and the focused Linux host,
+runtime-hardening, and platform-boundary tests.
+
+This matrix demonstrates booted-host portability. Standard GitHub-hosted
+Ubuntu labels are rolling images, so it does not claim a digest-hermetic base
+image. The full real-Qwen CPU inference remains the separate manual workflow
+because it downloads and verifies the large pinned runtime/model inputs and
+can take close to the two-hour job limit. ARM is not advertised: the current
+bootstrap archive and dependency locks are explicitly x86_64.
+
 See the [recorded public CPU run](RECORDED_RUN_2026-08-01.md) for provenance,
 metrics, retained evidence, and the disclosed setup-only failures that preceded
 the successful execution.

@@ -1,4 +1,5 @@
 from pathlib import Path
+import hashlib
 import stat
 import subprocess
 import unittest
@@ -133,7 +134,7 @@ class MacOSOperatorTests(unittest.TestCase):
             "--action",
         ):
             self.assertEqual(source.count(f'== "{flag}"'), 1)
-        for token in ("verify", "build", "proof", "app-check"):
+        for token in ("verify", "models", "build", "proof", "app-check"):
             self.assertIn(token, source)
         self.assertIn("Set(environment.keys) == exactEnvironment", source)
         self.assertIn('"__CF_USER_TEXT_ENCODING"', source)
@@ -177,6 +178,7 @@ class MacOSOperatorTests(unittest.TestCase):
         self.assertIn('"NOT INDEPENDENT REPLICATION"', store)
         for title, action in (
             ("Verify Repository", ".verifyRepository"),
+            ("Model Inventory", ".modelCompatibility"),
             ("Build App", ".buildApp"),
             ("Full System Proof", ".fullSystemProof"),
             ("Open Built App", ".openBuiltApplication"),
@@ -184,6 +186,13 @@ class MacOSOperatorTests(unittest.TestCase):
             self.assertIn(f'Button("{title}")', view)
             self.assertIn(action, view)
         self.assertEqual(models.count('["verify"]'), 1)
+        self.assertEqual(models.count('["models", "list"]'), 1)
+        self.assertIn(
+            hashlib.sha256(
+                (ROOT / "RealLLM/pinned_model_registry.json").read_bytes()
+            ).hexdigest(),
+            models,
+        )
         self.assertEqual(models.count('["macos", "build"]'), 1)
         self.assertEqual(models.count('["macos", "proof"]'), 1)
         self.assertIn("guard !isRunning else", store)
@@ -237,6 +246,9 @@ class MacOSOperatorTests(unittest.TestCase):
         self.assertIn("try project.revalidateControlSurface()", runner)
         self.assertIn("try authority.prepareForSpawn()", runner)
         for transitive in (
+            "RealLLM/model_compatibility.py",
+            "RealLLM/pinned_model_registry.json",
+            "schemas/model-compatibility-inspection.schema.json",
             "security/generate_build_provenance.py",
             "security/generate_app_proof_core.py",
             "security/verify_git_checkout.py",

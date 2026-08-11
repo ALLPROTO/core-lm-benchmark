@@ -15,6 +15,7 @@ private enum LauncherFailure: LocalizedError {
 
 private enum LauncherAction: String {
     case verify
+    case models
     case build
     case proof
     case appCheck = "app-check"
@@ -23,6 +24,8 @@ private enum LauncherAction: String {
         switch self {
         case .verify:
             ["verify"]
+        case .models:
+            ["models", "list"]
         case .build:
             ["macos", "build"]
         case .proof:

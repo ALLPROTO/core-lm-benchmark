@@ -1,0 +1,163 @@
+{
+  "adapters": [
+    {
+      "adapterId": "gemma-dynamic-cache-v1",
+      "architectures": [
+        "GemmaForCausalLM"
+      ],
+      "cacheAdapter": "transformers-dynamic-cache-kv-v1",
+      "modelTypes": [
+        "gemma"
+      ],
+      "notes": "Metadata admission only; a real profile still requires exact asset, cache, continuation, and memory verification.",
+      "status": "admission-candidate"
+    },
+    {
+      "adapterId": "gpt-neox-dynamic-cache-v1",
+      "architectures": [
+        "GPTNeoXForCausalLM"
+      ],
+      "cacheAdapter": "transformers-dynamic-cache-kv-v1",
+      "modelTypes": [
+        "gpt_neox"
+      ],
+      "notes": "Metadata admission only; the retained Pythia diagnostic does not inherit the Qwen compression verdict.",
+      "status": "admission-candidate"
+    },
+    {
+      "adapterId": "gpt2-dynamic-cache-v1",
+      "architectures": [
+        "GPT2LMHeadModel"
+      ],
+      "cacheAdapter": "transformers-dynamic-cache-kv-v1",
+      "modelTypes": [
+        "gpt2"
+      ],
+      "notes": "Metadata admission only; legacy tuple caches, remote code, and unregistered weights remain rejected.",
+      "status": "admission-candidate"
+    },
+    {
+      "adapterId": "llama-dynamic-cache-v1",
+      "architectures": [
+        "LlamaForCausalLM"
+      ],
+      "cacheAdapter": "transformers-dynamic-cache-kv-v1",
+      "modelTypes": [
+        "llama"
+      ],
+      "notes": "Covers Llama-shaped metadata such as SmolLM2; no real model is admitted without a separate pinned profile.",
+      "status": "admission-candidate"
+    },
+    {
+      "adapterId": "mistral-dynamic-cache-v1",
+      "architectures": [
+        "MistralForCausalLM"
+      ],
+      "cacheAdapter": "transformers-dynamic-cache-kv-v1",
+      "modelTypes": [
+        "mistral"
+      ],
+      "notes": "Metadata admission requires an explicit sliding window; a future runtime must still prove that no workload token is truncated.",
+      "status": "admission-candidate"
+    },
+    {
+      "adapterId": "opt-dynamic-cache-v1",
+      "architectures": [
+        "OPTForCausalLM"
+      ],
+      "cacheAdapter": "transformers-dynamic-cache-kv-v1",
+      "modelTypes": [
+        "opt"
+      ],
+      "notes": "Metadata admission only; model license and all exact assets must be accepted before any real execution contour exists.",
+      "status": "admission-candidate"
+    },
+    {
+      "adapterId": "qwen2-dynamic-cache-v1",
+      "architectures": [
+        "Qwen2ForCausalLM"
+      ],
+      "cacheAdapter": "transformers-dynamic-cache-kv-v1",
+      "modelTypes": [
+        "qwen2"
+      ],
+      "notes": "Only the exact qwen2.5-0.5b-v15 profile is registered evidence; other Qwen2 configurations remain admission candidates.",
+      "status": "admission-candidate"
+    }
+  ],
+  "classification": "MODEL_METADATA_ADMISSION_NOT_BENCHMARK_EVIDENCE",
+  "evidenceModelId": "qwen2.5-0.5b-v15",
+  "limitations": [
+    "Inspection reads config metadata only and never loads weights, a tokenizer, a dataset, or model code.",
+    "A known adapter is eligibility for a future pinned admission run, not proof that arbitrary weights compress correctly.",
+    "The immutable V15 scientific and portfolio evidence remains exact Qwen2.5-0.5B only.",
+    "Encoder-decoder, remote-code, quantized, mixture-of-experts, multimodal, hybrid-cache, and unknown architectures are rejected."
+  ],
+  "profiles": [
+    {
+      "adapterId": "qwen2-dynamic-cache-v1",
+      "architecture": "Qwen2ForCausalLM",
+      "config": {
+        "attentionHeads": 14,
+        "contextLength": 32768,
+        "headDimension": 64,
+        "hiddenSize": 896,
+        "kvHeads": 2,
+        "layers": 24,
+        "vocabularySize": 151936
+      },
+      "files": [
+        {
+          "bytes": 681,
+          "path": "config.json",
+          "role": "model-config",
+          "sha256": "479dcf0c5286339e41ad3992cd08ae88a467c4187587936248e2b7c96283484b"
+        },
+        {
+          "bytes": 138,
+          "path": "generation_config.json",
+          "role": "generation-config",
+          "sha256": "8c970692323e3ea0e9b8b0a4dca79388d31226e41f83c9fd6014804280ebf6e8"
+        },
+        {
+          "bytes": 1671839,
+          "path": "merges.txt",
+          "role": "tokenizer-merges",
+          "sha256": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3"
+        },
+        {
+          "bytes": 988097824,
+          "path": "model.safetensors",
+          "role": "model-weights",
+          "sha256": "88c142557820ccad55bb59756bfcfcf891de9cc6202816bd346445188a0ed342"
+        },
+        {
+          "bytes": 7031645,
+          "path": "tokenizer.json",
+          "role": "tokenizer",
+          "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"
+        },
+        {
+          "bytes": 7228,
+          "path": "tokenizer_config.json",
+          "role": "tokenizer-config",
+          "sha256": "c91efca15ceff6e9ee9424db58a6f59cd41294e550a86cbd07e3c1fb500b34f9"
+        },
+        {
+          "bytes": 2776833,
+          "path": "vocab.json",
+          "role": "tokenizer-vocabulary",
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        }
+      ],
+      "license": "Apache-2.0",
+      "modelType": "qwen2",
+      "profileId": "qwen2.5-0.5b-v15",
+      "repository": "Qwen/Qwen2.5-0.5B",
+      "revision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+      "status": "registered-evidence-model",
+      "trustRemoteCode": false
+    }
+  ],
+  "schemaVersion": "corelm-pinned-model-registry-v1"
+}

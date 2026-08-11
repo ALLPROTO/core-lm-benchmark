@@ -1,4 +1,5 @@
 import CryptoKit
+import CoreFoundation
 import Darwin
 import Foundation
 
@@ -15,6 +16,7 @@ enum OperatorValidationError: LocalizedError, Equatable {
 
 enum OperatorAction: String, CaseIterable, Equatable {
     case verifyRepository
+    case modelCompatibility
     case buildApp
     case fullSystemProof
     case openBuiltApplication
@@ -23,6 +25,8 @@ enum OperatorAction: String, CaseIterable, Equatable {
         switch self {
         case .verifyRepository:
             "Verify Repository"
+        case .modelCompatibility:
+            "Model Inventory"
         case .buildApp:
             "Build App"
         case .fullSystemProof:
@@ -36,6 +40,8 @@ enum OperatorAction: String, CaseIterable, Equatable {
         switch self {
         case .verifyRepository:
             ["verify"]
+        case .modelCompatibility:
+            ["models", "list"]
         case .buildApp:
             ["macos", "build"]
         case .fullSystemProof:
@@ -49,6 +55,8 @@ enum OperatorAction: String, CaseIterable, Equatable {
         switch self {
         case .verifyRepository:
             "verify"
+        case .modelCompatibility:
+            "models"
         case .buildApp:
             "build"
         case .fullSystemProof:
@@ -62,6 +70,8 @@ enum OperatorAction: String, CaseIterable, Equatable {
         switch self {
         case .verifyRepository:
             "Running the exact repository verification gate."
+        case .modelCompatibility:
+            "Listing metadata-only causal-LM admission adapters."
         case .buildApp:
             "Building and validating the canonical local application."
         case .fullSystemProof:
@@ -74,6 +84,7 @@ enum OperatorAction: String, CaseIterable, Equatable {
 
 enum OperatorOutcome: Equatable {
     case repositoryVerified
+    case modelInventoryListed
     case applicationBuilt
     case proofPass
     case proofVerifiedMetricFail
@@ -83,6 +94,8 @@ enum OperatorOutcome: Equatable {
         switch self {
         case .repositoryVerified:
             "Repository verification completed successfully."
+        case .modelInventoryListed:
+            "Listed model metadata adapters without executing a model."
         case .applicationBuilt:
             "Canonical local application build completed successfully."
         case .proofPass:
@@ -148,6 +161,9 @@ struct OperatorProject: Equatable {
     static let maximumControlFileBytes = 32 * 1024 * 1024
     static let controlFilePaths = [
         "corelm",
+        "RealLLM/model_compatibility.py",
+        "RealLLM/pinned_model_registry.json",
+        "schemas/model-compatibility-inspection.schema.json",
         "Package.swift",
         "scripts/verify-python.sh",
         "platforms/macos/scripts/build-app.sh",
@@ -362,6 +378,7 @@ enum OperatorTerminalClassifier {
         action: OperatorAction,
         exitStatus: Int32,
         observation: OperatorTerminalObservation,
+        modelInventoryOutput: String = "",
         builtApplicationAvailable: Bool
     ) throws -> OperatorOutcome {
         guard exitStatus == 0 else {
@@ -377,6 +394,14 @@ enum OperatorTerminalClassifier {
                 )
             }
             return .repositoryVerified
+        case .modelCompatibility:
+            guard observation.proof == .none else {
+                throw OperatorValidationError.invalid(
+                    "Model inventory emitted an unexpected proof terminal."
+                )
+            }
+            try OperatorModelInventoryValidator.validate(modelInventoryOutput)
+            return .modelInventoryListed
         case .buildApp:
             guard observation.proof == .none,
                   builtApplicationAvailable else {
@@ -410,6 +435,95 @@ enum OperatorTerminalClassifier {
             }
             return .applicationOpened
         }
+    }
+}
+
+enum OperatorModelInventoryValidator {
+    static let expectedRegistrySHA256 =
+        "05b1900a44462902a1a823a7e4213043cca3613a63c53f042ededa72dcbb9680"
+    private static let expectedKeys: Set<String> = [
+        "acceptedAsBenchmarkEvidence",
+        "action",
+        "adapters",
+        "classification",
+        "countsTowardScientificVerdict",
+        "limitations",
+        "modelExecuted",
+        "profiles",
+        "registrySHA256",
+        "schemaVersion"
+    ]
+
+    static func validate(_ output: String) throws {
+        let bytes = Data(output.utf8)
+        guard !bytes.isEmpty,
+              bytes.count <= 128 * 1024,
+              bytes.last == 0x0A,
+              bytes.dropLast().allSatisfy({ $0 >= 0x20 && $0 <= 0x7E }),
+              bytes.dropLast().allSatisfy({ $0 != 0x0A }) else {
+            throw OperatorValidationError.invalid(
+                "Model inventory output is not one bounded ASCII JSON line."
+            )
+        }
+        let body = Data(bytes.dropLast())
+        let decoded: Any
+        do {
+            decoded = try JSONSerialization.jsonObject(with: body)
+        } catch {
+            throw OperatorValidationError.invalid(
+                "Model inventory output is not strict JSON."
+            )
+        }
+        guard let object = decoded as? [String: Any],
+              Set(object.keys) == expectedKeys,
+              exactFalse(object["acceptedAsBenchmarkEvidence"]),
+              object["action"] as? String == "list",
+              object["classification"] as? String
+                == "MODEL_METADATA_ADMISSION_NOT_BENCHMARK_EVIDENCE",
+              exactFalse(object["countsTowardScientificVerdict"]),
+              exactFalse(object["modelExecuted"]),
+              object["registrySHA256"] as? String
+                == expectedRegistrySHA256,
+              object["schemaVersion"] as? String
+                == "corelm-model-compatibility-inspection-v1",
+              let adapters = object["adapters"] as? [Any],
+              adapters.count == 7,
+              adapters.allSatisfy({ $0 is [String: Any] }),
+              let profiles = object["profiles"] as? [Any],
+              profiles.count == 1,
+              profiles.allSatisfy({ $0 is [String: Any] }),
+              let limitations = object["limitations"] as? [Any],
+              limitations.count == 4,
+              limitations.allSatisfy({ ($0 as? String)?.isEmpty == false }) else {
+            throw OperatorValidationError.invalid(
+                "Model inventory output does not match the pinned non-evidence contract."
+            )
+        }
+        var canonical: Data
+        do {
+            canonical = try JSONSerialization.data(
+                withJSONObject: object,
+                options: [.sortedKeys, .withoutEscapingSlashes]
+            )
+        } catch {
+            throw OperatorValidationError.invalid(
+                "Model inventory output cannot be canonicalized."
+            )
+        }
+        canonical.append(0x0A)
+        guard canonical == bytes else {
+            throw OperatorValidationError.invalid(
+                "Model inventory output is not canonical JSON."
+            )
+        }
+    }
+
+    private static func exactFalse(_ value: Any?) -> Bool {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) == CFBooleanGetTypeID() else {
+            return false
+        }
+        return !number.boolValue
     }
 }
 
