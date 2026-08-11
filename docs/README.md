@@ -11,6 +11,11 @@ additional product versions.
   native SwiftUI/MPS proof.
 - [Complete macOS walkthrough](../platforms/macos/BUILD_AND_VERIFY.md) — fresh
   clone, offline preparation, safety limits, and troubleshooting.
+- [Interactive full-system demo](SYSTEM_DEMO.md) — manual Verify/Build/Proof
+  buttons, strict real-Qwen progress, and stage-following verified code.
+- [Causal-LM compatibility inventory](MODEL_COMPATIBILITY.md) — metadata-only
+  inspection for known cache architectures, with an explicit no-model/no-evidence
+  boundary.
 - [Automated reproducible demo](DEMO.md) — noninteractive single-window
   real-model capture, durable one-attempt state, exact media/proof bindings,
   and an explicit no-human-review/no-pixel-evidence boundary.
@@ -19,8 +24,14 @@ additional product versions.
   log, receipt/result bindings, and verifier report for portfolio gate G10.
 - [Linux CPU regression](../platforms/linux/README.md) — real-Qwen command-line
   build and verification.
+- [RunPod Linux walkthrough](../platforms/linux/RUNPOD.md) — cold build,
+  offline/warm reruns, private paths, and retained-evidence verification in a
+  managed container.
 - [Recorded Linux run](../platforms/linux/RECORDED_RUN_2026-08-01.md) — public
   VM provenance and measured result.
+- [Recorded RunPod run](../platforms/linux/RECORDED_RUN_2026-08-11_RUNPOD.md) —
+  author-operated CPU/container audit with exact receipts and disclosed test
+  boundary.
 - [Platform boundaries](../platforms/README.md) — ownership of macOS, Linux,
   and the read-only beacon contour.
 

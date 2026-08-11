@@ -201,6 +201,8 @@ final class BenchmarkStore: ObservableObject {
     @Published var realLLMVerified = false
     @Published var realLLMVerificationMessage = "No proof run"
     @Published var realLLMResultURL: URL?
+    @Published private(set) var liveProofTelemetry =
+        LiveProofTelemetryState()
     @Published private(set) var portfolioCaptureSnapshot:
         PortfolioCaptureSnapshot?
     @Published private(set) var portfolioCaptureStatusCode: String
@@ -214,6 +216,10 @@ final class BenchmarkStore: ObservableObject {
     private var realLLMStartedAt: Date?
     private var activeRealLLMPythonSHA256: String?
     private var activeRealLLMScriptURL: URL?
+    private var liveProofOutputBuffer = Data()
+    private var liveProofSessionID: String?
+    private var liveProofStreamingClosed = true
+    private var liveCodeCatalog: [LiveCodeTopic: LiveCodeSnippet] = [:]
     private var portfolioReadinessPublishing = false
     private var portfolioReadinessPublished = false
     private(set) var lastRealLLMWorkerPID: Int32?
@@ -282,6 +288,12 @@ final class BenchmarkStore: ObservableObject {
         return support
             .appendingPathComponent("CoreLMBenchmark", isDirectory: true)
             .appendingPathComponent("real-llm-results", isDirectory: true)
+    }
+
+    var currentLiveCodeSnippet: LiveCodeSnippet? {
+        guard liveProofTelemetry.stage != .idle,
+              liveProofTelemetry.stage != .invalid else { return nil }
+        return liveCodeCatalog[liveProofTelemetry.stage.codeTopic]
     }
 
     static func realLLMWorkerEnvironment(
@@ -1447,6 +1459,22 @@ final class BenchmarkStore: ObservableObject {
             return
         }
 
+        let liveSessionID = runDirectory.lastPathComponent
+        liveProofSessionID = liveSessionID
+        liveProofOutputBuffer.removeAll(keepingCapacity: true)
+        liveProofStreamingClosed = false
+        liveProofTelemetry.reset(expectedSessionID: liveSessionID)
+        do {
+            liveCodeCatalog = try LiveCodeCatalog.load(
+                projectDirectory: projectDirectory
+            )
+        } catch {
+            liveCodeCatalog = [:]
+            appendLog(
+                "Live code pane unavailable: source verification failed."
+            )
+        }
+
         isRunning = true
         progress = 0.02
         errorMessage = nil
@@ -1485,6 +1513,7 @@ final class BenchmarkStore: ObservableObject {
             runDirectory.appendingPathComponent(
                 "primary-evidence", isDirectory: true
             ).path,
+            "--live-session-id", liveSessionID,
             "--local-files-only"
         ]
 
@@ -1500,26 +1529,29 @@ final class BenchmarkStore: ObservableObject {
         task.standardOutput = stdoutPipe
         task.standardError = stderrPipe
         let stderrBuffer = BoundedOutputBuffer()
+        let stdoutTranscript = LiveProofTranscriptBuffer()
         let stdoutHandle = stdoutPipe.fileHandleForReading
         let stderrHandle = stderrPipe.fileHandleForReading
+        let stdoutEOF = DispatchSemaphore(value: 0)
+        let stderrEOF = DispatchSemaphore(value: 0)
 
         stdoutHandle.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty else {
                 handle.readabilityHandler = nil
+                stdoutEOF.signal()
                 return
             }
-            guard let text = String(data: data, encoding: .utf8) else { return }
+            stdoutTranscript.append(data)
             Task { @MainActor [weak self] in
-                self?.consumeRealLLMOutput(
-                    text, totalBlocks: requested.validationBlocks
-                )
+                self?.consumeLiveProofOutput(data)
             }
         }
         stderrHandle.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty else {
                 handle.readabilityHandler = nil
+                stderrEOF.signal()
                 return
             }
             stderrBuffer.append(data)
@@ -1536,17 +1568,28 @@ final class BenchmarkStore: ObservableObject {
         }
 
         task.terminationHandler = { [weak self] completed in
-            stdoutHandle.readabilityHandler = nil
-            stderrHandle.readabilityHandler = nil
-            stderrBuffer.append(stderrHandle.readDataToEndOfFile())
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.finishRealLLMRun(
-                    task: completed,
-                    outputURL: outputURL,
-                    settings: requested,
-                    workerErrorDetail: stderrBuffer.text(fallback: "")
-                )
+            DispatchQueue.global(qos: .utility).async {
+                let stdoutClosed = stdoutEOF.wait(
+                    timeout: .now() + 5
+                ) == .success
+                let stderrClosed = stderrEOF.wait(
+                    timeout: .now() + 5
+                ) == .success
+                let transcript = stdoutTranscript.snapshot()
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    self.replayLiveProofTranscript(
+                        transcript, reachedEOF: stdoutClosed
+                    )
+                    self.finishRealLLMRun(
+                        task: completed,
+                        outputURL: outputURL,
+                        settings: requested,
+                        workerErrorDetail: stderrClosed
+                            ? stderrBuffer.text(fallback: "")
+                            : "worker stderr did not reach EOF"
+                    )
+                }
             }
         }
 
@@ -1578,6 +1621,10 @@ final class BenchmarkStore: ObservableObject {
             process = nil
             activeProcessGroupID = nil
             stopRealLLMSafetyWatchdog()
+            liveProofStreamingClosed = true
+            liveProofTelemetry.invalidate(
+                "The live worker could not be launched."
+            )
             setError(error.localizedDescription)
             realLLMVerificationMessage = "Launch failed"
             writeRealLLMReceipt(
@@ -1589,32 +1636,78 @@ final class BenchmarkStore: ObservableObject {
         }
     }
 
-    private func consumeRealLLMOutput(_ text: String, totalBlocks: Int) {
-        let lines = text
-            .replacingOccurrences(of: "\r", with: "\n")
-            .split(separator: "\n")
-            .map(String.init)
-        for line in lines {
-            if line.hasPrefix("validation block ") {
-                let fields = line.split(separator: " ")
-                if fields.count >= 3 {
-                    let progressParts = fields[2].split(separator: "/")
-                    if progressParts.count == 2,
-                       let completed = Double(progressParts[0]),
-                       let total = Double(progressParts[1]),
-                       total > 0 {
-                        progress = min(0.92, 0.10 + 0.80 * completed / total)
-                    }
-                }
-                appendLog(line)
-            } else if line.contains("complete")
-                        || line.hasPrefix("Result SHA-256:")
-                        || line.hasPrefix("- schedule=") {
-                appendLog(line)
-            }
+    private func consumeLiveProofOutput(_ data: Data) {
+        guard !liveProofStreamingClosed,
+              let expectedSessionID = liveProofSessionID else { return }
+        parseLiveProofBytes(data, expectedSessionID: expectedSessionID)
+    }
+
+    private func replayLiveProofTranscript(
+        _ transcript: (data: Data, truncated: Bool),
+        reachedEOF: Bool
+    ) {
+        liveProofStreamingClosed = true
+        guard let expectedSessionID = liveProofSessionID else { return }
+        liveProofOutputBuffer.removeAll(keepingCapacity: true)
+        liveProofTelemetry.reset(expectedSessionID: expectedSessionID)
+        guard reachedEOF, !transcript.truncated else {
+            liveProofTelemetry.invalidate(
+                reachedEOF
+                    ? "The live transcript exceeded its bounded size."
+                    : "The live transcript did not reach a clean EOF."
+            )
+            return
         }
-        if totalBlocks > 0 && progress < 0.10 {
-            progress = 0.10
+        parseLiveProofBytes(
+            transcript.data, expectedSessionID: expectedSessionID
+        )
+        guard liveProofOutputBuffer.isEmpty else {
+            liveProofTelemetry.invalidate(
+                "The live transcript ended with a partial event."
+            )
+            liveProofOutputBuffer.removeAll(keepingCapacity: true)
+            return
+        }
+    }
+
+    private func parseLiveProofBytes(
+        _ data: Data,
+        expectedSessionID: String
+    ) {
+        guard !liveProofTelemetry.isInvalid else { return }
+        liveProofOutputBuffer.append(data)
+        do {
+            while let newline = liveProofOutputBuffer.firstIndex(of: 0x0A) {
+                let lineData = liveProofOutputBuffer.prefix(upTo: newline)
+                liveProofOutputBuffer.removeSubrange(
+                    liveProofOutputBuffer.startIndex...newline
+                )
+                guard !lineData.isEmpty,
+                      lineData.count <= 16 * 1024,
+                      let line = String(data: lineData, encoding: .utf8),
+                      !line.contains("\r")
+                else {
+                    throw SecurityValidationError.invalid(
+                        "The live transcript contains an invalid line."
+                    )
+                }
+                try liveProofTelemetry.apply(
+                    line: line, expectedSessionID: expectedSessionID
+                )
+                progress = max(
+                    progress,
+                    min(0.92, 0.08 + 0.84 * liveProofTelemetry.progress)
+                )
+            }
+            guard liveProofOutputBuffer.count <= 16 * 1024 else {
+                throw SecurityValidationError.invalid(
+                    "The live transcript line exceeded its bounded size."
+                )
+            }
+        } catch {
+            liveProofTelemetry.invalidate(error.localizedDescription)
+            liveProofOutputBuffer.removeAll(keepingCapacity: true)
+            appendLog("Live telemetry rejected; proof verification continues.")
         }
     }
 
@@ -1631,6 +1724,9 @@ final class BenchmarkStore: ObservableObject {
         process = nil
         activeProcessGroupID = nil
         guard task.terminationStatus == 0 else {
+            liveProofTelemetry.invalidate(
+                "The worker exited before a successful terminal boundary."
+            )
             progress = 0
             let message = forcedRealLLMFailure
                 ?? Self.workerFailureMessage(
@@ -1675,6 +1771,14 @@ final class BenchmarkStore: ObservableObject {
             }
             try verifyRealLLMResult(decoded, expected: settings)
             try verifyPrimaryEvidence(decoded, outputURL: outputURL)
+            do {
+                try liveProofTelemetry.reconcile(with: decoded)
+            } catch {
+                liveProofTelemetry.invalidate(error.localizedDescription)
+                appendLog(
+                    "Live telemetry did not reconcile with the sealed result."
+                )
+            }
             realLLMResult = decoded
             realLLMVerified = true
             realLLMVerificationMessage = "Swift structural verification PASS"
@@ -1700,6 +1804,7 @@ final class BenchmarkStore: ObservableObject {
             progress = 0
             realLLMVerified = false
             realLLMVerificationMessage = "Verification failed"
+            liveProofTelemetry.invalidate(error.localizedDescription)
             setError(error.localizedDescription)
             appendLog(
                 "Compression verification failed: \(error.localizedDescription)"

@@ -90,5 +90,27 @@ fi
 printf '%s\n' 'SWIFT SECURITY TESTS PASS: non-empty test execution confirmed.'
 
 if [ "$TEST_MODE" = 0 ]; then
+    OPERATOR_OUTPUT_FILE="$SWIFT_TEST_TMP/operator-output.txt"
+    /usr/bin/env -i \
+        HOME="$HOME" \
+        TMPDIR="$SWIFT_TEST_TMP" \
+        PATH="$PATH" \
+        LANG=C \
+        LC_ALL=C \
+        "${SWIFT_COMMAND[@]}" test \
+        --package-path "$PROJECT_DIR/platforms/macos/Operator" \
+        --scratch-path "$SWIFT_TEST_TMP/operator-build" \
+        "${SWIFT_TEST_FLAGS[@]}" \
+        2>&1 | /usr/bin/tee "$OPERATOR_OUTPUT_FILE"
+    if ! /usr/bin/grep -Eq \
+        'Test run with [1-9][0-9]* tests?( in [1-9][0-9]* suites?)? passed' \
+        "$OPERATOR_OUTPUT_FILE"
+    then
+        printf '%s\n' \
+            'Swift security test gate failed: Operator tests did not pass.' >&2
+        exit 1
+    fi
+    printf '%s\n' \
+        'SWIFT OPERATOR TESTS PASS: non-empty test execution confirmed.'
     "$PROJECT_DIR/security/run_process_group_tests.sh"
 fi

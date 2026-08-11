@@ -148,6 +148,32 @@ class LinuxRuntimePathTests(unittest.TestCase):
 
 
 class LinuxPythonBootstrapContractTests(unittest.TestCase):
+    def test_empty_bootstrap_cleanup_preserves_success_status(self):
+        source = (LINUX_SCRIPTS / "bootstrap-python.sh").read_text(
+            encoding="utf-8"
+        )
+        cleanup_body = source.split("cleanup() {\n", 1)[1].split(
+            "\n}\n\non_signal()", 1
+        )[0]
+        self.assertIn('[ -n "$TEMP_DIRECTORY" ] || return 0', cleanup_body)
+        completed = subprocess.run(
+            ["/bin/sh"],
+            input=(
+                "set -eu\n"
+                "TEMP_DIRECTORY=\n"
+                "cleanup() {\n"
+                f"{cleanup_body}\n"
+                "}\n"
+                "trap cleanup EXIT\n"
+                "exit 0\n"
+            ),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout, "")
+
     def test_bootstrap_receipt_rejects_installed_tree_byte_drift(self):
         source = (LINUX_SCRIPTS / "bootstrap-python.sh").read_text(
             encoding="utf-8"
@@ -215,6 +241,56 @@ class LinuxPythonBootstrapContractTests(unittest.TestCase):
         self.assertIn('"treeSha256": tree_sha256', source)
         self.assertIn('"treeEntries": tree_entries', source)
         self.assertIn("receipt_operation validate", source)
+        self.assertIn(
+            'fail "owner-local Python changed during identity validation"',
+            source,
+        )
+
+        prepare_body = source.split(
+            "prepare_fresh_python() {\n", 1
+        )[1].split("\n}\n\nvalidate_installed_python()", 1)[0]
+        prepare_tree_call = 'validate_runtime_tree "$runtime"'
+        prepare_identity_call = 'validate_python_identity "$runtime"'
+        self.assertEqual(prepare_body.count(prepare_tree_call), 2)
+        self.assertEqual(prepare_body.count(prepare_identity_call), 1)
+        first_prepare_tree = prepare_body.index(prepare_tree_call)
+        prepare_identity = prepare_body.index(prepare_identity_call)
+        second_prepare_tree = prepare_body.index(
+            prepare_tree_call, first_prepare_tree + 1
+        )
+        self.assertLess(first_prepare_tree, prepare_identity)
+        self.assertLess(prepare_identity, second_prepare_tree)
+
+        installed_body = source.split(
+            "validate_installed_python() {\n", 1
+        )[1].split('\n}\n\nif [ "$MODE" = harden ]', 1)[0]
+        installed_tree_call = 'validate_runtime_tree "$TARGET"'
+        installed_receipt_call = 'receipt_operation validate "$TARGET"'
+        installed_identity_call = 'validate_python_identity "$TARGET"'
+        self.assertEqual(installed_body.count(installed_tree_call), 1)
+        self.assertEqual(installed_body.count(installed_receipt_call), 2)
+        self.assertEqual(installed_body.count(installed_identity_call), 1)
+        first_installed_receipt = installed_body.index(installed_receipt_call)
+        installed_identity = installed_body.index(installed_identity_call)
+        second_installed_receipt = installed_body.index(
+            installed_receipt_call, first_installed_receipt + 1
+        )
+        self.assertLess(installed_body.index(installed_tree_call), first_installed_receipt)
+        self.assertLess(first_installed_receipt, installed_identity)
+        self.assertLess(installed_identity, second_installed_receipt)
+
+        install_body = source.split(
+            'TEMP_DIRECTORY=$(mktemp -d "$INSTALL_ROOT/', 1
+        )[1]
+        install_calls = [
+            'prepare_fresh_python "$EXTRACT_ROOT/python"',
+            'receipt_operation create "$EXTRACT_ROOT/python"',
+            'receipt_operation validate "$EXTRACT_ROOT/python"',
+            '/bin/mv "$EXTRACT_ROOT/python" "$TARGET"',
+            "validate_installed_python",
+        ]
+        install_offsets = [install_body.index(call) for call in install_calls]
+        self.assertEqual(install_offsets, sorted(install_offsets))
         self.assertNotIn("chmod -RP", source)
         self.assertNotIn("/usr/bin/sudo", source)
         self.assertNotIn("\nsudo ", source)
@@ -223,6 +299,9 @@ class LinuxPythonBootstrapContractTests(unittest.TestCase):
         dispatcher = (ROOT / "corelm").read_text(encoding="utf-8")
         doctor = (LINUX_SCRIPTS / "doctor.sh").read_text(encoding="utf-8")
         build = (LINUX_SCRIPTS / "build-runtime.sh").read_text(
+            encoding="utf-8"
+        )
+        test_gate = (ROOT / "scripts/verify-python.sh").read_text(
             encoding="utf-8"
         )
         finder = (LINUX_SCRIPTS / "find-python312.sh").read_text(
@@ -251,6 +330,77 @@ class LinuxPythonBootstrapContractTests(unittest.TestCase):
         self.assertIn("./corelm linux bootstrap", verify_workflow)
         self.assertIn("corelm-ci-linux-core-runtime", verify_workflow)
         self.assertIn('-m venv --copies "$core_runtime"', verify_workflow)
+        workflow_venv = (
+            'PYTHONDONTWRITEBYTECODE=1 \\\n'
+            '            "$bootstrap_python" -I -B -m venv --copies '
+            '"$core_runtime"'
+        )
+        workflow_harden = "./corelm linux bootstrap --harden-installed"
+        build_step = verify_workflow.split(
+            "      - name: Build exact-lock core verification runtime\n", 1
+        )[1].split("      - name: Run Python and publication gates\n", 1)[0]
+        self.assertEqual(build_step.count(workflow_venv), 1)
+        self.assertEqual(build_step.count(workflow_harden), 2)
+        first_harden = build_step.index(workflow_harden)
+        second_harden = build_step.index(
+            workflow_harden, first_harden + 1
+        )
+        self.assertLess(build_step.index(workflow_venv), first_harden)
+        self.assertLess(first_harden, build_step.index("--mode initialize"))
+        self.assertLess(build_step.index("/usr/bin/cmp"), second_harden)
+
+        build_venv = (
+            'PYTHONDONTWRITEBYTECODE=1 \\\n'
+            '        "$PYTHON_BIN" -I -B -m venv "$STAGING_DIR"'
+        )
+        prepublish_python = 'PREPUBLISH_PYTHON=$("$PYTHON_FINDER")'
+        prepublish_equality = '[ "$PREPUBLISH_PYTHON" = "$PYTHON_BIN" ]'
+        publish_runtime = '"$SAFETY_SCRIPT" publish-runtime'
+        final_python = 'FINAL_PYTHON=$("$PYTHON_FINDER")'
+        final_equality = '[ "$FINAL_PYTHON" = "$PYTHON_BIN" ]'
+        self.assertEqual(build.count(build_venv), 1)
+        self.assertEqual(build.count(prepublish_python), 1)
+        self.assertEqual(build.count(prepublish_equality), 1)
+        self.assertEqual(build.count(final_python), 1)
+        self.assertEqual(build.count(final_equality), 1)
+        self.assertLess(build.index(build_venv), build.index("runtime_python="))
+        self.assertLess(
+            build.index(build_venv), build.index(prepublish_python)
+        )
+        self.assertLess(
+            build.index(prepublish_python), build.index(prepublish_equality)
+        )
+        self.assertLess(
+            build.index(prepublish_equality), build.index(publish_runtime)
+        )
+        self.assertLess(
+            build.rindex("prepare_app_assets.py"), build.index(final_python)
+        )
+        self.assertLess(build.index(publish_runtime), build.index(final_python))
+        self.assertLess(build.index(final_python), build.index(final_equality))
+        self.assertLess(
+            build.index(final_equality), build.index("LINUX RUNTIME BUILD PASS")
+        )
+        nested_bytecode_guard = "PYTHONDONTWRITEBYTECODE=1 \\"
+        self.assertEqual(test_gate.count(nested_bytecode_guard), 1)
+        env_start = test_gate.index("/usr/bin/env -i")
+        guard_offset = test_gate.index(nested_bytecode_guard, env_start)
+        nested_python = test_gate.index(
+            '"$PYTHON_EXECUTABLE" -I -B', guard_offset
+        )
+        self.assertLess(env_start, guard_offset)
+        self.assertLess(guard_offset, nested_python)
+        python_step = verify_workflow.split(
+            "      - name: Run Python and publication gates\n", 1
+        )[1].split(
+            "      - name: Verify exploratory real-Qwen pilot artifact\n", 1
+        )[0]
+        self.assertEqual(python_step.count("./corelm verify"), 1)
+        self.assertEqual(python_step.count(workflow_harden), 1)
+        self.assertLess(
+            python_step.index("./corelm verify"),
+            python_step.index(workflow_harden),
+        )
         self.assertIn("umask 077", verify_workflow)
         self.assertIn("security/manage_local_runtime.py", verify_workflow)
         self.assertIn("security/verify_locked_environment.py", verify_workflow)

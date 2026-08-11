@@ -68,7 +68,8 @@ else
         "$RUNTIME_PARENT/.corelm-linux-runtime-stage.XXXXXX") \
         || fail "cannot create private runtime staging directory"
     /bin/chmod 700 "$STAGING_DIR"
-    "$PYTHON_BIN" -I -B -m venv "$STAGING_DIR"
+    PYTHONDONTWRITEBYTECODE=1 \
+        "$PYTHON_BIN" -I -B -m venv "$STAGING_DIR"
     runtime_python="$STAGING_DIR/bin/python"
     "$runtime_python" -I -B -m pip install \
         --isolated --no-input --disable-pip-version-check --no-cache-dir \
@@ -100,6 +101,11 @@ else
         --lock "$PROJECT_DIR/.github/locks/pip-bootstrap.txt" \
         --lock "$PROJECT_DIR/.github/locks/real-llm-linux-cpu-py312.txt" \
         --lock "$PROJECT_DIR/.github/locks/torch-linux-cpu-py312.txt"
+
+    PREPUBLISH_PYTHON=$("$PYTHON_FINDER") \
+        || fail "trusted Python changed before runtime publication"
+    [ "$PREPUBLISH_PYTHON" = "$PYTHON_BIN" ] \
+        || fail "trusted Python identity changed before runtime publication"
 
     "$PYTHON_BIN" -I -B "$SAFETY_SCRIPT" publish-runtime \
         --staging "$STAGING_DIR" \
@@ -134,6 +140,11 @@ if [ "$OFFLINE" = 0 ]; then
 fi
 "$runtime_python" -I -B "$PROJECT_DIR/RealLLM/prepare_app_assets.py" \
     --cache "$HF_CACHE" --offline-only
+
+FINAL_PYTHON=$("$PYTHON_FINDER") \
+    || fail "trusted Python changed during runtime build"
+[ "$FINAL_PYTHON" = "$PYTHON_BIN" ] \
+    || fail "trusted Python identity changed during runtime build"
 
 printf '%s\n' \
     'LINUX RUNTIME BUILD PASS' \

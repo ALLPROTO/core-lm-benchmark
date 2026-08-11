@@ -1,0 +1,410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ALLPROTO/core-lm-benchmark/schemas/model-compatibility-inspection.schema.json",
+  "title": "Core LM model metadata compatibility inspection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "acceptedAsBenchmarkEvidence",
+    "action",
+    "classification",
+    "countsTowardScientificVerdict",
+    "modelExecuted",
+    "registrySHA256",
+    "schemaVersion"
+  ],
+  "properties": {
+    "acceptedAsBenchmarkEvidence": {
+      "const": false
+    },
+    "action": {
+      "enum": [
+        "inspect-config",
+        "list"
+      ]
+    },
+    "adapters": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/adapter"
+      }
+    },
+    "analysis": {
+      "$ref": "#/$defs/analysis"
+    },
+    "classification": {
+      "const": "MODEL_METADATA_ADMISSION_NOT_BENCHMARK_EVIDENCE"
+    },
+    "configPath": {
+      "type": "string",
+      "pattern": "^/[^\\u0000-\\u001f\\u007f]*$",
+      "maxLength": 4096
+    },
+    "configSHA256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "countsTowardScientificVerdict": {
+      "const": false
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      }
+    },
+    "modelExecuted": {
+      "const": false
+    },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/profile"
+      }
+    },
+    "registrySHA256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "schemaVersion": {
+      "const": "corelm-model-compatibility-inspection-v1"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "action": {
+          "const": "list"
+        }
+      },
+      "required": [
+        "adapters",
+        "limitations",
+        "profiles"
+      ],
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "analysis"
+            ]
+          },
+          {
+            "required": [
+              "configPath"
+            ]
+          },
+          {
+            "required": [
+              "configSHA256"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "properties": {
+        "action": {
+          "const": "inspect-config"
+        }
+      },
+      "required": [
+        "analysis",
+        "configPath",
+        "configSHA256"
+      ],
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "adapters"
+            ]
+          },
+          {
+            "required": [
+              "limitations"
+            ]
+          },
+          {
+            "required": [
+              "profiles"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapterId",
+        "architectures",
+        "cacheAdapter",
+        "modelTypes",
+        "notes",
+        "status"
+      ],
+      "properties": {
+        "adapterId": {
+          "$ref": "#/$defs/identifier"
+        },
+        "architectures": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "cacheAdapter": {
+          "const": "transformers-dynamic-cache-kv-v1"
+        },
+        "modelTypes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "status": {
+          "const": "admission-candidate"
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapterId",
+        "architecture",
+        "cacheAdapter",
+        "cachePolicy",
+        "exactRegisteredConfigProfile",
+        "geometry",
+        "matchingRegisteredGeometryProfile",
+        "modelType",
+        "status"
+      ],
+      "properties": {
+        "adapterId": {
+          "$ref": "#/$defs/identifier"
+        },
+        "architecture": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "cacheAdapter": {
+          "const": "transformers-dynamic-cache-kv-v1"
+        },
+        "cachePolicy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "exactRegisteredConfigProfile": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "matchingRegisteredGeometryProfile": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "modelType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "status": {
+          "enum": [
+            "eligible-for-separate-pinned-admission",
+            "registered-config-bytes-match"
+          ]
+        }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bytes",
+        "path",
+        "role",
+        "sha256"
+      ],
+      "properties": {
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000000000
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "role": {
+          "$ref": "#/$defs/identifier"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attentionHeads",
+        "contextLength",
+        "headDimension",
+        "hiddenSize",
+        "kvHeads",
+        "layers",
+        "vocabularySize"
+      ],
+      "properties": {
+        "attentionHeads": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "contextLength": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 10000000
+        },
+        "headDimension": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 512
+        },
+        "hiddenSize": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 32768
+        },
+        "kvHeads": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "layers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "vocabularySize": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 10000000
+        }
+      }
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,95}$"
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapterId",
+        "architecture",
+        "config",
+        "files",
+        "license",
+        "modelType",
+        "profileId",
+        "repository",
+        "revision",
+        "status",
+        "trustRemoteCode"
+      ],
+      "properties": {
+        "adapterId": {
+          "$ref": "#/$defs/identifier"
+        },
+        "architecture": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "config": {
+          "$ref": "#/$defs/geometry"
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/file"
+          }
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "modelType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "profileId": {
+          "$ref": "#/$defs/identifier"
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "status": {
+          "const": "registered-evidence-model"
+        },
+        "trustRemoteCode": {
+          "const": false
+        }
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

@@ -48,7 +48,7 @@ esac
 [ "$#" -le 1 ] || fail "too many arguments"
 
 cleanup() {
-    [ -n "$TEMP_DIRECTORY" ] || return
+    [ -n "$TEMP_DIRECTORY" ] || return 0
     case "$TEMP_DIRECTORY" in
         "$INSTALL_ROOT"/.corelm-python312-stage.*)
             if [ -d "$TEMP_DIRECTORY" ] && [ ! -L "$TEMP_DIRECTORY" ]; then
@@ -240,25 +240,12 @@ validate_and_harden_runtime_tree() {
         harden-owner-tree --root "$runtime" >/dev/null
 }
 
-validate_installed_python() {
-    require_private_directory "$INSTALL_ROOT"
-    require_private_directory "$TARGET"
-    validate_and_harden_runtime_tree "$TARGET" \
-        || fail "owner-local Python tree validation or hardening failed"
-    "$SYSTEM_PYTHON" -I -B - "$PROJECT_DIR" "$TARGET" <<'PY'
-import pathlib
-import sys
-
-sys.path.insert(0, sys.argv[1])
-from platforms.linux.scripts.runtime_safety import _safe_existing_chain
-
-_safe_existing_chain(pathlib.Path(sys.argv[2]))
-PY
-    receipt_operation validate "$TARGET" \
-        || fail "owner-local Python bootstrap receipt or tree digest is invalid"
-    [ -x "$TARGET_PYTHON" ] \
-        || fail "owner-local Python is incomplete: $TARGET_PYTHON"
-    "$TARGET_PYTHON" -I -B -c '
+validate_python_identity() {
+    runtime=$1
+    runtime_python="$runtime/bin/python3.12"
+    [ -x "$runtime_python" ] \
+        || fail "owner-local Python is incomplete: $runtime_python"
+    "$runtime_python" -I -B -c '
 import pathlib
 import sys
 
@@ -268,8 +255,8 @@ if sys.version_info[:3] != (3, 12, 13):
     raise SystemExit("owner-local runtime is not Python 3.12.13")
 if actual != expected:
     raise SystemExit(f"Python base prefix {actual} does not match {expected}")
-' "$TARGET" || fail "owner-local Python identity check failed"
-    "$TARGET_PYTHON" -I -B - "$PROJECT_DIR" <<'PY'
+' "$runtime" || fail "owner-local Python identity check failed"
+    "$runtime_python" -I -B - "$PROJECT_DIR" <<'PY'
 import pathlib
 import sys
 
@@ -278,6 +265,43 @@ from platforms.linux.scripts.runtime_safety import _safe_existing_chain
 
 _safe_existing_chain(pathlib.Path(sys.base_prefix))
 PY
+}
+
+validate_runtime_tree() {
+    runtime=$1
+    validate_and_harden_runtime_tree "$runtime" \
+        || fail "owner-local Python tree validation or hardening failed"
+    "$SYSTEM_PYTHON" -I -B - "$PROJECT_DIR" "$runtime" <<'PY'
+import pathlib
+import sys
+
+sys.path.insert(0, sys.argv[1])
+from platforms.linux.scripts.runtime_safety import _safe_existing_chain
+
+_safe_existing_chain(pathlib.Path(sys.argv[2]))
+PY
+}
+
+prepare_fresh_python() {
+    runtime=$1
+    require_private_directory "$runtime"
+    validate_runtime_tree "$runtime"
+    # The standalone archive contains startup cache files whose headers are
+    # normalized on first use. Perform that initialization only inside the
+    # private staging tree, then harden the resulting bytes before sealing.
+    validate_python_identity "$runtime"
+    validate_runtime_tree "$runtime"
+}
+
+validate_installed_python() {
+    require_private_directory "$INSTALL_ROOT"
+    require_private_directory "$TARGET"
+    validate_runtime_tree "$TARGET"
+    receipt_operation validate "$TARGET" \
+        || fail "owner-local Python bootstrap receipt or tree digest is invalid"
+    validate_python_identity "$TARGET"
+    receipt_operation validate "$TARGET" \
+        || fail "owner-local Python changed during identity validation"
 }
 
 if [ "$MODE" = harden ]; then
@@ -332,8 +356,7 @@ actual_sha256=$(/usr/bin/sha256sum "$ARCHIVE_PATH" | /usr/bin/awk '{print $1}')
     || fail "Python archive did not contain the expected root"
 [ ! -L "$EXTRACT_ROOT/python" ] \
     || fail "Python archive root must not be a symlink"
-validate_and_harden_runtime_tree "$EXTRACT_ROOT/python" \
-    || fail "extracted Python tree validation or hardening failed"
+prepare_fresh_python "$EXTRACT_ROOT/python"
 receipt_operation create "$EXTRACT_ROOT/python" \
     || fail "could not create the exclusive bootstrap receipt"
 validate_and_harden_runtime_tree "$EXTRACT_ROOT/python" \
