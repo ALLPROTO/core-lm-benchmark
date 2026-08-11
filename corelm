@@ -92,6 +92,7 @@ Usage:
   ./corelm macos package [options]
   ./corelm macos prepare-offline [options]
   ./corelm macos proof [options]
+  ./corelm macos operator
   ./corelm macos portfolio-demo [options]
   ./corelm linux doctor [options]
   ./corelm linux bootstrap [options]
@@ -147,6 +148,7 @@ case "$platform:$command" in
     macos:package) script=platforms/macos/scripts/package-app.sh ;;
     macos:prepare-offline) script=platforms/macos/scripts/prepare-offline.sh ;;
     macos:proof) script=platforms/macos/scripts/run-proof.sh ;;
+    macos:operator) script=platforms/macos/scripts/run-operator.sh ;;
     macos:portfolio-demo)
         case "${1:-}" in
             -h|--help)

@@ -368,6 +368,35 @@ enum SecurityValidation {
         return sha256Hex(Data(canonical.utf8))
     }
 
+    static func verifiedCanonicalJSONDigest(
+        from data: Data,
+        maximumBytes: Int
+    ) throws -> String {
+        let canonical = try canonicalizedJSONData(
+            from: data, maximumBytes: maximumBytes
+        )
+        guard canonical == data else {
+            throw SecurityValidationError.invalid(
+                "JSON message is not in canonical form."
+            )
+        }
+        return sha256Hex(data)
+    }
+
+    static func canonicalizedJSONData(
+        from data: Data,
+        maximumBytes: Int
+    ) throws -> Data {
+        guard maximumBytes > 0, data.count <= maximumBytes else {
+            throw SecurityValidationError.invalid(
+                "Canonical JSON message exceeds the allowed size."
+            )
+        }
+        var parser = CanonicalJSONParser(data: data)
+        let root = try parser.parse()
+        return Data(try root.serialized().utf8)
+    }
+
     static func checkedAdd(_ left: Int, _ right: Int) throws -> Int {
         let (value, overflow) = left.addingReportingOverflow(right)
         guard !overflow else {

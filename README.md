@@ -84,6 +84,18 @@ Build without starting the full proof:
 open dist/CoreLMBenchmark.app
 ```
 
+For a visual full-system walkthrough with manual Verify, Build, Full Proof,
+and Open App buttons, plus live real-Qwen layer progress and verified code
+inside the benchmark window:
+
+```sh
+./corelm macos operator
+```
+
+See the [interactive full-system demo guide](docs/SYSTEM_DEMO.md). This is a
+manual developer surface, not a replacement for the immutable V15 evidence or
+its automated presentation contract.
+
 If Python 3.12.13 is missing, the optional owner-local bootstrap downloads the
 fixed `astral-sh/python-build-standalone` archive and verifies SHA-256
 `62aeee6161d57303a71a138b75fd5cc6fb8c89c4b1d9c7f0a052d89fa0b6652b`:

@@ -22,6 +22,20 @@ open dist/CoreLMBenchmark.app
 ./corelm macos prepare-offline
 ```
 
+Launch the source-only Operator Control Center when manual buttons and a
+visual, full-system walkthrough are useful:
+
+```sh
+./corelm macos operator
+```
+
+The Operator exposes only fixed Verify Repository, Build App, Full System
+Proof, and Open Built App actions. The normal benchmark window shows strict
+hash-chained progress from the real offline Qwen/MPS worker and a read-only
+excerpt of the verified code for the most recently confirmed stage. See
+[Interactive full-system demo](../../docs/SYSTEM_DEMO.md) for the exact
+meaning and evidence boundary.
+
 `App/` and `Tests/` are macOS-only Swift sources. The scripts in `scripts/`
 are internal platform entrypoints; ordinary users should invoke them through
 `./corelm` from the repository root.

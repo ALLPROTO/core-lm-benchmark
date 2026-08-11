@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import os
 import platform
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -16,6 +19,416 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REGISTERED_CANDIDATE_INDEX = 32
 SEED = 20260729
+LIVE_EVENT_SCHEMA = "corelm-live-proof-event-v1"
+LIVE_EVENT_PRODUCER = "app_worker"
+LIVE_EVENT_INITIAL_SHA256 = "0" * 64
+LIVE_EVENT_FACT_KEYS = {
+    "runtime_ready": {"device", "python", "torch", "transformers"},
+    "assets_verified": {
+        "model_repository",
+        "model_revision",
+        "model_weights_sha256",
+        "dataset_repository",
+        "dataset_revision",
+        "dataset_sha256",
+        "split",
+    },
+    "model_load_started": set(),
+    "model_loaded_mps": {
+        "model_repository",
+        "model_revision",
+        "device",
+        "parameter_count",
+    },
+    "token_slice_selected_and_hashed": {
+        "start_block",
+        "blocks",
+        "tokens_per_block",
+        "selected_token_ids_sha256",
+    },
+    "block_started": {"block_index", "ordinal", "total"},
+    "codec_roundtrip_written": {
+        "block_index",
+        "layer_index",
+        "bits",
+        "container_bytes",
+        "container_sha256",
+    },
+    "block_metrics_measured": {
+        "block_index",
+        "dense_bf16_bytes",
+        "encoded_file_bytes",
+        "compression_ratio_vs_bf16",
+        "delta_nll_nat_per_token",
+        "top1_agreement",
+        "prediction_tokens",
+    },
+    "primary_evidence_sealed": {
+        "container_count",
+        "container_bytes",
+        "blocks",
+        "prediction_tokens",
+        "manifest_sha256",
+    },
+    "result_sealed": {"result_sha256", "output_filename"},
+    "run_complete": {"passed"},
+}
+
+
+def _canonical_live_event_bytes(value: dict[str, Any]) -> bytes:
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _canonical_session_id(value: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError("live session ID must be a canonical UUID")
+    try:
+        parsed = uuid.UUID(value)
+    except (AttributeError, ValueError) as error:
+        raise ValueError("live session ID must be a canonical UUID") from error
+    if parsed.int == 0 or str(parsed) != value:
+        raise ValueError("live session ID must be a canonical UUID")
+    return value
+
+
+def _sha256(value: Any, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise ValueError(f"{label} must be a lowercase SHA-256 digest")
+    return value
+
+
+def _text(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not value or len(value) > 256:
+        raise ValueError(f"{label} must be bounded non-empty text")
+    if any(
+        ord(character) < 0x20 or ord(character) == 0x7F
+        for character in value
+    ):
+        raise ValueError(f"{label} contains a forbidden character")
+    return value
+
+
+def _integer(
+    value: Any,
+    label: str,
+    *,
+    minimum: int = 0,
+    maximum: int = 2**63 - 1,
+) -> int:
+    if type(value) is not int or value < minimum or value > maximum:
+        raise ValueError(f"{label} is outside its integer bound")
+    return value
+
+
+def _number(
+    value: Any,
+    label: str,
+    *,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float:
+    if type(value) not in {int, float} or not math.isfinite(float(value)):
+        raise ValueError(f"{label} must be a finite number")
+    observed = float(value)
+    if minimum is not None and observed < minimum:
+        raise ValueError(f"{label} is below its bound")
+    if maximum is not None and observed > maximum:
+        raise ValueError(f"{label} exceeds its bound")
+    return observed
+
+
+def _validate_live_event_facts(event: str, facts: dict[str, Any]) -> None:
+    expected = LIVE_EVENT_FACT_KEYS.get(event)
+    if expected is None or not isinstance(facts, dict) or set(facts) != expected:
+        raise ValueError(f"{event} live-event facts are not exact")
+
+    if event == "runtime_ready":
+        if facts["device"] != "mps":
+            raise ValueError("runtime_ready device must be mps")
+        for name in ("python", "torch", "transformers"):
+            _text(facts[name], f"runtime_ready {name}")
+    elif event == "assets_verified":
+        for name in (
+            "model_repository",
+            "model_revision",
+            "dataset_repository",
+            "dataset_revision",
+        ):
+            _text(facts[name], f"assets_verified {name}")
+        _sha256(facts["model_weights_sha256"], "model weights")
+        _sha256(facts["dataset_sha256"], "validation dataset")
+        if facts["split"] != "validation":
+            raise ValueError("assets_verified split must be validation")
+    elif event == "model_load_started":
+        return
+    elif event == "model_loaded_mps":
+        _text(facts["model_repository"], "loaded model repository")
+        _text(facts["model_revision"], "loaded model revision")
+        if facts["device"] != "mps":
+            raise ValueError("model_loaded_mps device must be mps")
+        _integer(
+            facts["parameter_count"],
+            "loaded model parameter count",
+            minimum=1,
+            maximum=10_000_000_000,
+        )
+    elif event == "token_slice_selected_and_hashed":
+        _integer(facts["start_block"], "token slice start block", minimum=64)
+        _integer(facts["blocks"], "token slice blocks", minimum=1, maximum=32)
+        if facts["tokens_per_block"] != 512:
+            raise ValueError("token slice must contain 512 tokens per block")
+        _sha256(facts["selected_token_ids_sha256"], "selected token IDs")
+    elif event == "block_started":
+        _integer(facts["block_index"], "started block index", minimum=64)
+        _integer(facts["ordinal"], "started block ordinal", minimum=1, maximum=32)
+        _integer(facts["total"], "started block total", minimum=1, maximum=32)
+    elif event == "codec_roundtrip_written":
+        _integer(facts["block_index"], "container block index", minimum=64)
+        _integer(facts["layer_index"], "container layer index", maximum=23)
+        _integer(facts["bits"], "container bits", minimum=1, maximum=16)
+        _integer(
+            facts["container_bytes"],
+            "container bytes",
+            minimum=9,
+            maximum=256 * 1024 * 1024,
+        )
+        _sha256(facts["container_sha256"], "container")
+    elif event == "block_metrics_measured":
+        _integer(facts["block_index"], "metric block index", minimum=64)
+        dense_bytes = _integer(
+            facts["dense_bf16_bytes"], "dense BF16 bytes", minimum=1
+        )
+        encoded_bytes = _integer(
+            facts["encoded_file_bytes"], "encoded file bytes", minimum=1
+        )
+        ratio = _number(
+            facts["compression_ratio_vs_bf16"],
+            "block compression ratio",
+            minimum=0.0,
+            maximum=100.0,
+        )
+        if ratio != dense_bytes / encoded_bytes:
+            raise ValueError("block compression ratio does not match byte counts")
+        _number(
+            facts["delta_nll_nat_per_token"],
+            "block delta NLL",
+            minimum=-100.0,
+            maximum=100.0,
+        )
+        _number(
+            facts["top1_agreement"],
+            "block top-1 agreement",
+            minimum=0.0,
+            maximum=1.0,
+        )
+        if facts["prediction_tokens"] != 128:
+            raise ValueError("block metrics must cover 128 prediction tokens")
+    elif event == "primary_evidence_sealed":
+        blocks = _integer(
+            facts["blocks"], "primary evidence blocks", minimum=1, maximum=32
+        )
+        container_count = _integer(
+            facts["container_count"],
+            "primary evidence container count",
+            minimum=1,
+            maximum=32 * 24,
+        )
+        if container_count != blocks * 24:
+            raise ValueError("primary evidence container count is inconsistent")
+        _integer(
+            facts["container_bytes"], "primary evidence container bytes", minimum=1
+        )
+        prediction_tokens = _integer(
+            facts["prediction_tokens"],
+            "primary evidence prediction tokens",
+            minimum=1,
+            maximum=32 * 128,
+        )
+        if prediction_tokens != blocks * 128:
+            raise ValueError("primary evidence prediction count is inconsistent")
+        _sha256(facts["manifest_sha256"], "primary evidence manifest")
+    elif event == "result_sealed":
+        _sha256(facts["result_sha256"], "sealed result")
+        filename = _text(facts["output_filename"], "sealed output filename")
+        if (
+            filename in {".", ".."}
+            or Path(filename).name != filename
+            or "\\" in filename
+        ):
+            raise ValueError("sealed output filename is not a safe basename")
+    elif event == "run_complete":
+        if type(facts["passed"]) is not bool:
+            raise ValueError("run_complete passed must be Boolean")
+
+
+class LiveProofEventWriter:
+    """Write a strict, hash-chained, machine-only live event sequence."""
+
+    def __init__(self, session_id: str, stream: Any) -> None:
+        self.session_id = _canonical_session_id(session_id)
+        self.stream = stream
+        self.sequence = 0
+        self.previous_event_sha256 = LIVE_EVENT_INITIAL_SHA256
+        self.stage = "runtime_ready"
+        self.start_block: int | None = None
+        self.total_blocks: int | None = None
+        self.completed_blocks = 0
+        self.active_block: int | None = None
+        self.next_layer = 0
+        self.device: str | None = None
+        self.model_repository: str | None = None
+        self.model_revision: str | None = None
+        self.container_count = 0
+        self.container_bytes = 0
+
+    def _validate_transition(self, event: str, facts: dict[str, Any]) -> None:
+        if self.stage == "runtime_ready":
+            if event != "runtime_ready":
+                raise ValueError("live event sequence must start with runtime_ready")
+        elif self.stage == "assets_verified":
+            if event != "assets_verified":
+                raise ValueError("assets_verified live event is missing")
+        elif self.stage == "model_load_started":
+            if event != "model_load_started":
+                raise ValueError("model_load_started live event is missing")
+        elif self.stage == "model_loaded_mps":
+            if event != "model_loaded_mps":
+                raise ValueError("model_loaded_mps live event is missing")
+            if (
+                facts["model_repository"] != self.model_repository
+                or facts["model_revision"] != self.model_revision
+                or facts["device"] != self.device
+            ):
+                raise ValueError("loaded model facts differ from verified assets")
+        elif self.stage == "token_slice_selected_and_hashed":
+            if event != "token_slice_selected_and_hashed":
+                raise ValueError("token slice live event is missing")
+        elif self.stage == "blocks":
+            if event == "block_started":
+                if self.start_block is None or self.total_blocks is None:
+                    raise ValueError("live block geometry is unavailable")
+                if self.completed_blocks >= self.total_blocks:
+                    raise ValueError("live event sequence contains an extra block")
+                if facts != {
+                    "block_index": self.start_block + self.completed_blocks,
+                    "ordinal": self.completed_blocks + 1,
+                    "total": self.total_blocks,
+                }:
+                    raise ValueError("block_started facts do not match the token slice")
+            elif event == "primary_evidence_sealed":
+                if self.total_blocks is None or self.completed_blocks != self.total_blocks:
+                    raise ValueError("primary evidence was sealed before all blocks")
+                if facts["blocks"] != self.total_blocks:
+                    raise ValueError("primary evidence block count changed")
+                if (
+                    facts["container_count"] != self.container_count
+                    or facts["container_bytes"] != self.container_bytes
+                ):
+                    raise ValueError("primary evidence totals differ from live containers")
+            else:
+                raise ValueError("live block event is out of order")
+        elif self.stage == "layers":
+            if self.active_block is None:
+                raise ValueError("live layer event has no active block")
+            if event == "codec_roundtrip_written":
+                if self.next_layer >= 24 or (
+                    facts["block_index"] != self.active_block
+                    or facts["layer_index"] != self.next_layer
+                ):
+                    raise ValueError("codec live event block/layer order changed")
+            elif event == "block_metrics_measured":
+                if self.next_layer != 24 or facts["block_index"] != self.active_block:
+                    raise ValueError("block metrics preceded 24 written containers")
+            else:
+                raise ValueError("live layer event is out of order")
+        elif self.stage == "result_sealed":
+            if event != "result_sealed":
+                raise ValueError("result_sealed live event is missing")
+            if self.start_block is None or self.total_blocks is None:
+                raise ValueError("sealed result has no live block geometry")
+            expected_filename = (
+                f"validation-{self.start_block:03d}-"
+                f"{self.start_block + self.total_blocks - 1:03d}.json"
+            )
+            if facts["output_filename"] != expected_filename:
+                raise ValueError("sealed result filename differs from live block geometry")
+        elif self.stage == "run_complete":
+            if event != "run_complete":
+                raise ValueError("run_complete live event is missing")
+        else:
+            raise ValueError("live event sequence is already complete")
+
+    def _advance(self, event: str, facts: dict[str, Any]) -> None:
+        if event == "runtime_ready":
+            self.device = facts["device"]
+            self.stage = "assets_verified"
+        elif event == "assets_verified":
+            self.model_repository = facts["model_repository"]
+            self.model_revision = facts["model_revision"]
+            self.stage = "model_load_started"
+        elif event == "model_load_started":
+            self.stage = "model_loaded_mps"
+        elif event == "model_loaded_mps":
+            self.stage = "token_slice_selected_and_hashed"
+        elif event == "token_slice_selected_and_hashed":
+            self.start_block = facts["start_block"]
+            self.total_blocks = facts["blocks"]
+            self.stage = "blocks"
+        elif event == "block_started":
+            self.active_block = facts["block_index"]
+            self.next_layer = 0
+            self.stage = "layers"
+        elif event == "codec_roundtrip_written":
+            self.next_layer += 1
+            self.container_count += 1
+            self.container_bytes += facts["container_bytes"]
+        elif event == "block_metrics_measured":
+            self.completed_blocks += 1
+            self.active_block = None
+            self.next_layer = 0
+            self.stage = "blocks"
+        elif event == "primary_evidence_sealed":
+            self.stage = "result_sealed"
+        elif event == "result_sealed":
+            self.stage = "run_complete"
+        elif event == "run_complete":
+            self.stage = "complete"
+
+    def emit(self, event: str, facts: dict[str, Any]) -> dict[str, Any]:
+        _validate_live_event_facts(event, facts)
+        self._validate_transition(event, facts)
+        document = {
+            "schema_version": LIVE_EVENT_SCHEMA,
+            "session_id": self.session_id,
+            "sequence": self.sequence + 1,
+            "producer": LIVE_EVENT_PRODUCER,
+            "event": event,
+            "facts": dict(facts),
+            "previous_event_sha256": self.previous_event_sha256,
+        }
+        canonical = _canonical_live_event_bytes(document)
+        payload = canonical + b"\n"
+        offset = 0
+        while offset < len(payload):
+            written = self.stream.write(payload[offset:])
+            if type(written) is not int or written <= 0:
+                raise OSError("live event stream write made no progress")
+            offset += written
+        self.stream.flush()
+        self.previous_event_sha256 = hashlib.sha256(canonical).hexdigest()
+        self.sequence += 1
+        self._advance(event, facts)
+        return document
 
 
 def establish_worker_process_group() -> int:
@@ -145,6 +558,51 @@ def _download_validation_only(
     }
 
 
+def _live_primary_evidence_writer(
+    core: Any,
+    directory: Path,
+    *,
+    result_filename: str,
+    live_events: LiveProofEventWriter,
+) -> Any:
+    bits_by_layer = core.APP_CONFIGURATION.get("bitsByLayer")
+    if (
+        not isinstance(bits_by_layer, list)
+        or len(bits_by_layer) != 24
+        or any(type(value) is not int for value in bits_by_layer)
+    ):
+        raise ValueError("app configuration has no exact 24-layer bit schedule")
+
+    class LivePrimaryEvidenceWriter(core.PrimaryEvidenceWriter):
+        def write_container(
+            self,
+            *,
+            block_index: int,
+            layer_index: int,
+            container: bytes,
+        ) -> None:
+            super().write_container(
+                block_index=block_index,
+                layer_index=layer_index,
+                container=container,
+            )
+            live_events.emit(
+                "codec_roundtrip_written",
+                {
+                    "block_index": block_index,
+                    "layer_index": layer_index,
+                    "bits": bits_by_layer[layer_index],
+                    "container_bytes": len(container),
+                    "container_sha256": core.sha256_bytes(container),
+                },
+            )
+
+    return LivePrimaryEvidenceWriter(
+        directory,
+        result_filename=result_filename,
+    )
+
+
 def run_app_proof(
     output_path: Path,
     *,
@@ -153,6 +611,7 @@ def run_app_proof(
     validation_blocks: int,
     local_files_only: bool,
     primary_evidence_directory: Path,
+    live_events: LiveProofEventWriter,
 ) -> dict[str, Any]:
     core = _load_core()
     if device_requested != "mps":
@@ -169,10 +628,6 @@ def run_app_proof(
         or primary_evidence_directory.name != "primary-evidence"
     ):
         raise ValueError("primary evidence must be beside the result file")
-    primary_evidence_writer = core.PrimaryEvidenceWriter(
-        primary_evidence_directory,
-        result_filename=output_path.name,
-    )
 
     import numpy as np
     import pyarrow
@@ -185,13 +640,41 @@ def run_app_proof(
     if hasattr(torch, "use_deterministic_algorithms"):
         torch.use_deterministic_algorithms(True, warn_only=True)
     device = core._resolve_device(device_requested, torch)
+    live_events.emit(
+        "runtime_ready",
+        {
+            "device": device,
+            "python": platform.python_version(),
+            "torch": str(torch.__version__),
+            "transformers": str(transformers.__version__),
+        },
+    )
+    primary_evidence_writer = _live_primary_evidence_writer(
+        core,
+        primary_evidence_directory,
+        result_filename=output_path.name,
+        live_events=live_events,
+    )
     inputs = _download_validation_only(core, local_files_only)
+    live_events.emit(
+        "assets_verified",
+        {
+            "model_repository": core.MODEL_REPOSITORY,
+            "model_revision": core.MODEL_REVISION,
+            "model_weights_sha256": core.MODEL_WEIGHTS_SHA256,
+            "dataset_repository": core.DATASET_REPOSITORY,
+            "dataset_revision": core.DATASET_REVISION,
+            "dataset_sha256": core.DATASET_FILES["validation"]["sha256"],
+            "split": "validation",
+        },
+    )
 
     tokenizer = AutoTokenizer.from_pretrained(
         inputs["modelSnapshot"],
         local_files_only=True,
         trust_remote_code=False,
     )
+    live_events.emit("model_load_started", {})
     model = AutoModelForCausalLM.from_pretrained(
         inputs["modelSnapshot"],
         local_files_only=True,
@@ -200,6 +683,18 @@ def run_app_proof(
         attn_implementation="eager",
     ).to(device)
     model.eval()
+    parameter_count = sum(
+        int(parameter.numel()) for parameter in model.parameters()
+    )
+    live_events.emit(
+        "model_loaded_mps",
+        {
+            "model_repository": core.MODEL_REPOSITORY,
+            "model_revision": core.MODEL_REVISION,
+            "device": device,
+            "parameter_count": parameter_count,
+        },
+    )
 
     blocks, token_digest = core._token_blocks(
         tokenizer,
@@ -207,15 +702,33 @@ def run_app_proof(
         validation_blocks,
         start_block=validation_start_block,
     )
+    live_events.emit(
+        "token_slice_selected_and_hashed",
+        {
+            "start_block": validation_start_block,
+            "blocks": len(blocks),
+            "tokens_per_block": core.BLOCK_TOKENS,
+            "selected_token_ids_sha256": token_digest,
+        },
+    )
     configuration = core.APP_CONFIGURATION
     candidate_grid = (configuration,)
     baselines: list[dict[str, Any]] = []
     records: list[dict[str, Any]] = []
     for relative_index, block in enumerate(blocks):
         block_index = validation_start_block + relative_index
+        live_events.emit(
+            "block_started",
+            {
+                "block_index": block_index,
+                "ordinal": relative_index + 1,
+                "total": len(blocks),
+            },
+        )
         print(
             f"validation block {relative_index + 1}/{len(blocks)} "
             f"(source block {block_index})",
+            file=sys.stderr,
             flush=True,
         )
         baseline, candidates = core._evaluate_block(
@@ -229,6 +742,25 @@ def run_app_proof(
         )
         baselines.append(baseline)
         records.extend(candidates)
+        if len(candidates) != 1:
+            raise RuntimeError("app proof did not produce exactly one block record")
+        block_record = candidates[0]
+        dense_bytes = int(block_record["denseBF16Bytes"])
+        encoded_bytes = int(block_record["encodedFileBytes"])
+        live_events.emit(
+            "block_metrics_measured",
+            {
+                "block_index": block_index,
+                "dense_bf16_bytes": dense_bytes,
+                "encoded_file_bytes": encoded_bytes,
+                "compression_ratio_vs_bf16": dense_bytes / encoded_bytes,
+                "delta_nll_nat_per_token": float(
+                    block_record["deltaNLLNatPerToken"]
+                ),
+                "top1_agreement": float(block_record["top1Agreement"]),
+                "prediction_tokens": int(block_record["predictionTokens"]),
+            },
+        )
 
     aggregates = core._aggregate_phase(candidate_grid, records)
     selected: dict[str, Any] | None = configuration
@@ -279,7 +811,18 @@ def run_app_proof(
         "selected": selected,
         "selectionError": selection_error,
     }
-    result["primaryEvidence"] = primary_evidence_writer.finalize()
+    primary_evidence = primary_evidence_writer.finalize()
+    result["primaryEvidence"] = primary_evidence
+    live_events.emit(
+        "primary_evidence_sealed",
+        {
+            "container_count": primary_evidence["containerCount"],
+            "container_bytes": primary_evidence["containerBytes"],
+            "blocks": primary_evidence["blocks"],
+            "prediction_tokens": primary_evidence["predictionTokens"],
+            "manifest_sha256": primary_evidence["manifestSHA256"],
+        },
+    )
     result["resultSHA256"] = core.sha256_bytes(
         core.canonical_json_bytes(result)
     )
@@ -293,6 +836,17 @@ def run_app_proof(
             allow_nan=False,
         ).encode("utf-8")
         + b"\n",
+    )
+    live_events.emit(
+        "result_sealed",
+        {
+            "result_sha256": result["resultSHA256"],
+            "output_filename": output_path.name,
+        },
+    )
+    live_events.emit(
+        "run_complete",
+        {"passed": bool(aggregates[0]["pass"])},
     )
     return result
 
@@ -315,7 +869,7 @@ def _summary(result: dict[str, Any]) -> str:
     )
 
 
-def parse_arguments() -> argparse.Namespace:
+def parse_arguments(arguments: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--device", choices=("mps",), required=True)
@@ -333,7 +887,12 @@ def parse_arguments() -> argparse.Namespace:
         type=Path,
         required=True,
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--live-session-id",
+        type=_canonical_session_id,
+        required=True,
+    )
+    return parser.parse_args(arguments)
 
 
 def main() -> int:
@@ -343,6 +902,10 @@ def main() -> int:
         group_identifier = establish_worker_process_group()
         group_file = register_worker_process_group(group_identifier)
         arguments = parse_arguments()
+        live_events = LiveProofEventWriter(
+            arguments.live_session_id,
+            sys.stdout.buffer,
+        )
         result = run_app_proof(
             arguments.output,
             device_requested=arguments.device,
@@ -350,6 +913,7 @@ def main() -> int:
             validation_blocks=arguments.validation_blocks,
             local_files_only=arguments.local_files_only,
             primary_evidence_directory=arguments.primary_evidence_directory,
+            live_events=live_events,
         )
     except Exception as error:
         print(f"CORE LM APP PROOF FAILED: {error}", file=sys.stderr)
@@ -358,7 +922,7 @@ def main() -> int:
         remove_worker_process_group_registration(
             group_file, group_identifier
         )
-    print(_summary(result))
+    print(_summary(result), file=sys.stderr, flush=True)
     return 0
 
 
