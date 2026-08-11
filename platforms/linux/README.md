@@ -87,3 +87,10 @@ bootstrap archive and dependency locks are explicitly x86_64.
 See the [recorded public CPU run](RECORDED_RUN_2026-08-01.md) for provenance,
 metrics, retained evidence, and the disclosed setup-only failures that preceded
 the successful execution.
+
+For an ordinary-user managed-container walkthrough, including cold, warm, and
+offline commands, safe persistent paths, and receipt verification, see the
+[RunPod guide](RUNPOD.md). The
+[recorded 2026-08-11 RunPod run](RECORDED_RUN_2026-08-11_RUNPOD.md) preserves
+one author-operated CPU execution and its container-specific full-suite
+finding; it is not a GPU, booted-VM, or independent-replication claim.

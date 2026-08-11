@@ -24,8 +24,14 @@ additional product versions.
   log, receipt/result bindings, and verifier report for portfolio gate G10.
 - [Linux CPU regression](../platforms/linux/README.md) — real-Qwen command-line
   build and verification.
+- [RunPod Linux walkthrough](../platforms/linux/RUNPOD.md) — cold build,
+  offline/warm reruns, private paths, and retained-evidence verification in a
+  managed container.
 - [Recorded Linux run](../platforms/linux/RECORDED_RUN_2026-08-01.md) — public
   VM provenance and measured result.
+- [Recorded RunPod run](../platforms/linux/RECORDED_RUN_2026-08-11_RUNPOD.md) —
+  author-operated CPU/container audit with exact receipts and disclosed test
+  boundary.
 - [Platform boundaries](../platforms/README.md) — ownership of macOS, Linux,
   and the read-only beacon contour.
 

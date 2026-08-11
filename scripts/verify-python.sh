@@ -95,6 +95,7 @@ if [ "$#" -eq 0 ]; then
         Tests.test_beacon_protocol \
         Tests.test_build_provenance \
         Tests.test_independent_replication \
+        Tests.test_linux_runpod_documentation \
         Tests.test_linux_runtime_hardening \
         Tests.test_linux_vm_host \
         Tests.test_live_proof_events \

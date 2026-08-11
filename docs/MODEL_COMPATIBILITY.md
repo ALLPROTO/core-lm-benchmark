@@ -75,6 +75,12 @@ fed into the V15 result, automated capture, collector, release builder, or
 portfolio assets. A future evidence-producing multi-model experiment requires
 new versioned result/event schemas and independent verifiers.
 
+The Linux and RunPod commands have the same execution boundary: “all
+registered execution profiles” currently means the one pinned Qwen profile.
+The recorded RunPod execution used CPU-only Torch even though its pod had an
+A40, and it does not promote the seven known metadata adapters to runnable or
+evidence-producing models.
+
 Deterministic tiny configuration objects for every known adapter are exercised
 only in isolated unit tests. They produce no benchmark values and never enter
 an evidence directory, as required by the repository real-data policy.
