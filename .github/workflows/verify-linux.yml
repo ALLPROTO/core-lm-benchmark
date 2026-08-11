@@ -168,9 +168,10 @@ jobs:
             "$RUNNER_TEMP/corelm-linux-base-distributions.after"
           ./corelm linux bootstrap --harden-installed
       - name: Run Python and publication gates
-        run: >-
-          PYTHON_BIN="$HOME/.cache/corelm-ci-linux-core-runtime/bin/python"
-          ./corelm verify
+        run: |
+          PYTHON_BIN="$HOME/.cache/corelm-ci-linux-core-runtime/bin/python" \
+            ./corelm verify
+          ./corelm linux bootstrap --harden-installed
       - name: Verify exploratory real-Qwen pilot artifact
         run: >-
           $HOME/.cache/corelm-ci-linux-core-runtime/bin/python -I -B

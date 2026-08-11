@@ -124,6 +124,7 @@ cd "$SCRIPT_DIR"
     PATH=/usr/bin:/bin:/usr/sbin:/sbin \
     LANG=C \
     LC_ALL=C \
+    PYTHONDONTWRITEBYTECODE=1 \
     "$PYTHON_EXECUTABLE" -I -B -X "pycache_prefix=$PYTHON_CACHE" \
     -c '
 import pathlib

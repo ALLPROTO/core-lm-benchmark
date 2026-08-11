@@ -99,7 +99,7 @@ class LinuxVMHostContractTests(unittest.TestCase):
         self.assertIn("runs-on: ${{ matrix.runner }}", workflow)
         self.assertIn("timeout-minutes: 40", workflow)
         self.assertIn("verify-vm-host.sh '${{ matrix.version }}'", workflow)
-        self.assertEqual(workflow.count("./corelm linux bootstrap"), 3)
+        self.assertEqual(workflow.count("./corelm linux bootstrap"), 4)
         self.assertIn(
             "./corelm linux bootstrap --harden-installed", workflow
         )
@@ -124,11 +124,18 @@ class LinuxVMHostContractTests(unittest.TestCase):
             first_harden + 1,
         )
         doctor = workflow.index("./corelm linux doctor")
+        focused_tests = workflow.index("./scripts/verify-python.sh")
+        final_harden = workflow.index(
+            "./corelm linux bootstrap --harden-installed",
+            second_harden + 1,
+        )
         self.assertLess(initial_bootstrap, first_harden)
         self.assertLess(first_harden, probe)
         self.assertLess(probe, workflow.index(probe_pip))
         self.assertLess(workflow.index(probe_pip), second_harden)
         self.assertLess(second_harden, doctor)
+        self.assertLess(doctor, focused_tests)
+        self.assertLess(focused_tests, final_harden)
         self.assertIn("Tests.test_linux_vm_host", workflow)
         self.assertIn("Tests.test_linux_runtime_hardening", workflow)
         self.assertIn("Tests.test_platform_boundaries", workflow)

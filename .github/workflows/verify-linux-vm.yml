@@ -74,9 +74,10 @@ jobs:
           CORELM_RUN_DIR: ${{ runner.temp }}/corelm-linux-vm-run
         run: ./corelm linux doctor
       - name: Run Linux host, runtime, and platform boundary tests
-        run: >-
-          PYTHON_BIN="$HOME/.local/share/corelm/linux-x86_64/python-3.12.13+20260718/bin/python3.12"
-          ./scripts/verify-python.sh
-          Tests.test_linux_vm_host
-          Tests.test_linux_runtime_hardening
-          Tests.test_platform_boundaries
+        run: |
+          PYTHON_BIN="$HOME/.local/share/corelm/linux-x86_64/python-3.12.13+20260718/bin/python3.12" \
+            ./scripts/verify-python.sh \
+            Tests.test_linux_vm_host \
+            Tests.test_linux_runtime_hardening \
+            Tests.test_platform_boundaries
+          ./corelm linux bootstrap --harden-installed

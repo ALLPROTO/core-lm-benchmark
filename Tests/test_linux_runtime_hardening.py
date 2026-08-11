@@ -301,6 +301,9 @@ class LinuxPythonBootstrapContractTests(unittest.TestCase):
         build = (LINUX_SCRIPTS / "build-runtime.sh").read_text(
             encoding="utf-8"
         )
+        test_gate = (ROOT / "scripts/verify-python.sh").read_text(
+            encoding="utf-8"
+        )
         finder = (LINUX_SCRIPTS / "find-python312.sh").read_text(
             encoding="utf-8"
         )
@@ -377,6 +380,26 @@ class LinuxPythonBootstrapContractTests(unittest.TestCase):
         self.assertLess(build.index(final_python), build.index(final_equality))
         self.assertLess(
             build.index(final_equality), build.index("LINUX RUNTIME BUILD PASS")
+        )
+        nested_bytecode_guard = "PYTHONDONTWRITEBYTECODE=1 \\"
+        self.assertEqual(test_gate.count(nested_bytecode_guard), 1)
+        env_start = test_gate.index("/usr/bin/env -i")
+        guard_offset = test_gate.index(nested_bytecode_guard, env_start)
+        nested_python = test_gate.index(
+            '"$PYTHON_EXECUTABLE" -I -B', guard_offset
+        )
+        self.assertLess(env_start, guard_offset)
+        self.assertLess(guard_offset, nested_python)
+        python_step = verify_workflow.split(
+            "      - name: Run Python and publication gates\n", 1
+        )[1].split(
+            "      - name: Verify exploratory real-Qwen pilot artifact\n", 1
+        )[0]
+        self.assertEqual(python_step.count("./corelm verify"), 1)
+        self.assertEqual(python_step.count(workflow_harden), 1)
+        self.assertLess(
+            python_step.index("./corelm verify"),
+            python_step.index(workflow_harden),
         )
         self.assertIn("umask 077", verify_workflow)
         self.assertIn("security/manage_local_runtime.py", verify_workflow)
