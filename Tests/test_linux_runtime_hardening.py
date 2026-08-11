@@ -215,6 +215,56 @@ class LinuxPythonBootstrapContractTests(unittest.TestCase):
         self.assertIn('"treeSha256": tree_sha256', source)
         self.assertIn('"treeEntries": tree_entries', source)
         self.assertIn("receipt_operation validate", source)
+        self.assertIn(
+            'fail "owner-local Python changed during identity validation"',
+            source,
+        )
+
+        prepare_body = source.split(
+            "prepare_fresh_python() {\n", 1
+        )[1].split("\n}\n\nvalidate_installed_python()", 1)[0]
+        prepare_tree_call = 'validate_runtime_tree "$runtime"'
+        prepare_identity_call = 'validate_python_identity "$runtime"'
+        self.assertEqual(prepare_body.count(prepare_tree_call), 2)
+        self.assertEqual(prepare_body.count(prepare_identity_call), 1)
+        first_prepare_tree = prepare_body.index(prepare_tree_call)
+        prepare_identity = prepare_body.index(prepare_identity_call)
+        second_prepare_tree = prepare_body.index(
+            prepare_tree_call, first_prepare_tree + 1
+        )
+        self.assertLess(first_prepare_tree, prepare_identity)
+        self.assertLess(prepare_identity, second_prepare_tree)
+
+        installed_body = source.split(
+            "validate_installed_python() {\n", 1
+        )[1].split('\n}\n\nif [ "$MODE" = harden ]', 1)[0]
+        installed_tree_call = 'validate_runtime_tree "$TARGET"'
+        installed_receipt_call = 'receipt_operation validate "$TARGET"'
+        installed_identity_call = 'validate_python_identity "$TARGET"'
+        self.assertEqual(installed_body.count(installed_tree_call), 1)
+        self.assertEqual(installed_body.count(installed_receipt_call), 2)
+        self.assertEqual(installed_body.count(installed_identity_call), 1)
+        first_installed_receipt = installed_body.index(installed_receipt_call)
+        installed_identity = installed_body.index(installed_identity_call)
+        second_installed_receipt = installed_body.index(
+            installed_receipt_call, first_installed_receipt + 1
+        )
+        self.assertLess(installed_body.index(installed_tree_call), first_installed_receipt)
+        self.assertLess(first_installed_receipt, installed_identity)
+        self.assertLess(installed_identity, second_installed_receipt)
+
+        install_body = source.split(
+            'TEMP_DIRECTORY=$(mktemp -d "$INSTALL_ROOT/', 1
+        )[1]
+        install_calls = [
+            'prepare_fresh_python "$EXTRACT_ROOT/python"',
+            'receipt_operation create "$EXTRACT_ROOT/python"',
+            'receipt_operation validate "$EXTRACT_ROOT/python"',
+            '/bin/mv "$EXTRACT_ROOT/python" "$TARGET"',
+            "validate_installed_python",
+        ]
+        install_offsets = [install_body.index(call) for call in install_calls]
+        self.assertEqual(install_offsets, sorted(install_offsets))
         self.assertNotIn("chmod -RP", source)
         self.assertNotIn("/usr/bin/sudo", source)
         self.assertNotIn("\nsudo ", source)

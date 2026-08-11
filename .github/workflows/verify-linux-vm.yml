@@ -54,6 +54,8 @@ jobs:
         run: ./platforms/linux/scripts/verify-vm-host.sh '${{ matrix.version }}'
       - name: Bootstrap the pinned Linux Python
         run: ./corelm linux bootstrap
+      - name: Reharden and revalidate the sealed owner-local Python
+        run: ./corelm linux bootstrap --harden-installed
       - name: Exercise the real Linux doctor on the VM
         env:
           CORELM_LINUX_RUNTIME: ${{ runner.temp }}/corelm-linux-vm-runtime
