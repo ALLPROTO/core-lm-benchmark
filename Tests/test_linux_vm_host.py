@@ -99,19 +99,36 @@ class LinuxVMHostContractTests(unittest.TestCase):
         self.assertIn("runs-on: ${{ matrix.runner }}", workflow)
         self.assertIn("timeout-minutes: 40", workflow)
         self.assertIn("verify-vm-host.sh '${{ matrix.version }}'", workflow)
-        self.assertEqual(workflow.count("./corelm linux bootstrap"), 2)
+        self.assertEqual(workflow.count("./corelm linux bootstrap"), 3)
         self.assertIn(
             "./corelm linux bootstrap --harden-installed", workflow
         )
+        venv_probe = (
+            'PYTHONDONTWRITEBYTECODE=1 \\\n'
+            '            "$bootstrap_python" -I -B -m venv --copies '
+            '"$probe_runtime"'
+        )
+        self.assertEqual(workflow.count(venv_probe), 1)
+        probe_pip = (
+            '"$probe_runtime/bin/python" -I -B -m pip --version'
+        )
+        self.assertEqual(workflow.count(probe_pip), 1)
         self.assertIn("./corelm linux doctor", workflow)
-        self.assertLess(
-            workflow.index("./corelm linux bootstrap\n"),
-            workflow.index("./corelm linux bootstrap --harden-installed"),
+        initial_bootstrap = workflow.index("./corelm linux bootstrap\n")
+        first_harden = workflow.index(
+            "./corelm linux bootstrap --harden-installed"
         )
-        self.assertLess(
-            workflow.index("./corelm linux bootstrap --harden-installed"),
-            workflow.index("./corelm linux doctor"),
+        probe = workflow.index(venv_probe)
+        second_harden = workflow.index(
+            "./corelm linux bootstrap --harden-installed",
+            first_harden + 1,
         )
+        doctor = workflow.index("./corelm linux doctor")
+        self.assertLess(initial_bootstrap, first_harden)
+        self.assertLess(first_harden, probe)
+        self.assertLess(probe, workflow.index(probe_pip))
+        self.assertLess(workflow.index(probe_pip), second_harden)
+        self.assertLess(second_harden, doctor)
         self.assertIn("Tests.test_linux_vm_host", workflow)
         self.assertIn("Tests.test_linux_runtime_hardening", workflow)
         self.assertIn("Tests.test_platform_boundaries", workflow)

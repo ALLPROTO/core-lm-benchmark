@@ -56,6 +56,17 @@ jobs:
         run: ./corelm linux bootstrap
       - name: Reharden and revalidate the sealed owner-local Python
         run: ./corelm linux bootstrap --harden-installed
+      - name: Prove a venv child cannot mutate the sealed Python
+        run: |
+          set -eu
+          umask 077
+          bootstrap_python="$HOME/.local/share/corelm/linux-x86_64/python-3.12.13+20260718/bin/python3.12"
+          probe_runtime="$RUNNER_TEMP/corelm-linux-vm-venv"
+          test ! -e "$probe_runtime"
+          PYTHONDONTWRITEBYTECODE=1 \
+            "$bootstrap_python" -I -B -m venv --copies "$probe_runtime"
+          "$probe_runtime/bin/python" -I -B -m pip --version >/dev/null
+          ./corelm linux bootstrap --harden-installed
       - name: Exercise the real Linux doctor on the VM
         env:
           CORELM_LINUX_RUNTIME: ${{ runner.temp }}/corelm-linux-vm-runtime

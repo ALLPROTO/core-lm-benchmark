@@ -148,6 +148,32 @@ class LinuxRuntimePathTests(unittest.TestCase):
 
 
 class LinuxPythonBootstrapContractTests(unittest.TestCase):
+    def test_empty_bootstrap_cleanup_preserves_success_status(self):
+        source = (LINUX_SCRIPTS / "bootstrap-python.sh").read_text(
+            encoding="utf-8"
+        )
+        cleanup_body = source.split("cleanup() {\n", 1)[1].split(
+            "\n}\n\non_signal()", 1
+        )[0]
+        self.assertIn('[ -n "$TEMP_DIRECTORY" ] || return 0', cleanup_body)
+        completed = subprocess.run(
+            ["/bin/sh"],
+            input=(
+                "set -eu\n"
+                "TEMP_DIRECTORY=\n"
+                "cleanup() {\n"
+                f"{cleanup_body}\n"
+                "}\n"
+                "trap cleanup EXIT\n"
+                "exit 0\n"
+            ),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout, "")
+
     def test_bootstrap_receipt_rejects_installed_tree_byte_drift(self):
         source = (LINUX_SCRIPTS / "bootstrap-python.sh").read_text(
             encoding="utf-8"
@@ -301,6 +327,57 @@ class LinuxPythonBootstrapContractTests(unittest.TestCase):
         self.assertIn("./corelm linux bootstrap", verify_workflow)
         self.assertIn("corelm-ci-linux-core-runtime", verify_workflow)
         self.assertIn('-m venv --copies "$core_runtime"', verify_workflow)
+        workflow_venv = (
+            'PYTHONDONTWRITEBYTECODE=1 \\\n'
+            '            "$bootstrap_python" -I -B -m venv --copies '
+            '"$core_runtime"'
+        )
+        workflow_harden = "./corelm linux bootstrap --harden-installed"
+        build_step = verify_workflow.split(
+            "      - name: Build exact-lock core verification runtime\n", 1
+        )[1].split("      - name: Run Python and publication gates\n", 1)[0]
+        self.assertEqual(build_step.count(workflow_venv), 1)
+        self.assertEqual(build_step.count(workflow_harden), 2)
+        first_harden = build_step.index(workflow_harden)
+        second_harden = build_step.index(
+            workflow_harden, first_harden + 1
+        )
+        self.assertLess(build_step.index(workflow_venv), first_harden)
+        self.assertLess(first_harden, build_step.index("--mode initialize"))
+        self.assertLess(build_step.index("/usr/bin/cmp"), second_harden)
+
+        build_venv = (
+            'PYTHONDONTWRITEBYTECODE=1 \\\n'
+            '        "$PYTHON_BIN" -I -B -m venv "$STAGING_DIR"'
+        )
+        prepublish_python = 'PREPUBLISH_PYTHON=$("$PYTHON_FINDER")'
+        prepublish_equality = '[ "$PREPUBLISH_PYTHON" = "$PYTHON_BIN" ]'
+        publish_runtime = '"$SAFETY_SCRIPT" publish-runtime'
+        final_python = 'FINAL_PYTHON=$("$PYTHON_FINDER")'
+        final_equality = '[ "$FINAL_PYTHON" = "$PYTHON_BIN" ]'
+        self.assertEqual(build.count(build_venv), 1)
+        self.assertEqual(build.count(prepublish_python), 1)
+        self.assertEqual(build.count(prepublish_equality), 1)
+        self.assertEqual(build.count(final_python), 1)
+        self.assertEqual(build.count(final_equality), 1)
+        self.assertLess(build.index(build_venv), build.index("runtime_python="))
+        self.assertLess(
+            build.index(build_venv), build.index(prepublish_python)
+        )
+        self.assertLess(
+            build.index(prepublish_python), build.index(prepublish_equality)
+        )
+        self.assertLess(
+            build.index(prepublish_equality), build.index(publish_runtime)
+        )
+        self.assertLess(
+            build.rindex("prepare_app_assets.py"), build.index(final_python)
+        )
+        self.assertLess(build.index(publish_runtime), build.index(final_python))
+        self.assertLess(build.index(final_python), build.index(final_equality))
+        self.assertLess(
+            build.index(final_equality), build.index("LINUX RUNTIME BUILD PASS")
+        )
         self.assertIn("umask 077", verify_workflow)
         self.assertIn("security/manage_local_runtime.py", verify_workflow)
         self.assertIn("security/verify_locked_environment.py", verify_workflow)

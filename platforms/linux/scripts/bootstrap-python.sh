@@ -48,7 +48,7 @@ esac
 [ "$#" -le 1 ] || fail "too many arguments"
 
 cleanup() {
-    [ -n "$TEMP_DIRECTORY" ] || return
+    [ -n "$TEMP_DIRECTORY" ] || return 0
     case "$TEMP_DIRECTORY" in
         "$INSTALL_ROOT"/.corelm-python312-stage.*)
             if [ -d "$TEMP_DIRECTORY" ] && [ ! -L "$TEMP_DIRECTORY" ]; then

@@ -122,7 +122,9 @@ jobs:
               --mode preflight
           )
           test "$state" = new
-          "$bootstrap_python" -I -B -m venv --copies "$core_runtime"
+          PYTHONDONTWRITEBYTECODE=1 \
+            "$bootstrap_python" -I -B -m venv --copies "$core_runtime"
+          ./corelm linux bootstrap --harden-installed
           "$bootstrap_python" -I -B security/manage_local_runtime.py \
             --path "$core_runtime" \
             --project "$GITHUB_WORKSPACE" \
@@ -164,6 +166,7 @@ jobs:
           /usr/bin/cmp \
             "$RUNNER_TEMP/corelm-linux-base-distributions.before" \
             "$RUNNER_TEMP/corelm-linux-base-distributions.after"
+          ./corelm linux bootstrap --harden-installed
       - name: Run Python and publication gates
         run: >-
           PYTHON_BIN="$HOME/.cache/corelm-ci-linux-core-runtime/bin/python"
