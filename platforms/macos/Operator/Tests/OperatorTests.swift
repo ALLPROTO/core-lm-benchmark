@@ -5,6 +5,24 @@ import Testing
 
 private final class OperatorTestBundleMarker: NSObject {}
 
+private func parseOperatorTestProcessID(_ bytes: Data) -> pid_t? {
+    guard bytes.count >= 2, bytes.count <= 12, bytes.last == 0x0A else {
+        return nil
+    }
+    let digits = bytes.dropLast()
+    guard
+        let first = digits.first,
+        (0x31...0x39).contains(first),
+        digits.dropFirst().allSatisfy({ (0x30...0x39).contains($0) }),
+        let text = String(data: Data(digits), encoding: .ascii),
+        let processID = Int32(text),
+        processID > 1
+    else {
+        return nil
+    }
+    return processID
+}
+
 // The integration cases below exercise real process groups and inherited
 // stdout/stderr file descriptors. Keep suites serial so separate fixtures do
 // not compete for CI process scheduling while preserving concurrency inside
@@ -41,6 +59,8 @@ struct OperatorTests {
     private final class TestProcessCleanupGuard {
         private var groups: Set<pid_t> = []
         private var processes: Set<pid_t> = []
+        private var groupFiles: Set<URL> = []
+        private var processFiles: Set<URL> = []
 
         func recordGroup(_ groupID: pid_t) {
             if OperatorProcessGroup.isSafe(groupID) {
@@ -54,14 +74,53 @@ struct OperatorTests {
             }
         }
 
-        func clean() {
-            for groupID in groups {
-                _ = kill(-groupID, SIGKILL)
+        func recordGroupFile(_ url: URL) {
+            groupFiles.insert(url)
+        }
+
+        func recordProcessFile(_ url: URL) {
+            processFiles.insert(url)
+        }
+
+        private func processID(from url: URL) -> pid_t? {
+            guard
+                let bytes = try? Data(contentsOf: url),
+                let processID = parseOperatorTestProcessID(bytes)
+            else {
+                return nil
             }
-            for processID in processes {
-                _ = kill(processID, SIGKILL)
+            return processID
+        }
+
+        private func discoverRecordedProcesses() {
+            for url in groupFiles {
+                if let processID = processID(from: url),
+                   OperatorProcessGroup.isSafe(processID) {
+                    groups.insert(processID)
+                }
+            }
+            for url in processFiles {
+                if let processID = processID(from: url) {
+                    processes.insert(processID)
+                }
+            }
+        }
+
+        func clean() {
+            guard
+                !groups.isEmpty || !processes.isEmpty
+                    || !groupFiles.isEmpty || !processFiles.isEmpty
+            else {
+                return
             }
             for _ in 0..<20 {
+                discoverRecordedProcesses()
+                for groupID in groups {
+                    _ = kill(-groupID, SIGKILL)
+                }
+                for processID in processes {
+                    _ = kill(processID, SIGKILL)
+                }
                 let groupAlive = groups.contains {
                     kill(-$0, 0) == 0 || errno != ESRCH
                 }
@@ -78,6 +137,8 @@ struct OperatorTests {
         func disarm() {
             groups.removeAll()
             processes.removeAll()
+            groupFiles.removeAll()
+            processFiles.removeAll()
         }
     }
 
@@ -282,17 +343,26 @@ struct OperatorTests {
         return ["HOME": home.path, "TMPDIR": temporary.path]
     }
 
-    private func waitForRegularFile(_ url: URL, seconds: Double) -> Bool {
+    private func waitForProcessID(
+        in url: URL,
+        group: Bool = false,
+        seconds: Double
+    ) -> Int32? {
         let deadline = Date().addingTimeInterval(seconds)
         while Date() < deadline {
             var status = stat()
             if url.path.withCString({ lstat($0, &status) }) == 0,
-               (status.st_mode & S_IFMT) == S_IFREG {
-                return true
+               (status.st_mode & S_IFMT) == S_IFREG,
+               status.st_nlink == 1,
+               let bytes = try? Data(contentsOf: url),
+               let processID = parseOperatorTestProcessID(bytes),
+               group ? OperatorProcessGroup.isSafe(processID) : true,
+               kill(group ? -processID : processID, 0) == 0 {
+                return processID
             }
             usleep(10_000)
         }
-        return false
+        return nil
     }
 
     @Test
@@ -645,6 +715,28 @@ struct OperatorTests {
     }
 
     @Test
+    func processIDReadinessWaitsForNumericContents() throws {
+        let url = FileManager.default.temporaryDirectory
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+            .appendingPathComponent(
+                "corelm-operator-pid-readiness-\(UUID().uuidString)"
+            )
+        try Data().write(to: url, options: .withoutOverwriting)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let expected = getpid()
+        let payload = Data("\(expected)\n".utf8)
+        let written = DispatchSemaphore(value: 0)
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
+            try? payload.write(to: url, options: .atomic)
+            written.signal()
+        }
+        let observed = waitForProcessID(in: url, seconds: 2)
+        #expect(observed == expected)
+        #expect(written.wait(timeout: .now() + 1) == .success)
+    }
+
+    @Test
     func realRunnerDrainsBothStreamsThroughEOFBeforeCompletion() throws {
         let launcher = try builtCommandLauncher()
         let terminal = OperatorProofTerminalObserver.passLine
@@ -920,6 +1012,8 @@ struct OperatorTests {
         let capture = LockedRunCapture()
         let completed = DispatchSemaphore(value: 0)
         let cleanupGuard = TestProcessCleanupGuard()
+        cleanupGuard.recordProcessFile(pidFile)
+        cleanupGuard.recordGroupFile(separateGroupFile)
         defer { cleanupGuard.clean() }
         let handle = try runner.run(
             action: .verifyRepository,
@@ -938,20 +1032,15 @@ struct OperatorTests {
             Int32(groupText.trimmingCharacters(in: .whitespacesAndNewlines))
         )
         cleanupGuard.recordGroup(groupID)
-        #expect(waitForRegularFile(pidFile, seconds: 3))
-        #expect(waitForRegularFile(separateGroupFile, seconds: 3))
-        let childText = try String(contentsOf: pidFile, encoding: .ascii)
         let childID = try #require(
-            Int32(childText.trimmingCharacters(in: .whitespacesAndNewlines))
+            waitForProcessID(in: pidFile, seconds: 3)
         )
+        try #require(getpgid(childID) == groupID)
         cleanupGuard.recordProcess(childID)
-        let separateText = try String(
-            contentsOf: separateGroupFile,
-            encoding: .ascii
-        )
         let separateGroupID = try #require(
-            Int32(separateText.trimmingCharacters(in: .whitespacesAndNewlines))
+            waitForProcessID(in: separateGroupFile, group: true, seconds: 3)
         )
+        try #require(getpgid(separateGroupID) == separateGroupID)
         cleanupGuard.recordGroup(separateGroupID)
         let cancelled = Date()
         handle.cancel()
