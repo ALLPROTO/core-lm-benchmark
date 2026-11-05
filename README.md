@@ -83,6 +83,7 @@ Proof** to produce a new local result.
 ## Documentation
 
 - [Build and verify](docs/BUILD_AND_VERIFY.md) — ordinary-user installation and proof flow.
+- [Clean-clone checklist](docs/CLEAN_CLONE_CHECK.md) — short, hash-locked reviewer verification path and its limits.
 - [Results](docs/RESULTS.md) — current measurements and what PASS means.
 - [Limitations](docs/LIMITATIONS.md) — honest boundary of the demonstrated claim.
 - [Portfolio brief](docs/PORTFOLIO.md) — concise project scope, evidence, and limitations.
