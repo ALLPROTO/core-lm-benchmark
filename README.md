@@ -85,6 +85,7 @@ Proof** to produce a new local result.
 - [Build and verify](docs/BUILD_AND_VERIFY.md) — ordinary-user installation and proof flow.
 - [Results](docs/RESULTS.md) — current measurements and what PASS means.
 - [Limitations](docs/LIMITATIONS.md) — honest boundary of the demonstrated claim.
+- [Portfolio brief](docs/PORTFOLIO.md) — concise project scope, evidence, and limitations.
 - [Architecture](ARCHITECTURE.md) — final application and verifier pipeline.
 - [Security policy](SECURITY.md) — runtime, bundle, asset, and supply-chain controls.
 - [Development history](docs/development/HISTORY.md) — versioned experiments and chronology.
