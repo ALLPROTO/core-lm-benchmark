@@ -10,9 +10,11 @@ platform. They do not claim that a recorded benchmark was compromised.
 
 - `pip==26.1.2`: [GHSA-qwm4-qh6w-59xr](https://osv.dev/vulnerability/GHSA-qwm4-qh6w-59xr),
   doubly encoded URLs from malicious package indexes can write outside the
-  intended destination. Fixed in 26.2.0. The current bootstrap lock is updated
-  to PyPI's universal **26.3** wheel with its SHA-256, installed and checked
-  using Python 3.12.13 with `--require-hashes --only-binary=:all: --no-deps`.
+  intended destination. Fixed in 26.2.0. PyPI's universal **26.3** wheel was installed and checked in an isolated
+  Python 3.12.13 environment with its SHA-256 and
+  `--require-hashes --only-binary=:all: --no-deps`; its OSV check passed.
+  The attempted lock update was reverted because the beacon audit also binds
+  the bootstrap file digest. It is a tested candidate, not a completed fix.
 - `certifi==2026.7.22`: [GHSA-6q48-6c7w-9gw2](https://osv.dev/vulnerability/GHSA-6q48-6c7w-9gw2),
   compromised emSign intermediate keys can enable on-path TLS impersonation.
   Fixed in 2026.10.18; the advisory recommends 2026.10.19 or later.
@@ -38,7 +40,9 @@ versions. PyPI availability alone is not proof of compatibility or safety.
 `RealLLM/requirements.lock` is explicitly bound by the historical beacon
 registration and freeze. The Linux dependency policy also requires the active
 CPU lock to match that portable closure (except the separate torch wheel).
-Changing only a version or hash would break the documented relationship and
+The independent beacon audit additionally pins `.github/locks/pip-bootstrap.txt`
+in `security/audit_beacon_evidence_ref.py`; its integrity test rejected the
+initial pip-only update. Changing only a version or hash would break the documented relationship and
 could invalidate historical replay. Leave immutable tags, records and their
 registered lock bytes unchanged.
 
@@ -57,9 +61,9 @@ A maintained-runtime update needs a separate, reviewed migration:
    dependencies before declaring the release ready. Disclose any historical
    replay risks separately rather than calling historical dependencies safe.
 
-Updating pip does not repair the remaining four package findings. Existing
-managed runtimes are exact-lock environments and must not be upgraded in place;
-use a fresh private runtime destination for the new lock and retain any old
-runtime needed to audit its associated app/evidence. Do not delete or weaken
-runtime receipts to force reuse. This audit did not run a model or change any
-historical result.
+No dependency upgrade is applied in this change. All five findings remain
+release blockers. A future maintained-runtime update must use fresh private
+runtime destinations: existing managed runtimes are exact-lock environments
+and must not be upgraded in place. Retain old runtimes needed to audit their
+associated apps/evidence. Do not delete or weaken runtime receipts to force
+reuse. This audit did not run a model or change any historical result.
