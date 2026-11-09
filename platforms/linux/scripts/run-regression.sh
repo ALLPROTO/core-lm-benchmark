@@ -112,7 +112,11 @@ printf 'UTC end: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 [ "$runner_exit" -eq 0 ] || fail "Qwen process exited with $runner_exit"
 
 "$runtime_python" -I -B "$PROJECT_DIR/security/verify_primary_evidence.py" \
-    "$RUN_DIR" | tee "$RUN_DIR/verification.txt"
+    "$RUN_DIR" > "$RUN_DIR/verification.txt" 2>&1 || {
+        /bin/cat "$RUN_DIR/verification.txt" >&2
+        fail "independent primary-evidence verification failed"
+    }
+/bin/cat "$RUN_DIR/verification.txt"
 
 "$runtime_python" -I -B - "$RUN_DIR" "$source_commit" <<'PY'
 import hashlib
