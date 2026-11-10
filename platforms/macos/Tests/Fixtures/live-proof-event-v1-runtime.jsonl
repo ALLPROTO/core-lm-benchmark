@@ -1,0 +1,1 @@
+{"event":"runtime_ready","facts":{"device":"mps","python":"3.12.13","torch":"2.13.0","transformers":"5.14.1"},"previous_event_sha256":"0000000000000000000000000000000000000000000000000000000000000000","producer":"app_worker","schema_version":"corelm-live-proof-event-v1","sequence":1,"session_id":"12345678-1234-4abc-8123-123456789abc"}

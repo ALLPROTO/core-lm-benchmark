@@ -378,6 +378,10 @@ struct RealLLMView: View {
                 .foregroundStyle(.secondary)
                 ProgressView(value: store.progress)
 
+                if store.liveProofTelemetry.sessionID != nil {
+                    LiveProofDashboardView()
+                }
+
                 if let result = store.realLLMResult,
                    let aggregate = result.aggregate {
                     let blockDomain = result.protocolInfo.validationStartBlock...(

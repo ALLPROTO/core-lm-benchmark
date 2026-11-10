@@ -77,6 +77,23 @@ worker process group on critical memory pressure or after five minutes. The
 outer proof also records recursively discovered worker groups so cleanup still
 reaches the model process if the GUI exits first.
 
+## Live demonstration boundary
+
+The ordinary benchmark workspace can render a strict live view of this same
+worker. Worker stdout is reserved for canonical, hash-chained JSONL events;
+human progress remains on stderr. Events are provisional until the Swift app
+replays the complete EOF-bounded transcript and reconciles it against the
+sealed result and primary containers. The display never interpolates missing
+events. Its code pane reads the verified Python sources packaged in the app,
+not a copied illustration.
+
+Manual repository actions live in a separate source-only Operator executable,
+launched by `./corelm macos operator`. Its buttons map to fixed dispatcher
+arguments and cannot accept arbitrary commands. This keeps build authority out
+of the signed proof application and keeps manual interaction out of the
+automated portfolio evidence contract. The full contract and launch sequence
+are documented in [Interactive full-system demo](SYSTEM_DEMO.md).
+
 ## Module visibility
 
 The release sidebar reports one state for each proof module:

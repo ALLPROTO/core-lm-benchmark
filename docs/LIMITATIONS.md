@@ -542,5 +542,16 @@ does not turn that claim into a general model-compression result.
     operation stops; there is no delete/recreate, retry, retag, or V14 relabel. V15
     requires its own signed tag, first-attempt CI, and sole proof.
 
+27. The recorded 2026-08-11 RunPod execution is an author-operated regression
+    in a Secure Cloud managed Docker container. Although the selected pod had
+    an A40 48 GB accelerator, the registered Qwen process used the CPU-only
+    Torch `2.13.0+cpu` runtime and recorded device `cpu`; it is not GPU evidence.
+    The container is not a booted VM or an independent replication. Its image
+    tag was recorded but its image digest was not, so no immutable base-image
+    claim is made. The model/evidence checks passed, while the full repository
+    gate was transparently 463/464 because the overlay did not expose the ctime
+    transition required by one modify/restore safety test; the available tmpfs
+    was `noexec` and unsuitable as a substitute.
+
 The detailed versioned research record is preserved under `docs/development/`
 and in immutable publication tags.
