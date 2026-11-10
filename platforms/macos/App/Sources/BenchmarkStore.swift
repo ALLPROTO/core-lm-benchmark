@@ -389,7 +389,7 @@ final class BenchmarkStore: ObservableObject {
         #endif
         let candidate = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(
-                ".cache/corelm/macos/runtime/bin/python"
+                ".cache/corelm/macos/runtime-maintained-20261110/bin/python"
             )
         let validated = try SecurityValidation.validateExecutable(
             candidate,

@@ -7,10 +7,10 @@ if [ "${PYTHON_BIN+x}" = x ]; then
 else
     case "$(/usr/bin/uname -s)" in
         Darwin)
-            PLATFORM_RUNTIME=${CORELM_REAL_LLM_VENV:-"$HOME/.cache/corelm/macos/runtime"}
+            PLATFORM_RUNTIME=${CORELM_REAL_LLM_VENV:-"$HOME/.cache/corelm/macos/runtime-maintained-20261110"}
             ;;
         Linux)
-            PLATFORM_RUNTIME=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime"}
+            PLATFORM_RUNTIME=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime-maintained-20261110"}
             ;;
         *) PLATFORM_RUNTIME= ;;
     esac
@@ -106,6 +106,9 @@ if [ "$#" -eq 0 ]; then
         Tests.test_portfolio_tag_ci \
         Tests.test_real_llm \
         Tests.test_security_supply_chain \
+        Tests.test_maintained_dependencies \
+        Tests.test_maintained_offline \
+        Tests.test_macos_runtime_install \
         Tests.test_swift_security_gate \
         Tests.test_strict_git_checkout \
         Tests.test_voidtoken_v5 \

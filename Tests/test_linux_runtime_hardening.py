@@ -191,6 +191,46 @@ class LinuxPythonBootstrapContractTests(unittest.TestCase):
             )
             self.assertNotEqual(rejected.returncode, 0)
 
+    def test_bootstrap_no_staging_cleanup_preserves_exit_status(self):
+        # Exercise the actual EXIT trap without downloading or running a model.
+        source = (LINUX_SCRIPTS / "bootstrap-python.sh").read_text()
+        cleanup = source.split("cleanup() {", 1)[1].split("\non_signal()", 1)[0]
+        for shell in ("/bin/sh", "/bin/bash"):
+            if not Path(shell).exists():
+                continue
+            for status in (0, 1, 7):
+                with self.subTest(shell=shell, status=status):
+                    completed = subprocess.run(
+                        [shell, "-c", "set -eu\nTEMP_DIRECTORY=\ncleanup() {"
+                         + cleanup + "\ntrap cleanup EXIT\nexit " + str(status)],
+                        capture_output=True, text=True, check=False,
+                    )
+                    self.assertEqual(completed.returncode, status, completed.stderr)
+
+    def test_regression_stops_when_primary_verifier_fails(self):
+        source = (LINUX_SCRIPTS / "run-regression.sh").read_text()
+        start = source.index('"$runtime_python" -I -B "$PROJECT_DIR/security/verify_primary_evidence.py"')
+        end = source.index('\n"$runtime_python" -I -B - ', start)
+        block = source[start:end]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            verifier = root / "verifier"
+            for status in (0, 7):
+                with self.subTest(status=status):
+                    verifier.write_text("#!/bin/sh\necho verifier-output\nexit " + str(status) + "\n")
+                    verifier.chmod(0o700)
+                    script = ('set -eu\nfail() { echo "$*" >&2; exit 1; }\n'
+                              + block + '\nprintf "REACHED_AFTER_VERIFIER\n"\n')
+                    result = subprocess.run(
+                        ["/bin/sh", "-c", script], check=False,
+                        capture_output=True, text=True,
+                        env={**os.environ, "runtime_python": str(verifier),
+                             "PROJECT_DIR": str(ROOT), "RUN_DIR": str(root)},
+                    )
+                    self.assertEqual(result.returncode, 0 if status == 0 else 1)
+                    self.assertEqual("REACHED_AFTER_VERIFIER" in result.stdout, status == 0)
+                    self.assertIn("verifier-output", (root / "verification.txt").read_text())
+
     def test_owner_local_bootstrap_is_fixed_safe_and_sudo_free(self):
         source = (LINUX_SCRIPTS / "bootstrap-python.sh").read_text(
             encoding="utf-8"

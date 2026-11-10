@@ -62,9 +62,9 @@ class PublicationArchiveTests(unittest.TestCase):
             release_input,
             source_identity,
             demo_provenance,
-            runtime_assets,
         ):
             self.assertEqual(schema["properties"]["schema_version"]["const"], 2)
+        self.assertEqual(runtime_assets["properties"]["schema_version"]["enum"], [2, 3])
 
         presentation = release_input["properties"]["presentation"]
         self.assertFalse(presentation["additionalProperties"])
@@ -1199,6 +1199,19 @@ class PublicationArchiveTests(unittest.TestCase):
                 archived_source_paths = {
                     entry["path"] for entry in archive_provenance["files"]
                 }
+                self.assertIn("docs/QUICKSTART.md", archived_source_paths)
+                self.assertIn("security/build_macos_runtime.py", archived_source_paths)
+                self.assertIn("Tests/test_macos_runtime_install.py", archived_source_paths)
+                quickstart = bundle.extractfile(f"{prefix}/docs/QUICKSTART.md")
+                self.assertIsNotNone(quickstart)
+                self.assertEqual(quickstart.read(), (ROOT / "docs/QUICKSTART.md").read_bytes())
+                for relative, link in (
+                    ("README.md", "docs/QUICKSTART.md"),
+                    ("docs/README.md", "QUICKSTART.md"),
+                ):
+                    linked_document = bundle.extractfile(f"{prefix}/{relative}")
+                    self.assertIsNotNone(linked_document)
+                    self.assertIn(link, linked_document.read().decode("utf-8"))
                 self.assertIn(
                     "platforms/macos/scripts/package-app.sh",
                     archived_source_paths,

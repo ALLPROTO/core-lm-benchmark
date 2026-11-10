@@ -164,7 +164,7 @@ open dist/CoreLMBenchmark.app
 ```
 
 The reusable manual-build runtime is stored at
-`~/.cache/corelm/macos/runtime/`. In the application, press **Run Compression
+`~/.cache/corelm/macos/runtime-maintained-20261110/`. In the application, press **Run Compression
 Proof** with fixed public validation blocks 64–71 shown in the toolbar. This
 range has been exercised repeatedly and is an application-regression fixture,
 not blind or held-out input.
@@ -273,18 +273,15 @@ never produces a PASS receipt.
 ## Boundary for the frozen beacon-selected experiment
 
 Do not use `./corelm macos proof` or blocks 64–71 to claim a new blind result.
-The separate protocol has now published its exact commit, source and
-configuration digests, parameters, gates, eligible pool, and deterministic
-selection rule under immutable release `corelm-beacon-heldout-v1`. It has no
-result yet. Only at or after the exact NIST pulse
-`2026-08-02T18:00:00.000Z` may the selected window be resolved and run once,
-without post-result tuning, and a scientific outcome must complete by
-`2026-08-04T18:00:00.000Z`. A later regression is allowed only after terminal
-`PASS` or `FAIL_GATES`; `FAIL_EXECUTION` or an incomplete attempt cannot be
-retried. The exact clean detached-tag, AC-power, `caffeinate`, and publication
-procedure is the [beacon launch runbook](../../docs/BEACON_LAUNCH_RUNBOOK.md).
-That public operator checklist imposes the stricter, non-normative not-before
-time `2026-08-02T18:15:00.000Z`.
+The separate beacon experiment is closed. Its recorded attempt completed on
+2026-08-02 with terminal verdict **PASS**; the registered deadline was
+2026-08-04T18:00:00Z. Do not execute or revive its one-shot command. The
+[beacon evidence report](../../docs/BEACON_EVIDENCE_REPORT.md) links the
+immutable source, published evidence, audit, and known provenance limits.
+The [launch runbook](../../docs/BEACON_LAUNCH_RUNBOOK.md) is historical
+protocol documentation, not a current reproduction command. Use the public
+validation proof above for repeatability checks. Any future blind experiment
+needs a new suite identity, preregistration, and deadline.
 
 ## Cleanup
 

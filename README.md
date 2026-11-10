@@ -1,5 +1,18 @@
 # Core LM Benchmark
 
+## Start here
+
+- **Run it yourself:** [step-by-step reproduction](docs/QUICKSTART.md), with
+  supported machines, exact source selection, output locations, and recovery.
+- **Inspect the published demo:** [v15 release and reproduction assets](https://github.com/ALLPROTO/core-lm-benchmark/releases/tag/corelm-portfolio-v15).
+  Release evidence can be inspected without installing or running the model.
+- **Contribute an independent human replication:** follow the separate
+  [attestation and recording procedure](docs/INDEPENDENT_REPLICATION.md).
+  An author/AI-assisted run does not qualify as independent human replication.
+
+This is a source-built benchmark, not a downloadable prebuilt application.
+Windows, Linux ARM, Intel Macs, and CUDA execution are not supported targets.
+
 <!-- corelm-portfolio-presentation-v1:start -->
 ## Verified real-model demo
 

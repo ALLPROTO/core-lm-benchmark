@@ -766,9 +766,9 @@ class LocalAppBuildTests(unittest.TestCase):
         proof_script = (MACOS_SCRIPTS / "run-proof.sh").read_text(
             encoding="utf-8"
         )
-        self.assertIn(".cache/corelm/macos/runtime", build_script)
+        self.assertIn(".cache/corelm/macos/runtime-maintained-20261110", build_script)
         self.assertIn(".cache/corelm/macos/model-assets", build_script)
-        self.assertIn(".cache/corelm/macos/runtime", package_script)
+        self.assertIn(".cache/corelm/macos/runtime-maintained-20261110", package_script)
         self.assertIn(".cache/corelm/macos/proof-runtimes", proof_script)
         for source in (build_script, package_script, proof_script):
             self.assertNotIn("corelm-real-llm-app-runtime-v1", source)
@@ -946,6 +946,18 @@ class LocalAppBuildTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_macos_build_uses_transactional_runtime_installer(self):
+        source = (MACOS_SCRIPTS / "build-app.sh").read_text(encoding="utf-8")
+        self.assertIn('"$PROJECT_DIR/security/build_macos_runtime.py" "$@"', source)
+        self.assertIn('[ "$SKIP_RUNTIME_INSTALL" = 1 ] && set -- "$@" --skip-install', source)
+        self.assertIn('--wheelhouse "$WHEELHOUSE"', source)
+        self.assertLess(
+            source.index("security/build_macos_runtime.py"),
+            source.index('APP_PYTHON="$RUNTIME_DIR/bin/python"'),
+        )
+        self.assertNotIn("-m pip install", source)
+        self.assertNotIn('-m venv "$RUNTIME_DIR"', source)
 
     def test_proof_cannot_inherit_ci_skip_flags_or_runtime_pycache(self):
         proof = (MACOS_SCRIPTS / "run-proof.sh").read_text(encoding="utf-8")
@@ -1125,13 +1137,14 @@ class LocalAppBuildTests(unittest.TestCase):
             workflow,
         )
         self.assertIn(".github/locks/core-macos-arm64-py312.txt", workflow)
-        self.assertIn("RealLLM/requirements.lock", workflow)
+        self.assertIn(".github/locks/real-llm-portable-py312.txt", workflow)
         self.assertEqual(
             workflow.count("security/verify_locked_environment.py"), 2
         )
         self.assertGreaterEqual(
-            workflow.count("security/manage_local_runtime.py"), 4
+            workflow.count("security/manage_local_runtime.py"), 3
         )
+        self.assertIn("security/build_macos_runtime.py", workflow)
         self.assertIn("corelm-base-distributions.before", workflow)
         self.assertIn("corelm-base-distributions.after", workflow)
         self.assertNotIn('"$bootstrap_python" -I -B -m pip install', workflow)
@@ -1178,9 +1191,11 @@ class LocalAppBuildTests(unittest.TestCase):
         proof = (MACOS_SCRIPTS / "run-proof.sh").read_text(encoding="utf-8")
 
         self.assertIn("CORELM_WHEELHOUSE", build)
-        self.assertIn("--no-index", build)
-        self.assertIn('--find-links "$WHEELHOUSE"', build)
-        self.assertIn("--require-hashes", build)
+        installer = (ROOT / "security/build_macos_runtime.py").read_text(encoding="utf-8")
+        self.assertIn('--wheelhouse "$WHEELHOUSE"', build)
+        self.assertIn("--no-index", installer)
+        self.assertIn('"--find-links", wheelhouse', installer)
+        self.assertIn("--require-hashes", installer)
         self.assertIn('CORELM_ASSETS_OFFLINE_ONLY="$OFFLINE"', proof)
         self.assertIn('CORELM_WHEELHOUSE="$WHEELHOUSE"', proof)
 

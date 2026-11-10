@@ -12,6 +12,7 @@ from pathlib import Path
 
 MARKER_NAME = ".corelm-real-llm-runtime-v1"
 MARKER_BYTES = b"corelm-real-llm-runtime-v1\n"
+INSTALLING_MARKER_NAME = ".corelm-macos-installing-v1.json"
 
 
 def _safe_directory(path: Path, *, current_owner: bool) -> None:
@@ -76,8 +77,10 @@ def canonical_target(raw_path: str, project_path: str) -> Path:
     return resolved
 
 
-def validate_existing_runtime(path: Path) -> None:
+def validate_existing_runtime(path: Path, *, allow_installing: bool = False) -> None:
     _safe_directory(path, current_owner=True)
+    if not allow_installing and os.path.lexists(path / INSTALLING_MARKER_NAME):
+        raise ValueError("runtime installation is unfinished; rerun the macOS build")
     marker = path / MARKER_NAME
     _safe_regular_file(marker, current_owner=True)
     if marker.read_bytes() != MARKER_BYTES:
@@ -106,7 +109,9 @@ def preflight(raw_path: str, project_path: str) -> tuple[str, Path]:
     return "new", target
 
 
-def initialize(raw_path: str, project_path: str) -> Path:
+def initialize(
+    raw_path: str, project_path: str, *, allow_installing: bool = False
+) -> Path:
     target = canonical_target(raw_path, project_path)
     if not target.is_dir():
         raise ValueError("new virtual environment was not created")
@@ -127,7 +132,7 @@ def initialize(raw_path: str, project_path: str) -> Path:
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
-    validate_existing_runtime(target)
+    validate_existing_runtime(target, allow_installing=allow_installing)
     return target
 
 

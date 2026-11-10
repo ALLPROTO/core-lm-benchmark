@@ -999,7 +999,7 @@ def _runtime_assets(
     pinned_model = PINNED_RELEASE_ASSETS["model"]
     pinned_corpus = PINNED_RELEASE_ASSETS["corpus"]
     manifest = {
-        "schema_version": 2,
+        "schema_version": portfolio.RUNTIME_ASSETS_VERSION,
         "tag": tag,
         "source": source,
         "platform": {"system": "macOS", "architecture": "arm64"},

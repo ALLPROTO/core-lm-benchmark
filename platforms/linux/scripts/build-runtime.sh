@@ -3,7 +3,7 @@ set -eu
 
 umask 077
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime"}
+RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime-maintained-20261110"}
 HF_CACHE=${CORELM_LINUX_HF_HOME:-"$HOME/.cache/corelm/linux/model-assets"}
 OFFLINE=${CORELM_OFFLINE:-0}
 SAFETY_SCRIPT="$PROJECT_DIR/platforms/linux/scripts/runtime_safety.py"
@@ -74,7 +74,7 @@ else
         --isolated --no-input --disable-pip-version-check --no-cache-dir \
         --only-binary=:all: --index-url https://pypi.org/simple \
         --require-hashes \
-        -r "$PROJECT_DIR/.github/locks/pip-bootstrap.txt"
+        -r "$PROJECT_DIR/.github/locks/pip-maintained.txt"
     "$runtime_python" -I -B -m pip install \
         --isolated --no-input --disable-pip-version-check --no-cache-dir \
         --no-deps --only-binary=:all: --index-url https://pypi.org/simple \
@@ -97,7 +97,7 @@ else
     "$runtime_python" -I -B \
         "$PROJECT_DIR/security/verify_locked_environment.py" \
         --runtime "$STAGING_DIR" \
-        --lock "$PROJECT_DIR/.github/locks/pip-bootstrap.txt" \
+        --lock "$PROJECT_DIR/.github/locks/pip-maintained.txt" \
         --lock "$PROJECT_DIR/.github/locks/real-llm-linux-cpu-py312.txt" \
         --lock "$PROJECT_DIR/.github/locks/torch-linux-cpu-py312.txt"
 
@@ -117,7 +117,7 @@ runtime_python="$RUNTIME_DIR/bin/python"
 "$runtime_python" -I -B \
     "$PROJECT_DIR/security/verify_locked_environment.py" \
     --runtime "$RUNTIME_DIR" \
-    --lock "$PROJECT_DIR/.github/locks/pip-bootstrap.txt" \
+    --lock "$PROJECT_DIR/.github/locks/pip-maintained.txt" \
     --lock "$PROJECT_DIR/.github/locks/real-llm-linux-cpu-py312.txt" \
     --lock "$PROJECT_DIR/.github/locks/torch-linux-cpu-py312.txt"
 

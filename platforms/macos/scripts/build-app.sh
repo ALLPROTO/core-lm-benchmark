@@ -4,7 +4,7 @@ set -eu
 umask 077
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-RUNTIME_DIR=${CORELM_REAL_LLM_VENV:-"$HOME/.cache/corelm/macos/runtime"}
+RUNTIME_DIR=${CORELM_REAL_LLM_VENV:-"$HOME/.cache/corelm/macos/runtime-maintained-20261110"}
 CACHE_DIR="$HOME/.cache/corelm/macos/model-assets"
 BUILD_CONFIG=${BUILD_CONFIG:-release}
 OFFLINE=${CORELM_OFFLINE:-0}
@@ -83,74 +83,19 @@ if sys.version_info[:3] != (3, 12, 13):
     raise SystemExit("CORELM_BOOTSTRAP_PYTHON must be Python 3.12.13")
 '
 
-runtime_state=$(
-    "$bootstrap_path" -I -B -X "pycache_prefix=$PYTHON_CACHE" \
-        "$PROJECT_DIR/security/manage_local_runtime.py" \
-        --path "$RUNTIME_DIR" \
-        --project "$PROJECT_DIR" \
-        --mode preflight
-) || fail "dedicated Python runtime path failed validation"
-case "$runtime_state" in
-    new|existing) ;;
-    *) fail "dedicated Python runtime preflight returned an invalid state" ;;
-esac
-
-if [ "$SKIP_RUNTIME_INSTALL" = "0" ]; then
-    if [ "$runtime_state" = "new" ]; then
-        printf 'Creating the dedicated Python runtime at %s\n' "$RUNTIME_DIR"
-        "$bootstrap_path" -I -B -X "pycache_prefix=$PYTHON_CACHE" \
-            -m venv "$RUNTIME_DIR"
-        "$bootstrap_path" -I -B -X "pycache_prefix=$PYTHON_CACHE" \
-            "$PROJECT_DIR/security/manage_local_runtime.py" \
-            --path "$RUNTIME_DIR" \
-            --project "$PROJECT_DIR" \
-            --mode initialize >/dev/null \
-            || fail "new dedicated Python runtime failed initialization"
-    fi
-    if [ -n "$WHEELHOUSE" ]; then
-        "$RUNTIME_DIR/bin/python" -I -B -X \
-            "pycache_prefix=$PYTHON_CACHE" -m pip install \
-            --isolated \
-            --no-input \
-            --disable-pip-version-check \
-            --only-binary=:all: \
-            --no-index \
-            --find-links "$WHEELHOUSE" \
-            --require-hashes \
-            -r "$PROJECT_DIR/.github/locks/pip-bootstrap.txt"
-        "$RUNTIME_DIR/bin/python" -I -B -X \
-            "pycache_prefix=$PYTHON_CACHE" -m pip install \
-            --isolated \
-            --no-input \
-            --disable-pip-version-check \
-            --only-binary=:all: \
-            --no-index \
-            --find-links "$WHEELHOUSE" \
-            --require-hashes \
-            -r "$PROJECT_DIR/RealLLM/requirements.lock"
-    else
-        "$RUNTIME_DIR/bin/python" -I -B -X \
-            "pycache_prefix=$PYTHON_CACHE" -m pip install \
-            --isolated \
-            --no-input \
-            --disable-pip-version-check \
-            --only-binary=:all: \
-            --index-url "$PYPI_INDEX_URL" \
-            --require-hashes \
-            -r "$PROJECT_DIR/.github/locks/pip-bootstrap.txt"
-        "$RUNTIME_DIR/bin/python" -I -B -X \
-            "pycache_prefix=$PYTHON_CACHE" -m pip install \
-            --isolated \
-            --no-input \
-            --disable-pip-version-check \
-            --only-binary=:all: \
-            --index-url "$PYPI_INDEX_URL" \
-            --require-hashes \
-            -r "$PROJECT_DIR/RealLLM/requirements.lock"
-    fi
-elif [ "$runtime_state" != "existing" ]; then
-    fail "CORELM_SKIP_RUNTIME_INSTALL=1 requires an initialized runtime"
-fi
+# The installer serializes builds, recovers only marked unfinished installations,
+# and keeps completed environments immutable. The venv is created at its final
+# path so installed console scripts never retain a temporary staging prefix.
+set -- \
+    --runtime "$RUNTIME_DIR" \
+    --project "$PROJECT_DIR" \
+    --pycache "$PYTHON_CACHE" \
+    --index-url "$PYPI_INDEX_URL"
+[ -n "$WHEELHOUSE" ] && set -- "$@" --wheelhouse "$WHEELHOUSE"
+[ "$SKIP_RUNTIME_INSTALL" = 1 ] && set -- "$@" --skip-install
+"$bootstrap_path" -I -B -X "pycache_prefix=$PYTHON_CACHE" \
+    "$PROJECT_DIR/security/build_macos_runtime.py" "$@" \
+    || fail "dedicated Python runtime build or verification failed"
 
 APP_PYTHON="$RUNTIME_DIR/bin/python"
 [ -x "$APP_PYTHON" ] || fail "dedicated Python runtime is incomplete"
@@ -167,8 +112,8 @@ if actual != expected:
 "$APP_PYTHON" -I -B -X "pycache_prefix=$PYTHON_CACHE" \
     "$PROJECT_DIR/security/verify_locked_environment.py" \
     --runtime "$RUNTIME_DIR" \
-    --lock "$PROJECT_DIR/.github/locks/pip-bootstrap.txt" \
-    --lock "$PROJECT_DIR/RealLLM/requirements.lock"
+    --lock "$PROJECT_DIR/.github/locks/pip-maintained.txt" \
+    --lock "$PROJECT_DIR/.github/locks/real-llm-portable-py312.txt"
 if [ "$SKIP_MPS_CHECK" = "0" ]; then
     "$APP_PYTHON" -I -B -X "pycache_prefix=$PYTHON_CACHE" -c '
 import torch

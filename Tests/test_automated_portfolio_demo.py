@@ -119,7 +119,7 @@ class AutomatedPortfolioDemoTests(unittest.TestCase):
             repository = fixture / "source"
             repository.mkdir()
             home = fixture / "home"
-            runtime = home / ".cache/corelm/macos/runtime/bin"
+            runtime = home / ".cache/corelm/macos/runtime-maintained-20261110/bin"
             runtime.mkdir(parents=True)
             invocation_log = fixture / "python-invocations.log"
             python = runtime / "python"

@@ -3,7 +3,7 @@ set -eu
 
 umask 077
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime"}
+RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime-maintained-20261110"}
 HF_CACHE=${CORELM_LINUX_HF_HOME:-"$HOME/.cache/corelm/linux/model-assets"}
 RUN_ROOT=${CORELM_LINUX_RUN_ROOT:-"$HOME/.cache/corelm/linux/runs"}
 RUN_DIR=${CORELM_RUN_DIR:-"$RUN_ROOT/$(date -u +%Y%m%dT%H%M%SZ)-$$"}
@@ -112,7 +112,11 @@ printf 'UTC end: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 [ "$runner_exit" -eq 0 ] || fail "Qwen process exited with $runner_exit"
 
 "$runtime_python" -I -B "$PROJECT_DIR/security/verify_primary_evidence.py" \
-    "$RUN_DIR" | tee "$RUN_DIR/verification.txt"
+    "$RUN_DIR" > "$RUN_DIR/verification.txt" 2>&1 || {
+        /bin/cat "$RUN_DIR/verification.txt" >&2
+        fail "independent primary-evidence verification failed"
+    }
+/bin/cat "$RUN_DIR/verification.txt"
 
 "$runtime_python" -I -B - "$RUN_DIR" "$source_commit" <<'PY'
 import hashlib

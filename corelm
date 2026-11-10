@@ -165,7 +165,7 @@ case "$platform:$command" in
                 strict_portfolio_python_bootstrap
                 ;;
         esac
-        automated_python="$HOME/.cache/corelm/macos/runtime/bin/python"
+        automated_python="$HOME/.cache/corelm/macos/runtime-maintained-20261110/bin/python"
         [ -x "$automated_python" ] || {
             printf '%s\n' \
                 'macOS runtime is missing; run ./corelm macos prepare-offline first' >&2

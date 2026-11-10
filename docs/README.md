@@ -7,6 +7,8 @@ additional product versions.
 
 ## Build and run
 
+- [Start here](QUICKSTART.md) — source selection, prerequisites, commands, and results.
+
 - [macOS application](../platforms/macos/README.md) — quick start for the
   native SwiftUI/MPS proof.
 - [Complete macOS walkthrough](../platforms/macos/BUILD_AND_VERIFY.md) — fresh
