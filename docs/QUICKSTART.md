@@ -123,3 +123,11 @@ These tests are not a fresh real-model measurement. Before posting logs in a
 [GitHub issue](https://github.com/ALLPROTO/core-lm-benchmark/issues), remove
 credentials, personal paths and host identifiers; share only the necessary
 failure context. Do not claim a supported platform passed if it was not run.
+
+## Maintained dependencies versus release replay
+
+The development branch uses separately maintained runtime locks and fresh runtime
+directories. Signed historical releases keep their original dependency bytes and
+may include known vulnerabilities. See [dependency maintenance](DEPENDENCY_MAINTENANCE.md)
+for exact scope, validation status, and why old numerical results do not validate
+a new dependency environment.

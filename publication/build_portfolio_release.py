@@ -178,9 +178,22 @@ MAX_EVIDENCE_BYTES = 256 * 1024 * 1024
 MAX_SOURCE_ARCHIVE_BYTES = 64 * 1024 * 1024
 MAX_TAR_MEMBERS = 20_000
 MAX_TAR_EXPANDED_BYTES = 256 * 1024 * 1024
-LOCKFILE_PATHS = (
+LEGACY_LOCKFILE_PATHS = (
     "RealLLM/requirements.lock",
     "RealLLM/requirements.txt",
+    "requirements.txt",
+)
+RUNTIME_ASSETS_VERSION = 3
+MAINTAINED_RUNTIME_MARKER = ".github/locks/pip-maintained.txt"
+LOCKFILE_PATHS = (
+    ".github/locks/core-linux-py312.txt",
+    ".github/locks/core-macos-arm64-py312.txt",
+    ".github/locks/pip-maintained.txt",
+    ".github/locks/real-llm-linux-cpu-py312.txt",
+    ".github/locks/real-llm-maintained.txt",
+    ".github/locks/real-llm-portable-py312.txt",
+    ".github/locks/torch-linux-cpu-py312.txt",
+    "requirements.lock",
     "requirements.txt",
 )
 VERIFIER_PATHS = (
@@ -228,7 +241,7 @@ VERIFIER_PATHS = (
 LEGACY_PRIVATE_PATH_ALLOWLIST = {
     "RealLLM/verify_voidtoken_v5_development.py": "9645dd4a456a9c7e35c0f91dc613ea4cbad97bea8b0e6d3f6090c9604cd7308b",
     "Tests/test_app_real_llm_evidence.py": "ff0419672b46fea6a77f48ec89c7b60ebab5b71362b52593534391219a100a97",
-    "Tests/test_local_app_build.py": "ea69d5eee3b6553374717880699cc8b1711deeed3adb683f6565b0fce3d7b5de",
+    "Tests/test_local_app_build.py": "f5899d8b01947b80dfb4b705a4a1c69270ab69ef110251ae99d22c7d302d9768",
     "platforms/macos/Tests/SecurityValidationTests.swift": "d172c7a1c2d56736190d6a69117f5ba8916000bf893ed69cc3a05a6e755b013a",
     "real-llm-results/aggregate.json": "ebf3bb9558282bf23265989df82a9b18c599654b5bb05d82c4e4d400f1f62265",
     "real-llm-v5-development/validation-000-007.json": "f8c900246c8dafe50ffea309ce86793822cf6fb93e438e3f16b7450bd1f9f224",
@@ -974,6 +987,14 @@ def _validate_manifest_rows(
     return result
 
 
+def _require_runtime_lock_generation(runtime: Mapping[str, Any], maintained: bool) -> None:
+    expected_version = RUNTIME_ASSETS_VERSION if maintained else 2
+    if runtime["schema_version"] != expected_version:
+        raise PortfolioReleaseError(
+            "runtime-assets lock generation does not match the source checkout"
+        )
+
+
 def _validate_runtime_assets(
     path: Path,
     *,
@@ -1006,7 +1027,7 @@ def _validate_runtime_assets(
     )
     _validate_schema(value, RUNTIME_ASSETS_SCHEMA, "runtime-assets manifest")
     _exact, version = _exact_tag(tag)
-    if version < 3 or value["schema_version"] != 2 or value["tag"] != tag:
+    if version < 3 or value["schema_version"] not in (2, RUNTIME_ASSETS_VERSION) or value["tag"] != tag:
         raise PortfolioReleaseError("runtime-assets version/tag is inconsistent")
     source = _exact_object(value["source"], {"commit", "tree"}, "runtime source")
     if source != {"commit": commit, "tree": tree}:
@@ -1047,8 +1068,15 @@ def _validate_runtime_assets(
         raise PortfolioReleaseError("runtime capture tool identities are invalid") from error
     if automation_report is not None and capture_tools != automation_report["tools"]:
         raise PortfolioReleaseError("runtime and automation capture tool identities differ")
+    if repository is not None:
+        _require_runtime_lock_generation(
+            value, (repository / MAINTAINED_RUNTIME_MARKER).exists()
+        )
+    expected_locks = (
+        LEGACY_LOCKFILE_PATHS if value["schema_version"] == 2 else LOCKFILE_PATHS
+    )
     _validate_manifest_rows(
-        value["lockfiles"], exact_paths=LOCKFILE_PATHS, label="lockfiles", repository=repository
+        value["lockfiles"], exact_paths=expected_locks, label="lockfiles", repository=repository
     )
     _validate_manifest_rows(
         value["verifiers"], exact_paths=VERIFIER_PATHS, label="verifiers", repository=repository
@@ -2795,6 +2823,10 @@ def _validate_source_manifest_bindings(
                 source_prefix="core-lm-benchmark/",
                 reject_absolute_paths=False,
             )
+            _require_runtime_lock_generation(
+                runtime,
+                f"core-lm-benchmark/{MAINTAINED_RUNTIME_MARKER}" in archive.getnames(),
+            )
             for relative, digest in expected.items():
                 member_name = f"core-lm-benchmark/{relative}"
                 try:
@@ -3063,12 +3095,12 @@ case "$(uname -s):$(uname -m)" in
   Darwin:arm64)
     ./corelm macos bootstrap
     ./corelm macos build
-    locked_python="$HOME/.cache/corelm/macos/runtime/bin/python"
+    locked_python="$HOME/.cache/corelm/macos/runtime-maintained-20261110/bin/python"
     ;;
   Linux:x86_64)
     ./corelm linux bootstrap
     ./corelm linux build
-    locked_python="$HOME/.cache/corelm/linux/runtime/bin/python"
+    locked_python="$HOME/.cache/corelm/linux/runtime-maintained-20261110/bin/python"
     ;;
   *)
     echo "Unsupported reproduction platform: $(uname -s):$(uname -m)" >&2

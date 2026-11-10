@@ -27,7 +27,7 @@ updates:
       day: monday
       time: "05:15"
       timezone: Europe/Prague
-    # The scientific runtime is frozen until the beacon attempt is published.
+    # Historical scientific inputs are permanently frozen after publication.
     # Security alerts remain enabled; routine version PRs must not rewrite it.
     open-pull-requests-limit: 0
     groups:

@@ -12,7 +12,7 @@ from urllib.parse import quote
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFESTS = (ROOT / "requirements.txt", ROOT / "RealLLM/requirements.txt")
+MANIFESTS = (ROOT / "requirements.txt", ROOT / ".github/locks/real-llm-maintained.txt")
 PIN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([A-Za-z0-9][^\s;]*)$")
 
 

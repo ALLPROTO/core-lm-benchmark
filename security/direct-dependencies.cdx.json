@@ -7,7 +7,7 @@
       "properties": [
         {
           "name": "corelm:source-manifests",
-          "value": "RealLLM/requirements.txt"
+          "value": ".github/locks/real-llm-maintained.txt"
         }
       ],
       "purl": "pkg:pypi/huggingface-hub@1.25.1",
@@ -21,7 +21,7 @@
       "properties": [
         {
           "name": "corelm:source-manifests",
-          "value": "RealLLM/requirements.txt, requirements.txt"
+          "value": ".github/locks/real-llm-maintained.txt, requirements.txt"
         }
       ],
       "purl": "pkg:pypi/jsonschema@4.25.1",
@@ -49,7 +49,7 @@
       "properties": [
         {
           "name": "corelm:source-manifests",
-          "value": "RealLLM/requirements.txt"
+          "value": ".github/locks/real-llm-maintained.txt"
         }
       ],
       "purl": "pkg:pypi/numpy@2.5.1",
@@ -63,7 +63,7 @@
       "properties": [
         {
           "name": "corelm:source-manifests",
-          "value": "RealLLM/requirements.txt"
+          "value": ".github/locks/real-llm-maintained.txt"
         }
       ],
       "purl": "pkg:pypi/pyarrow@23.0.1",
@@ -105,7 +105,7 @@
       "properties": [
         {
           "name": "corelm:source-manifests",
-          "value": "RealLLM/requirements.txt"
+          "value": ".github/locks/real-llm-maintained.txt"
         }
       ],
       "purl": "pkg:pypi/safetensors@0.8.0",
@@ -119,7 +119,7 @@
       "properties": [
         {
           "name": "corelm:source-manifests",
-          "value": "RealLLM/requirements.txt"
+          "value": ".github/locks/real-llm-maintained.txt"
         }
       ],
       "purl": "pkg:pypi/tokenizers@0.22.2",
@@ -133,7 +133,7 @@
       "properties": [
         {
           "name": "corelm:source-manifests",
-          "value": "RealLLM/requirements.txt"
+          "value": ".github/locks/real-llm-maintained.txt"
         }
       ],
       "purl": "pkg:pypi/torch@2.13.0",
@@ -147,7 +147,7 @@
       "properties": [
         {
           "name": "corelm:source-manifests",
-          "value": "RealLLM/requirements.txt"
+          "value": ".github/locks/real-llm-maintained.txt"
         }
       ],
       "purl": "pkg:pypi/transformers@5.14.1",

@@ -6,8 +6,8 @@ already published immutable experiment.
 
 | Contour | Sources and locks | Runtime and model cache | Output |
 |---|---|---|---|
-| macOS | `Package.swift`, `platforms/macos/`, `RealLLM/requirements.lock` | `~/.cache/corelm/macos/runtime`, `~/.cache/corelm/macos/model-assets` | `dist/CoreLMBenchmark.app` and macOS Application Support |
-| Linux | `platforms/linux/`, Linux CPU locks, shared current `RealLLM/` code | `~/.cache/corelm/linux/runtime`, `~/.cache/corelm/linux/model-assets` | `~/.cache/corelm/linux/runs/` |
+| macOS | `Package.swift`, `platforms/macos/`, `.github/locks/real-llm-portable-py312.txt` | `~/.cache/corelm/macos/runtime-maintained-20261110`, `~/.cache/corelm/macos/model-assets` | `dist/CoreLMBenchmark.app` and macOS Application Support |
+| Linux | `platforms/linux/`, Linux CPU locks, shared current `RealLLM/` code | `~/.cache/corelm/linux/runtime-maintained-20261110`, `~/.cache/corelm/linux/model-assets` | `~/.cache/corelm/linux/runs/` |
 | Beacon | Git blobs from immutable tag `corelm-beacon-heldout-v1` | `~/.cache/corelm-app-runtime`, `~/.cache/corelm-model-assets` (frozen tag paths) | `real-llm-beacon-results/` inside the detached tagged checkout |
 
 Use `./corelm macos ...` and `./corelm linux ...` for active builds. Both

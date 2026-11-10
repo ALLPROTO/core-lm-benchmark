@@ -2,6 +2,13 @@ name: Real Qwen Linux CPU Regression
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/locks/**'
+      - '.github/workflows/real-qwen-linux-cpu.yml'
+      - 'platforms/linux/**'
+      - 'RealLLM/**'
+      - 'security/verify_locked_environment.py'
 
 permissions:
   contents: read

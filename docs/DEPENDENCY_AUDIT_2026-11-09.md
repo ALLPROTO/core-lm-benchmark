@@ -61,9 +61,10 @@ A maintained-runtime update needs a separate, reviewed migration:
    dependencies before declaring the release ready. Disclose any historical
    replay risks separately rather than calling historical dependencies safe.
 
-No dependency upgrade is applied in this change. All five findings remain
-release blockers. A future maintained-runtime update must use fresh private
-runtime destinations: existing managed runtimes are exact-lock environments
+The findings above describe the original 2026-11-09 branch state. The subsequent
+maintained-runtime migration is tracked in [DEPENDENCY_MAINTENANCE.md](DEPENDENCY_MAINTENANCE.md),
+including current validation limits. Historical pins and their findings remain
+unchanged. Maintained-runtime updates must use fresh private runtime destinations: existing managed runtimes are exact-lock environments
 and must not be upgraded in place. Retain old runtimes needed to audit their
 associated apps/evidence. Do not delete or weaken runtime receipts to force
 reuse. This audit did not run a model or change any historical result.

@@ -21,7 +21,7 @@
     "verifiers"
   ],
   "properties": {
-    "schema_version": {"const": 2},
+    "schema_version": {"enum": [2, 3]},
     "tag": {"$ref": "#/$defs/tag"},
     "source": {"$ref": "#/$defs/source"},
     "platform": {
@@ -94,17 +94,7 @@
         "ffprobe": {"$ref": "#/$defs/ffprobeIdentity"}
       }
     },
-    "lockfiles": {
-      "type": "array",
-      "minItems": 3,
-      "maxItems": 3,
-      "prefixItems": [
-        {"$ref": "#/$defs/requirementsLockRow"},
-        {"$ref": "#/$defs/realLlmRequirementsRow"},
-        {"$ref": "#/$defs/rootRequirementsRow"}
-      ],
-      "items": false
-    },
+    "lockfiles": {"type": "array"},
     "model": {"$ref": "#/$defs/model"},
     "corpus": {"$ref": "#/$defs/corpus"},
     "application": {
@@ -132,6 +122,185 @@
       "items": {"$ref": "#/$defs/manifestRow"}
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 2
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "lockfiles": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/requirementsLockRow"
+              },
+              {
+                "$ref": "#/$defs/realLlmRequirementsRow"
+              },
+              {
+                "$ref": "#/$defs/rootRequirementsRow"
+              }
+            ],
+            "items": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 3
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "lockfiles": {
+            "type": "array",
+            "minItems": 9,
+            "maxItems": 9,
+            "prefixItems": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/manifestRow"
+                  },
+                  {
+                    "properties": {
+                      "path": {
+                        "const": ".github/locks/core-linux-py312.txt"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/manifestRow"
+                  },
+                  {
+                    "properties": {
+                      "path": {
+                        "const": ".github/locks/core-macos-arm64-py312.txt"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/manifestRow"
+                  },
+                  {
+                    "properties": {
+                      "path": {
+                        "const": ".github/locks/pip-maintained.txt"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/manifestRow"
+                  },
+                  {
+                    "properties": {
+                      "path": {
+                        "const": ".github/locks/real-llm-linux-cpu-py312.txt"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/manifestRow"
+                  },
+                  {
+                    "properties": {
+                      "path": {
+                        "const": ".github/locks/real-llm-maintained.txt"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/manifestRow"
+                  },
+                  {
+                    "properties": {
+                      "path": {
+                        "const": ".github/locks/real-llm-portable-py312.txt"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/manifestRow"
+                  },
+                  {
+                    "properties": {
+                      "path": {
+                        "const": ".github/locks/torch-linux-cpu-py312.txt"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/manifestRow"
+                  },
+                  {
+                    "properties": {
+                      "path": {
+                        "const": "requirements.lock"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/manifestRow"
+                  },
+                  {
+                    "properties": {
+                      "path": {
+                        "const": "requirements.txt"
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "items": false
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "gitObject": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

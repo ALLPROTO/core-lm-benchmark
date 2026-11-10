@@ -614,7 +614,7 @@ TAG_CI_RECEIPT="$DEMO_SESSION/tag-ci-receipt.json"
 LOCAL_TAG_TRUST_RECEIPT="$DEMO_SESSION/local-tag-trust-receipt.json"
 TAG_CI_BUNDLE="$DEMO_SESSION/tag-ci-bundle"
 INPUTS=/absolute/absent/corelm-portfolio-v15-inputs
-PYTHON="$HOME/.cache/corelm/macos/runtime/bin/python"
+PYTHON="$HOME/.cache/corelm/macos/runtime-maintained-20261110/bin/python"
 
 publication/run_portfolio_python.sh \
   "$PYTHON" collect_portfolio_demo.py \

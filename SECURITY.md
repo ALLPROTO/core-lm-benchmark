@@ -39,8 +39,10 @@ A release candidate is not ready until all applicable gates pass:
 2. GitHub Actions references are full commit SHAs and the workflow token has
    read-only repository permissions.
 3. CI dependencies install from the platform lock with `--require-hashes`,
-   portable core/RealLLM lock closures are hash-complete, and the live OSV
-   check reports no advisory for every package in those closures.
+   all maintained core/model lock closures are hash-complete, and the live OSV
+   check reports no advisory for every package in those closures. Historical
+   replay pins remain byte-identical and are audited separately without suppression;
+   they are not supported runtime inputs. See [the migration contract](docs/DEPENDENCY_MAINTENANCE.md).
 4. The deterministic supply-chain policy and reachable-history secret scan
    pass.
 5. The checked-in direct-dependency CycloneDX document matches the two source
@@ -122,7 +124,7 @@ cache is absent or invalid.
 ## Explicit limitations
 
 - `security/osv_direct_audit.py` queries the live OSV service. CI supplies the
-  complete pinned core and RealLLM Python lock closures; this is not a complete
+  complete maintained core and model Python lock closures; this is not a complete
   binary, model-file, or operating-system scan.
 - `security/direct-dependencies.cdx.json` is intentionally a deterministic
   direct-dependency SBOM. It does not claim to enumerate the user's external

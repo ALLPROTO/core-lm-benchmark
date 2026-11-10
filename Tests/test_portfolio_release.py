@@ -708,7 +708,7 @@ class PortfolioReleaseTests(unittest.TestCase):
 
     def _runtime(self, provenance):
         return {
-            "schema_version": 2,
+            "schema_version": portfolio.RUNTIME_ASSETS_VERSION,
             "tag": TAG,
             "source": {"commit": COMMIT, "tree": TREE},
             "platform": {"system": "macOS", "architecture": "arm64"},
@@ -1076,6 +1076,41 @@ class PortfolioReleaseTests(unittest.TestCase):
                             repository=None,
                         )
 
+    def test_runtime_lock_generation_cannot_be_downgraded(self):
+        for version, maintained in ((2, False), (3, True)):
+            portfolio._require_runtime_lock_generation(
+                {"schema_version": version}, maintained
+            )
+            with self.assertRaisesRegex(
+                portfolio.PortfolioReleaseError, "lock generation"
+            ):
+                portfolio._require_runtime_lock_generation(
+                    {"schema_version": version}, not maintained
+                )
+
+    def test_runtime_schema_keeps_historical_lock_contract_separate(self):
+        from jsonschema import Draft202012Validator
+        schema = json.loads(portfolio.RUNTIME_ASSETS_SCHEMA.read_text())
+        provenance = {
+            "application_executable_sha256": "7" * 64,
+            "receipt_sha256": "8" * 64,
+            "result_sha256": "9" * 64,
+            "evidence_sha256": "a" * 64,
+        }
+        maintained = self._runtime(provenance)
+        validator = Draft202012Validator(schema)
+        self.assertEqual(list(validator.iter_errors(maintained)), [])
+        historical = dict(maintained)
+        historical["schema_version"] = 2
+        historical["lockfiles"] = [
+            {"path": path, "sha256": "a" * 64}
+            for path in portfolio.LEGACY_LOCKFILE_PATHS
+        ]
+        self.assertEqual(list(validator.iter_errors(historical)), [])
+        for runtime in (historical, maintained):
+            runtime["schema_version"] = 5 - runtime["schema_version"]
+            self.assertTrue(list(validator.iter_errors(runtime)))
+
     def test_release_asset_identity_matches_frozen_benchmark_constants(self):
         from RealLLM import benchmark_real_llm as benchmark
 
@@ -1193,11 +1228,11 @@ class PortfolioReleaseTests(unittest.TestCase):
         )
         self.assertNotIn('gpg.ssh.allowedSignersFile="../allowed_signers"', document)
         self.assertIn(
-            'locked_python="$HOME/.cache/corelm/macos/runtime/bin/python"',
+            'locked_python="$HOME/.cache/corelm/macos/runtime-maintained-20261110/bin/python"',
             document,
         )
         self.assertIn(
-            'locked_python="$HOME/.cache/corelm/linux/runtime/bin/python"',
+            'locked_python="$HOME/.cache/corelm/linux/runtime-maintained-20261110/bin/python"',
             document,
         )
         self.assertIn("publication/run_portfolio_python.sh", document)

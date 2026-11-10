@@ -164,7 +164,7 @@ open dist/CoreLMBenchmark.app
 ```
 
 The reusable manual-build runtime is stored at
-`~/.cache/corelm/macos/runtime/`. In the application, press **Run Compression
+`~/.cache/corelm/macos/runtime-maintained-20261110/`. In the application, press **Run Compression
 Proof** with fixed public validation blocks 64–71 shown in the toolbar. This
 range has been exercised repeatedly and is an application-regression fixture,
 not blind or held-out input.

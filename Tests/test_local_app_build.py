@@ -766,9 +766,9 @@ class LocalAppBuildTests(unittest.TestCase):
         proof_script = (MACOS_SCRIPTS / "run-proof.sh").read_text(
             encoding="utf-8"
         )
-        self.assertIn(".cache/corelm/macos/runtime", build_script)
+        self.assertIn(".cache/corelm/macos/runtime-maintained-20261110", build_script)
         self.assertIn(".cache/corelm/macos/model-assets", build_script)
-        self.assertIn(".cache/corelm/macos/runtime", package_script)
+        self.assertIn(".cache/corelm/macos/runtime-maintained-20261110", package_script)
         self.assertIn(".cache/corelm/macos/proof-runtimes", proof_script)
         for source in (build_script, package_script, proof_script):
             self.assertNotIn("corelm-real-llm-app-runtime-v1", source)
@@ -946,6 +946,75 @@ class LocalAppBuildTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_existing_macos_runtime_is_checked_without_installing(self):
+        source = (MACOS_SCRIPTS / "build-app.sh").read_text(encoding="utf-8")
+        lifecycle = source[
+            source.index('case "$runtime_state" in')
+            : source.index('APP_PYTHON="$RUNTIME_DIR/bin/python"')
+        ]
+        self.assertLess(
+            lifecycle.index("security/verify_locked_environment.py"),
+            lifecycle.index("-m pip install"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            runtime = root / "retained-runtime"
+            (runtime / "bin").mkdir(parents=True)
+            log = root / "invocations.log"
+            python = runtime / "bin/python"
+            python.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' \"$*\" >> \"$TEST_INVOCATION_LOG\"\n"
+                "exit \"$TEST_LOCK_STATUS\"\n",
+                encoding="utf-8",
+            )
+            python.chmod(0o700)
+            for lock_status in (0, 1):
+                for skip_install in ("0", "1"):
+                    with self.subTest(
+                        lock_status=lock_status, skip_install=skip_install
+                    ):
+                        log.write_text("", encoding="utf-8")
+                        completed = subprocess.run(
+                            [
+                                "/bin/sh",
+                                "-eu",
+                                "-c",
+                                'fail() { printf "%s\\n" "$*" >&2; exit 1; }\n'
+                                + lifecycle,
+                            ],
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                            env={
+                                "PATH": "/usr/bin:/bin",
+                                "runtime_state": "existing",
+                                "RUNTIME_DIR": str(runtime),
+                                "PROJECT_DIR": str(ROOT),
+                                "PYTHON_CACHE": str(root / "pycache"),
+                                "SKIP_RUNTIME_INSTALL": skip_install,
+                                "TEST_INVOCATION_LOG": str(log),
+                                "TEST_LOCK_STATUS": str(lock_status),
+                            },
+                        )
+                        self.assertEqual(
+                            completed.returncode, lock_status, completed.stderr
+                        )
+                        invocations = log.read_text(encoding="utf-8").splitlines()
+                        self.assertEqual(len(invocations), 1)
+                        self.assertIn(
+                            "security/verify_locked_environment.py", invocations[0]
+                        )
+                        for lock in (
+                            ".github/locks/pip-maintained.txt",
+                            ".github/locks/real-llm-portable-py312.txt",
+                        ):
+                            self.assertIn(lock, invocations[0])
+                        self.assertNotIn("-m pip", invocations[0])
+                        if lock_status:
+                            self.assertIn("fresh private path", completed.stderr)
+                            self.assertIn("retain the old runtime", completed.stderr)
 
     def test_proof_cannot_inherit_ci_skip_flags_or_runtime_pycache(self):
         proof = (MACOS_SCRIPTS / "run-proof.sh").read_text(encoding="utf-8")
@@ -1125,7 +1194,7 @@ class LocalAppBuildTests(unittest.TestCase):
             workflow,
         )
         self.assertIn(".github/locks/core-macos-arm64-py312.txt", workflow)
-        self.assertIn("RealLLM/requirements.lock", workflow)
+        self.assertIn(".github/locks/real-llm-portable-py312.txt", workflow)
         self.assertEqual(
             workflow.count("security/verify_locked_environment.py"), 2
         )

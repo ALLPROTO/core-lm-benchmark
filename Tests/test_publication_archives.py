@@ -62,9 +62,9 @@ class PublicationArchiveTests(unittest.TestCase):
             release_input,
             source_identity,
             demo_provenance,
-            runtime_assets,
         ):
             self.assertEqual(schema["properties"]["schema_version"]["const"], 2)
+        self.assertEqual(runtime_assets["properties"]["schema_version"]["enum"], [2, 3])
 
         presentation = release_input["properties"]["presentation"]
         self.assertFalse(presentation["additionalProperties"])

@@ -2,7 +2,7 @@
 set -eu
 
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
-RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime"}
+RUNTIME_DIR=${CORELM_LINUX_RUNTIME:-"$HOME/.cache/corelm/linux/runtime-maintained-20261110"}
 HF_CACHE=${CORELM_LINUX_HF_HOME:-"$HOME/.cache/corelm/linux/model-assets"}
 RUN_ROOT=${CORELM_LINUX_RUN_ROOT:-"$HOME/.cache/corelm/linux/runs"}
 RUN_TARGET=${CORELM_RUN_DIR:-"$RUN_ROOT"}
