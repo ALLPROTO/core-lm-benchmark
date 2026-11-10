@@ -126,27 +126,10 @@ jobs:
               --mode preflight
           )
           test "$state" = new
-          "$bootstrap_python" -I -B -m venv "$app_runtime"
-          "$bootstrap_python" -I -B security/manage_local_runtime.py \
-            --path "$app_runtime" \
+          "$bootstrap_python" -I -B security/build_macos_runtime.py \
+            --runtime "$app_runtime" \
             --project "$GITHUB_WORKSPACE" \
-            --mode initialize
-          "$app_python" -I -B -m pip install \
-            --isolated \
-            --no-input \
-            --disable-pip-version-check \
-            --only-binary=:all: \
-            --index-url https://pypi.org/simple \
-            --require-hashes \
-            -r .github/locks/pip-maintained.txt
-          "$app_python" -I -B -m pip install \
-            --isolated \
-            --no-input \
-            --disable-pip-version-check \
-            --only-binary=:all: \
-            --index-url https://pypi.org/simple \
-            --require-hashes \
-            -r .github/locks/real-llm-portable-py312.txt
+            --pycache "$RUNNER_TEMP/corelm-app-install-pycache"
           /bin/chmod -RP go-w "$app_runtime"
           "$app_python" -I -B -m pip check
           "$app_python" -I -B security/verify_locked_environment.py \

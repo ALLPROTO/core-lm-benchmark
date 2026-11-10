@@ -108,6 +108,7 @@ if [ "$#" -eq 0 ]; then
         Tests.test_security_supply_chain \
         Tests.test_maintained_dependencies \
         Tests.test_maintained_offline \
+        Tests.test_macos_runtime_install \
         Tests.test_swift_security_gate \
         Tests.test_strict_git_checkout \
         Tests.test_voidtoken_v5 \

@@ -241,7 +241,7 @@ VERIFIER_PATHS = (
 LEGACY_PRIVATE_PATH_ALLOWLIST = {
     "RealLLM/verify_voidtoken_v5_development.py": "9645dd4a456a9c7e35c0f91dc613ea4cbad97bea8b0e6d3f6090c9604cd7308b",
     "Tests/test_app_real_llm_evidence.py": "ff0419672b46fea6a77f48ec89c7b60ebab5b71362b52593534391219a100a97",
-    "Tests/test_local_app_build.py": "f5899d8b01947b80dfb4b705a4a1c69270ab69ef110251ae99d22c7d302d9768",
+    "Tests/test_local_app_build.py": "e331cc6b9740ec311174c020a20e41fba9b2a07e444afe5af7166732511fad31",
     "platforms/macos/Tests/SecurityValidationTests.swift": "d172c7a1c2d56736190d6a69117f5ba8916000bf893ed69cc3a05a6e755b013a",
     "real-llm-results/aggregate.json": "ebf3bb9558282bf23265989df82a9b18c599654b5bb05d82c4e4d400f1f62265",
     "real-llm-v5-development/validation-000-007.json": "f8c900246c8dafe50ffea309ce86793822cf6fb93e438e3f16b7450bd1f9f224",

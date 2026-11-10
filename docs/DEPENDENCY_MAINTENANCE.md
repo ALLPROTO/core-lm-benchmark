@@ -34,6 +34,25 @@ contain a different environment fail exact-lock verification instead of being
 upgraded in place. macOS also checks an existing runtime **before** any package
 installation; a matching runtime is reused without installation.
 
+Fresh macOS installations are serialized by an owner-private advisory lock.
+An unfinished-install marker binds the destination and both maintained lock
+hashes before the venv is created. A failed installation is removed only while
+that marker still identifies this installation. After abrupt process termination
+(including SIGTERM or a hard kill), the next build can safely recreate the marked
+unfinished environment once any remaining installer child releases its lock. An active builder,
+an unmarked directory, changed lock inputs, or an invalid marker is never
+treated as permission to erase a runtime. Older unmarked partial installations
+need a fresh `CORELM_REAL_LLM_VENV` path. Completed environments are only verified.
+The venv is created at its final path, preserving console-script and activation
+paths. The marker is removed only after the full `pip check` and exact-lock
+checks succeed; application packaging happens afterward.
+
+The normal macOS builder also upgrades the bundled pip only from the official
+PyPI index (or the explicit offline wheelhouse), with hashes, wheels only, and
+`--no-deps`. It verifies the patched pip closure before contacting a configured
+package mirror, and disables inherited pip configuration for every subprocess.
+Native macOS CI exercises this same runtime builder before packaging.
+
 The live maintained OSV gate enumerates **all seven maintained lockfiles**,
 including the platform-only torch CPU pin. It contains no advisory suppression.
 A separate scheduled/manual `Audit Historical Dependencies (Known Risks)`
