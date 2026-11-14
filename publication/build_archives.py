@@ -675,6 +675,7 @@ def build_reproducibility(
             "Tests/test_publication_archives.py",
             "Tests/test_real_llm.py",
             "Tests/test_security_supply_chain.py",
+            "Tests/test_secret_archives.py",
             "Tests/test_maintained_dependencies.py",
             "Tests/test_maintained_offline.py",
             "Tests/test_macos_runtime_install.py",
