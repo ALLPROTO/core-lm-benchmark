@@ -142,3 +142,20 @@ cache is absent or invalid.
   still path-specific and user-owned rather than bundled, so only a trusted
   local machine and the registered offline Hugging Face cache should be used
   for evidence-bearing runs.
+
+### Bounded ZIP secret inspection
+
+The ordinary raw-file and Git-message limit remains 5,000,000 bytes. ZIP blobs
+may be at most 16,000,000 bytes and are scanned both as raw bytes and as
+decompressed members, in the working tree and across all reachable Git refs.
+Supported archives are single-disk classic ZIPs using stored/deflated members,
+without data descriptors, ZIP64, comments, or extra fields. Complete byte
+coverage rejects prefixes, gaps, concatenated archives, and trailing data.
+Archives have at most 256 entries, at most 8,000,000 expanded bytes per file,
+and at most 64,000,000 expanded bytes in total. Inspection never extracts or
+executes archive contents. CRC, member sizes, paths, duplicates, file types,
+and encryption are checked; malformed, nested, unsupported, encrypted, or
+oversized archives fail closed instead of being skipped. The same finite
+secret patterns apply inside archives; this is not a guarantee that every
+possible secret format can be recognized. Model and dataset artifacts remain
+subject to their own provenance checks. No frozen scientific payload is changed.
