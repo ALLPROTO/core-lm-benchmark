@@ -3,7 +3,12 @@
 
 from __future__ import annotations
 
+import io
 import re
+import stat
+import struct
+import zipfile
+import zlib
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +18,12 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_SCANNED_BLOB_BYTES = 5_000_000
+# Larger ZIPs are admitted only through bounded, fail-closed content inspection.
+# These limits do not relax the ordinary blob or commit-message size policy.
+MAX_ARCHIVE_BYTES = 16_000_000
+MAX_ARCHIVE_MEMBER_BYTES = 8_000_000
+MAX_ARCHIVE_EXPANDED_BYTES = 64_000_000
+MAX_ARCHIVE_MEMBERS = 256
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 ACTION = re.compile(
     r"^\s*(?:-\s+)?uses:\s+([^@\s]+)@([^\s#]+)"
@@ -457,6 +468,149 @@ def matching_secret(data: bytes) -> str | None:
     return None
 
 
+def _zip_payloads(data: bytes, members: list[zipfile.ZipInfo]) -> dict[str, bytes]:
+    """Validate complete classic-ZIP coverage, rejecting overlays and ambiguity.
+
+    Deliberately support only stored/deflated, single-disk, no-descriptor ZIPs
+    without comments/extra fields. The frozen prepared package uses this subset.
+    ZIP64 and other formats fail closed, rather than receiving partial scans.
+    """
+    if len(data) < 22:
+        raise ValueError("missing ZIP end record")
+    end = struct.unpack("<4s4H2IH", data[-22:])
+    signature, disk, start_disk, disk_count, count, size, offset, comment = end
+    if (signature != b"PK\x05\x06" or disk or start_disk or comment
+            or disk_count != count or count != len(members)
+            or offset + size != len(data) - 22):
+        raise ValueError("unsupported or incomplete ZIP directory")
+    position, local = offset, 0
+    payloads: dict[str, bytes] = {}
+    for member in members:
+        if position + 46 > len(data) - 22:
+            raise ValueError("truncated ZIP directory")
+        c = struct.unpack("<4s6H3I5H2I", data[position:position + 46])
+        if (c[0] != b"PK\x01\x02" or c[3] not in (0, 0x800)
+                or c[4] not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
+                or c[11] or c[12] or c[13] or c[16] != local
+                or member.header_offset != local):
+            raise ValueError("unsupported ZIP features or noncontiguous entries")
+        name_end = position + 46 + c[10]
+        if name_end > len(data) - 22 or local + 30 > offset:
+            raise ValueError("truncated ZIP header")
+        central_name = data[position + 46:name_end]
+        h = struct.unpack("<4s5H3I2H", data[local:local + 30])
+        if (h[0] != b"PK\x03\x04" or h[1:9] != (c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9])
+                or h[9] != c[10] or h[10]):
+            raise ValueError("inconsistent ZIP local header")
+        begin = local + 30 + h[9]
+        finish = begin + c[8]
+        if (finish > offset or data[local + 30:begin] != central_name
+                or c[8] != member.compress_size or c[9] != member.file_size):
+            raise ValueError("inconsistent ZIP data extent")
+        payloads[member.filename] = data[begin:finish]
+        local, position = finish, name_end
+    if local != offset or position != len(data) - 22:
+        raise ValueError("uninspected ZIP prefix, gap, overlay, or trailing data")
+    return payloads
+
+
+def scanned_content_errors(data: bytes, display: str, name: str) -> list[str]:
+    """Scan raw bytes and ZIP members, never extracting or executing content.
+
+    A recognized or .zip-named archive must be inspectable. Reject nested,
+    encrypted, ambiguous, nonregular, and oversized members rather than skipping
+    them. Streaming reads enforce the real expanded bound and validate CRCs.
+    """
+    errors: list[str] = []
+    label = matching_secret(data)
+    if label is not None:
+        errors.append(f"{display}: possible {label}")
+    archive = (
+        name.lower().endswith(".zip")
+        or data.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"))
+        or zipfile.is_zipfile(io.BytesIO(data))
+    )
+    if not archive:
+        if len(data) > MAX_SCANNED_BLOB_BYTES:
+            errors.append(f"{display}: file exceeds deterministic secret-scan limit")
+        return errors
+    if len(data) > MAX_ARCHIVE_BYTES:
+        return errors + [f"{display}: archive exceeds deterministic secret-scan limit"]
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            members = z.infolist()
+            if len(members) > MAX_ARCHIVE_MEMBERS:
+                raise ValueError("too many archive members")
+            if sum(m.file_size for m in members) > MAX_ARCHIVE_EXPANDED_BYTES:
+                raise ValueError("archive expanded size exceeds limit")
+            compressed_payloads = _zip_payloads(data, members)
+            names: set[str] = set()
+            total = 0
+            for member in members:
+                original = member.orig_filename
+                normalized = member.filename.rstrip("/")
+                if (
+                    not normalized or original != member.filename
+                    or normalized.startswith("/") or "\\" in normalized
+                    or any(part in ("", ".", "..") for part in normalized.split("/"))
+                    or re.match(r"^[A-Za-z]:", normalized)
+                    or normalized in names
+                ):
+                    raise ValueError("unsafe or duplicate archive member name")
+                names.add(normalized)
+                mode = member.external_attr >> 16
+                kind = stat.S_IFMT(mode)
+                if kind not in (0, stat.S_IFREG, stat.S_IFDIR):
+                    raise ValueError("nonregular archive member")
+                if member.flag_bits & 1:
+                    raise ValueError("encrypted archive member")
+                if member.file_size > MAX_ARCHIVE_MEMBER_BYTES:
+                    raise ValueError("archive member exceeds expanded size limit")
+                if member.is_dir():
+                    if member.file_size:
+                        raise ValueError("archive directory has content")
+                if kind == stat.S_IFDIR and not member.is_dir():
+                    raise ValueError("ambiguous archive member type")
+                with z.open(member) as source:
+                    payload = source.read(MAX_ARCHIVE_MEMBER_BYTES + 1)
+                    if len(payload) > MAX_ARCHIVE_MEMBER_BYTES:
+                        raise ValueError("actual archive member size exceeds limit")
+                    if source.read(1):
+                        raise ValueError("actual archive member size exceeds limit")
+                if len(payload) != member.file_size:
+                    raise ValueError("archive member size mismatch")
+                if member.compress_type == zipfile.ZIP_STORED:
+                    if (member.compress_size != member.file_size
+                            or compressed_payloads[member.filename] != payload):
+                        raise ValueError("incomplete or overlaid stored payload")
+                if member.compress_type == zipfile.ZIP_DEFLATED:
+                    decoder = zlib.decompressobj(-15)
+                    checked = decoder.decompress(compressed_payloads[member.filename], MAX_ARCHIVE_MEMBER_BYTES + 1)
+                    if (not decoder.eof or decoder.unused_data or decoder.unconsumed_tail
+                            or checked != payload):
+                        raise ValueError("incomplete or overlaid deflate stream")
+                total += len(payload)
+                if total > MAX_ARCHIVE_EXPANDED_BYTES:
+                    raise ValueError("actual archive expanded size exceeds limit")
+                nested = (
+                    normalized.lower().endswith((".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar"))
+                    or payload.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08",
+                                           b"\x1f\x8b", b"BZh", b"\xfd7zXZ\x00", b"7z\xbc\xaf\x27\x1c", b"Rar!"))
+                    or payload[257:262] == b"ustar"
+                    or zipfile.is_zipfile(io.BytesIO(payload))
+                )
+                if nested:
+                    raise ValueError("nested archive is not permitted")
+                label = matching_secret(payload)
+                if label is not None:
+                    # Never echo secret values into CI logs.
+                    errors.append(f"{display}: archive member contains possible {label}")
+    except (OSError, ValueError, RuntimeError, NotImplementedError,
+            zipfile.BadZipFile, zlib.error, struct.error, EOFError) as error:
+        errors.append(f"{display}: archive inspection failed ({type(error).__name__}); malformed, unsupported, ambiguous, or over-limit ZIP")
+    return errors
+
+
 def reachable_message_errors() -> list[str]:
     """Scan every reachable commit and directly referenced annotated tag."""
 
@@ -557,7 +711,7 @@ def secret_errors() -> list[str]:
             continue
         path = ROOT / relative
         try:
-            if path.stat().st_size > MAX_SCANNED_BLOB_BYTES:
+            if path.stat().st_size > MAX_ARCHIVE_BYTES:
                 errors.append(
                     f"{relative}: file exceeds deterministic secret-scan limit"
                 )
@@ -566,9 +720,7 @@ def secret_errors() -> list[str]:
         except OSError as error:
             errors.append(f"cannot scan {relative}: {error}")
             continue
-        label = matching_secret(data)
-        if label is not None:
-            errors.append(f"{relative}: possible {label}")
+        errors.extend(scanned_content_errors(data, relative, relative))
 
     objects = (
         run(
@@ -610,7 +762,7 @@ def secret_errors() -> list[str]:
             continue
         try:
             size = int(run("git", "cat-file", "-s", object_id))
-            if size > MAX_SCANNED_BLOB_BYTES:
+            if size > MAX_ARCHIVE_BYTES:
                 errors.append(
                     f"reachable Git object {object_id} ({path}) exceeds "
                     "deterministic secret-scan limit"
@@ -629,11 +781,9 @@ def secret_errors() -> list[str]:
                 "invalid object size"
             )
             continue
-        label = matching_secret(data)
-        if label is not None:
-            errors.append(
-                f"reachable Git object {object_id} ({path}): possible {label}"
-            )
+        errors.extend(scanned_content_errors(
+            data, f"reachable Git object {object_id} ({path})", path
+        ))
     errors.extend(reachable_message_errors())
     return errors
 

@@ -106,6 +106,7 @@ if [ "$#" -eq 0 ]; then
         Tests.test_portfolio_tag_ci \
         Tests.test_real_llm \
         Tests.test_security_supply_chain \
+        Tests.test_secret_archives \
         Tests.test_maintained_dependencies \
         Tests.test_maintained_offline \
         Tests.test_macos_runtime_install \
