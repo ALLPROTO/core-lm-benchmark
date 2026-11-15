@@ -1,0 +1,317 @@
+[
+  {
+    "cell": "qwen05-L2048",
+    "operators": [
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_scaled_dot_product_flash_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_flash_attention_forward",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_scaled_dot_product_efficient_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_efficient_attention_forward",
+        "count": 24
+      }
+    ]
+  },
+  {
+    "cell": "qwen05-L4096",
+    "operators": [
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_scaled_dot_product_flash_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_flash_attention_forward",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_scaled_dot_product_efficient_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_efficient_attention_forward",
+        "count": 24
+      }
+    ]
+  },
+  {
+    "cell": "qwen05-L512",
+    "operators": [
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_scaled_dot_product_flash_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_flash_attention_forward",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_scaled_dot_product_efficient_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_efficient_attention_forward",
+        "count": 24
+      }
+    ]
+  },
+  {
+    "cell": "qwen15-L2048",
+    "operators": [
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_scaled_dot_product_flash_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_flash_attention_forward",
+        "count": 28
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_scaled_dot_product_efficient_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_efficient_attention_forward",
+        "count": 28
+      }
+    ]
+  },
+  {
+    "cell": "qwen15-L4096",
+    "operators": [
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_scaled_dot_product_flash_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_flash_attention_forward",
+        "count": 28
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_scaled_dot_product_efficient_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_efficient_attention_forward",
+        "count": 28
+      }
+    ]
+  },
+  {
+    "cell": "qwen15-L512",
+    "operators": [
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_scaled_dot_product_flash_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_flash_attention_forward",
+        "count": 28
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_scaled_dot_product_efficient_attention",
+        "count": 28
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_efficient_attention_forward",
+        "count": 28
+      }
+    ]
+  },
+  {
+    "cell": "smol17-L2048",
+    "operators": [
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_scaled_dot_product_flash_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_flash_attention_forward",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_scaled_dot_product_efficient_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_efficient_attention_forward",
+        "count": 24
+      }
+    ]
+  },
+  {
+    "cell": "smol17-L4096",
+    "operators": [
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_scaled_dot_product_flash_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_flash_attention_forward",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_scaled_dot_product_efficient_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_efficient_attention_forward",
+        "count": 24
+      }
+    ]
+  },
+  {
+    "cell": "smol17-L512",
+    "operators": [
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_scaled_dot_product_flash_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_prefill",
+        "operator": "aten::_flash_attention_forward",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::scaled_dot_product_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_scaled_dot_product_efficient_attention",
+        "count": 24
+      },
+      {
+        "phase": "registered_continuation",
+        "operator": "aten::_efficient_attention_forward",
+        "count": 24
+      }
+    ]
+  }
+]
