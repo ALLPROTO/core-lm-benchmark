@@ -1,0 +1,38 @@
+{
+  "classification": "PUBLIC_VALIDATION_CPU_REGRESSION_ONLY_NOT_GPU_EVIDENCE",
+  "model_revision": "060db6499f32faf8b98477b0a26969ef7d8b9987",
+  "tokens_sha256": "533dfbdf0293db6f3f51a0fec1c933fc1e18bcbfdacba64e4dd24297cf9aa613",
+  "torch": "2.13.0+cpu",
+  "model": "qwen05",
+  "length": 512,
+  "stock_sdpa_vs_mlp": {
+    "byte_exact": true,
+    "max_abs": 0.0,
+    "shape": [
+      1,
+      128,
+      151936
+    ]
+  },
+  "stock_sdpa_vs_mlp_norm": {
+    "byte_exact": true,
+    "max_abs": 0.0,
+    "shape": [
+      1,
+      128,
+      151936
+    ]
+  },
+  "mlp_calls": {
+    "calls": 96,
+    "layers": 24,
+    "source_sha256": "03df2d7685cf8446594448cbd33ef676a2b088779d99d9803abe3bed2ec7ad9b",
+    "candidate": "sdpa_inplace_mlp",
+    "attention_changed": false
+  },
+  "norm_calls": {
+    "calls": 98,
+    "modules": 49,
+    "source_sha256": "790fa612e4fa57acfcbea31da45f92ba91f9016f7260ef539f61c5530ba06a5f"
+  }
+}
