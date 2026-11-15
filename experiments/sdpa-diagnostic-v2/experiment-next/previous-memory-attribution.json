@@ -1,0 +1,23 @@
+[
+  {
+    "model": "qwen05",
+    "weights": 988065792,
+    "cache": 50319360,
+    "peak_allocated": 1224387072,
+    "peak_reserved": 1314914304
+  },
+  {
+    "model": "qwen15",
+    "weights": 3087429120,
+    "cache": 117411840,
+    "peak_allocated": 3503912448,
+    "peak_reserved": 3755999232
+  },
+  {
+    "model": "smol17",
+    "weights": 3422753024,
+    "cache": 805109760,
+    "peak_allocated": 4500697088,
+    "peak_reserved": 4733272064
+  }
+]
